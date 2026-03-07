@@ -223,7 +223,7 @@ export const Breadcrumbs = () => {
               <React.Fragment key={crumb.href + index}>
                 {index > 0 && (
                   <span
-                    className="text-white/20 text-[10px] mx-1 select-none flex-shrink-0"
+                    className="text-white/50 text-[10px] mx-1 select-none flex-shrink-0"
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >
                     /
@@ -234,7 +234,7 @@ export const Breadcrumbs = () => {
                     className={cn(
                       "flex items-center gap-1.5 whitespace-nowrap flex-shrink-0",
                       "text-[10px] sm:text-[11px] uppercase tracking-[0.12em]",
-                      "text-white/50"
+                      "text-white/90"
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >
@@ -247,7 +247,7 @@ export const Breadcrumbs = () => {
                     className={cn(
                       "flex items-center gap-1.5 whitespace-nowrap flex-shrink-0",
                       "text-[10px] sm:text-[11px] uppercase tracking-[0.12em]",
-                      "text-white/40 hover:text-white/70",
+                      "text-white/70 hover:text-white",
                       "transition-colors duration-200"
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
