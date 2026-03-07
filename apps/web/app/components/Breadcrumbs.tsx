@@ -247,7 +247,7 @@ export const Breadcrumbs = () => {
                     className={cn(
                       "flex items-center gap-1.5 whitespace-nowrap flex-shrink-0",
                       "text-[10px] sm:text-[11px] uppercase tracking-[0.12em]",
-                      "text-white/70 hover:text-white",
+                      "text-white/80 hover:text-white",
                       "transition-colors duration-200"
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
