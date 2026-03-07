@@ -730,6 +730,10 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
             router.push("/play");
           }
         }}
+        onFindGameClick={tournamentRef ? () => {
+          setShowGameEndOverlay(false);
+          router.push(`/tournament/${tournamentRef}`);
+        } : undefined}
         onDismiss={() => setShowGameEndOverlay(false)}
         analysisLabel={positionInfo?.openingName ? "Review" : "Compare"}
       />

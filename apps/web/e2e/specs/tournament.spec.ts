@@ -286,8 +286,9 @@ test.describe("Tournament", () => {
       const leaderboard = playerJ.page.locator('[data-testid="leaderboard"]');
       await expect(leaderboard).toBeVisible({ timeout: 15_000 });
 
+      // 4 participants in the main leaderboard + 1 "Your Rank" card for the viewing player
       const rows = leaderboard.locator('[data-testid="leaderboard-row"]').filter({ visible: true });
-      await expect(rows).toHaveCount(4, { timeout: 15_000 });
+      await expect(rows).toHaveCount(5, { timeout: 15_000 });
     } finally {
       // ── PHASE 8: CLEANUP — delete tournament and all associated games ──
       console.log(`\n── Cleaning up tournament ${tournamentRefId} ──`);

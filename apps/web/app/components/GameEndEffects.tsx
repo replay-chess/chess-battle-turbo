@@ -338,6 +338,7 @@ interface GameEndOverlayProps {
   result: "victory" | "defeat" | "draw";
   onAnalysisClick: () => void;
   onBackClick?: () => void;
+  onFindGameClick?: () => void;
   onDismiss: () => void;
   analysisLabel?: string;
 }
@@ -347,6 +348,7 @@ export const GameEndOverlay = ({
   result,
   onAnalysisClick,
   onBackClick,
+  onFindGameClick,
   onDismiss,
   analysisLabel = "Compare",
 }: GameEndOverlayProps) => {
@@ -354,11 +356,7 @@ export const GameEndOverlay = ({
 
   useEffect(() => {
     if (isActive) {
-      // Show button after animation delay (2.5 seconds)
-      const timer = setTimeout(() => {
-        setShowButton(true);
-      }, 2500);
-      return () => clearTimeout(timer);
+      setShowButton(true);
     } else {
       setShowButton(false);
     }
@@ -434,19 +432,34 @@ export const GameEndOverlay = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.3 }}
-              className="flex items-center gap-3"
+              className="flex flex-col items-center gap-3"
             >
-              <button
-                onClick={onAnalysisClick}
-                className="group relative px-8 py-3 bg-white text-black hover:bg-white/90 transition-all duration-300"
-              >
-                <span
-                  className="text-sm uppercase tracking-[0.2em]"
-                  style={{ fontFamily: "'Geist', sans-serif" }}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={onAnalysisClick}
+                  className="group relative px-8 py-3 bg-white text-black hover:bg-white/90 transition-all duration-300"
                 >
-                  {analysisLabel}
-                </span>
-              </button>
+                  <span
+                    className="text-sm uppercase tracking-[0.2em]"
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                  >
+                    {analysisLabel}
+                  </span>
+                </button>
+                {onFindGameClick && (
+                  <button
+                    onClick={onFindGameClick}
+                    className="group relative px-8 py-3 border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 hover:border-amber-500/70 transition-all duration-300"
+                  >
+                    <span
+                      className="text-sm uppercase tracking-[0.2em] text-amber-200/90 group-hover:text-amber-100"
+                      style={{ fontFamily: "'Geist', sans-serif" }}
+                    >
+                      Find Game
+                    </span>
+                  </button>
+                )}
+              </div>
               <button
                 onClick={onBackClick || onDismiss}
                 className="group relative px-8 py-3 border border-white/30 bg-white/5 hover:bg-white/10 hover:border-white/50 transition-all duration-300"
