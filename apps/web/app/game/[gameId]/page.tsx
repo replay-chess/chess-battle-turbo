@@ -458,9 +458,21 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
     });
 
     socketRef.current.on("game_over", (payload: GameOverPayload) => {
-      // If game ended during analysis phase, go straight back to /play (not for spectators)
+      // If game ended during analysis phase, go straight back (not for spectators)
       if (!gameStartedRef.current && !isSpectatorRef.current) {
-        router.push("/play");
+        fetch(`/api/chess/game-by-ref/${gameId}`)
+          .then((r) => r.json())
+          .then((data) => {
+            const gd = data?.data?.gameData;
+            if (gd?.gameMode === "tournament" && gd?.tournamentReferenceId) {
+              router.push(`/tournament/${gd.tournamentReferenceId}`);
+            } else {
+              router.push("/play");
+            }
+          })
+          .catch(() => {
+            router.push("/play");
+          });
         return;
       }
 
