@@ -335,7 +335,7 @@ export const GameResultBanner = ({ gameEndState }: GameResultBannerProps) => {
 // Game End Overlay with Analysis Button (for analysis page)
 interface GameEndOverlayProps {
   isActive: boolean;
-  result: "victory" | "defeat" | "draw";
+  result: "victory" | "defeat" | "draw" | "white_wins" | "black_wins";
   onAnalysisClick: () => void;
   onBackClick?: () => void;
   onFindGameClick?: () => void;
@@ -370,6 +370,10 @@ export const GameEndOverlay = ({
         return "Defeat";
       case "draw":
         return "Draw";
+      case "white_wins":
+        return "White Wins";
+      case "black_wins":
+        return "Black Wins";
       default:
         return "Game Over";
     }
@@ -378,6 +382,8 @@ export const GameEndOverlay = ({
   const getResultColor = () => {
     switch (result) {
       case "victory":
+      case "white_wins":
+      case "black_wins":
         return "text-white";
       case "defeat":
         return "text-white/60";
@@ -449,10 +455,10 @@ export const GameEndOverlay = ({
                 {onFindGameClick && (
                   <button
                     onClick={onFindGameClick}
-                    className="group relative px-8 py-3 border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 hover:border-amber-500/70 transition-all duration-300"
+                    className="group relative px-8 py-3 bg-white text-black hover:bg-white/90 transition-all duration-300"
                   >
                     <span
-                      className="text-sm uppercase tracking-[0.2em] text-amber-200/90 group-hover:text-amber-100"
+                      className="text-sm uppercase tracking-[0.2em]"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
                       Find Game

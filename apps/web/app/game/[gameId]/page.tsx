@@ -711,7 +711,11 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
         isActive={showGameEndOverlay}
         result={
           isSpectator
-            ? "draw"
+            ? gameResult?.includes("White Wins")
+              ? "white_wins"
+              : gameResult?.includes("Black Wins")
+              ? "black_wins"
+              : "draw"
             : gameResult?.includes("Victory")
             ? "victory"
             : gameResult?.includes("Draw")
