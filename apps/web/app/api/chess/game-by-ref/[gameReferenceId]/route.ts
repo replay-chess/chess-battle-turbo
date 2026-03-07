@@ -13,10 +13,10 @@ export async function GET(
 
     if (!gameReferenceId) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: "Game reference ID is required" 
-        }, 
+        {
+          success: false,
+          error: "Game reference ID is required"
+        },
         { status: 400 }
       );
     }
@@ -25,9 +25,6 @@ export async function GET(
       where: { referenceId: gameReferenceId },
       select: {
         referenceId: true,
-        stakeAmount: true,
-        totalPot: true,
-        platformFeeAmount: true,
         chessPositionId: true,
         startingFen: true,
         status: true,
@@ -57,10 +54,10 @@ export async function GET(
 
     if (!game) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: "Game not found" 
-        }, 
+        {
+          success: false,
+          error: "Game not found"
+        },
         { status: 404 }
       );
     }
@@ -72,9 +69,6 @@ export async function GET(
         referenceId: game.referenceId,
         creatorId: game.creator.referenceId,
         opponentId: game.opponent?.referenceId ?? null,
-        stakeAmount: game.stakeAmount.toString(),
-        totalPot: game.totalPot.toString(),
-        platformFeeAmount: game.platformFeeAmount.toString(),
         chessPositionId: game.chessPositionId?.toString() ?? null,
         startingFen: game.startingFen,
         initialTimeSeconds: game.initialTimeSeconds,
@@ -104,12 +98,11 @@ export async function GET(
   } catch (error) {
     logger.error(`GET /api/chess/game-by-ref failed: ${error instanceof Error ? error.message : "Unknown error"}`, error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: "Internal server error" 
-      }, 
+      {
+        success: false,
+        error: "Internal server error"
+      },
       { status: 500 }
     );
   }
 }
-

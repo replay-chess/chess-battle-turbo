@@ -4,7 +4,6 @@
 
 export type {
   User,
-  UserWallet,
   UserStats,
   CompleteUserObject,
   UserApiResponse,

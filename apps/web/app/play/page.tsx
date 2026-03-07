@@ -210,7 +210,6 @@ function PlayContent() {
     else {
       const gameData = {
         userReferenceId: userReferenceId,
-        stakeAmount: 0,
         initialTimeSeconds: timeControl.time,
         incrementSeconds: timeControl.increment,
         gameMode: selectedMode,

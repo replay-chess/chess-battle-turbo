@@ -1,19 +1,17 @@
 import {NextRequest, NextResponse} from "next/server";
-import {Decimal} from "@prisma/client/runtime/library";
 import {z} from "zod";
 import * as Sentry from "@sentry/nextjs";
 import {prisma} from "@/lib/prisma";
 import {getRandomChessPosition, getRandomPositionByLegend, incrementPositionPlayCount} from "@/lib/services/chess-position.service";
 import { getOpeningByReferenceId, getOpeningPlayerColor } from "@/lib/services/opening.service";
 import { ValidationError } from "@/lib/errors/validation-error";
-import { validateAndFetchUser, validateSufficientBalance } from "@/lib/services/user-validation.service";
+import { validateAndFetchUser } from "@/lib/services/user-validation.service";
 import { captureGameTraceData } from "@/lib/sentry/game-trace";
 import { logger } from "@/lib/logger";
 import { trackUserAction } from "@/lib/metrics";
 
 const createGameSchema = z.object({
   userReferenceId: z.string().min(1, "User reference ID is required"),
-  stakeAmount: z.number().min(0, "Stake amount must be 0 or greater"),
   initialTimeSeconds: z.number().int().positive("Initial time must be greater than 0"),
   incrementSeconds: z.number().int().min(0, "Increment seconds must be 0 or greater"),
   gameMode: z.enum(["quick", "friend", "ai"]),
@@ -22,95 +20,8 @@ const createGameSchema = z.object({
   selectedOpening: z.string().nullable().optional(),
 });
 
-type CreateGameRequest = z.infer<typeof createGameSchema>;
-
-function calculateGameAmounts(stakeAmount: number) {
-  const stakeAmountDecimal = new Decimal(stakeAmount);
-  const totalPot = stakeAmountDecimal.mul(2);
-  const platformFeePercentage = new Decimal(10);
-  const platformFeeAmount = totalPot.mul(platformFeePercentage).div(100);
-
-  return {
-    stakeAmountDecimal,
-    totalPot,
-    platformFeePercentage,
-    platformFeeAmount,
-  };
-}
-
 function calculateExpirationTime(hoursFromNow: number = 1): Date {
   return new Date(Date.now() + hoursFromNow * 60 * 60 * 1000);
-}
-
-async function createGameTransaction(
-  userId: bigint,
-  userName: string,
-  walletBalance: Decimal,
-  walletLockedAmount: Decimal,
-  request: CreateGameRequest,
-  chessPositionId: bigint | null,
-  startingFen: string,
-  positionInfo: { whitePlayerName: string | null; blackPlayerName: string | null; tournamentName: string | null; whitePlayerImageUrl: string | null; blackPlayerImageUrl: string | null; openingName?: string | null; openingEco?: string | null } | null,
-  extraGameData?: Record<string, unknown>,
-) {
-  const amounts = calculateGameAmounts(request.stakeAmount);
-  const expiresAt = calculateExpirationTime(1);
-
-  return prisma.$transaction(async (tx) => {
-    // Create game
-    const game = await tx.game.create({
-      data: {
-        creatorId: userId,
-        stakeAmount: amounts.stakeAmountDecimal,
-        totalPot: amounts.totalPot,
-        platformFeePercentage: amounts.platformFeePercentage,
-        platformFeeAmount: amounts.platformFeeAmount,
-        chessPositionId,
-        startingFen,
-        initialTimeSeconds: request.initialTimeSeconds,
-        incrementSeconds: request.incrementSeconds,
-        creatorTimeRemaining: request.initialTimeSeconds,
-        opponentTimeRemaining: request.initialTimeSeconds,
-        expiresAt,
-        status: "WAITING_FOR_OPPONENT",
-        gameData: {
-          gameMode: request.gameMode,
-          playAsLegend: request.playAsLegend,
-          selectedLegend: request.selectedLegend,
-          positionInfo: positionInfo,
-          ...extraGameData,
-        },
-      },
-    });
-
-    // Calculate new locked amount and balance after
-    const newLockedAmount = walletLockedAmount.add(amounts.stakeAmountDecimal);
-    const availableBalance = walletBalance.sub(walletLockedAmount);
-    const balanceAfter = availableBalance.sub(amounts.stakeAmountDecimal);
-
-    // Create transaction record
-    const transaction = await tx.transaction.create({
-      data: {
-        userId,
-        gameId: game.id,
-        type: "GAME_STAKE",
-        amount: amounts.stakeAmountDecimal,
-        balanceAfter,
-        status: "COMPLETED",
-        description: `Game stake of ${request.stakeAmount} by user ${userName} for game ${game.referenceId}`,
-      },
-    });
-
-    // Update wallet - lock the stake amount
-    const updatedWallet = await tx.wallet.update({
-      where: {userId},
-      data: {
-        lockedAmount: newLockedAmount,
-      },
-    });
-
-    return {game, transaction, wallet: updatedWallet};
-  });
 }
 
 export async function POST(request: NextRequest) {
@@ -119,13 +30,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createGameSchema.parse(body);
 
-    // 2. Validate user and fetch with wallet
+    // 2. Validate user exists and is active
     const user = await validateAndFetchUser(validatedData.userReferenceId);
 
-    // 3. Calculate amounts
-    const amounts = calculateGameAmounts(validatedData.stakeAmount);
-
-    // 4. Fetch chess position, opening, or legend position
+    // 3. Fetch chess position, opening, or legend position
     const DEFAULT_STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     let chessPosition;
     let legendPosition: Awaited<ReturnType<typeof getRandomPositionByLegend>> = null;
@@ -147,7 +55,7 @@ export async function POST(request: NextRequest) {
     const chessPositionId = opening ? null : (chessPosition?.id ?? null);
     const startingFen = opening ? opening.fen : (chessPosition?.fen ?? DEFAULT_STARTING_FEN);
 
-    // 5. Build position info for display
+    // 4. Build position info for display
     let positionInfo;
     if (opening) {
       positionInfo = {
@@ -171,10 +79,10 @@ export async function POST(request: NextRequest) {
       positionInfo = null;
     }
 
-    // 5b. Capture Sentry trace context for distributed tracing
+    // 5. Capture Sentry trace context for distributed tracing
     const traceData = captureGameTraceData();
 
-    // 5c. Determine creator color and build extra game data
+    // 5b. Determine creator color and build extra game data
     const extraGameData: Record<string, unknown> = {};
     if (traceData) {
       extraGameData.traceContext = traceData;
@@ -197,18 +105,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 6. Execute transaction
-    const result = await createGameTransaction(
-      user.id,
-      user.name,
-      new Decimal(user.wallet!.balance),
-      new Decimal(user.wallet!.lockedAmount),
-      validatedData,
-      chessPositionId,
-      startingFen,
-      positionInfo,
-      extraGameData,
-    );
+    // 6. Create the game
+    const expiresAt = calculateExpirationTime(1);
+    const game = await prisma.game.create({
+      data: {
+        creatorId: user.id,
+        chessPositionId,
+        startingFen,
+        initialTimeSeconds: validatedData.initialTimeSeconds,
+        incrementSeconds: validatedData.incrementSeconds,
+        creatorTimeRemaining: validatedData.initialTimeSeconds,
+        opponentTimeRemaining: validatedData.initialTimeSeconds,
+        expiresAt,
+        status: "WAITING_FOR_OPPONENT",
+        gameData: {
+          gameMode: validatedData.gameMode,
+          playAsLegend: validatedData.playAsLegend,
+          selectedLegend: validatedData.selectedLegend,
+          positionInfo: positionInfo,
+          ...extraGameData,
+        },
+      },
+    });
 
     // 7. Increment position play count if a position was used
     if (chessPositionId) {
@@ -216,7 +134,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Tag for Sentry filtering
-    Sentry.setTag("game.referenceId", result.game.referenceId);
+    Sentry.setTag("game.referenceId", game.referenceId);
     trackUserAction("create_game");
 
     // 9. Return success response
@@ -226,24 +144,14 @@ export async function POST(request: NextRequest) {
         message: "Game created successfully",
         data: {
           game: {
-            referenceId: result.game.referenceId,
-            stakeAmount: result.game.stakeAmount.toString(),
-            totalPot: result.game.totalPot.toString(),
-            platformFeeAmount: result.game.platformFeeAmount.toString(),
-            startingFen: result.game.startingFen,
-            chessPositionId: result.game.chessPositionId?.toString() ?? null,
-            initialTimeSeconds: result.game.initialTimeSeconds,
-            incrementSeconds: result.game.incrementSeconds,
-            status: result.game.status,
-            expiresAt: result.game.expiresAt,
-            createdAt: result.game.createdAt,
-          },
-          wallet: {
-            balance: result.wallet.balance.toString(),
-            lockedAmount: result.wallet.lockedAmount.toString(),
-            availableBalance: new Decimal(result.wallet.balance)
-              .sub(new Decimal(result.wallet.lockedAmount))
-              .toString(),
+            referenceId: game.referenceId,
+            startingFen: game.startingFen,
+            chessPositionId: game.chessPositionId?.toString() ?? null,
+            initialTimeSeconds: game.initialTimeSeconds,
+            incrementSeconds: game.incrementSeconds,
+            status: game.status,
+            expiresAt: game.expiresAt,
+            createdAt: game.createdAt,
           },
         },
       },

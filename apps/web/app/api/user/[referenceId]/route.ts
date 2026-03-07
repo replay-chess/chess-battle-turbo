@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "../../../../lib/prisma";
 import { ValidationError } from "@/lib/errors/validation-error";
 import { logger } from "@/lib/logger";
@@ -16,11 +15,10 @@ export async function GET(
       throw new ValidationError("User reference ID is required", 400);
     }
 
-    // 2. Fetch user with wallet and stats
+    // 2. Fetch user with stats
     const user = await prisma.user.findUnique({
       where: { referenceId },
       include: {
-        wallet: true,
         stats: true,
       },
     });
@@ -35,17 +33,12 @@ export async function GET(
       throw new ValidationError("User account is not active", 400);
     }
 
-    // 5. Calculate available balance
-    const balance = user.wallet ? new Decimal(user.wallet.balance) : new Decimal(0);
-    const lockedAmount = user.wallet ? new Decimal(user.wallet.lockedAmount) : new Decimal(0);
-    const availableBalance = balance.sub(lockedAmount);
-
-    // 6. Calculate win rate if stats exist
+    // 5. Calculate win rate if stats exist
     const winRate = user.stats && user.stats.totalGamesPlayed > 0
       ? ((user.stats.gamesWon / user.stats.totalGamesPlayed) * 100).toFixed(2)
       : "0.00";
 
-    // 7. Return user details
+    // 6. Return user details
     return NextResponse.json(
       {
         success: true,
@@ -60,15 +53,6 @@ export async function GET(
             isActive: user.isActive,
             createdAt: user.createdAt,
           },
-          wallet: user.wallet
-            ? {
-                referenceId: user.wallet.referenceId,
-                balance: user.wallet.balance.toString(),
-                lockedAmount: user.wallet.lockedAmount.toString(),
-                availableBalance: availableBalance.toString(),
-                updatedAt: user.wallet.updatedAt,
-              }
-            : null,
           stats: user.stats
             ? {
                 referenceId: user.stats.referenceId,
@@ -77,9 +61,6 @@ export async function GET(
                 gamesLost: user.stats.gamesLost,
                 gamesDrawn: user.stats.gamesDrawn,
                 winRate: `${winRate}%`,
-                totalMoneyWon: user.stats.totalMoneyWon.toString(),
-                totalMoneyLost: user.stats.totalMoneyLost.toString(),
-                netProfit: user.stats.netProfit.toString(),
                 currentWinStreak: user.stats.currentWinStreak,
                 longestWinStreak: user.stats.longestWinStreak,
                 averageGameDuration: user.stats.averageGameDuration,
@@ -113,4 +94,3 @@ export async function GET(
     );
   }
 }
-

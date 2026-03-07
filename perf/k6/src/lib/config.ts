@@ -9,7 +9,6 @@ export const CONFIG = {
   // Game settings
   INITIAL_TIME_SECONDS: 60,
   INCREMENT_SECONDS: 0,
-  STAKE_AMOUNT: 0,
   GAME_MODE: 'friend' as const,
   MIN_MOVES: 10,
 

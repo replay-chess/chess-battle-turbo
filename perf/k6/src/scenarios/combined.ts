@@ -80,7 +80,6 @@ export function directGame() {
     apiUrl('/api/chess/create-game'),
     JSON.stringify({
       userReferenceId: playerA.referenceId,
-      stakeAmount: CONFIG.STAKE_AMOUNT,
       initialTimeSeconds: CONFIG.INITIAL_TIME_SECONDS,
       incrementSeconds: CONFIG.INCREMENT_SECONDS,
       gameMode: CONFIG.GAME_MODE,

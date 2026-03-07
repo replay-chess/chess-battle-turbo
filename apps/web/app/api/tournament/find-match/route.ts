@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { resolveUser } from "@/lib/auth/resolve-user";
@@ -147,10 +146,6 @@ export async function POST(request: NextRequest) {
           data: {
             creatorId: whiteUserId,
             opponentId: blackUserId,
-            stakeAmount: new Decimal(0),
-            totalPot: new Decimal(0),
-            platformFeePercentage: new Decimal(0),
-            platformFeeAmount: new Decimal(0),
             chessPositionId: positionData.chessPositionId,
             startingFen: positionData.fen,
             initialTimeSeconds: tournament.initialTimeSeconds,

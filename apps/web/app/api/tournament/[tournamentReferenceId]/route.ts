@@ -140,13 +140,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
     }
 
-    // Delete in order: transactions → games → tournament (participants cascade)
+    // Delete in order: games → tournament (participants cascade)
     await prisma.$transaction(async (tx) => {
-      // Delete transactions linked to tournament games
-      await tx.transaction.deleteMany({
-        where: { game: { tournamentId: tournament.id } },
-      });
-
       // Delete all games in the tournament
       await tx.game.deleteMany({
         where: { tournamentId: tournament.id },

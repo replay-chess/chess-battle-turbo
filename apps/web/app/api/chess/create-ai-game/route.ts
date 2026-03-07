@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Decimal } from "@prisma/client/runtime/library";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getRandomChessPosition, getRandomPositionByLegend, incrementPositionPlayCount } from "@/lib/services/chess-position.service";
@@ -117,22 +116,12 @@ async function getOrCreateBotUser() {
       profilePictureUrl: null,
       isActive: true,
       onboarded: true,
-      wallet: {
-        create: {
-          balance: 0,
-          lockedAmount: 0,
-        },
-      },
       stats: {
         create: {
           totalGamesPlayed: 0,
           gamesWon: 0,
           gamesLost: 0,
           gamesDrawn: 0,
-          totalMoneyWon: 0,
-          totalMoneyLost: 0,
-          totalPlatformFeesPaid: 0,
-          netProfit: 0,
           currentWinStreak: 0,
           longestWinStreak: 0,
         },
@@ -269,10 +258,6 @@ export async function POST(request: NextRequest) {
       data: {
         creatorId,
         opponentId,
-        stakeAmount: new Decimal(0),
-        totalPot: new Decimal(0),
-        platformFeePercentage: new Decimal(0),
-        platformFeeAmount: new Decimal(0),
         chessPositionId,
         startingFen,
         initialTimeSeconds: validatedData.initialTimeSeconds,

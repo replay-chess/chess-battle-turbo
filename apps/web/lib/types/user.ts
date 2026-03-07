@@ -1,11 +1,3 @@
-export interface UserWallet {
-  referenceId: string;
-  balance: string;
-  lockedAmount: string;
-  availableBalance: string;
-  updatedAt: Date | string;
-}
-
 export interface UserStats {
   referenceId: string;
   totalGamesPlayed: number;
@@ -13,9 +5,6 @@ export interface UserStats {
   gamesLost: number;
   gamesDrawn: number;
   winRate: string;
-  totalMoneyWon: string;
-  totalMoneyLost: string;
-  netProfit: string;
   currentWinStreak: number;
   longestWinStreak: number;
   averageGameDuration: number | null;
@@ -35,7 +24,6 @@ export interface User {
 
 export interface CompleteUserObject {
   user: User;
-  wallet: UserWallet | null;
   stats: UserStats | null;
 }
 
@@ -43,4 +31,3 @@ export interface UserApiResponse {
   success: boolean;
   data: CompleteUserObject;
 }
-

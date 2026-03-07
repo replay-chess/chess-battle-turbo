@@ -100,7 +100,7 @@ export async function persistMove(moveData: ApiMoveRequest): Promise<void> {
 }
 
 /**
- * Mark game as completed and handle wallet updates
+ * Mark game as completed
  */
 export async function completeGame(
   gameOverData: ApiGameOverRequest

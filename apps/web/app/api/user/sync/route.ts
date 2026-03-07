@@ -57,11 +57,11 @@ export async function POST(req: NextRequest) {
     const existingUser =
       (await prisma.user.findUnique({
         where: { googleId: userId },
-        include: { wallet: true, stats: true, chessComProfile: true },
+        include: { stats: true, chessComProfile: true },
       })) ??
       (await prisma.user.findUnique({
         where: { email },
-        include: { wallet: true, stats: true, chessComProfile: true },
+        include: { stats: true, chessComProfile: true },
       }));
 
     let user;
@@ -78,13 +78,12 @@ export async function POST(req: NextRequest) {
           googleId: userId,
         },
         include: {
-          wallet: true,
           stats: true,
           chessComProfile: true,
         },
       });
     } else {
-      // Create new user with wallet and stats in a transaction
+      // Create new user with stats in a transaction
       let userCode = generateUserCode();
       let isUnique = false;
 
@@ -115,15 +114,6 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          // Create wallet for user
-          await tx.wallet.create({
-            data: {
-              userId: newUser.id,
-              balance: 0,
-              lockedAmount: 0,
-            },
-          });
-
           // Create stats for user
           await tx.userStats.create({
             data: {
@@ -132,10 +122,6 @@ export async function POST(req: NextRequest) {
               gamesWon: 0,
               gamesLost: 0,
               gamesDrawn: 0,
-              totalMoneyWon: 0,
-              totalMoneyLost: 0,
-              totalPlatformFeesPaid: 0,
-              netProfit: 0,
               currentWinStreak: 0,
               longestWinStreak: 0,
             },
@@ -145,7 +131,6 @@ export async function POST(req: NextRequest) {
           return await tx.user.findUnique({
             where: { id: newUser.id },
             include: {
-              wallet: true,
               stats: true,
               chessComProfile: true,
             },
@@ -157,7 +142,6 @@ export async function POST(req: NextRequest) {
           user = await prisma.user.findUnique({
             where: { googleId: userId },
             include: {
-              wallet: true,
               stats: true,
               chessComProfile: true,
             },
@@ -177,22 +161,12 @@ export async function POST(req: NextRequest) {
       email: user?.email,
       name: user?.name,
       profilePictureUrl: user?.profilePictureUrl,
-      wallet: user?.wallet ? {
-        referenceId: user.wallet.referenceId,
-        balance: user.wallet.balance.toString(),
-        lockedAmount: user.wallet.lockedAmount.toString(),
-        updatedAt: user.wallet.updatedAt.toISOString(),
-      } : null,
       stats: user?.stats ? {
         referenceId: user.stats.referenceId,
         totalGamesPlayed: user.stats.totalGamesPlayed,
         gamesWon: user.stats.gamesWon,
         gamesLost: user.stats.gamesLost,
         gamesDrawn: user.stats.gamesDrawn,
-        totalMoneyWon: user.stats.totalMoneyWon.toString(),
-        totalMoneyLost: user.stats.totalMoneyLost.toString(),
-        totalPlatformFeesPaid: user.stats.totalPlatformFeesPaid.toString(),
-        netProfit: user.stats.netProfit.toString(),
         currentWinStreak: user.stats.currentWinStreak,
         longestWinStreak: user.stats.longestWinStreak,
         averageGameDuration: user.stats.averageGameDuration,

@@ -33,9 +33,7 @@ model User {
   gamesAsCreator       Game[]             @relation("CreatorGames")
   gamesAsOpponent      Game[]             @relation("OpponentGames")
   gamesWon             Game[]             @relation("WinnerGames")
-  transactions         Transaction[]
   stats                UserStats?
-  wallet               Wallet?
   matchmakingRequests  MatchmakingQueue[]
   tournamentsCreated          Tournament[]              @relation("TournamentCreator")
   tournamentParticipations    TournamentParticipant[]
@@ -48,52 +46,11 @@ model User {
   @@map("users")
 }
 
-model Wallet {
-  id           BigInt   @id @default(autoincrement())
-  referenceId  String   @unique @default(cuid())
-  userId       BigInt   @unique
-  balance      Decimal  @default(0) @db.Decimal(19, 2)
-  lockedAmount Decimal  @default(0) @db.Decimal(19, 2)
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([referenceId])
-  @@map("wallets")
-}
-
-model Transaction {
-  id           BigInt            @id @default(autoincrement())
-  referenceId  String            @unique @default(cuid())
-  userId       BigInt
-  gameId       BigInt?
-  type         TransactionType
-  amount       Decimal           @db.Decimal(19, 2)
-  balanceAfter Decimal           @db.Decimal(19, 2)
-  status       TransactionStatus @default(PENDING)
-  metadata     Json?
-  description  String
-  createdAt    DateTime          @default(now())
-  game         Game?             @relation(fields: [gameId], references: [id])
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([gameId])
-  @@index([createdAt])
-  @@index([status])
-  @@index([referenceId])
-  @@map("transactions")
-}
-
 model Game {
   id                    BigInt        @id @default(autoincrement())
   referenceId           String        @unique @default(cuid())
   creatorId             BigInt
   opponentId            BigInt?
-  stakeAmount           Decimal       @db.Decimal(19, 2)
-  totalPot              Decimal       @db.Decimal(19, 2)
-  platformFeePercentage Decimal       @db.Decimal(5, 2)
-  platformFeeAmount     Decimal       @db.Decimal(19, 2)
   status                GameStatus    @default(WAITING_FOR_OPPONENT)
   result                GameResult?
   winnerId              BigInt?
@@ -114,7 +71,6 @@ model Game {
   creator               User          @relation("CreatorGames", fields: [creatorId], references: [id], onDelete: Cascade)
   opponent              User?         @relation("OpponentGames", fields: [opponentId], references: [id], onDelete: Cascade)
   winner                User?         @relation("WinnerGames", fields: [winnerId], references: [id])
-  transactions          Transaction[]
   tournament            Tournament?   @relation("TournamentGames", fields: [tournamentId], references: [id], onDelete: SetNull)
 
   @@index([creatorId])
@@ -136,10 +92,6 @@ model UserStats {
   gamesWon              Int       @default(0)
   gamesLost             Int       @default(0)
   gamesDrawn            Int       @default(0)
-  totalMoneyWon         Decimal   @default(0) @db.Decimal(19, 2)
-  totalMoneyLost        Decimal   @default(0) @db.Decimal(19, 2)
-  totalPlatformFeesPaid Decimal   @default(0) @db.Decimal(19, 2)
-  netProfit             Decimal   @default(0) @db.Decimal(19, 2)
   currentWinStreak      Int       @default(0)
   longestWinStreak      Int       @default(0)
   averageGameDuration   Int?
@@ -317,22 +269,6 @@ model Opening {
   @@unique([eco, name, pgn])
   @@index([isActive])
   @@map("openings")
-}
-
-enum TransactionType {
-  DEPOSIT
-  WITHDRAWAL
-  GAME_STAKE
-  GAME_WIN
-  GAME_DRAW_REFUND
-  PLATFORM_FEE
-  GAME_EXPIRED_REFUND
-}
-
-enum TransactionStatus {
-  PENDING
-  COMPLETED
-  FAILED
 }
 
 enum GameStatus {

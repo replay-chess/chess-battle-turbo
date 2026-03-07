@@ -9,14 +9,11 @@ import { logger } from "@/lib/logger";
 import { useRequireAuth, UseRequireAuthReturn } from "@/lib/hooks";
 import { motion } from "motion/react";
 import { Navbar } from "@/app/components/Navbar";
-import { Swords, Clock, DollarSign, ArrowLeft } from "lucide-react";
+import { Swords, Clock, ArrowLeft } from "lucide-react";
 
 interface GameDetails {
   referenceId: string;
   status: string;
-  stakeAmount: string;
-  totalPot: string;
-  platformFeeAmount: string;
   initialTimeSeconds: number;
   incrementSeconds: number;
   creator: {
@@ -257,37 +254,13 @@ export default function JoinPage({
             </div>
           </motion.div>
 
-          {/* Game Details Grid */}
+          {/* Game Details */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="grid grid-cols-2 gap-4 mb-6"
+            className="mb-6"
           >
-            <div className="border border-white/10 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="w-4 h-4 text-white/30" strokeWidth={1.5} />
-                <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-white/40 uppercase tracking-wide">
-                  Stake
-                </span>
-              </div>
-              <p style={{ fontFamily: "'Instrument Serif', serif" }} className="text-2xl text-white">
-                ${gameDetails.stakeAmount}
-              </p>
-            </div>
-
-            <div className="border border-white/10 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="w-4 h-4 text-white/30" strokeWidth={1.5} />
-                <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-white/40 uppercase tracking-wide">
-                  Total Pot
-                </span>
-              </div>
-              <p style={{ fontFamily: "'Instrument Serif', serif" }} className="text-2xl text-white">
-                ${gameDetails.totalPot}
-              </p>
-            </div>
-
             <div className="border border-white/10 p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Clock className="w-4 h-4 text-white/30" strokeWidth={1.5} />
@@ -297,17 +270,6 @@ export default function JoinPage({
               </div>
               <p style={{ fontFamily: "'Instrument Serif', serif" }} className="text-2xl text-white">
                 {gameDetails.initialTimeSeconds / 60}+{gameDetails.incrementSeconds}
-              </p>
-            </div>
-
-            <div className="border border-white/10 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-white/40 uppercase tracking-wide">
-                  Platform Fee
-                </span>
-              </div>
-              <p style={{ fontFamily: "'Instrument Serif', serif" }} className="text-2xl text-white">
-                ${gameDetails.platformFeeAmount}
               </p>
             </div>
           </motion.div>
@@ -377,20 +339,6 @@ export default function JoinPage({
               </span>
             </button>
           </motion.div>
-
-          {/* Stake Warning */}
-          {!alreadyStarted && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              className="text-center mt-6"
-            >
-              <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-white/20">
-                By accepting, ${gameDetails.stakeAmount} will be deducted from your wallet
-              </p>
-            </motion.div>
-          )}
         </motion.div>
       </div>
     </>

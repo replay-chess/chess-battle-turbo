@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { Decimal } from "@prisma/client/runtime/library";
 import {
   CreateMatchRequestInput,
   CreateMatchRequestResult,
@@ -255,10 +254,6 @@ async function tryFindMatch(params: {
       data: {
         creatorId: whiteUserId,
         opponentId: blackUserId,
-        stakeAmount: new Decimal(0),
-        totalPot: new Decimal(0),
-        platformFeePercentage: new Decimal(10),
-        platformFeeAmount: new Decimal(0),
         chessPositionId,
         startingFen,
         initialTimeSeconds: params.timeControlSeconds,

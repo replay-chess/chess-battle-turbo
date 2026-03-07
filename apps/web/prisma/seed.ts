@@ -15,22 +15,12 @@ async function main() {
       profilePictureUrl: null,
       isActive: true,
       onboarded: true,
-      wallet: {
-        create: {
-          balance: 0,
-          lockedAmount: 0,
-        },
-      },
       stats: {
         create: {
           totalGamesPlayed: 0,
           gamesWon: 0,
           gamesLost: 0,
           gamesDrawn: 0,
-          totalMoneyWon: 0,
-          totalMoneyLost: 0,
-          totalPlatformFeesPaid: 0,
-          netProfit: 0,
           currentWinStreak: 0,
           longestWinStreak: 0,
         },
@@ -39,7 +29,7 @@ async function main() {
   });
   console.log(`🤖 Created/Updated bot user: ${botUser.name} (${botUser.email}) - Reference ID: ${botUser.referenceId}`);
 
-  // Create dummy users with wallets
+  // Create dummy users
   const users = [
     {
       code: 'ALICE001',
@@ -94,22 +84,12 @@ async function main() {
       update: {},
       create: {
         ...userData,
-        wallet: {
-          create: {
-            balance: 1000.00,
-            lockedAmount: 0,
-          },
-        },
         stats: {
           create: {
             totalGamesPlayed: 0,
             gamesWon: 0,
             gamesLost: 0,
             gamesDrawn: 0,
-            totalMoneyWon: 0,
-            totalMoneyLost: 0,
-            totalPlatformFeesPaid: 0,
-            netProfit: 0,
             currentWinStreak: 0,
             longestWinStreak: 0,
           },
