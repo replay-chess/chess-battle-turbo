@@ -136,7 +136,7 @@ export default function TournamentPage({
           }}
         />
 
-        <div className="relative max-w-6xl mx-auto px-4 py-8 z-10 space-y-4">
+        <div className="relative max-w-[88rem] mx-auto px-4 py-8 z-10 space-y-4">
           {/* Header */}
           <TournamentHeader
             tournament={tournament}
