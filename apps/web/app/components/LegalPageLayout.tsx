@@ -96,7 +96,7 @@ export function LegalPageLayout({ title, lastUpdated, sections }: LegalPageLayou
       <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
       {/* Mobile TOC */}
-      <div className="lg:hidden sticky top-[57px] z-40 bg-black/80 backdrop-blur-xl border-b border-white/[0.08]">
+      <div className="lg:hidden sticky top-[57px] md:top-[89px] z-40 bg-black/80 backdrop-blur-xl border-b border-white/[0.08]">
         <div className="overflow-x-auto scrollbar-hide">
           <div className="flex gap-2 px-6 py-3 min-w-max">
             {sections.map((section) => (
@@ -123,7 +123,7 @@ export function LegalPageLayout({ title, lastUpdated, sections }: LegalPageLayou
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12">
           {/* Desktop TOC */}
           <aside className="hidden lg:block lg:col-span-3">
-            <div className="sticky top-28">
+            <div className="sticky top-36">
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
                 className="text-xs text-white/30 uppercase tracking-[0.2em] mb-4"

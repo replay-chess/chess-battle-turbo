@@ -160,7 +160,7 @@ export default function AdminDashboard() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black pt-20 relative">
+      <div className="min-h-screen bg-black pt-20 md:pt-28 relative">
         {/* Subtle grid background */}
         <div
           className="fixed inset-0 opacity-[0.015] pointer-events-none"

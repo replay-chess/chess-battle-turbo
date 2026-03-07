@@ -4,7 +4,7 @@ import { getBlogPostBySlug, blogPosts } from "@/lib/blog-data";
 import { safeJsonLd } from "@/lib/seo";
 import { Navbar } from "../../components/Navbar";
 import { Footer } from "../../components/Footer";
-import { Breadcrumbs } from "../../components/Breadcrumbs";
+
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -57,7 +57,6 @@ export default async function BlogPostPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
-      <Breadcrumbs />
 
       <script
         type="application/ld+json"

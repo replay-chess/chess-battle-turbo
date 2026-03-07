@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { safeJsonLd } from "@/lib/seo";
 import { Navbar } from "../../components/Navbar";
 import { Footer } from "../../components/Footer";
-import { Breadcrumbs } from "../../components/Breadcrumbs";
+
 
 interface Props {
   params: Promise<{ referenceId: string }>;
@@ -68,7 +68,6 @@ export default async function LegendDetailPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
-      <Breadcrumbs />
 
       <script
         type="application/ld+json"

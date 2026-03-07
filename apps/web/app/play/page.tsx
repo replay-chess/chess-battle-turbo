@@ -281,7 +281,7 @@ function PlayContent() {
     <>
       <Navbar />
 
-      <div className="min-h-screen bg-black flex flex-col lg:flex-row pt-16 sm:pt-18 relative overflow-hidden">
+      <div className="min-h-screen bg-black flex flex-col lg:flex-row pt-16 sm:pt-18 md:pt-24 relative overflow-hidden">
         {/* Dramatic diagonal gradient */}
         <div
           className="absolute inset-0 opacity-60"

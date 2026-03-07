@@ -3,7 +3,7 @@ import { Prisma } from "@/app/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
-import { Breadcrumbs } from "../components/Breadcrumbs";
+
 import { OpeningsSearch } from "./OpeningsSearch";
 
 interface Props {
@@ -56,7 +56,6 @@ export default async function OpeningsPage({ searchParams }: Props) {
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
-      <Breadcrumbs />
 
       {/* Grid background */}
       <div

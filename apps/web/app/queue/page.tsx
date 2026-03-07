@@ -301,7 +301,7 @@ function QueueContent() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black flex items-center justify-center pt-16 sm:pt-18 relative">
+      <div className="min-h-screen bg-black flex items-center justify-center pt-16 sm:pt-18 md:pt-24 relative">
         {/* Subtle grid background */}
         <div
           className="absolute inset-0 opacity-[0.015]"

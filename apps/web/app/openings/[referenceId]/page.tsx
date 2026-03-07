@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Navbar } from "../../components/Navbar";
 import { Footer } from "../../components/Footer";
-import { Breadcrumbs } from "../../components/Breadcrumbs";
+
 import { OpeningBoardPreview } from "./OpeningBoardPreview";
 
 interface Props {
@@ -24,7 +24,6 @@ export default async function OpeningDetailPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
-      <Breadcrumbs />
 
       {/* Grid background */}
       <div

@@ -36,7 +36,7 @@ export default function TournamentPage({
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black pt-20 flex items-center justify-center">
+        <div className="min-h-screen bg-black pt-20 md:pt-28 flex items-center justify-center">
           <Loader2 className="w-6 h-6 text-white/30 animate-spin" />
         </div>
       </>
@@ -47,7 +47,7 @@ export default function TournamentPage({
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black pt-20 flex items-center justify-center">
+        <div className="min-h-screen bg-black pt-20 md:pt-28 flex items-center justify-center">
           <p style={geistFont} className="text-white/40 text-sm">
             {error || "Tournament not found"}
           </p>
@@ -126,7 +126,7 @@ export default function TournamentPage({
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black pt-20 relative">
+      <div className="min-h-screen bg-black pt-20 md:pt-28 relative">
         {/* Grid bg */}
         <div
           className="fixed inset-0 opacity-[0.015] pointer-events-none"

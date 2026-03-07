@@ -142,7 +142,7 @@ export default function JoinTournamentPage({
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black flex items-center justify-center pt-16">
+        <div className="min-h-screen bg-black flex items-center justify-center pt-16 md:pt-24">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -162,7 +162,7 @@ export default function JoinTournamentPage({
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black flex items-center justify-center pt-16 p-4 relative">
+        <div className="min-h-screen bg-black flex items-center justify-center pt-16 md:pt-24 p-4 relative">
           <div
             className="absolute inset-0 opacity-[0.015]"
             style={{
@@ -212,7 +212,7 @@ export default function JoinTournamentPage({
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black flex items-center justify-center pt-16 sm:pt-20 p-4 relative">
+      <div className="min-h-screen bg-black flex items-center justify-center pt-16 md:pt-24 sm:pt-20 p-4 relative">
         <div
           className="absolute inset-0 opacity-[0.015]"
           style={{

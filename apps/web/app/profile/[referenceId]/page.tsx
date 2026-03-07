@@ -183,7 +183,7 @@ const ProfilePage = ({
         }}
       />
 
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-16">
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-24 md:pt-28 pb-16">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

@@ -10,6 +10,7 @@ import { ArrowRight, CreditCard, Receipt, Shield, User } from "lucide-react";
 import { usePWAInstall } from "@/lib/hooks";
 import { InstallAppPopover } from "./InstallAppPopover";
 import { NavbarTournaments } from "./NavbarTournaments";
+import { Breadcrumbs } from "./Breadcrumbs";
 
 export const Navbar = () => {
   const { isSignedIn, user } = useUser();
@@ -54,6 +55,7 @@ export const Navbar = () => {
   };
 
   return (
+    <>
     <nav
       aria-label="Main navigation"
       className={cn(
@@ -270,5 +272,7 @@ export const Navbar = () => {
         </SignedIn>
       </div>
     </nav>
+    <Breadcrumbs />
+    </>
   );
 };

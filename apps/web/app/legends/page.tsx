@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
-import { Breadcrumbs } from "../components/Breadcrumbs";
+
 
 const eraOrder = [
   "Romantic Era",
@@ -46,7 +46,6 @@ export default async function LegendsPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
-      <Breadcrumbs />
 
       {/* Grid background */}
       <div
