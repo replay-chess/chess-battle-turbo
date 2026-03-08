@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/ab28a501-4fea-4ffd-9b90-0da975317073" alt="ReplayChess Demo" width="800" />
+  <img src="https://m9nawt4475.ufs.sh/f/hmzTmM7EbJal0qMbfpCOPSY1DXTLGZnBHt5lKzi37ayQxpJk" alt="ReplayChess Demo" width="800" />
 
   # ReplayChess
 
