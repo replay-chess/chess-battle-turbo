@@ -99,7 +99,7 @@ export function PlayerInfoCard({
             style={{ fontFamily: "'Geist', sans-serif" }}
             className="text-white/40 text-[10px] sm:text-xs leading-tight"
           >
-            Playing as {pieceColor === "w" ? "White" : "Black"}
+            {pieceColor === "w" ? "White" : "Black"}
           </p>
         </div>
       </div>
