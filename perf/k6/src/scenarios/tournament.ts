@@ -268,10 +268,10 @@ export default function (data: SetupData) {
     return;
   }
 
-  // Stop finding new matches if less than 60s remain — not enough time for a game
+  // Stop finding new matches if less than 90s remain — not enough time for a full game
   const elapsedMs = Date.now() - tournamentStartTime;
   const remainingMs = (tournamentDuration * 60 * 1000) - elapsedMs;
-  if (remainingMs < 60_000) {
+  if (remainingMs < 90_000) {
     if (!tournamentEnded) {
       console.log(`[${tag}] <60s remaining, stopping — played ${__ITER - 1} games`);
       tournamentEnded = true;
@@ -350,9 +350,9 @@ export default function (data: SetupData) {
   tournamentMatchRate.add(true);
 
   // ─── Play ───
-  // Use shorter timeout for tournament games: 30s or remaining time, whichever is less
-  const gameTimeout = Math.min(30_000, (tournamentDuration * 60 * 1000) - (Date.now() - tournamentStartTime));
-  playSolo(gameRefId, user.referenceId, tag, Math.max(gameTimeout, 10_000));
+  // 60s timeout per game (enough for WS connect + analysis phase + 10 moves), capped by remaining tournament time
+  const gameTimeout = Math.min(60_000, (tournamentDuration * 60 * 1000) - (Date.now() - tournamentStartTime));
+  playSolo(gameRefId, user.referenceId, tag, Math.max(gameTimeout, 15_000));
   tournamentGamesPlayed.add(1);
 
   // Brief cooldown before next match
