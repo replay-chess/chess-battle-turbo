@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 export interface ApiKeyValidationResult {
   valid: boolean;
@@ -16,7 +17,7 @@ export function validateScraperApiKey(
   const expectedKey = process.env.SCRAPER_API_KEY;
 
   if (!expectedKey) {
-    console.error("SCRAPER_API_KEY environment variable is not configured");
+    logger.error("SCRAPER_API_KEY environment variable is not configured");
     return {
       valid: false,
       error: NextResponse.json(

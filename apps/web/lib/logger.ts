@@ -29,22 +29,24 @@ function prefixed(message: string, context?: Record<string, string>): string {
 export const logger = {
   info(message: string, context?: Record<string, string>): void {
     const formatted = prefixed(message, context);
-    console.log(formatted);
+    if (isDev) console.log(formatted);
     Sentry.logger.info(formatted);
   },
 
   warn(message: string, context?: Record<string, string>): void {
     const formatted = prefixed(message, context);
-    console.warn(formatted);
+    if (isDev) console.warn(formatted);
     Sentry.logger.warn(formatted);
   },
 
   error(message: string, err?: unknown, context?: Record<string, string>): void {
     const formatted = prefixed(message, context);
-    if (err !== undefined) {
-      console.error(formatted, err);
-    } else {
-      console.error(formatted);
+    if (isDev) {
+      if (err !== undefined) {
+        console.error(formatted, err);
+      } else {
+        console.error(formatted);
+      }
     }
     Sentry.logger.error(formatted);
   },

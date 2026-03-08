@@ -2,8 +2,8 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import { motion } from "motion/react";
+import { useUserStore } from "@/lib/stores";
 import { cn } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 import { Navbar } from "../../components/Navbar";
@@ -72,28 +72,14 @@ const ProfilePage = ({
 }) => {
   const router = useRouter();
   const { referenceId } = use(params);
-  const { user: clerkUser } = useUser();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ProfileData | null>(null);
-  const [currentUserRefId, setCurrentUserRefId] = useState<string | null>(null);
   const [showConnectModal, setShowConnectModal] = useState(false);
 
-  // Detect if viewing own profile
-  useEffect(() => {
-    if (!clerkUser?.emailAddresses[0]?.emailAddress) return;
-    const email = clerkUser.emailAddresses[0].emailAddress;
-
-    fetch(`/api/user/email/${encodeURIComponent(email)}`)
-      .then((res) => res.json())
-      .then((result) => {
-        if (result.success && result.data?.user?.referenceId) {
-          setCurrentUserRefId(result.data.user.referenceId);
-        }
-      })
-      .catch(() => {});
-  }, [clerkUser]);
+  // Read current user's referenceId from store instead of fetching
+  const currentUserRefId = useUserStore((s) => s.user?.referenceId ?? null);
 
   const fetchProfile = async () => {
     try {

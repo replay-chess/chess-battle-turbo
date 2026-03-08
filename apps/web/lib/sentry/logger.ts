@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 
+const isDev = process.env.NODE_ENV === "development";
+
 /**
  * Extracts the current Sentry trace ID from the active span.
  */
@@ -25,20 +27,28 @@ function formatPrefix(context?: Record<string, string>): string {
 export const logger = {
   info(message: string, context?: Record<string, string>) {
     const prefix = formatPrefix(context);
-    console.log(prefix ? `${prefix} ${message}` : message);
+    const formatted = prefix ? `${prefix} ${message}` : message;
+    if (isDev) console.log(formatted);
+    Sentry.logger.info(formatted);
   },
 
   warn(message: string, context?: Record<string, string>) {
     const prefix = formatPrefix(context);
-    console.warn(prefix ? `${prefix} ${message}` : message);
+    const formatted = prefix ? `${prefix} ${message}` : message;
+    if (isDev) console.warn(formatted);
+    Sentry.logger.warn(formatted);
   },
 
   error(message: string, err?: unknown, context?: Record<string, string>) {
     const prefix = formatPrefix(context);
-    if (err) {
-      console.error(prefix ? `${prefix} ${message}` : message, err);
-    } else {
-      console.error(prefix ? `${prefix} ${message}` : message);
+    const formatted = prefix ? `${prefix} ${message}` : message;
+    if (isDev) {
+      if (err) {
+        console.error(formatted, err);
+      } else {
+        console.error(formatted);
+      }
     }
+    Sentry.logger.error(formatted);
   },
 };

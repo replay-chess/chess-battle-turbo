@@ -253,3 +253,4 @@ when a user is in tournament page and resign in analysis phase he should be take
 Figure out reconnection scenarios on game page. (cant compromise with quality).
 
 
+I i build chess.com competitor in 2 months.

@@ -1,53 +1,31 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CreditCard, Receipt, Shield, User } from "lucide-react";
 import { usePWAInstall } from "@/lib/hooks";
 import { InstallAppPopover } from "./InstallAppPopover";
 import { NavbarTournaments } from "./NavbarTournaments";
 import { Breadcrumbs } from "./Breadcrumbs";
+import { useUserStore } from "@/lib/stores";
 
 export const Navbar = () => {
-  const { isSignedIn, user } = useUser();
   const router = useRouter();
   const { canInstall, isInstalled, isIOS, install } = usePWAInstall();
-  const [userReferenceId, setUserReferenceId] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [subInfo, setSubInfo] = useState<{ customerId: string; plan: string } | null>(null);
 
-  useEffect(() => {
-    if (!isSignedIn || !user?.emailAddresses[0]?.emailAddress) return;
-    const email = user.emailAddresses[0].emailAddress;
+  const user = useUserStore((s) => s.user);
+  const subscription = useUserStore((s) => s.subscription);
 
-    fetch(`/api/user/email/${encodeURIComponent(email)}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.data?.user?.referenceId) {
-          setUserReferenceId(data.data.user.referenceId);
-          if (data.data.user.role === "ADMIN") {
-            setIsAdmin(true);
-          }
-        }
-      })
-      .catch(() => {});
-
-    fetch("/api/subscription")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.plan && data.customerId) {
-          setSubInfo({ customerId: data.customerId, plan: data.plan });
-        }
-      })
-      .catch(() => {});
-  }, [isSignedIn, user]);
+  const userReferenceId = user?.referenceId ?? null;
+  const isAdmin = user?.role === "ADMIN";
+  const customerId = subscription?.customerId;
 
   const handlePlayClick = () => {
-    if (isSignedIn) {
+    if (useUserStore.getState().user !== null) {
       router.push("/play");
     } else {
       router.push("/sign-in");
@@ -259,11 +237,11 @@ export const Navbar = () => {
                   labelIcon={<CreditCard className="w-4 h-4" />}
                   href="/pricing"
                 />
-                {subInfo?.customerId && (
+                {customerId && (
                   <UserButton.Action
                     label="Manage Billing"
                     labelIcon={<Receipt className="w-4 h-4" />}
-                    onClick={() => window.open(`/api/customer-portal?customer_id=${subInfo.customerId}`, '_blank')}
+                    onClick={() => window.open(`/api/customer-portal?customer_id=${customerId}`, '_blank')}
                   />
                 )}
               </UserButton.MenuItems>

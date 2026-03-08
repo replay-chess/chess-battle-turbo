@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter, usePathname } from "next/navigation";
 import { CompleteUserObject } from "../types/user";
-import { trackApiResponseTime } from "@/lib/metrics";
+import { useUserStore } from "@/lib/stores";
 
 export interface UseRequireAuthReturn {
   isLoaded: boolean;
@@ -24,113 +24,72 @@ export function useRequireAuth(): UseRequireAuthReturn {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Local state for user data
-  const [userObject, setUserObject] = useState<CompleteUserObject | null>(null);
-  const [isLoadingUserData, setIsLoadingUserData] = useState(false);
-  const [initialCheckDone, setInitialCheckDone] = useState(false);
+  // Read from Zustand store
+  const storeUser = useUserStore((s) => s.user);
+  const isHydrated = useUserStore((s) => s.isHydrated);
+  const isSyncing = useUserStore((s) => s.isSyncing);
 
-  // Track which email we've already fetched for (prevents duplicate fetches)
-  const fetchedEmailRef = useRef<string | null>(null);
-  // Track if a fetch is currently in progress
-  const isFetchingRef = useRef(false);
+  const fallbackTriggered = useRef(false);
 
   const isLoaded = authLoaded && userLoaded;
-  const isReady = isLoaded && initialCheckDone && userObject !== null;
 
-  // Manual refetch function (for explicit refresh requests)
+  // Build CompleteUserObject from store data
+  const userObject: CompleteUserObject | null = storeUser
+    ? {
+        user: {
+          referenceId: storeUser.referenceId,
+          code: storeUser.code,
+          name: storeUser.name,
+          email: storeUser.email,
+          profilePictureUrl: storeUser.profilePictureUrl,
+          dateOfBirth: null,
+          isActive: true,
+          createdAt: "",
+        },
+        stats: storeUser.stats
+          ? {
+              referenceId: storeUser.stats.referenceId,
+              totalGamesPlayed: storeUser.stats.totalGamesPlayed,
+              gamesWon: storeUser.stats.gamesWon,
+              gamesLost: storeUser.stats.gamesLost,
+              gamesDrawn: storeUser.stats.gamesDrawn,
+              winRate: storeUser.stats.totalGamesPlayed > 0
+                ? ((storeUser.stats.gamesWon / storeUser.stats.totalGamesPlayed) * 100).toFixed(1)
+                : "0.0",
+              currentWinStreak: storeUser.stats.currentWinStreak,
+              longestWinStreak: storeUser.stats.longestWinStreak,
+              averageGameDuration: storeUser.stats.averageGameDuration,
+              lastPlayedAt: storeUser.stats.lastPlayedAt,
+            }
+          : null,
+      }
+    : null;
+
+  const isReady = isLoaded && isHydrated && userObject !== null;
+
+  // Refetch: update the store by fetching user by email
   const refetchUserData = async (): Promise<void> => {
-    if (!email || isFetchingRef.current) return;
-
-    isFetchingRef.current = true;
-    setIsLoadingUserData(true);
-
-    try {
-      const start = Date.now();
-      const response = await fetch(`/api/user/email/${encodeURIComponent(email)}`);
-      trackApiResponseTime("user.fetchByEmail", Date.now() - start);
-
-      if (!response.ok) {
-        router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
-        return;
-      }
-
-      const data = await response.json();
-
-      if (data.success && data.data) {
-        setUserObject(data.data);
-        fetchedEmailRef.current = email;
-      } else {
-        router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
-      }
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error("Error fetching user data:", error);
-      }
-      router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
-    } finally {
-      isFetchingRef.current = false;
-      setIsLoadingUserData(false);
-      setInitialCheckDone(true);
-    }
+    if (!email) return;
+    await useUserStore.getState().fetchUserByEmail(email);
   };
 
   useEffect(() => {
     if (!isLoaded) return;
 
+    // Redirect if not signed in
     if (!isSignedIn || !userId || !email) {
       router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
       return;
     }
 
-    // Already fetched for this email - skip
-    if (fetchedEmailRef.current === email) {
-      return;
+    // Fallback: if store is empty after hydration and UserSync hasn't populated it yet,
+    // trigger a fetch. This covers the edge case where the user navigates directly to
+    // a protected page before UserSync completes.
+    if (isHydrated && !storeUser && !isSyncing && !fallbackTriggered.current) {
+      fallbackTriggered.current = true;
+      useUserStore.getState().fetchUserByEmail(email);
     }
-
-    // Already fetching - skip
-    if (isFetchingRef.current) {
-      return;
-    }
-
-    // Clear state if switching users
-    if (fetchedEmailRef.current && fetchedEmailRef.current !== email) {
-      setUserObject(null);
-      setInitialCheckDone(false);
-    }
-
-    isFetchingRef.current = true;
-    setIsLoadingUserData(true);
-
-    const fetchStart = Date.now();
-    fetch(`/api/user/email/${encodeURIComponent(email)}`)
-      .then((response) => {
-        trackApiResponseTime("user.fetchByEmail", Date.now() - fetchStart);
-        if (!response.ok) {
-          router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
-          return null;
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (data?.success && data?.data) {
-          setUserObject(data.data);
-          fetchedEmailRef.current = email;
-        } else if (data !== null) {
-          router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
-        }
-      })
-      .catch((error) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.error("Error fetching user data:", error);
-        }
-        router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
-      })
-      .finally(() => {
-        isFetchingRef.current = false;
-        setIsLoadingUserData(false);
-        setInitialCheckDone(true);
-      });
-  }, [isLoaded, isSignedIn, userId, email, router, pathname]);
+  }, [isLoaded, isSignedIn, userId, email, router, pathname, isHydrated, storeUser, isSyncing]);
 
   return {
     isLoaded,
@@ -139,7 +98,7 @@ export function useRequireAuth(): UseRequireAuthReturn {
     clerkUser: user,
     userId,
     userObject,
-    isLoadingUserData,
+    isLoadingUserData: isSyncing,
     refetchUserData,
   };
 }

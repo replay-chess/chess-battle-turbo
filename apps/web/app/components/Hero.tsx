@@ -105,7 +105,7 @@ export default function Hero() {
               {/* Invert animation */}
               <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
               <span className="relative flex items-center gap-3 group-hover:text-white transition-colors duration-300">
-                Start Playing
+                Play Now — It's Free
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
             </button>

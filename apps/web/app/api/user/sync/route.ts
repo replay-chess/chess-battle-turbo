@@ -161,6 +161,8 @@ export async function POST(req: NextRequest) {
       email: user?.email,
       name: user?.name,
       profilePictureUrl: user?.profilePictureUrl,
+      role: user?.role ?? "USER",
+      clerkUserId: userId,
       stats: user?.stats ? {
         referenceId: user.stats.referenceId,
         totalGamesPlayed: user.stats.totalGamesPlayed,

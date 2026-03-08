@@ -15,6 +15,7 @@ import { Navbar } from "@/app/components/Navbar";
 import { Users, Zap, Crown, Bot, ArrowRight, Sparkles, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ShareLinkModal } from "./ShareLinkModal";
+import { useDataStore } from "@/lib/stores";
 
 // Static game mode definitions — never change at runtime
 const gameModes = [
@@ -76,56 +77,18 @@ function PlayContent() {
   const [playOpening, setPlayOpening] = useState(false);
   const [selectedOpening, setSelectedOpening] = useState<string | null>(null);
 
-  interface Opening {
-    id: string;
-    eco: string;
-    name: string;
-  }
-  const [openings, setOpenings] = useState<Opening[]>([]);
-  const [openingsLoading, setOpeningsLoading] = useState(true);
-
-  interface Legend {
-    id: string;
-    name: string;
-    era: string;
-    profilePhotoUrl: string | null;
-    description: string;
-    playingStyle: string | null;
-  }
-  const [legends, setLegends] = useState<Legend[]>([]);
-  const [legendsLoading, setLegendsLoading] = useState(true);
+  // Read legends & openings from Zustand data store (cached with 24h TTL)
+  const legends = useDataStore((s) => s.legends);
+  const legendsLoading = useDataStore((s) => s.legendsLoading);
+  const openings = useDataStore((s) => s.openings);
+  const openingsLoading = useDataStore((s) => s.openingsLoading);
+  const fetchLegends = useDataStore((s) => s.fetchLegends);
+  const fetchOpenings = useDataStore((s) => s.fetchOpenings);
 
   useEffect(() => {
-    async function fetchData() {
-      const legendsStart = Date.now();
-      const openingsStart = Date.now();
-      const [legendsResult, openingsResult] = await Promise.allSettled([
-        fetch("/api/legends?isVisible=true&isActive=true").then(r => {
-          trackApiResponseTime("legends.fetch", Date.now() - legendsStart);
-          return r.json();
-        }),
-        fetch("/api/openings").then(r => {
-          trackApiResponseTime("openings.fetch", Date.now() - openingsStart);
-          return r.json();
-        }),
-      ]);
-
-      if (legendsResult.status === "fulfilled" && legendsResult.value.success && legendsResult.value.data?.legends) {
-        setLegends(legendsResult.value.data.legends);
-      } else if (legendsResult.status === "rejected") {
-        logger.error("Failed to fetch legends", legendsResult.reason);
-      }
-      setLegendsLoading(false);
-
-      if (openingsResult.status === "fulfilled" && openingsResult.value.success && openingsResult.value.data?.openings) {
-        setOpenings(openingsResult.value.data.openings);
-      } else if (openingsResult.status === "rejected") {
-        logger.error("Failed to fetch openings", openingsResult.reason);
-      }
-      setOpeningsLoading(false);
-    }
-    fetchData();
-  }, []);
+    fetchLegends();
+    fetchOpenings();
+  }, [fetchLegends, fetchOpenings]);
 
   // Pre-select legend from URL param (e.g. /play?legend=abc123)
   const legendParam = searchParams.get("legend");

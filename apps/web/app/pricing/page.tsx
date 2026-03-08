@@ -5,8 +5,8 @@ import { Footer } from '../components/Footer'
 import { Navbar } from '../components/Navbar'
 import { Bot, ChevronDown, Video, Loader2, Check, CreditCard, LifeBuoy, ArrowRight } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useUser } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
+import { useUserStore } from '@/lib/stores'
 
 const PLAYER_PRODUCT_ID = process.env.NEXT_PUBLIC_DODO_PLAYER_PRODUCT_ID!
 
@@ -85,30 +85,24 @@ export default function PricingPage() {
 function PricingContent() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
-  const [subInfo, setSubInfo] = useState<SubscriptionInfo | null>(null)
-  const [subLoading, setSubLoading] = useState(true)
-  const { isLoaded, user, isSignedIn } = useUser()
   const searchParams = useSearchParams()
   const checkoutSuccess = searchParams.get('checkout') === 'success'
 
-  useEffect(() => {
-    if (!isLoaded) return
-    if (!isSignedIn) {
-      setSubLoading(false)
-      return
-    }
-    fetch('/api/subscription')
-      .then((res) => {
-        if (!res.ok) throw new Error(res.statusText)
-        return res.json()
-      })
-      .then((data) => setSubInfo(data))
-      .catch(() => setSubInfo({ plan: null }))
-      .finally(() => setSubLoading(false))
-  }, [isLoaded, isSignedIn])
+  // Read user + subscription from Zustand store
+  const storeUser = useUserStore((s) => s.user)
+  const subscription = useUserStore((s) => s.subscription)
+  const isHydrated = useUserStore((s) => s.isHydrated)
+
+  const subInfo: SubscriptionInfo | null = subscription
+    ? {
+        plan: subscription.plan,
+        customerId: subscription.customerId,
+        subscription: subscription.subscription,
+      }
+    : null
 
   async function handleCheckout() {
-    if (!isSignedIn || !user) {
+    if (!storeUser) {
       window.location.href = '/sign-in'
       return
     }
@@ -119,9 +113,9 @@ function PricingContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productId: PLAYER_PRODUCT_ID,
-          email: user.primaryEmailAddress?.emailAddress,
-          name: user.fullName,
-          metadata: { clerkUserId: user.id },
+          email: storeUser.email,
+          name: storeUser.name,
+          metadata: { clerkUserId: storeUser.clerkUserId },
         }),
       })
       if (!res.ok) throw new Error(res.statusText)
@@ -138,7 +132,7 @@ function PricingContent() {
 
   const isSubscribed = subInfo?.plan === 'player'
 
-  if (!isLoaded || subLoading) {
+  if (!isHydrated) {
     return (
       <div className="min-h-screen bg-black text-white">
         <Navbar />
@@ -181,7 +175,7 @@ function PricingContent() {
               style={{ fontFamily: "'Instrument Serif', serif" }}
               className="text-5xl sm:text-6xl md:text-7xl mb-4 text-white"
             >
-              {user?.firstName ? `Welcome back, ${user.firstName}` : 'Your Membership'}
+              {storeUser?.name ? `Welcome back, ${storeUser.name.split(' ')[0]}` : 'Your Membership'}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 10 }}
@@ -590,7 +584,7 @@ function PricingContent() {
                 >
                   {checkoutLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : !isSignedIn ? (
+                  ) : !storeUser ? (
                     'Sign in to subscribe'
                   ) : (
                     'Subscribe'

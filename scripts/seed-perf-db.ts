@@ -116,17 +116,12 @@ async function main() {
       name: "Chess Bot",
       isActive: true,
       onboarded: true,
-      wallet: { create: { balance: 0, lockedAmount: 0 } },
       stats: {
         create: {
           totalGamesPlayed: 0,
           gamesWon: 0,
           gamesLost: 0,
           gamesDrawn: 0,
-          totalMoneyWon: 0,
-          totalMoneyLost: 0,
-          totalPlatformFeesPaid: 0,
-          netProfit: 0,
           currentWinStreak: 0,
           longestWinStreak: 0,
         },
