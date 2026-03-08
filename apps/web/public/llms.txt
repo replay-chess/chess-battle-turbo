@@ -1,0 +1,72 @@
+# ReplayChess
+
+> ReplayChess is an interactive chess platform where players replay iconic positions from chess history, compete in real-time multiplayer, and analyze their moves against legendary grandmasters. Built with Next.js 15, React 19, Socket.IO, and Stockfish WASM.
+
+ReplayChess lets you step into the shoes of chess legends like Bobby Fischer, Garry Kasparov, and Magnus Carlsen. Pick a legend, choose a historical position, and play it out — then see how your moves compare to theirs with move-by-move analysis. You can also challenge friends via private invite links, queue for ELO-based matchmaking, play against Stockfish AI at four difficulty levels, or compete in tournaments.
+
+The platform features 50+ chess legends organized by era (Romantic, Classical, Hypermodern, Soviet, Modern, Contemporary), 3,600+ ECO-coded openings, post-game analysis with divergence detection, and a practice mode to replay positions against Stockfish Expert (~2200 ELO). All games run in real-time over WebSockets with distinct audio cues for moves, captures, checks, castling, and time warnings.
+
+## Game Modes
+
+- [Quick Match](https://playchess.tech/play): ELO-based matchmaking with time controls, pairs you with a similarly-rated opponent
+- [Challenge Friend](https://playchess.tech/play): Generate a private invite link and play anyone — no account required for the invitee to view
+- [Play the Machine](https://playchess.tech/play): Four Stockfish difficulty levels (Easy, Medium, Hard, Expert)
+- [Play as Legend](https://playchess.tech/play): Start from a historical position and replay a grandmaster's game
+- [Play Opening](https://playchess.tech/play): Begin from any of 3,600+ ECO-coded openings
+
+## Pages
+
+- [Homepage](https://playchess.tech/): Hero, how-to-play guide, and feature overview
+- [Legends](https://playchess.tech/legends): Hall of Fame — 50+ chess legends grouped by era with bios and famous games
+- [Openings](https://playchess.tech/openings): Encyclopedia of ECO-coded chess openings with PGN data
+- [Pricing](https://playchess.tech/pricing): Subscription plans and billing
+- [Blog](https://playchess.tech/blog): Articles on chess strategy, history, and platform updates
+- [About](https://playchess.tech/about): About ReplayChess and the team
+- [Help](https://playchess.tech/help): FAQ and support
+- [Community](https://playchess.tech/community): Community page
+- [Contact](https://playchess.tech/contact): Contact form
+- [API Docs](https://playchess.tech/docs/api): API documentation
+- [Privacy Policy](https://playchess.tech/privacy): Privacy policy
+- [Terms of Service](https://playchess.tech/terms): Terms of service
+- [Cookies](https://playchess.tech/cookies): Cookie policy
+
+## API
+
+- [Create Game](https://playchess.tech/docs/api): `POST /api/chess/create-game` — Create a multiplayer game with time controls and optional legend/opening
+- [Create AI Game](https://playchess.tech/docs/api): `POST /api/chess/create-ai-game` — Start a game against Stockfish at a chosen difficulty
+- [Join Game](https://playchess.tech/docs/api): `POST /api/chess/join` — Join an existing game by reference ID
+- [Game State](https://playchess.tech/docs/api): `GET /api/chess/game-state` — Get current board state, clocks, and move history
+- [Make Move](https://playchess.tech/docs/api): `POST /api/chess/move` — Submit a move in algebraic notation
+- [Game Analysis](https://playchess.tech/docs/api): `GET /api/analysis/[gameId]` — Post-game analysis comparing player moves to the legend's moves
+- [Matchmaking](https://playchess.tech/docs/api): `POST /api/matchmaking/create-match-request` — Queue for ELO-based matchmaking
+- [Match Status](https://playchess.tech/docs/api): `GET /api/matchmaking/match-status` — Poll for match result
+- [Legends List](https://playchess.tech/docs/api): `GET /api/legends` — All chess legends with bios, eras, and famous games
+- [Legend Detail](https://playchess.tech/docs/api): `GET /api/legends/[id]` — Individual legend profile and positions
+- [Openings List](https://playchess.tech/docs/api): `GET /api/openings` — All ECO-coded openings with PGN data
+- [User Profile](https://playchess.tech/docs/api): `GET /api/user/[referenceId]` — User profile, stats, and game history
+- [User Sync](https://playchess.tech/docs/api): `POST /api/user/sync` — Sync authenticated user from Clerk to database
+- [Tournaments](https://playchess.tech/docs/api): `GET /api/tournament` — List and manage tournaments
+- [Health Check](https://playchess.tech/docs/api): `GET /api/healthcheck` — Server health status
+
+## Tech Stack
+
+- [Next.js 15](https://nextjs.org/): App Router with SSR and React Server Components
+- [React 19](https://react.dev/): With React Compiler enabled for automatic memoization
+- [TypeScript 5.9](https://www.typescriptlang.org/): Full type safety across the codebase
+- [Tailwind CSS 4](https://tailwindcss.com/): Utility-first styling with dark theme
+- [Socket.IO](https://socket.io/): Real-time multiplayer game state synchronization
+- [Stockfish WASM](https://github.com/nicfab/stockfish.wasm): Browser-side chess engine for AI games and practice mode
+- [chess.js](https://github.com/jhlywa/chess.js): Move validation and board state management
+- [Prisma ORM](https://www.prisma.io/): Type-safe database access with PostgreSQL on Neon
+- [Clerk](https://clerk.com/): Authentication (email, Google, GitHub sign-in)
+- [Zustand](https://zustand-demo.pmnd.rs/): Client-side state management with localStorage persistence
+- [Sentry](https://sentry.io/): Error tracking and distributed tracing
+- [Motion](https://motion.dev/): Animations and transitions
+- [DodoPayments](https://dodopayments.com/): Subscription billing and payments
+
+## Optional
+
+- [Careers](https://playchess.tech/careers): Join the team
+- [Privacy Policy](https://playchess.tech/privacy): Data handling and privacy practices
+- [Terms of Service](https://playchess.tech/terms): Usage terms and conditions
+- [Cookie Policy](https://playchess.tech/cookies): Cookie usage details

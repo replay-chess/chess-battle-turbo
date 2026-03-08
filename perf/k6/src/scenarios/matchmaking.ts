@@ -91,15 +91,16 @@ export default function () {
   httpErrorRate.add(0);
 
   const queueBody = JSON.parse(queueRes.body as string);
-  const queueRefId = queueBody.data.referenceId as string;
-  const initialStatus = queueBody.data.status;
+  const queueEntry = queueBody.data.queueEntry;
+  const queueRefId = queueEntry?.referenceId as string;
+  const initialStatus = queueEntry?.status;
 
   console.log(`[matchmaking] VU ${__VU}: Queued — ref=${queueRefId?.substring(0, 8)}, status=${initialStatus}, took=${queueRes.timings.duration}ms`);
 
-  // Check for immediate match
+  // Check for immediate match — when matched immediately, gameReferenceId is in data.immediateMatch
   let gameRefId: string | null = null;
-  if (initialStatus === 'MATCHED' && queueBody.data.gameReferenceId) {
-    gameRefId = queueBody.data.gameReferenceId;
+  if (initialStatus === 'MATCHED' && queueBody.data.immediateMatch?.gameReferenceId) {
+    gameRefId = queueBody.data.immediateMatch.gameReferenceId;
     console.log(`[matchmaking] VU ${__VU}: INSTANT MATCH — gameRef=${gameRefId.substring(0, 8)}`);
   }
 
@@ -131,8 +132,8 @@ export default function () {
         lastStatus = status;
       }
 
-      if (status === 'MATCHED' && statusBody.data?.gameReferenceId) {
-        gameRefId = statusBody.data.gameReferenceId;
+      if (status === 'MATCHED' && statusBody.data?.matchedGameRef) {
+        gameRefId = statusBody.data.matchedGameRef;
         console.log(`[matchmaking] VU ${__VU}: MATCHED after ${pollCount} polls — gameRef=${gameRefId!.substring(0, 8)}`);
         break;
       }
