@@ -34,24 +34,6 @@ const nextConfig = {
         source: '/(.*)',
         headers: [
           {
-            key: 'Content-Security-Policy-Report-Only',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://*.clerk.accounts.dev https://*.playchess.tech",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' https: data:",
-              "connect-src 'self' https://*.clerk.accounts.dev https://*.playchess.tech https://*.ingest.sentry.io https://api.chess.com wss: ws:",
-              "frame-src 'self' https://*.clerk.accounts.dev https://*.playchess.tech",
-              "frame-ancestors 'none'",
-              "media-src 'self'",
-              "worker-src 'self'",
-              "object-src 'none'",
-              "base-uri 'self'",
-              "form-action 'self'",
-            ].join('; '),
-          },
-          {
             key: 'X-Frame-Options',
             value: 'DENY',
           },
