@@ -65,6 +65,8 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
   const [blackPlayer, setBlackPlayer] = useState<Player | null>(null);
   const [gameOver, setGameOver] = useState(false);
   const [gameResult, setGameResult] = useState<string | null>(null);
+  type GameResultType = "victory" | "defeat" | "draw" | "white_wins" | "black_wins";
+  const [gameResultType, setGameResultType] = useState<GameResultType | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{ from: Square; to: Square } | null>(null);
 
   const [isAIGame, setIsAIGame] = useState(false);
@@ -493,6 +495,11 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
           : "Defeat";
       }
       setGameResult(`${resultText} — ${payload.method}`);
+      if (isSpectatorRef.current) {
+        setGameResultType(payload.result === "DRAW" ? "draw" : payload.winner === "w" ? "white_wins" : "black_wins");
+      } else {
+        setGameResultType(payload.result === "DRAW" ? "draw" : payload.winner === myColorRef.current ? "victory" : "defeat");
+      }
       setWhiteTime(payload.whiteTime);
       setBlackTime(payload.blackTime);
 
@@ -597,6 +604,7 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
           ? "White Wins"
           : "Black Wins";
         setGameResult(`${resultText} — ${gop.method}`);
+        setGameResultType(gop.result === "DRAW" ? "draw" : gop.winner === "w" ? "white_wins" : "black_wins");
       }
     });
 
@@ -693,7 +701,7 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
   }
 
   // Determine if this is a victory for confetti (not for spectators)
-  const isVictory = !isSpectator && gameOver && gameResult?.includes("Victory");
+  const isVictory = !isSpectator && gameOver && gameResultType === "victory";
 
   return (
     <div
@@ -709,19 +717,7 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
       {/* Game End Overlay with Analysis Button */}
       <GameEndOverlay
         isActive={showGameEndOverlay}
-        result={
-          isSpectator
-            ? gameResult?.includes("White Wins")
-              ? "white_wins"
-              : gameResult?.includes("Black Wins")
-              ? "black_wins"
-              : "draw"
-            : gameResult?.includes("Victory")
-            ? "victory"
-            : gameResult?.includes("Draw")
-            ? "draw"
-            : "defeat"
-        }
+        result={gameResultType || "draw"}
         onAnalysisClick={() => {
           setShowGameEndOverlay(false);
           router.replace(`/analysis/${gameId}`);
@@ -1103,17 +1099,7 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
                   playerColor={isSpectator ? boardOrientation : myColor}
                   showCoordinates={true}
                   lastMove={lastMoveForDisplay}
-                  gameEndState={
-                    gameOver
-                      ? isSpectator
-                        ? ("draw" as const)
-                        : gameResult?.includes("Victory")
-                        ? ("victory" as const)
-                        : gameResult?.includes("Draw")
-                        ? ("draw" as const)
-                        : ("defeat" as const)
-                      : null
-                  }
+                  gameEndState={gameOver ? (gameResultType || null) : null}
                 />
               </div>
 

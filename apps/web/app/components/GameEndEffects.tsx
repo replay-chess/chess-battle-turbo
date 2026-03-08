@@ -274,13 +274,15 @@ export const DrawOverlay = ({ isActive }: DrawOverlayProps) => {
 
 // Result banner that appears centered on the chess board
 interface GameResultBannerProps {
-  gameEndState: "victory" | "defeat" | "draw" | null;
+  gameEndState: "victory" | "defeat" | "draw" | "white_wins" | "black_wins" | null;
 }
 
 const BANNER_CONFIG = {
   victory: { text: "You Won!", color: "text-amber-200", bg: "rgba(180, 130, 30, 0.35)" },
   defeat: { text: "You Lost", color: "text-white/60", bg: "rgba(40, 40, 40, 0.45)" },
   draw: { text: "Draw", color: "text-white/90", bg: "rgba(100, 100, 100, 0.35)" },
+  white_wins: { text: "White Wins", color: "text-amber-200", bg: "rgba(180, 130, 30, 0.35)" },
+  black_wins: { text: "Black Wins", color: "text-amber-200", bg: "rgba(180, 130, 30, 0.35)" },
 } as const;
 
 export const GameResultBanner = ({ gameEndState }: GameResultBannerProps) => {

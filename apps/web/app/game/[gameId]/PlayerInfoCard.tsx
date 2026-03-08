@@ -95,6 +95,12 @@ export function PlayerInfoCard({
             )}
             {!isOpponent && !isSpectator && <span className="text-white/40"> (You)</span>}
           </p>
+          <p
+            style={{ fontFamily: "'Geist', sans-serif" }}
+            className="text-white/40 text-[10px] sm:text-xs leading-tight"
+          >
+            Playing as {pieceColor === "w" ? "White" : "Black"}
+          </p>
         </div>
       </div>
       <div className="flex items-center gap-2 sm:gap-3">

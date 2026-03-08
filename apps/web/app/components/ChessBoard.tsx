@@ -34,7 +34,7 @@ type ChessProps = {
   playerColor?: Color | null;
   showCoordinates?: boolean;
   lastMove?: { from: Square; to: Square } | null;
-  gameEndState?: "victory" | "defeat" | "draw" | null;
+  gameEndState?: "victory" | "defeat" | "draw" | "white_wins" | "black_wins" | null;
   // Faded mode for showing legend's board at normal size with reduced opacity
   fadedPieces?: boolean;
 };
