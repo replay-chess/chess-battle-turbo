@@ -141,6 +141,7 @@ export default function TournamentPage({
           <TournamentHeader
             tournament={tournament}
             isAdmin={isAdmin}
+            isParticipant={isParticipant}
             onStart={handleStart}
             onEnd={handleEnd}
             isStarting={isStarting}

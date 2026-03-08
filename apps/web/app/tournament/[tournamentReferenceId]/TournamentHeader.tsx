@@ -53,6 +53,7 @@ function CountdownTimer({ endsAt }: { endsAt: string }) {
 interface TournamentHeaderProps {
   tournament: TournamentData;
   isAdmin: boolean;
+  isParticipant: boolean;
   onStart: () => void;
   onEnd: () => void;
   isStarting: boolean;
@@ -62,6 +63,7 @@ interface TournamentHeaderProps {
 export default function TournamentHeader({
   tournament,
   isAdmin,
+  isParticipant,
   onStart,
   onEnd,
   isStarting,
@@ -86,16 +88,26 @@ export default function TournamentHeader({
             </p>
           )}
         </div>
-        <span
-          data-testid="tournament-status"
-          style={geistFont}
-          className={cn(
-            "text-[10px] tracking-wider uppercase px-2.5 py-1 border shrink-0",
-            statusColors[tournament.status] || "text-white/40"
+        <div className="flex items-center gap-2 shrink-0">
+          {isParticipant && (
+            <span
+              style={geistFont}
+              className="text-[10px] tracking-wider uppercase px-2.5 py-1 border text-emerald-400 bg-emerald-400/10 border-emerald-400/20"
+            >
+              Joined
+            </span>
           )}
-        >
-          {tournament.status}
-        </span>
+          <span
+            data-testid="tournament-status"
+            style={geistFont}
+            className={cn(
+              "text-[10px] tracking-wider uppercase px-2.5 py-1 border",
+              statusColors[tournament.status] || "text-white/40"
+            )}
+          >
+            {tournament.status}
+          </span>
+        </div>
       </div>
 
       {/* Info row */}

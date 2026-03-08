@@ -932,12 +932,21 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
                       {positionInfo.openingName ? "Review" : "Compare"}
                     </button>
                   )}
+                  {tournamentRef && (
+                    <button
+                      onClick={() => router.push(`/tournament/${tournamentRef}`)}
+                      className="w-full py-2.5 bg-white text-black hover:bg-white/90 transition-colors"
+                      style={{ fontFamily: "'Geist', sans-serif" }}
+                    >
+                      Find Match
+                    </button>
+                  )}
                   <button
-                    onClick={() => router.push("/play")}
+                    onClick={() => router.push(tournamentRef ? `/tournament/${tournamentRef}` : "/play")}
                     className="w-full py-2.5 border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-colors"
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >
-                    Back
+                    {tournamentRef ? "Back to Tournament" : "Back"}
                   </button>
                 </motion.div>
               )}
@@ -1162,12 +1171,21 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
                           {positionInfo.openingName ? "Review" : "Compare"}
                         </button>
                       )}
+                      {tournamentRef && (
+                        <button
+                          onClick={() => router.push(`/tournament/${tournamentRef}`)}
+                          className="h-9 sm:h-11 px-3 text-xs bg-white text-black hover:bg-white/90 transition-colors"
+                          style={{ fontFamily: "'Geist', sans-serif" }}
+                        >
+                          Find Match
+                        </button>
+                      )}
                       <button
-                        onClick={() => router.push("/play")}
+                        onClick={() => router.push(tournamentRef ? `/tournament/${tournamentRef}` : "/play")}
                         className="h-9 sm:h-11 px-3 text-xs border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-colors"
                         style={{ fontFamily: "'Geist', sans-serif" }}
                       >
-                        Back
+                        {tournamentRef ? "Back to Tournament" : "Back"}
                       </button>
                     </>
                   )}

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="apps/web/public/chess-logo-bnw.png" alt="ReplayChess Logo" width="120" />
+  <video src="apps/web/public/ReplayChessTrailer.mp4" autoplay loop muted playsinline width="700"></video>
 
   # ReplayChess
 
@@ -16,8 +16,6 @@
   ![Tailwind](https://img.shields.io/badge/Tailwind_v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
   ![Clerk](https://img.shields.io/badge/Clerk-6C47FF?style=flat-square&logo=clerk&logoColor=white)
   ![Stockfish](https://img.shields.io/badge/Stockfish-589636?style=flat-square)
-
-  <img src="apps/web/public/og-image.jpg" alt="ReplayChess Preview" width="700" />
 </div>
 
 ---

@@ -234,10 +234,12 @@ When a user is playing a tournament and their game ends, apart from Comparison a
 (very important)
 Just have a very good idea in your mind of what the state of the DB should be in case of the happy flows and the sad flows. What are the indicators you can look at in a row in a DB which will tell you that this is not a good game, or this is a good game? 
 
+
 That will help you in debugging scenarios a lot. Just keep this in mind: don't keep code in mind.
 
 
 If a user tries to spectate the game and the game is already completed, then the experience could be better.
+
 
 Add breadcrumbs on tournament pages and on the overall site. It seems cleaner for the user to navigate.
 
@@ -246,3 +248,8 @@ Lighten the tournament page we dont need to show 100000 players who joined the t
 
 
 when a user is in tournament page and resign in analysis phase he should be taken to tournament apge not play page.
+
+
+Figure out reconnection scenarios on game page. (cant compromise with quality).
+
+
