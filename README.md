@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://m9nawt4475.ufs.sh/f/hmzTmM7EbJal0qMbfpCOPSY1DXTLGZnBHt5lKzi37ayQxpJk" alt="ReplayChess Demo" width="800" />
+  <video src="https://m9nawt4475.ufs.sh/f/hmzTmM7EbJalq2SgriWKuya9OzVM32jJpPbWiIGUkBxAHeT1" autoplay loop muted playsinline width="800"></video>
 
   # ReplayChess
 
