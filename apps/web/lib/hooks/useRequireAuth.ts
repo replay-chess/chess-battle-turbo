@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter, usePathname } from "next/navigation";
 import { CompleteUserObject } from "../types/user";
 import { useUserStore } from "@/lib/stores";
+import { trackApiResponseTime } from "@/lib/metrics";
+import { logger } from "@/lib/logger";
 
 export interface UseRequireAuthReturn {
   isLoaded: boolean;
@@ -24,17 +26,20 @@ export function useRequireAuth(): UseRequireAuthReturn {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Read from Zustand store
+  // Read from Zustand store (used when already populated by UserSync)
   const storeUser = useUserStore((s) => s.user);
-  const isHydrated = useUserStore((s) => s.isHydrated);
   const isSyncing = useUserStore((s) => s.isSyncing);
 
-  const fallbackTriggered = useRef(false);
+  // Local state as direct fallback — ensures this hook is self-sufficient
+  const [localUser, setLocalUser] = useState<CompleteUserObject | null>(null);
+  const [isLoadingLocal, setIsLoadingLocal] = useState(false);
+  const fetchedEmailRef = useRef<string | null>(null);
+  const isFetchingRef = useRef(false);
 
   const isLoaded = authLoaded && userLoaded;
 
   // Build CompleteUserObject from store data
-  const userObject: CompleteUserObject | null = storeUser
+  const storeUserObject: CompleteUserObject | null = storeUser
     ? {
         user: {
           referenceId: storeUser.referenceId,
@@ -65,7 +70,10 @@ export function useRequireAuth(): UseRequireAuthReturn {
       }
     : null;
 
-  const isReady = isLoaded && isHydrated && userObject !== null;
+  // Prefer store data, fall back to locally fetched data
+  const userObject = storeUserObject ?? localUser;
+
+  const isReady = isLoaded && userObject !== null;
 
   // Refetch: update the store by fetching user by email
   const refetchUserData = async (): Promise<void> => {
@@ -82,14 +90,46 @@ export function useRequireAuth(): UseRequireAuthReturn {
       return;
     }
 
-    // Fallback: if store is empty after hydration and UserSync hasn't populated it yet,
-    // trigger a fetch. This covers the edge case where the user navigates directly to
-    // a protected page before UserSync completes.
-    if (isHydrated && !storeUser && !isSyncing && !fallbackTriggered.current) {
-      fallbackTriggered.current = true;
-      useUserStore.getState().fetchUserByEmail(email);
-    }
-  }, [isLoaded, isSignedIn, userId, email, router, pathname, isHydrated, storeUser, isSyncing]);
+    // If store already has user data, nothing to do
+    if (storeUser) return;
+
+    // Already fetched for this email
+    if (fetchedEmailRef.current === email) return;
+
+    // Already fetching
+    if (isFetchingRef.current) return;
+
+    // Direct fetch as fallback — doesn't depend on Zustand hydration
+    isFetchingRef.current = true;
+    setIsLoadingLocal(true);
+
+    const start = Date.now();
+    fetch(`/api/user/email/${encodeURIComponent(email)}`)
+      .then((response) => {
+        trackApiResponseTime("user.fetchByEmail", Date.now() - start);
+        if (!response.ok) {
+          router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
+          return null;
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (data?.success && data?.data) {
+          setLocalUser(data.data);
+          fetchedEmailRef.current = email;
+        } else if (data !== null) {
+          router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
+        }
+      })
+      .catch((error) => {
+        logger.error("Error fetching user data:", error);
+        router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
+      })
+      .finally(() => {
+        isFetchingRef.current = false;
+        setIsLoadingLocal(false);
+      });
+  }, [isLoaded, isSignedIn, userId, email, router, pathname, storeUser]);
 
   return {
     isLoaded,
@@ -98,7 +138,7 @@ export function useRequireAuth(): UseRequireAuthReturn {
     clerkUser: user,
     userId,
     userObject,
-    isLoadingUserData: isSyncing,
+    isLoadingUserData: isSyncing || isLoadingLocal,
     refetchUserData,
   };
 }

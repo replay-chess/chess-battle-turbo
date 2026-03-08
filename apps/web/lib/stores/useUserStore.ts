@@ -43,7 +43,6 @@ export interface StoreSubscription {
 interface UserState {
   user: StoreUser | null;
   subscription: StoreSubscription | null;
-  isHydrated: boolean;
   isSyncing: boolean;
   lastSyncedAt: number | null;
 
@@ -62,7 +61,6 @@ export const useUserStore = create<UserState>()(
       (set, get) => ({
         user: null,
         subscription: null,
-        isHydrated: false,
         isSyncing: false,
         lastSyncedAt: null,
 
@@ -141,9 +139,6 @@ export const useUserStore = create<UserState>()(
           subscription: state.subscription,
           lastSyncedAt: state.lastSyncedAt,
         }),
-        onRehydrateStorage: () => () => {
-          useUserStore.setState({ isHydrated: true });
-        },
       }
     ),
     { name: "UserStore" }

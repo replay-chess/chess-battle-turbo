@@ -91,8 +91,6 @@ function PricingContent() {
   // Read user + subscription from Zustand store
   const storeUser = useUserStore((s) => s.user)
   const subscription = useUserStore((s) => s.subscription)
-  const isHydrated = useUserStore((s) => s.isHydrated)
-
   const subInfo: SubscriptionInfo | null = subscription
     ? {
         plan: subscription.plan,
@@ -131,18 +129,6 @@ function PricingContent() {
   }
 
   const isSubscribed = subInfo?.plan === 'player'
-
-  if (!isHydrated) {
-    return (
-      <div className="min-h-screen bg-black text-white">
-        <Navbar />
-        <div className="flex items-center justify-center h-[60vh]">
-          <Loader2 className="w-6 h-6 text-white/40 animate-spin" />
-        </div>
-        <Footer />
-      </div>
-    )
-  }
 
   if (isSubscribed) {
     return (
