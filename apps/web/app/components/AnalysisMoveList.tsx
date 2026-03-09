@@ -3,10 +3,9 @@
 import React, { useEffect, useRef } from "react";
 import { Move } from "chess.js";
 import { cn } from "../../lib/utils";
-import { DivergenceInfo } from "../../lib/hooks/useAnalysisBoard";
 
 interface AnalysisMoveListProps {
-  divergences: DivergenceInfo[];
+  userMoves: Move[];
   currentPlyIndex: number;
   onPlyClick: (ply: number) => void;
   moveNumberStart: number;
@@ -17,7 +16,7 @@ interface AnalysisMoveListProps {
 }
 
 export default function AnalysisMoveList({
-  divergences,
+  userMoves,
   currentPlyIndex,
   onPlyClick,
   moveNumberStart,
@@ -74,10 +73,10 @@ export default function AnalysisMoveList({
   }
 
   return (
-    <ComparisonMoveList
+    <UserMoveList
       listRef={listRef}
       activeRowRef={activeRowRef}
-      divergences={divergences}
+      userMoves={userMoves}
       currentPlyIndex={currentPlyIndex}
       onPlyClick={onPlyClick}
       moveNumberStart={moveNumberStart}
@@ -253,61 +252,66 @@ function LegendMoveCell({ san, isActive, isPreGame, onClick }: LegendMoveCellPro
   );
 }
 
-// --- Comparison Move List (original behavior) ---
+// --- User Move List (Your Moves tab) ---
 
-interface ComparisonMoveListProps {
+interface UserMoveListProps {
   listRef: React.RefObject<HTMLDivElement | null>;
   activeRowRef: React.RefObject<HTMLDivElement | null>;
-  divergences: DivergenceInfo[];
+  userMoves: Move[];
   currentPlyIndex: number;
   onPlyClick: (ply: number) => void;
   moveNumberStart: number;
   startingSide: "w" | "b";
 }
 
-function ComparisonMoveList({
+function UserMoveList({
   listRef,
   activeRowRef,
-  divergences,
+  userMoves,
   currentPlyIndex,
   onPlyClick,
   moveNumberStart,
   startingSide,
-}: ComparisonMoveListProps) {
+}: UserMoveListProps) {
   // Group moves into pairs (full moves)
   const moveRows: {
     moveNumber: number;
-    whitePly: DivergenceInfo | null;
-    blackPly: DivergenceInfo | null;
+    whiteMove: Move | null;
+    blackMove: Move | null;
+    whitePlyIndex: number;
+    blackPlyIndex: number;
   }[] = [];
 
   let plyOffset = 0;
 
   // If starting side is black, first move is black's
   if (startingSide === "b") {
-    // First move is black
-    const firstMove = divergences[0];
+    const firstMove = userMoves[0];
     if (firstMove) {
       moveRows.push({
         moveNumber: moveNumberStart,
-        whitePly: null,
-        blackPly: firstMove,
+        whiteMove: null,
+        blackMove: firstMove,
+        whitePlyIndex: 0,
+        blackPlyIndex: 1,
       });
       plyOffset = 1;
     }
   }
 
   // Group remaining moves into pairs
-  for (let i = plyOffset; i < divergences.length; i += 2) {
-    const whitePly = divergences[i] || null;
-    const blackPly = divergences[i + 1] || null;
+  for (let i = plyOffset; i < userMoves.length; i += 2) {
+    const whiteMove = userMoves[i] || null;
+    const blackMove = userMoves[i + 1] || null;
     const moveNum =
       moveNumberStart + Math.floor((i - plyOffset) / 2) + (plyOffset > 0 ? 1 : 0);
 
     moveRows.push({
       moveNumber: moveNum,
-      whitePly,
-      blackPly,
+      whiteMove,
+      blackMove,
+      whitePlyIndex: i + 1,
+      blackPlyIndex: i + 2,
     });
   }
 
@@ -330,10 +334,8 @@ function ComparisonMoveList({
       {/* Move rows */}
       <div className="space-y-0.5 p-2">
         {moveRows.map((row, rowIndex) => {
-          const whiteIsActive =
-            row.whitePly && currentPlyIndex === row.whitePly.plyIndex;
-          const blackIsActive =
-            row.blackPly && currentPlyIndex === row.blackPly.plyIndex;
+          const whiteIsActive = row.whiteMove && currentPlyIndex === row.whitePlyIndex;
+          const blackIsActive = row.blackMove && currentPlyIndex === row.blackPlyIndex;
           const isActive = whiteIsActive || blackIsActive;
 
           return (
@@ -348,22 +350,22 @@ function ComparisonMoveList({
               </div>
 
               {/* White's move */}
-              {row.whitePly ? (
-                <MoveCell
-                  divergence={row.whitePly}
-                  isActive={whiteIsActive || false}
-                  onClick={() => onPlyClick(row.whitePly!.plyIndex)}
+              {row.whiteMove ? (
+                <UserMoveCell
+                  san={row.whiteMove.san}
+                  isActive={!!whiteIsActive}
+                  onClick={() => onPlyClick(row.whitePlyIndex)}
                 />
               ) : (
                 <div className="text-xs text-white/20 py-1">...</div>
               )}
 
               {/* Black's move */}
-              {row.blackPly ? (
-                <MoveCell
-                  divergence={row.blackPly}
-                  isActive={blackIsActive || false}
-                  onClick={() => onPlyClick(row.blackPly!.plyIndex)}
+              {row.blackMove ? (
+                <UserMoveCell
+                  san={row.blackMove.san}
+                  isActive={!!blackIsActive}
+                  onClick={() => onPlyClick(row.blackPlyIndex)}
                 />
               ) : (
                 <div />
@@ -383,32 +385,24 @@ function ComparisonMoveList({
   );
 }
 
-interface MoveCellProps {
-  divergence: DivergenceInfo;
+interface UserMoveCellProps {
+  san: string;
   isActive: boolean;
   onClick: () => void;
 }
 
-function MoveCell({ divergence, isActive, onClick }: MoveCellProps) {
-  const { userMove, isDivergent } = divergence;
-
+function UserMoveCell({ san, isActive, onClick }: UserMoveCellProps) {
   return (
     <div
       onClick={onClick}
       className={cn(
         "py-1 px-1.5 rounded cursor-pointer transition-all duration-150",
-        isActive && "bg-emerald-500/20 ring-1 ring-emerald-400/30",
-        !isActive && "hover:bg-white/5",
-        isDivergent && "bg-amber-500/10"
+        isActive && "bg-white/10 ring-1 ring-white/20",
+        !isActive && "hover:bg-white/5"
       )}
     >
-      <div
-        className={cn(
-          "text-xs font-mono truncate",
-          userMove ? "text-emerald-300/70" : "text-white/20"
-        )}
-      >
-        {userMove?.san || "-"}
+      <div className="text-xs font-mono truncate text-white/70">
+        {san}
       </div>
     </div>
   );

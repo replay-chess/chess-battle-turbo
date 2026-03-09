@@ -275,7 +275,7 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
                   </div>
                   {hasLegendMoves ? (
                     <AnalysisMoveList
-                      divergences={divergences}
+                      userMoves={data?.userMoves || []}
                       currentPlyIndex={plyIndex}
                       onPlyClick={goToPly}
                       moveNumberStart={data.moveNumberStart}
