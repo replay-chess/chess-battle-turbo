@@ -700,8 +700,7 @@ export default function RootLayout({
     <ClerkProvider appearance={clerkAppearance}>
       <html lang="en">
         <head>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          {/* Fonts loaded via next/font/google (self-hosted at build time) — no preconnect needed */}
           <link rel="dns-prefetch" href="https://img.clerk.com" />
           <link rel="preconnect" href="https://www.googletagmanager.com" />
           <script
