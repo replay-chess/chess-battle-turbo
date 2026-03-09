@@ -270,7 +270,7 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
                         ? "Your Moves"
                         : activeTab === "legend-moves"
                           ? "Legend Game"
-                          : "Move Comparison"}
+                          : "Your Moves"}
                     </p>
                   </div>
                   {hasLegendMoves ? (
