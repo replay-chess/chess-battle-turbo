@@ -1,0 +1,3 @@
+# ads.txt - Authorized Digital Sellers
+# ReplayChess (playchess.tech) does not currently participate in programmatic advertising.
+# This file declares that no ad networks are authorized to sell ads on this domain.

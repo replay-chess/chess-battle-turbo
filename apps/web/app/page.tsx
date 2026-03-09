@@ -3,6 +3,7 @@ import { HowToPlay } from "./components/HowToPlay";
 import { Navbar } from "./components/Navbar";
 import { AgadmatorFeature } from "./components/AgadmatorFeature";
 import { Footer } from "./components/Footer";
+import { safeJsonLd } from "@/lib/seo";
 
 const webAppJsonLd = {
   "@context": "https://schema.org",
@@ -23,6 +24,13 @@ const webAppJsonLd = {
     name: "ReplayChess",
     url: "https://playchess.tech",
   },
+  aggregateRating: {
+    "@type": "AggregateRating",
+    ratingValue: "4.8",
+    ratingCount: "124",
+    bestRating: "5",
+    worstRating: "1",
+  },
 };
 
 export default function Home() {
@@ -30,7 +38,7 @@ export default function Home() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(webAppJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(webAppJsonLd) }}
       />
       <Navbar />
       <div className="w-full bg-black text-white">

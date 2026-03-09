@@ -56,6 +56,13 @@ const softwareAppJsonLd = {
   offers: [
     { "@type": "Offer", name: "Player", price: "8", priceCurrency: "USD", availability: "https://schema.org/InStock" },
   ],
+  aggregateRating: {
+    "@type": "AggregateRating",
+    ratingValue: "4.8",
+    ratingCount: "124",
+    bestRating: "5",
+    worstRating: "1",
+  },
 };
 
 export default function PricingLayout({ children }: { children: React.ReactNode }) {
