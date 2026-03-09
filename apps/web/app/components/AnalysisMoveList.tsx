@@ -397,7 +397,7 @@ function MoveCell({ divergence, isActive, onClick }: MoveCellProps) {
       onClick={onClick}
       className={cn(
         "py-1 px-1.5 rounded cursor-pointer transition-all duration-150",
-        isActive && "bg-white/10 ring-1 ring-white/20",
+        isActive && "bg-emerald-500/20 ring-1 ring-emerald-400/30",
         !isActive && "hover:bg-white/5",
         isDivergent && "bg-amber-500/10"
       )}
@@ -405,7 +405,7 @@ function MoveCell({ divergence, isActive, onClick }: MoveCellProps) {
       <div
         className={cn(
           "text-xs font-mono truncate",
-          userMove ? "text-white" : "text-white/30"
+          userMove ? "text-emerald-300/70" : "text-white/20"
         )}
       >
         {userMove?.san || "-"}
