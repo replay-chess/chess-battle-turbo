@@ -733,6 +733,7 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} bg-black`}
         >
           <GoogleAnalytics />
+          <Analytics />
           <UserSync />
           <Toaster
             theme="dark"
