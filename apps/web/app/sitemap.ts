@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma'
 import { blogPosts } from '@/lib/blog-data'
 
 const BASE_URL = 'https://playchess.tech'
-const SAFETY_LIMIT = 50_000
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static pages
@@ -34,27 +33,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }))
 
-  // Dynamic pages — degrade gracefully if DB is unavailable
-  let profilePages: MetadataRoute.Sitemap = []
+  // Legend pages — have rich unique content (bios, playing styles, achievements)
   let legendPages: MetadataRoute.Sitemap = []
-  let openingPages: MetadataRoute.Sitemap = []
-
-  try {
-    const users = await prisma.user.findMany({
-      where: { isActive: true },
-      select: { referenceId: true, updatedAt: true },
-      take: SAFETY_LIMIT,
-      orderBy: { updatedAt: 'desc' },
-    })
-    profilePages = users.map((user) => ({
-      url: `${BASE_URL}/profile/${user.referenceId}`,
-      lastModified: user.updatedAt,
-      changeFrequency: 'weekly' as const,
-      priority: 0.5,
-    }))
-  } catch {
-    // DB unavailable — return static sitemap without profiles
-  }
 
   try {
     const legends = await prisma.legend.findMany({
@@ -71,20 +51,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // DB unavailable — return sitemap without legends
   }
 
-  try {
-    const openings = await prisma.opening.findMany({
-      where: { isActive: true },
-      select: { referenceId: true, updatedAt: true },
-    })
-    openingPages = openings.map((opening) => ({
-      url: `${BASE_URL}/openings/${opening.referenceId}`,
-      lastModified: opening.updatedAt,
-      changeFrequency: 'monthly' as const,
-      priority: 0.6,
-    }))
-  } catch {
-    // DB unavailable — return sitemap without openings
-  }
+  // NOTE: Opening and profile pages excluded from sitemap — thin content
+  // that wastes crawl budget. Add back when pages have richer descriptions.
 
-  return [...staticPages, ...blogPages, ...profilePages, ...legendPages, ...openingPages]
+  return [...staticPages, ...blogPages, ...legendPages]
 }
