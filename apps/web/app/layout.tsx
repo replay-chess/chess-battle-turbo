@@ -8,6 +8,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
 import { UserSync } from "./components/UserSync";
 import { GoogleAnalytics } from "./components/GoogleAnalytics";
+import { Analytics } from "@vercel/analytics/next"
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
