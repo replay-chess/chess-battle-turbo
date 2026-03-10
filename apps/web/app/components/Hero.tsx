@@ -15,6 +15,7 @@ export default function Hero() {
         loop
         muted
         playsInline
+        poster="/og-image.jpg"
         className="absolute inset-0 w-full h-full object-cover opacity-20 grayscale"
       >
         <source src="/Kings_Gambit_Chess_Board_Animation.mp4" type="video/mp4" />

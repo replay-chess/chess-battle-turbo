@@ -117,6 +117,7 @@ export const AgadmatorFeature = () => {
                   loop
                   muted
                   playsInline
+                  poster="/og-image.jpg"
                   className="absolute inset-0 w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
                 >
                   <source src="/video_clip.webm" type="video/webm" />

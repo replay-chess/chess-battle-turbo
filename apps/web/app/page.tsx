@@ -5,6 +5,43 @@ import { AgadmatorFeature } from "./components/AgadmatorFeature";
 import { Footer } from "./components/Footer";
 import { safeJsonLd } from "@/lib/seo";
 
+const breadcrumbJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Home",
+      item: "https://www.playchess.tech",
+    },
+  ],
+};
+
+const videoJsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: "King's Gambit Chess Board Animation",
+    description:
+      "Animated chess board showcasing the King's Gambit opening — a classic aggressive chess strategy.",
+    contentUrl:
+      "https://www.playchess.tech/Kings_Gambit_Chess_Board_Animation.mp4",
+    thumbnailUrl: "https://www.playchess.tech/og-image.jpg",
+    uploadDate: "2025-01-01",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: "ReplayChess Feature Preview",
+    description:
+      "Preview of ReplayChess features — replay legendary chess games and learn from grandmaster moves.",
+    contentUrl: "https://www.playchess.tech/video_clip.webm",
+    thumbnailUrl: "https://www.playchess.tech/og-image.jpg",
+    uploadDate: "2025-01-01",
+  },
+];
+
 const webAppJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
@@ -36,6 +73,17 @@ const webAppJsonLd = {
 export default function Home() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
+      />
+      {videoJsonLd.map((video, i) => (
+        <script
+          key={i}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(video) }}
+        />
+      ))}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(webAppJsonLd) }}

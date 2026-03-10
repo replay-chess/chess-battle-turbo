@@ -53,6 +53,7 @@ export const Navbar = () => {
         <Image
           src="/chess-logo-bnw.png"
           alt="ReplayChess"
+          title="ReplayChess"
           width={100}
           height={100}
           className={cn(
