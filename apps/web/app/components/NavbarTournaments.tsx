@@ -1,30 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Trophy } from "lucide-react";
 
 export function NavbarTournaments() {
-  const [hasActive, setHasActive] = useState(false);
-
-  useEffect(() => {
-    async function checkTournaments() {
-      try {
-        const res = await fetch("/api/tournament?statuses=LOBBY,ACTIVE&count=true");
-        const data = await res.json();
-        if (data.success) {
-          setHasActive(data.data.count > 0);
-        }
-      } catch {
-        // silent
-      }
-    }
-
-    checkTournaments();
-    const interval = setInterval(checkTournaments, 30_000);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <Link
@@ -44,9 +25,6 @@ export function NavbarTournaments() {
         <Trophy className="w-3.5 h-3.5" strokeWidth={1.5} />
         <span className="hidden sm:inline">Tournaments</span>
       </span>
-      {hasActive && (
-        <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-black/40 group-hover:bg-white/70 rounded-full transition-colors duration-300" />
-      )}
     </Link>
   );
 }
