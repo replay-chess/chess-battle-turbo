@@ -9,7 +9,7 @@ const webAppJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
   name: "ReplayChess",
-  url: "https://playchess.tech",
+  url: "https://www.playchess.tech",
   description:
     "Replay iconic chess positions from history's greatest games. Study grandmaster moves, challenge friends, and master the classics.",
   applicationCategory: "GameApplication",
@@ -22,7 +22,7 @@ const webAppJsonLd = {
   author: {
     "@type": "Organization",
     name: "ReplayChess",
-    url: "https://playchess.tech",
+    url: "https://www.playchess.tech",
   },
   aggregateRating: {
     "@type": "AggregateRating",

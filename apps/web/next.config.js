@@ -51,6 +51,46 @@ const nextConfig = {
           },
         ],
       },
+      // Images — cache 1 month
+      {
+        source: '/:path*.(ico|jpg|jpeg|png|gif|svg|webp)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=86400',
+          },
+        ],
+      },
+      // Fonts — cache 1 month
+      {
+        source: '/:path*.(woff|woff2|ttf|otf|eot)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=86400',
+          },
+        ],
+      },
+      // Videos/media — cache 1 month
+      {
+        source: '/:path*.(mp4|webm)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=86400',
+          },
+        ],
+      },
+      // Service worker + manifest — no cache (need immediate updates)
+      {
+        source: '/(sw.js|manifest.json)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+        ],
+      },
     ];
   },
 };

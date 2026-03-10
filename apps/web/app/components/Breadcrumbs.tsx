@@ -190,7 +190,7 @@ export const Breadcrumbs = () => {
       "@type": "ListItem",
       position: index + 1,
       name: crumb.label,
-      item: `https://playchess.tech${crumb.href}`,
+      item: `https://www.playchess.tech${crumb.href}`,
     })),
   };
 

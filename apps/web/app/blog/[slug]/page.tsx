@@ -37,11 +37,11 @@ export default async function BlogPostPage({ params }: Props) {
       name: "ReplayChess",
       logo: {
         "@type": "ImageObject",
-        url: "https://playchess.tech/chess-logo-bnw.png",
+        url: "https://www.playchess.tech/chess-logo-bnw.png",
       },
     },
-    url: `https://playchess.tech/blog/${slug}`,
-    image: `https://playchess.tech/og?title=${encodeURIComponent(post.title)}&type=blog`,
+    url: `https://www.playchess.tech/blog/${slug}`,
+    image: `https://www.playchess.tech/og?title=${encodeURIComponent(post.title)}&type=blog`,
   };
 
   // Parse markdown-like content into sections

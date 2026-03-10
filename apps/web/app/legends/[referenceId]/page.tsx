@@ -57,7 +57,7 @@ export default async function LegendDetailPage({ params }: Props) {
     "@context": "https://schema.org",
     "@type": "Person",
     name: legend.name,
-    url: `https://playchess.tech/legends/${referenceId}`,
+    url: `https://www.playchess.tech/legends/${referenceId}`,
     ...(legend.profilePhotoUrl && { image: legend.profilePhotoUrl }),
     ...(legend.nationality && { nationality: legend.nationality }),
     ...(legend.birthYear && { birthDate: `${legend.birthYear}` }),

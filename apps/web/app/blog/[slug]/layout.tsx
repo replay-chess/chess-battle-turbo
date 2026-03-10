@@ -18,11 +18,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: post.title,
     description: post.excerpt,
-    alternates: { canonical: `https://playchess.tech/blog/${slug}` },
+    alternates: { canonical: `https://www.playchess.tech/blog/${slug}` },
     openGraph: {
       title: post.title,
       description: post.excerpt,
-      url: `https://playchess.tech/blog/${slug}`,
+      url: `https://www.playchess.tech/blog/${slug}`,
       siteName: "ReplayChess",
       images: [{ url: ogImageUrl, width: 1200, height: 630, alt: post.title }],
       type: "article",

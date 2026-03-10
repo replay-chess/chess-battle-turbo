@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-export const BASE_URL = "https://playchess.tech";
+export const BASE_URL = "https://www.playchess.tech";
 
 /** Escapes </script> sequences to prevent XSS in JSON-LD script tags */
 export function safeJsonLd(obj: unknown): string {

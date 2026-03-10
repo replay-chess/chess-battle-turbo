@@ -34,7 +34,7 @@ export const viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://playchess.tech'),
+  metadataBase: new URL('https://www.playchess.tech'),
   title: {
     default: "ReplayChess - Master Chess Through Legendary Games",
     template: "%s | ReplayChess",
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "ReplayChess - Master Chess Through Legendary Games",
     description: "Replay iconic chess positions from history's greatest games. Study grandmaster moves, challenge friends, and master the classics.",
-    url: "https://playchess.tech",
+    url: "https://www.playchess.tech",
     siteName: "ReplayChess",
     images: [{ url: "/og-image.jpg", width: 1200, height: 800, alt: "ReplayChess" }],
     type: "website",
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     images: ["/og-image.jpg"],
   },
   alternates: {
-    canonical: "https://playchess.tech",
+    canonical: "https://www.playchess.tech",
   },
   robots: {
     index: true,
@@ -710,8 +710,8 @@ export default function RootLayout({
                 "@context": "https://schema.org",
                 "@type": "Organization",
                 name: "ReplayChess",
-                url: "https://playchess.tech",
-                logo: "https://playchess.tech/chess-logo-bnw.png",
+                url: "https://www.playchess.tech",
+                logo: "https://www.playchess.tech/chess-logo-bnw.png",
               }),
             }}
           />

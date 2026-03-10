@@ -17,6 +17,6 @@ export default function robots(): MetadataRoute.Robots {
         '/join/',
       ],
     },
-    sitemap: 'https://playchess.tech/sitemap.xml',
+    sitemap: 'https://www.playchess.tech/sitemap.xml',
   }
 }

@@ -29,11 +29,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: `https://playchess.tech/profile/${referenceId}` },
+    alternates: { canonical: `https://www.playchess.tech/profile/${referenceId}` },
     openGraph: {
       title,
       description,
-      url: `https://playchess.tech/profile/${referenceId}`,
+      url: `https://www.playchess.tech/profile/${referenceId}`,
       siteName: "ReplayChess",
       ...(user.profilePictureUrl && {
         images: [{ url: user.profilePictureUrl, width: 200, height: 200, alt: user.name }],
@@ -59,7 +59,7 @@ async function ProfileJsonLd({ params }: { params: Promise<{ referenceId: string
     "@context": "https://schema.org",
     "@type": "Person",
     name: user.name,
-    url: `https://playchess.tech/profile/${referenceId}`,
+    url: `https://www.playchess.tech/profile/${referenceId}`,
     ...(user.profilePictureUrl && { image: user.profilePictureUrl }),
   };
 

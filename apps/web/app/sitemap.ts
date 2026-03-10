@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next'
 import { prisma } from '@/lib/prisma'
 import { blogPosts } from '@/lib/blog-data'
 
-const BASE_URL = 'https://playchess.tech'
+const BASE_URL = 'https://www.playchess.tech'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static pages

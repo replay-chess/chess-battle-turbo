@@ -23,11 +23,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: `https://playchess.tech/legends/${referenceId}` },
+    alternates: { canonical: `https://www.playchess.tech/legends/${referenceId}` },
     openGraph: {
       title,
       description,
-      url: `https://playchess.tech/legends/${referenceId}`,
+      url: `https://www.playchess.tech/legends/${referenceId}`,
       siteName: "ReplayChess",
       images: [{ url: ogImageUrl, width: 1200, height: 630, alt: legend.name }],
       type: "profile",

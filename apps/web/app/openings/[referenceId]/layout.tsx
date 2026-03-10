@@ -23,11 +23,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: `https://playchess.tech/openings/${referenceId}` },
+    alternates: { canonical: `https://www.playchess.tech/openings/${referenceId}` },
     openGraph: {
       title,
       description,
-      url: `https://playchess.tech/openings/${referenceId}`,
+      url: `https://www.playchess.tech/openings/${referenceId}`,
       siteName: "ReplayChess",
       images: [{ url: ogImageUrl, width: 1200, height: 630, alt: opening.name }],
       type: "article",
