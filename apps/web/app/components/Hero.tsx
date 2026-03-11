@@ -15,6 +15,7 @@ export default function Hero() {
         loop
         muted
         playsInline
+        preload="none"
         poster="/og-image.jpg"
         className="absolute inset-0 w-full h-full object-cover opacity-20 grayscale"
       >
@@ -57,7 +58,7 @@ export default function Hero() {
             style={{ fontFamily: "'Geist', sans-serif" }}
             className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
           >
-            Where Chess History Comes Alive
+            Experience Iconic Chess Moments Like Never Before
           </span>
           <div className="h-px w-12 bg-white/30" />
         </motion.div>
@@ -83,7 +84,7 @@ export default function Hero() {
           style={{ fontFamily: "'Geist', sans-serif" }}
           className="text-white/40 text-lg sm:text-xl md:text-2xl max-w-2xl leading-relaxed mb-12"
         >
-          Step into the exact positions where chess legends were made.
+          Play and Relive the Critical Moves of Chess Legends.
         </motion.p>
 
         {/* CTA Button */}
@@ -106,7 +107,7 @@ export default function Hero() {
               {/* Invert animation */}
               <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
               <span className="relative flex items-center gap-3 group-hover:text-white transition-colors duration-300">
-                Play Now — It's Free
+                Start Playing Legendary Games for Free
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
             </button>

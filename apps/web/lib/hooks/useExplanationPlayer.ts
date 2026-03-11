@@ -72,6 +72,9 @@ type PieceInfo = {
   color: "w" | "b";
 } | null;
 
+const MOVE_ANIM_MS = 500;    // matches ChessBoard CSS transition
+const MOVE_STAGGER_MS = 700; // animation + 200ms pause to see piece land
+
 // ===== Hook =====
 
 export function useExplanationPlayer(
@@ -84,6 +87,7 @@ export function useExplanationPlayer(
   const [activeAnnotations, setActiveAnnotations] = useState<SquareAnnotation[]>([]);
   const [evalBar, setEvalBar] = useState<EvalBarData | null>(null);
   const [board, setBoard] = useState<PieceInfo[][]>([]);
+  const [turn, setTurn] = useState<Color>("w");
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -104,7 +108,13 @@ export function useExplanationPlayer(
   const currentTimeRef = useRef(0);
   const triggeredVisualsRef = useRef<Set<string>>(new Set());
   const animTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const moveQueueTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const processedSegmentRef = useRef<number>(-1);
+
+  const clearMoveQueue = () => {
+    for (const t of moveQueueTimers.current) clearTimeout(t);
+    moveQueueTimers.current = [];
+  };
 
   const originalFen = explanation?.fen || "";
   const segments = explanation?.segments || [];
@@ -276,7 +286,7 @@ export function useExplanationPlayer(
 
   // Reset board and visuals to beginning state for a target segment
   const resetToSegment = useCallback(
-    (targetIndex: number) => {
+    (targetIndex: number, seekTime?: number) => {
       if (!originalFen || segments.length === 0) return;
 
       const chess = new Chess(originalFen);
@@ -302,17 +312,44 @@ export function useExplanationPlayer(
       // For the target segment, apply visuals that should have already triggered
       const targetSegment = segments[targetIndex];
       if (targetSegment) {
-        const seekTime = targetSegment.startTime;
+        const effectiveSeekTime = seekTime ?? targetSegment.startTime;
+
+        // Non-showMove visuals: apply independently if their triggerTime has been reached
         targetSegment.visuals.forEach((visual, i) => {
+          if (visual.type === "showMove") return;
           const key = `${targetIndex}:${i}`;
           const shouldApply = isManualMode
-            || (visual.triggerTime !== undefined && visual.triggerTime <= seekTime)
+            || (visual.triggerTime !== undefined && visual.triggerTime <= effectiveSeekTime)
             || (visual.triggerTime === undefined);
           if (shouldApply) {
             triggeredVisualsRef.current.add(key);
             applyVisual(visual, false);
           }
         });
+
+        // showMove visuals: enforce array-order (= legal chess order)
+        // Find the latest showMove whose triggerTime has been reached
+        let latestReachedIdx = -1;
+        targetSegment.visuals.forEach((visual, i) => {
+          if (visual.type !== "showMove") return;
+          const shouldApply = isManualMode
+            || (visual.triggerTime !== undefined && visual.triggerTime <= effectiveSeekTime)
+            || (visual.triggerTime === undefined);
+          if (shouldApply) {
+            latestReachedIdx = i;
+          }
+        });
+
+        // Apply all showMoves from 0 to latestReachedIdx in array order (all instant during replay)
+        if (latestReachedIdx >= 0) {
+          for (let i = 0; i <= latestReachedIdx; i++) {
+            const visual = targetSegment.visuals[i];
+            if (!visual || visual.type !== "showMove") continue;
+            const key = `${targetIndex}:${i}`;
+            triggeredVisualsRef.current.add(key);
+            applyVisual(visual, false);
+          }
+        }
       }
 
       setBoard(chessRef.current!.board());
@@ -346,33 +383,59 @@ export function useExplanationPlayer(
           processedSegmentRef.current = segIdx;
           setAnimatingMove(null);
           if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current);
+          clearMoveQueue();
         }
 
-        // Collect newly triggered visuals for this frame
         const segment = segments[segIdx];
         if (segment) {
-          const newTriggers: ExplanationVisual[] = [];
+          // 1. Non-showMove visuals — trigger independently at their triggerTime
           segment.visuals.forEach((visual, i) => {
+            if (visual.type === "showMove") return;
             const key = `${segIdx}:${i}`;
             if (triggeredVisualsRef.current.has(key)) return;
-            const trigger = visual.triggerTime;
-            // Fire if triggerTime reached, or immediately if no triggerTime
-            if (trigger !== undefined ? t >= trigger : true) {
+            if (visual.triggerTime !== undefined ? t >= visual.triggerTime : true) {
               triggeredVisualsRef.current.add(key);
-              newTriggers.push(visual);
+              applyVisual(visual, false);
             }
           });
 
-          // Apply all triggered visuals — animate only if a single showMove fires
-          if (newTriggers.length > 0) {
-            const showMoveCount = newTriggers.filter((v) => v.type === "showMove").length;
-            for (const visual of newTriggers) {
-              const shouldAnimate = visual.type === "showMove" && showMoveCount === 1;
-              applyVisual(visual, shouldAnimate);
+          // 2. showMove visuals — enforce array-order (= legal chess order)
+          // Find the latest showMove whose triggerTime has been reached
+          let latestReachedIdx = -1;
+          segment.visuals.forEach((visual, i) => {
+            if (visual.type !== "showMove") return;
+            if (visual.triggerTime !== undefined ? t >= visual.triggerTime : true) {
+              latestReachedIdx = i;
             }
-            if (showMoveCount === 1) {
+          });
+
+          // Apply all un-triggered showMoves up to that index, in array order
+          if (latestReachedIdx >= 0) {
+            const pending: { visual: ExplanationVisual; idx: number }[] = [];
+            for (let i = 0; i <= latestReachedIdx; i++) {
+              const visual = segment.visuals[i];
+              if (!visual || visual.type !== "showMove") continue;
+              const key = `${segIdx}:${i}`;
+              if (triggeredVisualsRef.current.has(key)) continue;
+              triggeredVisualsRef.current.add(key);
+              pending.push({ visual, idx: i });
+            }
+
+            if (pending.length > 0) {
+              clearMoveQueue();
+              // Stagger all catch-up moves so the user can see each one animate
+              applyVisual(pending[0]!.visual, true);
+              for (let j = 1; j < pending.length; j++) {
+                const timer = setTimeout(() => {
+                  applyVisual(pending[j]!.visual, true);
+                }, j * MOVE_STAGGER_MS);
+                moveQueueTimers.current.push(timer);
+              }
               if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current);
-              animTimeoutRef.current = setTimeout(() => setAnimatingMove(null), 310);
+              const finalDelay = (pending.length - 1) * MOVE_STAGGER_MS + MOVE_ANIM_MS + 10;
+              animTimeoutRef.current = setTimeout(
+                () => setAnimatingMove(null), finalDelay
+              );
             }
           }
         }
@@ -418,6 +481,7 @@ export function useExplanationPlayer(
 
       // Clear animation
       if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current);
+      clearMoveQueue();
       setAnimatingMove(null);
 
       resetToSegment(index);
@@ -434,6 +498,50 @@ export function useExplanationPlayer(
     const prev = Math.max(currentSegmentIndex - 1, 0);
     seekToSegment(prev);
   }, [currentSegmentIndex, seekToSegment]);
+
+  const seekToTime = useCallback(
+    (targetTime: number) => {
+      const audio = audioRef.current;
+      if (!audio || segments.length === 0) return;
+
+      const clampedTime = Math.max(0, Math.min(targetTime, duration));
+
+      // Find segment containing the target time
+      let segIdx = segments.findIndex(
+        (s) => clampedTime >= s.startTime && clampedTime < s.endTime
+      );
+      // Fallback: before all segments → 0, after all → last
+      if (segIdx === -1) {
+        if (clampedTime <= (segments[0]?.startTime ?? 0)) {
+          segIdx = 0;
+        } else {
+          segIdx = segments.length - 1;
+        }
+      }
+
+      audio.currentTime = clampedTime;
+      currentTimeRef.current = clampedTime;
+      setCurrentTime(clampedTime);
+
+      // Clear in-progress animations
+      if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current);
+      clearMoveQueue();
+      setAnimatingMove(null);
+
+      resetToSegment(segIdx, clampedTime);
+    },
+    [segments, duration, resetToSegment]
+  );
+
+  const skipForward = useCallback(
+    () => seekToTime(currentTimeRef.current + 5),
+    [seekToTime]
+  );
+
+  const skipBack = useCallback(
+    () => seekToTime(currentTimeRef.current - 5),
+    [seekToTime]
+  );
 
   const toggleMute = useCallback(() => {
     const audio = audioRef.current;
@@ -469,13 +577,20 @@ export function useExplanationPlayer(
   useEffect(() => {
     return () => {
       if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current);
+      clearMoveQueue();
     };
   }, []);
+
+  // Sync turn whenever board position changes
+  useEffect(() => {
+    if (chessRef.current) setTurn(chessRef.current.turn());
+  }, [board]);
 
   const currentNarration = segments[currentSegmentIndex]?.narration || "";
 
   return {
     board,
+    turn,
     highlights: activeHighlights,
     arrows: activeArrows,
     annotations: activeAnnotations,
@@ -487,6 +602,9 @@ export function useExplanationPlayer(
     pause,
     togglePlayPause,
     seekToSegment,
+    seekToTime,
+    skipForward,
+    skipBack,
     nextSegment,
     prevSegment,
 

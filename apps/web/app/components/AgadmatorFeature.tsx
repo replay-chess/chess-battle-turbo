@@ -84,7 +84,7 @@ export const AgadmatorFeature = () => {
             style={{ fontFamily: "'Instrument Serif', serif" }}
             className="text-4xl sm:text-5xl md:text-6xl text-white mb-4"
           >
-            Pause the Video
+            Challenge Yourself with Agadmator's Legendary Chess Puzzles
           </h2>
 
           <p
@@ -117,6 +117,7 @@ export const AgadmatorFeature = () => {
                   loop
                   muted
                   playsInline
+                  preload="none"
                   poster="/og-image.jpg"
                   className="absolute inset-0 w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
                 >

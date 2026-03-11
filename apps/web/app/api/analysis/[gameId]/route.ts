@@ -24,6 +24,10 @@ interface AnalysisData {
   // Opening info
   openingName: string | null;
   openingEco: string | null;
+
+  // Explanation
+  explanation: unknown | null;
+  explanationAudioUrl: string | null;
 }
 
 /**
@@ -201,6 +205,8 @@ export async function GET(
     let legendPgn: string | null = null;
 
     let positionGameMetadata: Record<string, unknown> | null = null;
+    let explanation: unknown | null = null;
+    let explanationAudioUrl: string | null = null;
 
     if (game.chessPositionId) {
       const chessPosition = await prisma.chessPosition.findUnique({
@@ -213,6 +219,8 @@ export async function GET(
           tournamentName: true,
           fen: true,
           gameMetadata: true,
+          explanation: true,
+          explanationAudioUrl: true,
         },
       });
 
@@ -223,6 +231,8 @@ export async function GET(
         legendPgn = chessPosition.pgn;
         moveNumberStart = chessPosition.moveNumber || 1;
         positionGameMetadata = chessPosition.gameMetadata as Record<string, unknown> | null;
+        explanation = chessPosition.explanation;
+        explanationAudioUrl = chessPosition.explanationAudioUrl;
 
         if (chessPosition.pgn) {
           legendMoves = parsePgnFromMoveNumber(
@@ -270,6 +280,8 @@ export async function GET(
       legendGameResult,
       openingName,
       openingEco,
+      explanation,
+      explanationAudioUrl,
     };
 
     return NextResponse.json({

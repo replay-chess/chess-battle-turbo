@@ -47,8 +47,8 @@ export default function ExplanationView({
         </div>
       </div>
 
-      {/* Narration — sm:mt-7 clears the board's outer decorative frame (-inset-4 = 16px) */}
-      <div className="w-full mt-3 sm:mt-7 border border-white/10 bg-white/[0.02]">
+      {/* Narration — mobile only; on desktop it lives in the right sidebar */}
+      <div className="w-full mt-3 sm:mt-7 border border-white/10 bg-white/[0.02] lg:hidden">
         <NarrationDisplay
           explanation={explanation}
           currentSegmentIndex={player.currentSegmentIndex}
@@ -58,8 +58,8 @@ export default function ExplanationView({
         />
       </div>
 
-      {/* Audio/navigation controls */}
-      <div className="w-full mt-2">
+      {/* Audio/navigation controls — lg:mt-7 clears the board's decorative frame on desktop */}
+      <div className="w-full mt-2 lg:mt-7">
         <AudioControls
           isPlaying={player.isPlaying}
           isManualMode={player.isManualMode}
@@ -76,6 +76,8 @@ export default function ExplanationView({
           onToggleMute={player.toggleMute}
           onSetPlaybackRate={player.setPlaybackRate}
           onSeekToSegment={player.seekToSegment}
+          onSkipBack={player.skipBack}
+          onSkipForward={player.skipForward}
         />
       </div>
     </div>

@@ -72,7 +72,7 @@ export function Footer() {
                   style={{ fontFamily: "'Geist', sans-serif" }}
                   className="text-[10px] text-white/30 uppercase tracking-widest"
                 >
-                  The Ultimate Platform
+                  Your Go-To Place for Chess Mastery and Fun
                 </span>
               </div>
             </Link>

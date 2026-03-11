@@ -2,6 +2,7 @@ import Hero from "./components/Hero";
 import { HowToPlay } from "./components/HowToPlay";
 import { Navbar } from "./components/Navbar";
 import { AgadmatorFeature } from "./components/AgadmatorFeature";
+import { Testimonials } from "./components/Testimonials";
 import { Footer } from "./components/Footer";
 import { safeJsonLd } from "@/lib/seo";
 
@@ -95,6 +96,7 @@ export default function Home() {
         </div>
         <HowToPlay />
         <AgadmatorFeature />
+        {/* <Testimonials /> */}
         <Footer />
       </div>
     </>

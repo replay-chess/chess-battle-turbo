@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     description: "Replay iconic chess positions from history's greatest games. Study grandmaster moves, challenge friends, and master the classics.",
     url: "https://www.playchess.tech",
     siteName: "ReplayChess",
-    images: [{ url: "/og-image.jpg", width: 1200, height: 800, alt: "ReplayChess" }],
+    images: [{ url: "/og-image.jpg", width: 1200, height: 800, alt: "ReplayChess - Master chess through legendary games" }],
     type: "website",
   },
   twitter: {

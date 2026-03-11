@@ -19,6 +19,8 @@ interface AudioControlsProps {
   onToggleMute: () => void;
   onSetPlaybackRate: (rate: number) => void;
   onSeekToSegment: (index: number) => void;
+  onSkipBack: () => void;
+  onSkipForward: () => void;
 }
 
 const RATES = [0.5, 1, 1.5, 2];
@@ -45,6 +47,8 @@ export default function AudioControls({
   onPrevSegment,
   onToggleMute,
   onSetPlaybackRate,
+  onSkipBack,
+  onSkipForward,
 }: AudioControlsProps) {
   const [displayTime, setDisplayTime] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval>>(null);
@@ -95,7 +99,7 @@ export default function AudioControls({
       )}
 
       {/* Controls row */}
-      <div className="flex items-center justify-center gap-2 px-4">
+      <div className="flex flex-wrap items-center justify-center gap-2 px-4">
         {/* Prev segment */}
         <button
           onClick={onPrevSegment}
@@ -111,6 +115,21 @@ export default function AudioControls({
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
+
+        {/* Skip back 5s */}
+        {hasAudio && (
+          <button
+            onClick={onSkipBack}
+            className="w-8 h-8 flex items-center justify-center border border-white/20 bg-white/5 hover:bg-white/15 transition-colors relative"
+            title="Rewind 5s (Left Arrow)"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/70">
+              <path d="M1 4v6h6" />
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+            </svg>
+            <span className="absolute text-[7px] font-bold text-white/50" style={{ fontFamily: "'Geist', sans-serif", top: '10px' }}>5</span>
+          </button>
+        )}
 
         {/* Play/Pause (audio mode only) */}
         {hasAudio && (
@@ -128,6 +147,21 @@ export default function AudioControls({
                 <polygon points="5 3 19 12 5 21" />
               </svg>
             )}
+          </button>
+        )}
+
+        {/* Skip forward 5s */}
+        {hasAudio && (
+          <button
+            onClick={onSkipForward}
+            className="w-8 h-8 flex items-center justify-center border border-white/20 bg-white/5 hover:bg-white/15 transition-colors relative"
+            title="Forward 5s (Right Arrow)"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/70">
+              <path d="M23 4v6h-6" />
+              <path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10" />
+            </svg>
+            <span className="absolute text-[7px] font-bold text-white/50" style={{ fontFamily: "'Geist', sans-serif", top: '10px' }}>5</span>
           </button>
         )}
 

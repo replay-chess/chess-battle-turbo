@@ -254,3 +254,6 @@ Figure out reconnection scenarios on game page. (cant compromise with quality).
 
 
 I i build chess.com competitor in 2 months.
+
+
+Add share the app option to the website at a wow moment. when user completes a tutorial or when he wins etc.

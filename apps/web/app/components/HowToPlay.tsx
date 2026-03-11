@@ -63,7 +63,7 @@ export const HowToPlay = () => {
             style={{ fontFamily: "'Instrument Serif', serif" }}
             className="text-4xl sm:text-5xl md:text-6xl text-white mb-4"
           >
-            Four Simple Steps
+            Easily Play in Four Simple Steps
           </h2>
 
           <p

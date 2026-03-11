@@ -127,7 +127,7 @@ export default function PracticeMoveList({
       {/* Move list */}
       <div
         ref={listRef}
-        className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20"
+        className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/25"
       >
         {/* Column headers */}
         <div className="sticky top-0 z-10 grid grid-cols-[40px_1fr_1fr] gap-1 px-2 py-2 bg-black/80 backdrop-blur-sm border-b border-white/10">

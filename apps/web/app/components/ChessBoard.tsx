@@ -1,8 +1,75 @@
-import React from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { cn } from "../../lib/utils";
 import { Chess, Color, PieceSymbol, Square } from "chess.js";
 import Image from "next/image";
 import { DefeatOverlay, DrawOverlay, GameResultBanner } from "./GameEndEffects";
+
+// Highlight color palette — soothing, semi-transparent for chess analysis
+// green:  strong squares, good moves, piece activity
+// red:    threats, weaknesses, hanging pieces
+// blue:   defensive ideas, safe squares, king safety
+// orange: tension, critical squares, key decisions
+// purple: alternative plans, prophylaxis, long-term ideas
+const highlightColorMap: Record<string, { light: string; dark: string }> = {
+  green:  { light: "rgba(110, 187, 140, 0.40)", dark: "rgba(110, 187, 140, 0.30)" },
+  red:    { light: "rgba(210, 120, 110, 0.38)", dark: "rgba(210, 120, 110, 0.28)" },
+  blue:   { light: "rgba(120, 160, 210, 0.38)", dark: "rgba(120, 160, 210, 0.28)" },
+  orange: { light: "rgba(220, 170, 100, 0.40)", dark: "rgba(220, 170, 100, 0.30)" },
+  purple: { light: "rgba(170, 130, 200, 0.35)", dark: "rgba(170, 130, 200, 0.25)" },
+  yellow: { light: "rgba(235, 185, 60, 0.38)",  dark: "rgba(235, 185, 60, 0.28)" },
+};
+
+const defaultHighlight = { light: "rgba(235, 185, 60, 0.38)", dark: "rgba(235, 185, 60, 0.28)" };
+
+// Arrow fill — default warm yellow, per-color overrides
+const arrowFill = {
+  shaft: "rgba(251, 191, 36, 0.45)",
+  head: "rgba(251, 191, 36, 0.55)",
+} as const;
+
+const arrowColorMap: Record<string, { shaft: string; head: string }> = {
+  green:  { shaft: "rgba(110, 187, 140, 0.50)", head: "rgba(110, 187, 140, 0.65)" },
+  red:    { shaft: "rgba(210, 120, 110, 0.50)", head: "rgba(210, 120, 110, 0.65)" },
+  blue:   { shaft: "rgba(120, 160, 210, 0.50)", head: "rgba(120, 160, 210, 0.65)" },
+  orange: { shaft: "rgba(220, 170, 100, 0.50)", head: "rgba(220, 170, 100, 0.65)" },
+  purple: { shaft: "rgba(170, 130, 200, 0.45)", head: "rgba(170, 130, 200, 0.60)" },
+  yellow: { shaft: "rgba(251, 191, 36, 0.45)", head: "rgba(251, 191, 36, 0.55)" },
+};
+
+type HighlightColor = string;
+
+export interface HighlightGroup {
+  squares: Square[];
+  color: HighlightColor;
+}
+
+export interface ArrowData {
+  from: Square;
+  to: Square;
+  color: HighlightColor;
+}
+
+export interface SquareAnnotation {
+  square: Square;
+  symbol: string;
+  icon?: string;
+  color?: string;
+}
+
+// Annotation badge styles — chess.com inspired
+const annotationStyles: Record<string, { bg: string; text: string; label: string }> = {
+  "!!":        { bg: "bg-cyan-400",    text: "text-cyan-950",   label: "!!" },
+  "!":         { bg: "bg-blue-400",    text: "text-blue-950",   label: "!" },
+  "best":      { bg: "bg-emerald-400", text: "text-emerald-950", label: "★" },
+  "excellent": { bg: "bg-green-400",   text: "text-green-950",  label: "✓" },
+  "good":      { bg: "bg-lime-400",    text: "text-lime-950",   label: "○" },
+  "book":      { bg: "bg-amber-600",   text: "text-amber-50",   label: "B" },
+  "?!":        { bg: "bg-yellow-400",  text: "text-yellow-950", label: "?!" },
+  "?":         { bg: "bg-orange-400",  text: "text-orange-950", label: "?" },
+  "??":        { bg: "bg-red-500",     text: "text-white",      label: "??" },
+  "miss":      { bg: "bg-rose-500",    text: "text-white",      label: "✕" },
+};
+const defaultAnnotation = { bg: "bg-neutral-500", text: "text-white", label: "·" };
 
 type PieceInfo = {
   square: Square;
@@ -37,6 +104,16 @@ type ChessProps = {
   gameEndState?: "victory" | "defeat" | "draw" | "white_wins" | "black_wins" | null;
   // Faded mode for showing legend's board at normal size with reduced opacity
   fadedPieces?: boolean;
+  // Explanation overlays
+  highlights?: HighlightGroup[];
+  arrows?: ArrowData[];
+  annotations?: SquareAnnotation[];
+  // Animated piece sliding overlay
+  animatingMove?: {
+    piece: { type: PieceSymbol; color: Color };
+    from: Square;
+    to: Square;
+  } | null;
 };
 
 const ChessBoard = ({
@@ -51,7 +128,85 @@ const ChessBoard = ({
   lastMove = null,
   gameEndState = null,
   fadedPieces = false,
+  highlights = [],
+  arrows = [],
+  annotations = [],
+  animatingMove = null,
 }: ChessProps) => {
+  const boardContainerRef = useRef<HTMLDivElement>(null);
+  const animOverlayRef = useRef<HTMLDivElement>(null);
+  const [boardPixelSize, setBoardPixelSize] = useState(0);
+
+  // Measure the board container for SVG arrows and piece animation overlay
+  useEffect(() => {
+    if (!boardContainerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setBoardPixelSize(entry.contentRect.width);
+      }
+    });
+    observer.observe(boardContainerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Animate the overlay piece from source to destination square
+  useEffect(() => {
+    const el = animOverlayRef.current;
+    if (!animatingMove || !el || boardPixelSize === 0) return;
+
+    const sqSize = boardPixelSize / 8;
+    const pieceSize = sqSize * 0.85;
+
+    const getPos = (sq: Square) => {
+      const f = sq.charCodeAt(0) - 97;
+      const r = parseInt(sq[1]!) - 1;
+      let col = f, row = 7 - r;
+      if (playerColor === "b") { col = 7 - f; row = r; }
+      return {
+        x: (col + 0.5) * sqSize - pieceSize / 2,
+        y: (row + 0.5) * sqSize - pieceSize / 2,
+      };
+    };
+
+    const fromPos = getPos(animatingMove.from);
+    const toPos = getPos(animatingMove.to);
+
+    // Set start position without transition
+    el.style.transition = "none";
+    el.style.transform = `translate(${fromPos.x}px, ${fromPos.y}px)`;
+    el.getBoundingClientRect(); // force reflow
+    // Animate to destination
+    el.style.transition = "transform 500ms cubic-bezier(0.25, 0.1, 0.25, 1)";
+    el.style.transform = `translate(${toPos.x}px, ${toPos.y}px)`;
+  }, [animatingMove, boardPixelSize, playerColor]);
+
+  // Helper: get pixel coords for the center of a square
+  const getSquareCenter = (sq: Square): { x: number; y: number } => {
+    const file = sq.charCodeAt(0) - 97; // a=0, h=7
+    const rank = parseInt(sq[1]!) - 1;   // 1=0, 8=7
+    const sqSize = boardPixelSize / 8;
+    let col = file;
+    let row = 7 - rank;
+    if (playerColor === "b") {
+      col = 7 - file;
+      row = rank;
+    }
+    return { x: (col + 0.5) * sqSize, y: (row + 0.5) * sqSize };
+  };
+
+  // Build a set of highlighted squares with their colors for quick lookup
+  const highlightMap = new Map<string, HighlightColor>();
+  for (const group of highlights) {
+    for (const sq of group.squares) {
+      highlightMap.set(sq, group.color);
+    }
+  }
+
+  // Build annotation lookup
+  const annotationMap = new Map<string, SquareAnnotation>();
+  for (const ann of annotations) {
+    annotationMap.set(ann.square, ann);
+  }
   // Flip the board if player is black
   const displayBoard =
     playerColor === "b"
@@ -113,10 +268,13 @@ const ChessBoard = ({
         )} />
 
         {/* Main board container */}
-        <div className={cn(
-          "relative border border-white/20 shadow-2xl shadow-black/80",
-          gameEndState === "defeat" && "transition-all duration-1000"
-        )}>
+        <div
+          ref={boardContainerRef}
+          className={cn(
+            "relative border border-white/20 shadow-2xl shadow-black/80",
+            gameEndState === "defeat" && "transition-all duration-1000"
+          )}
+        >
           {/* Game end overlays */}
           <DefeatOverlay isActive={gameEndState === "defeat"} />
           <DrawOverlay isActive={gameEndState === "draw"} />
@@ -196,6 +354,17 @@ const ChessBoard = ({
                       />
                     )}
 
+                    {/* Explanation highlight overlay */}
+                    {highlightMap.has(squareNotation) && (() => {
+                      const hlColor = highlightColorMap[highlightMap.get(squareNotation)!] ?? defaultHighlight;
+                      return (
+                        <div
+                          className="absolute inset-0 z-[1]"
+                          style={{ backgroundColor: isLight ? hlColor.light : hlColor.dark }}
+                        />
+                      );
+                    })()}
+
                     {/* Selected square highlight */}
                     {isSelected && (
                       <div
@@ -238,7 +407,9 @@ const ChessBoard = ({
                     )}
 
                     {/* Chess piece */}
-                    {square !== null && (
+                    {square !== null && (() => {
+                      const isAnimatingTo = animatingMove?.to === squareNotation;
+                      return (
                       <div
                         className={cn(
                           "relative z-20 w-[85%] h-[85%]",
@@ -246,7 +417,7 @@ const ChessBoard = ({
                           isInteractive && "hover:scale-105",
                           isSelected && "scale-105"
                         )}
-                        style={fadedPieces ? { opacity: 0.8 } : undefined}
+                        style={isAnimatingTo ? { opacity: 0 } : fadedPieces ? { opacity: 0.8 } : undefined}
                       >
                         <Image
                           src={`/chess-icons/${square.color}${square.type}.png`}
@@ -262,7 +433,42 @@ const ChessBoard = ({
                           draggable={false}
                         />
                       </div>
-                    )}
+                      );
+                    })()}
+
+                    {/* Annotation badge */}
+                    {annotationMap.has(squareNotation) && (() => {
+                      const ann = annotationMap.get(squareNotation)!;
+                      if (ann.icon) {
+                        return (
+                          <div className="absolute -top-1.5 -right-1.5 z-40 w-5 h-5 sm:w-6 sm:h-6">
+                            <Image
+                              src={`/board_icons/128x/${ann.icon}`}
+                              alt={ann.symbol}
+                              width={24}
+                              height={24}
+                              className="w-full h-full object-contain drop-shadow-md"
+                              draggable={false}
+                            />
+                          </div>
+                        );
+                      }
+                      const style = annotationStyles[ann.symbol] ?? defaultAnnotation;
+                      return (
+                        <div
+                          className={cn(
+                            "absolute -top-1 -right-1 z-40 flex items-center justify-center",
+                            "w-4 h-4 sm:w-5 sm:h-5 rounded-full shadow-md shadow-black/40",
+                            style.bg, style.text
+                          )}
+                          style={{ fontFamily: "'Geist', sans-serif" }}
+                        >
+                          <span className="text-[8px] sm:text-[10px] font-bold leading-none">
+                            {style.label}
+                          </span>
+                        </div>
+                      );
+                    })()}
 
                     {/* Hover state for interactive squares */}
                     {isInteractive && !isSelected && (
@@ -281,6 +487,184 @@ const ChessBoard = ({
               })}
             </div>
           ))}
+
+          {/* Animated piece overlay — slides from source to destination */}
+          {animatingMove && boardPixelSize > 0 && (() => {
+            const sqSize = boardPixelSize / 8;
+            const pieceSize = sqSize * 0.85;
+            const fromCenter = getSquareCenter(animatingMove.from);
+
+            return (
+              <div
+                ref={animOverlayRef}
+                style={{
+                  position: "absolute",
+                  width: pieceSize,
+                  height: pieceSize,
+                  left: 0,
+                  top: 0,
+                  transform: `translate(${fromCenter.x - pieceSize / 2}px, ${fromCenter.y - pieceSize / 2}px)`,
+                  zIndex: 35,
+                  pointerEvents: "none",
+                }}
+              >
+                <Image
+                  src={`/chess-icons/${animatingMove.piece.color}${animatingMove.piece.type}.png`}
+                  alt="Moving piece"
+                  width={100}
+                  height={100}
+                  className={cn(
+                    "w-full h-full object-contain",
+                    animatingMove.piece.color === "w"
+                      ? "drop-shadow-[0_2px_3px_rgba(0,0,0,0.3)]"
+                      : "drop-shadow-[0_2px_3px_rgba(0,0,0,0.5)]"
+                  )}
+                  draggable={false}
+                />
+              </div>
+            );
+          })()}
+
+          {/* SVG Arrow overlay — thick filled arrows with L-shape for knight moves */}
+          {arrows.length > 0 && boardPixelSize > 0 && (
+            <svg
+              className="absolute inset-0 pointer-events-none z-30"
+              width={boardPixelSize}
+              height={boardPixelSize}
+              viewBox={`0 0 ${boardPixelSize} ${boardPixelSize}`}
+            >
+              {arrows.map((arrow, i) => {
+                const from = getSquareCenter(arrow.from);
+                const to = getSquareCenter(arrow.to);
+                const sqSize = boardPixelSize / 8;
+                const colors = arrowColorMap[arrow.color] ?? arrowFill;
+
+                // Dimensions — proportional for smaller squares
+                const shaftW = sqSize * 0.15;   // shaft half-width
+                const headW = sqSize * 0.32;    // arrowhead half-width
+                const headL = sqSize * 0.35;    // arrowhead length
+
+                // Detect knight move (L-shape): 2+1 or 1+2 squares
+                const fileDiff = Math.abs(
+                  arrow.to.charCodeAt(0) - arrow.from.charCodeAt(0)
+                );
+                const rankDiff = Math.abs(
+                  parseInt(arrow.to[1]!) - parseInt(arrow.from[1]!)
+                );
+                const isKnight =
+                  (fileDiff === 2 && rankDiff === 1) ||
+                  (fileDiff === 1 && rankDiff === 2);
+
+                if (isKnight) {
+                  // L-shaped arrow: go along the longer axis first, then turn
+                  // Corner: horizontal first if fileDiff=2, vertical first if rankDiff=2
+                  const corner =
+                    fileDiff === 2
+                      ? { x: to.x, y: from.y } // horizontal then vertical
+                      : { x: from.x, y: to.y }; // vertical then horizontal
+
+                  // Last segment direction (corner → to)
+                  const ldx = to.x - corner.x;
+                  const ldy = to.y - corner.y;
+                  const lLen = Math.sqrt(ldx * ldx + ldy * ldy);
+                  const ld = { x: ldx / lLen, y: ldy / lLen };
+                  const lp = { x: -ld.y, y: ld.x }; // perpendicular
+
+                  // Tip and head base
+                  const tip = to;
+                  const hb = {
+                    x: tip.x - ld.x * headL,
+                    y: tip.y - ld.y * headL,
+                  };
+
+                  // Build shaft path as thick stroke with round join
+                  const shaftPath = `M ${from.x} ${from.y} L ${corner.x} ${corner.y} L ${hb.x} ${hb.y}`;
+
+                  // Arrowhead triangle
+                  const headLeft = {
+                    x: hb.x + lp.x * headW,
+                    y: hb.y + lp.y * headW,
+                  };
+                  const headRight = {
+                    x: hb.x - lp.x * headW,
+                    y: hb.y - lp.y * headW,
+                  };
+
+                  return (
+                    <g key={i}>
+                      <path
+                        d={shaftPath}
+                        stroke={colors.shaft}
+                        strokeWidth={shaftW * 2}
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                        fill="none"
+                      />
+                      <polygon
+                        points={`${tip.x},${tip.y} ${headLeft.x},${headLeft.y} ${headRight.x},${headRight.y}`}
+                        fill={colors.head}
+                      />
+                      {/* Cover the shaft end so it doesn't poke past arrowhead base */}
+                      <line
+                        x1={headLeft.x}
+                        y1={headLeft.y}
+                        x2={headRight.x}
+                        y2={headRight.y}
+                        stroke={colors.head}
+                        strokeWidth={2}
+                      />
+                    </g>
+                  );
+                }
+
+                // Straight arrow
+                const dx = to.x - from.x;
+                const dy = to.y - from.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len === 0) return null;
+                const d = { x: dx / len, y: dy / len };
+                const p = { x: -d.y, y: d.x }; // perpendicular
+
+                // Arrowhead base point
+                const hb = {
+                  x: to.x - d.x * headL,
+                  y: to.y - d.y * headL,
+                };
+
+                // Build filled polygon: shaft rectangle + arrowhead triangle
+                const points = [
+                  // Shaft left side
+                  { x: from.x + p.x * shaftW, y: from.y + p.y * shaftW },
+                  // Shaft left to head base
+                  { x: hb.x + p.x * shaftW, y: hb.y + p.y * shaftW },
+                  // Head left wing
+                  { x: hb.x + p.x * headW, y: hb.y + p.y * headW },
+                  // Tip
+                  { x: to.x, y: to.y },
+                  // Head right wing
+                  { x: hb.x - p.x * headW, y: hb.y - p.y * headW },
+                  // Shaft right at head base
+                  { x: hb.x - p.x * shaftW, y: hb.y - p.y * shaftW },
+                  // Shaft right side
+                  { x: from.x - p.x * shaftW, y: from.y - p.y * shaftW },
+                ];
+
+                const pathD = points
+                  .map((pt, idx) =>
+                    idx === 0 ? `M ${pt.x} ${pt.y}` : `L ${pt.x} ${pt.y}`
+                  )
+                  .join(" ") + " Z";
+
+                return (
+                  <path
+                    key={i}
+                    d={pathD}
+                    fill={colors.shaft}
+                  />
+                );
+              })}
+            </svg>
+          )}
         </div>
       </div>
     </div>

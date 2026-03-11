@@ -8,15 +8,20 @@ import AnalysisMoveList from "../../components/AnalysisMoveList";
 import { PromotionPopup } from "../../components/PromotionPopup";
 import { Navbar } from "../../components/Navbar";
 import PracticeMoveList from "./PracticeMoveList";
+import ExplanationView, { ExplanationComingSoon } from "./ExplanationView";
+import NarrationDisplay from "./NarrationDisplay";
+import SegmentList from "./SegmentList";
 import { useAnalysisBoard } from "@/lib/hooks/useAnalysisBoard";
 import { usePlayFromPosition } from "@/lib/hooks/usePlayFromPosition";
+import { useExplanationPlayer } from "@/lib/hooks/useExplanationPlayer";
 import { useRequireAuth, UseRequireAuthReturn } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 import { trackApiResponseTime } from "@/lib/metrics";
 import { motion } from "motion/react";
+import type { ExplanationData } from "@/lib/hooks/useExplanationPlayer";
 
-type AnalysisTab = "your-moves" | "legend-moves" | "practice";
+type AnalysisTab = "explanation" | "your-moves" | "legend-moves" | "practice";
 
 const DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -52,6 +57,8 @@ interface AnalysisData {
   legendGameResult: "white_won" | "black_won" | "draw" | null;
   openingName: string | null;
   openingEco: string | null;
+  explanation: ExplanationData | null;
+  explanationAudioUrl: string | null;
 }
 
 const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
@@ -95,15 +102,22 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
     fetchData();
   }, [gameId, isReady, userReferenceId]);
 
-  // Tab state
+  // Tab state — default depends on whether explanation data exists
   const [activeTab, setActiveTab] = useState<AnalysisTab>("legend-moves");
   const [practiceFen, setPracticeFen] = useState<string | null>(null);
   const [practiceKey, setPracticeKey] = useState(0); // bumped to force reset even for same FEN
   const previousTabRef = useRef<AnalysisTab>("legend-moves");
 
-  // Default to "your-moves" when no legend moves (e.g. opening games)
+  // Set default tab once data loads
   useEffect(() => {
-    if (data && data.legendMoves.length === 0) {
+    if (!data) return;
+    if (data.explanation) {
+      setActiveTab("explanation");
+      previousTabRef.current = "explanation";
+    } else if (data.legendMoves.length > 0) {
+      setActiveTab("legend-moves");
+      previousTabRef.current = "legend-moves";
+    } else {
       setActiveTab("your-moves");
       previousTabRef.current = "your-moves";
     }
@@ -118,7 +132,7 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
     legendPgn: data?.legendPgn,
     moveNumberStart: data?.moveNumberStart,
     isLegendMode: activeTab === "legend-moves",
-    enableKeyboardNav: activeTab !== "practice",
+    enableKeyboardNav: activeTab !== "practice" && activeTab !== "explanation",
   });
 
   // Practice game hook
@@ -127,6 +141,13 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
     playerColor: (data?.userColor || "w") as Color,
     resetKey: practiceKey,
   });
+
+  // Explanation player hook
+  const explanationPlayer = useExplanationPlayer(
+    data?.explanation as ExplanationData | null,
+    data?.explanationAudioUrl ?? null
+  );
+  const hasExplanation = !!(data?.explanation && (data.explanation as ExplanationData).segments?.length > 0);
 
   const {
     plyIndex,
@@ -168,6 +189,48 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
   const handleBackToAnalysis = useCallback(() => {
     setActiveTab(previousTabRef.current);
   }, []);
+
+  // Keyboard shortcuts for explanation mode (arrow keys + space)
+  useEffect(() => {
+    if (activeTab !== "explanation" || !explanationPlayer.hasAudio) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        explanationPlayer.skipBack();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        explanationPlayer.skipForward();
+      } else if (e.key === " ") {
+        e.preventDefault();
+        explanationPlayer.togglePlayPause();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeTab, explanationPlayer.hasAudio, explanationPlayer.skipBack, explanationPlayer.skipForward, explanationPlayer.togglePlayPause]);
+
+  // Pause explanation audio when leaving the tab, resume when returning
+  const wasPlayingRef = useRef(false);
+  useEffect(() => {
+    if (activeTab === "explanation") {
+      // Returning to explanation tab — resume if it was playing before
+      if (wasPlayingRef.current) {
+        explanationPlayer.play();
+        wasPlayingRef.current = false;
+      }
+    } else {
+      // Leaving explanation tab — pause if playing and remember state
+      if (explanationPlayer.isPlaying) {
+        wasPlayingRef.current = true;
+        explanationPlayer.pause();
+      }
+    }
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps -- only react to tab changes
 
   // Determine starting side from FEN
   const startingSide =
@@ -235,19 +298,47 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
         }}
       />
 
-      <div className="relative max-w-7xl mx-auto px-0 sm:px-8 md:px-8 lg:px-4 pb-4 md:pb-6 lg:pb-8 pt-16 sm:pt-20 md:pt-24 lg:pt-24 min-h-[100dvh] flex flex-col justify-center">
+      <div className="relative max-w-7xl mx-auto px-0 sm:px-8 md:px-8 lg:px-4 pb-4 md:pb-6 lg:pb-8 pt-16 sm:pt-20 md:pt-24 lg:pt-32 min-h-[100dvh] flex flex-col justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="flex flex-col lg:grid lg:grid-cols-12 gap-0 lg:gap-8 min-h-0"
         >
-          {/* Left - Move List (hidden on mobile) */}
+          {/* Left - Move List / Segment List (hidden on mobile) */}
           <div className="lg:col-span-3 order-2 lg:order-1 hidden lg:flex lg:flex-col">
             <div className={cn(
               "border flex flex-col max-h-[70vh] overflow-hidden",
+              activeTab === "explanation" ? "border-emerald-500/20" :
               activeTab === "practice" ? "border-amber-500/20" : "border-white/10"
             )}>
-              {activeTab === "practice" ? (
+              {activeTab === "explanation" ? (
+                hasExplanation ? (
+                  <>
+                    <div className="p-3 border-b border-white/10">
+                      <p
+                        style={{ fontFamily: "'Geist', sans-serif" }}
+                        className="text-[10px] tracking-[0.3em] uppercase text-emerald-400/60"
+                      >
+                        Segments
+                      </p>
+                    </div>
+                    <SegmentList
+                      explanation={data.explanation as ExplanationData}
+                      currentSegmentIndex={explanationPlayer.currentSegmentIndex}
+                      onSegmentClick={explanationPlayer.seekToSegment}
+                    />
+                  </>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center p-4">
+                    <p
+                      style={{ fontFamily: "'Geist', sans-serif" }}
+                      className="text-white/30 text-sm text-center"
+                    >
+                      No explanation available
+                    </p>
+                  </div>
+                )
+              ) : activeTab === "practice" ? (
                 <PracticeMoveList
                   moveHistory={practiceGame.moveHistory}
                   isBotThinking={practiceGame.isBotThinking}
@@ -426,52 +517,87 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
             </motion.div>
 
             {/* Tabs - Mobile Only */}
-            {(hasLegendMoves || isOpeningGame) && (
-              <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 sm:mb-3 md:mb-4 px-2 lg:hidden">
-                {hasLegendMoves && (
-                  <button
-                    onClick={() => setActiveTab("legend-moves")}
-                    className={cn(
-                      "px-3 md:px-4 py-2 md:py-2 text-xs md:text-sm tracking-wide border transition-colors",
-                      activeTab === "legend-moves"
-                        ? "border-sky-500/40 text-sky-400 bg-sky-500/10"
-                        : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
-                    )}
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                  >
-                    Legend&apos;s Moves
-                  </button>
+            <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 sm:mb-3 md:mb-4 px-2 lg:hidden">
+              <button
+                onClick={() => setActiveTab("explanation")}
+                className={cn(
+                  "px-3 md:px-4 py-2 md:py-2 text-xs md:text-sm tracking-wide border transition-colors",
+                  activeTab === "explanation"
+                    ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
+                    : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
                 )}
+                style={{ fontFamily: "'Geist', sans-serif" }}
+              >
+                Explain
+              </button>
+              {hasLegendMoves && (
                 <button
-                  onClick={() => setActiveTab("your-moves")}
+                  onClick={() => setActiveTab("legend-moves")}
                   className={cn(
                     "px-3 md:px-4 py-2 md:py-2 text-xs md:text-sm tracking-wide border transition-colors",
-                    activeTab === "your-moves"
-                      ? "border-white/40 text-white bg-white/10"
+                    activeTab === "legend-moves"
+                      ? "border-sky-500/40 text-sky-400 bg-sky-500/10"
                       : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
                   )}
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
-                  Your Moves
+                  Legend&apos;s Moves
                 </button>
-                <button
-                  onClick={handlePracticeTabClick}
-                  className={cn(
-                    "px-3 md:px-4 py-2 md:py-2 text-xs md:text-sm tracking-wide border transition-colors",
-                    activeTab === "practice"
-                      ? "border-amber-500/40 text-amber-400 bg-amber-500/10"
-                      : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
-                  )}
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                >
-                  Practice
-                </button>
+              )}
+              <button
+                onClick={() => setActiveTab("your-moves")}
+                className={cn(
+                  "px-3 md:px-4 py-2 md:py-2 text-xs md:text-sm tracking-wide border transition-colors",
+                  activeTab === "your-moves"
+                    ? "border-white/40 text-white bg-white/10"
+                    : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+                )}
+                style={{ fontFamily: "'Geist', sans-serif" }}
+              >
+                Your Moves
+              </button>
+              <button
+                onClick={handlePracticeTabClick}
+                className={cn(
+                  "px-3 md:px-4 py-2 md:py-2 text-xs md:text-sm tracking-wide border transition-colors",
+                  activeTab === "practice"
+                    ? "border-amber-500/40 text-amber-400 bg-amber-500/10"
+                    : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+                )}
+                style={{ fontFamily: "'Geist', sans-serif" }}
+              >
+                Practice
+              </button>
+            </div>
+
+            {/* Turn indicator — explanation mode only */}
+            {activeTab === "explanation" && hasExplanation && (
+              <div className="flex justify-center mb-1 px-2">
+                <div className="flex items-center gap-2 border border-white/10 bg-white/[0.03] px-2.5 py-1.5 sm:px-2 sm:py-1">
+                  <div className={`w-3.5 h-3.5 sm:w-3 sm:h-3 rounded-full border ${explanationPlayer.turn === "w" ? "bg-white border-white/40" : "bg-zinc-800 border-white/25"}`} />
+                  <span
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                    className="text-xs sm:text-[11px] tracking-wider text-white/60 uppercase font-medium"
+                  >
+                    {explanationPlayer.turn === "w" ? "White" : "Black"} to move
+                  </span>
+                </div>
               </div>
             )}
 
             {/* Board */}
             <div className="mx-1 sm:p-5 md:p-5 lg:p-0 lg:mt-6 lg:mb-4 lg:mx-0">
-              {activeTab === "practice" ? (
+              {activeTab === "explanation" ? (
+                hasExplanation ? (
+                  <ExplanationView
+                    explanation={data.explanation as ExplanationData}
+                    player={explanationPlayer}
+                    playerColor={(data.userColor || "w") as Color}
+                  />
+                ) : (
+                  <ExplanationComingSoon />
+                )
+              ) : activeTab === "practice" ? (
                 <ChessBoard
                   board={practiceGame.board}
                   playerColor={practiceGame.isFlipped ? "b" : "w"}
@@ -513,7 +639,8 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
               onSelect={practiceGame.handlePromotionSelect}
             />
 
-            {/* Navigation Controls */}
+            {/* Navigation Controls — hidden during explanation (has own controls) */}
+            {activeTab !== "explanation" && (
             <div className="flex flex-row items-center gap-2 md:gap-2 mt-2 md:mt-3 lg:mt-6 px-2 lg:px-0 justify-center">
               {/* Analysis Navigation Buttons — hidden during practice */}
               {activeTab !== "practice" && (
@@ -626,6 +753,7 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
                 </button>
               </div>
             </div>
+            )}
 
             {/* Legend Key / Practice Status (Mobile) */}
             <div className="lg:hidden mt-2 md:mt-3 px-4 md:px-8">
@@ -696,58 +824,68 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
           </div>
 
           {/* Right - Legend Key & Info (hidden on mobile) */}
-          <div className="lg:col-span-3 order-3 hidden lg:flex lg:flex-col max-h-[70vh] overflow-y-auto space-y-4">
+          <div className="lg:col-span-3 order-3 hidden lg:flex lg:flex-col space-y-4">
             {/* View Mode Tabs - Desktop */}
-            {(hasLegendMoves || isOpeningGame) && (
-              <div className="border border-white/10 p-4">
-                <p
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-3"
-                >
-                  View Mode
-                </p>
-                <div className="flex flex-col gap-2">
-                  {hasLegendMoves && (
-                    <button
-                      onClick={() => setActiveTab("legend-moves")}
-                      className={cn(
-                        "w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left",
-                        activeTab === "legend-moves"
-                          ? "border-sky-500/40 text-sky-400 bg-sky-500/10"
-                          : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
-                      )}
-                      style={{ fontFamily: "'Geist', sans-serif" }}
-                    >
-                      Legend&apos;s Moves
-                    </button>
+            <div className="border border-white/10 p-4">
+              <p
+                style={{ fontFamily: "'Geist', sans-serif" }}
+                className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-3"
+              >
+                View Mode
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => setActiveTab("explanation")}
+                  className={cn(
+                    "w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left",
+                    activeTab === "explanation"
+                      ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
+                      : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
                   )}
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                >
+                  Explanation
+                </button>
+                {hasLegendMoves && (
                   <button
-                    onClick={() => setActiveTab("your-moves")}
+                    onClick={() => setActiveTab("legend-moves")}
                     className={cn(
                       "w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left",
-                      activeTab === "your-moves"
-                        ? "border-white/40 text-white bg-white/10"
+                      activeTab === "legend-moves"
+                        ? "border-sky-500/40 text-sky-400 bg-sky-500/10"
                         : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >
-                    Your Moves
+                    Legend&apos;s Moves
                   </button>
-                  <button
-                    onClick={handlePracticeTabClick}
-                    className={cn(
-                      "w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left",
-                      activeTab === "practice"
-                        ? "border-amber-500/40 text-amber-400 bg-amber-500/10"
-                        : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
-                    )}
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                  >
-                    Practice
-                  </button>
-                </div>
+                )}
+                <button
+                  onClick={() => setActiveTab("your-moves")}
+                  className={cn(
+                    "w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left",
+                    activeTab === "your-moves"
+                      ? "border-white/40 text-white bg-white/10"
+                      : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+                  )}
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                >
+                  Your Moves
+                </button>
+                <button
+                  onClick={handlePracticeTabClick}
+                  className={cn(
+                    "w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left",
+                    activeTab === "practice"
+                      ? "border-amber-500/40 text-amber-400 bg-amber-500/10"
+                      : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+                  )}
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                >
+                  Practice
+                </button>
               </div>
-            )}
+            </div>
 
             {/* Legend Key - Legend Moves Mode */}
             {hasLegendMoves && activeTab === "legend-moves" && (
@@ -853,8 +991,59 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
               </div>
             )}
 
-            {/* Divergence Info — hidden during practice */}
-            {hasLegendMoves && activeTab !== "practice" && (
+            {/* Explanation Info Panel */}
+            {activeTab === "explanation" && hasExplanation && (
+              <div className="border border-emerald-500/20 p-5">
+                <p
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="text-[10px] tracking-[0.3em] uppercase text-emerald-400/60 mb-3"
+                >
+                  Explanation
+                </p>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/60 text-sm">
+                      Segments
+                    </span>
+                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white text-sm font-mono">
+                      {explanationPlayer.totalSegments}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/60 text-sm">
+                      Mode
+                    </span>
+                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-emerald-400 text-sm">
+                      {explanationPlayer.isManualMode ? "Manual" : "Audio"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/60 text-sm">
+                      Current
+                    </span>
+                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white text-sm font-mono">
+                      {explanationPlayer.currentSegmentIndex + 1} / {explanationPlayer.totalSegments}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Narration — desktop only (mobile narration lives inside ExplanationView) */}
+            {activeTab === "explanation" && hasExplanation && (
+              <div className="border border-white/10 bg-white/[0.02] max-h-[30vh] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/25">
+                <NarrationDisplay
+                  explanation={data.explanation as ExplanationData}
+                  currentSegmentIndex={explanationPlayer.currentSegmentIndex}
+                  currentTimeRef={explanationPlayer.currentTimeRef}
+                  isPlaying={explanationPlayer.isPlaying}
+                  isManualMode={explanationPlayer.isManualMode}
+                />
+              </div>
+            )}
+
+            {/* Divergence Info — hidden during practice and explanation */}
+            {hasLegendMoves && activeTab !== "practice" && activeTab !== "explanation" && (
               <div className="border border-white/10 p-5">
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}

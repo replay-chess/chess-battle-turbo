@@ -52,7 +52,7 @@ export const Navbar = () => {
       <Link href="/" className="flex items-center gap-3 group">
         <Image
           src="/chess-logo-bnw.png"
-          alt="ReplayChess"
+          alt="ReplayChess chess piece logo"
           title="ReplayChess"
           width={100}
           height={100}

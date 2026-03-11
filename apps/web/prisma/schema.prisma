@@ -177,6 +177,10 @@ model ChessPosition {
   positionType    String?
   positionContext Json?
 
+  // ===== EXPLANATION (Grandmaster thought process) =====
+  explanation          Json?     // Segments with visuals + narration
+  explanationAudioUrl  String?   // URL to audio file (e.g., CDN/S3)
+
   // ===== SOURCE (Track where it came from) =====
   sourceType     String @default("manual")
   sourceMetadata Json?
