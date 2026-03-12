@@ -259,7 +259,7 @@ function PlayContent() {
         />
 
         {/* Left Side - Controls */}
-        <div className="flex-1 flex items-center lg:items-start justify-center pt-4 sm:pt-2 lg:pt-6 px-6 sm:px-8 lg:px-12 pb-8 lg:pb-0 relative z-10">
+        <div className="flex-1 flex items-center lg:items-start justify-center pt-4 sm:pt-2 lg:pt-6 px-6 sm:px-8 lg:px-12 pb-28 lg:pb-0 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -560,7 +560,8 @@ function PlayContent() {
               <TimeControlSelector value={timeControl} onChange={setTimeControl} />
             </motion.div>
 
-            {/* Start Button */}
+            {/* Start Button — sticky on mobile */}
+            <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06] lg:static lg:bg-transparent lg:p-0 lg:border-0 lg:backdrop-blur-none">
             <motion.button
               data-testid="start-game-button"
               initial={{ opacity: 0, y: 20 }}
@@ -579,7 +580,7 @@ function PlayContent() {
                 className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out"
               />
 
-              <div className="relative z-10 py-4 px-6 flex items-center justify-center gap-3">
+              <div className="relative z-10 py-3 px-5 flex items-center justify-center gap-3">
                 {isCreatingGame ? (
                   <>
                     <motion.div
@@ -601,6 +602,7 @@ function PlayContent() {
                 )}
               </div>
             </motion.button>
+            </div>
           </motion.div>
         </div>
 

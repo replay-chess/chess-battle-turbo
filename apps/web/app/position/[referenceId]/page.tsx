@@ -255,7 +255,7 @@ export default function PositionPage({
         />
 
         {/* Left Side — Details & Controls */}
-        <div className="flex-1 flex items-center justify-center pt-4 sm:pt-2 lg:pt-6 px-6 sm:px-8 lg:px-12 pb-4 lg:pb-0 relative z-10">
+        <div className="flex-1 flex items-center justify-center pt-4 sm:pt-2 lg:pt-6 px-6 sm:px-8 lg:px-12 pb-28 lg:pb-0 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -323,12 +323,16 @@ export default function PositionPage({
                     </h1>
                   )}
                   {position.tournamentName && (
-                    <p
-                      style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white/40 text-sm"
-                    >
-                      {position.tournamentName}
-                    </p>
+                    <div className="flex items-center gap-3 mt-3">
+                      <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/30" />
+                      <span
+                        style={{ fontFamily: "'Geist', sans-serif" }}
+                        className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+                      >
+                        {position.tournamentName}
+                      </span>
+                      <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/30" />
+                    </div>
                   )}
                 </div>
               )}
@@ -352,38 +356,31 @@ export default function PositionPage({
               </div>
             </motion.div>
 
-            {/* Side to move indicator */}
+            {/* Side to move + Time control — single row labels */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="flex items-center gap-2 mb-6"
+              className="flex items-center justify-between mb-3"
             >
-              <div
-                className={cn(
-                  "w-4 h-4 rounded-full border",
-                  boardOrientation === "w"
-                    ? "bg-white border-white/40"
-                    : "bg-zinc-800 border-white/25"
-                )}
-              />
-              <span
-                style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/50 text-xs tracking-wider uppercase"
-              >
-                {boardOrientation === "w" ? "White" : "Black"} to move
-              </span>
-            </motion.div>
-
-            {/* Time control */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.45 }}
-              className="mb-6 lg:mb-8"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="w-4 h-4 text-white/30" strokeWidth={1.5} />
+              <div className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    "w-3.5 h-3.5 rounded-full border",
+                    boardOrientation === "w"
+                      ? "bg-white border-white/40"
+                      : "bg-zinc-800 border-white/25"
+                  )}
+                />
+                <span
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="text-white/50 text-xs tracking-wider uppercase"
+                >
+                  {boardOrientation === "w" ? "White" : "Black"} to move
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-white/30" strokeWidth={1.5} />
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
                   className="text-xs text-white/40 uppercase tracking-wide"
@@ -391,6 +388,15 @@ export default function PositionPage({
                   Time Control
                 </span>
               </div>
+            </motion.div>
+
+            {/* Time control presets */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.45 }}
+              className="mb-6 lg:mb-8"
+            >
               <div className="flex gap-2">
                 {TIME_PRESETS.map((preset, i) => (
                   <button
@@ -410,19 +416,20 @@ export default function PositionPage({
               </div>
             </motion.div>
 
-            {/* Action buttons */}
+            {/* Action buttons — sticky on mobile */}
+            <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06] lg:static lg:bg-transparent lg:p-0 lg:border-0 lg:backdrop-blur-none">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="space-y-3"
+              className="flex gap-2 lg:flex-col lg:gap-3"
             >
               {/* Challenge a Friend — primary */}
               <button
                 onClick={handleChallengeAFriend}
                 disabled={creatingAiGame || creatingFriendGame}
                 className={cn(
-                  "group relative w-full flex items-center justify-center gap-2.5 px-6 py-4",
+                  "group relative flex-1 lg:w-full flex items-center justify-center gap-2 px-3 py-3 lg:px-5",
                   "bg-white text-black",
                   "transition-all duration-300 overflow-hidden",
                   "disabled:opacity-50 disabled:cursor-not-allowed"
@@ -430,9 +437,9 @@ export default function PositionPage({
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
                 <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                <Users className="relative z-10 w-4 h-4 group-hover:text-white transition-colors" strokeWidth={1.5} />
-                <span className="relative z-10 font-medium group-hover:text-white transition-colors duration-300">
-                  {creatingFriendGame ? "Creating..." : "Challenge a Friend"}
+                <Users className="relative z-10 w-4 h-4 group-hover:text-white transition-colors flex-shrink-0" strokeWidth={1.5} />
+                <span className="relative z-10 text-sm font-medium group-hover:text-white transition-colors duration-300">
+                  {creatingFriendGame ? "Creating..." : <><span className="lg:hidden">vs Friend</span><span className="hidden lg:inline">Challenge a Friend</span></>}
                 </span>
               </button>
 
@@ -441,17 +448,18 @@ export default function PositionPage({
                 onClick={handlePlayVsBot}
                 disabled={creatingAiGame || creatingFriendGame}
                 className={cn(
-                  "w-full flex items-center justify-center gap-2.5 px-6 py-4",
+                  "flex-1 lg:w-full flex items-center justify-center gap-2 px-3 py-3 lg:px-5",
                   "border border-white/10 hover:border-white/30",
                   "text-white/60 hover:text-white transition-all duration-300",
                   "disabled:opacity-50 disabled:cursor-not-allowed"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
-                <Bot className="w-4 h-4" strokeWidth={1.5} />
-                <span>{creatingAiGame ? "Creating..." : "Play vs Bot"}</span>
+                <Bot className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} />
+                <span className="text-sm">{creatingAiGame ? "Creating..." : "vs Bot"}</span>
               </button>
             </motion.div>
+            </div>
           </motion.div>
         </div>
 

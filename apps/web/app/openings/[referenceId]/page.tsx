@@ -34,7 +34,7 @@ export default async function OpeningDetailPage({ params }: Props) {
         }}
       />
 
-      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 sm:pt-36 pb-16">
+      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 sm:pt-36 pb-28 sm:pb-16">
         {/* Back link */}
         <Link
           href="/openings"
@@ -74,10 +74,10 @@ export default async function OpeningDetailPage({ params }: Props) {
             {/* Mobile: board + play button only */}
             <div className="lg:hidden flex flex-col items-center">
               <OpeningBoardPreview fen={opening.fen} pgn={opening.pgn} />
-              <div className="mt-8 mb-4">
+              <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06] sm:static sm:bg-transparent sm:p-0 sm:border-0 sm:backdrop-blur-none sm:mt-8 sm:mb-4">
                 <Link
                   href={`/play?opening=${opening.referenceId}`}
-                  className="group relative overflow-hidden px-8 py-3 bg-white text-black transition-all duration-300"
+                  className="group relative overflow-hidden px-8 py-3 bg-white text-black transition-all duration-300 block text-center"
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
                   <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />

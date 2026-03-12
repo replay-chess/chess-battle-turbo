@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CreditCard, Receipt, Shield, User } from "lucide-react";
+import { Home, CreditCard, Receipt, Shield, User } from "lucide-react";
 import { usePWAInstall } from "@/lib/hooks";
 import { InstallAppPopover } from "./InstallAppPopover";
 import { NavbarTournaments } from "./NavbarTournaments";
@@ -92,8 +92,8 @@ export const Navbar = () => {
           {/* Invert animation */}
           <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
           <span className="relative flex items-center gap-2 group-hover:text-white transition-colors duration-300">
-            Play
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            <Home className="w-3.5 h-3.5" />
+            Home
           </span>
         </button>
 

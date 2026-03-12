@@ -84,7 +84,7 @@ export default async function LegendDetailPage({ params }: Props) {
         }}
       />
 
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 sm:pt-36 pb-16">
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 sm:pt-36 pb-28 sm:pb-16">
         {/* Back link */}
         <Link
           href="/legends"
@@ -116,15 +116,16 @@ export default async function LegendDetailPage({ params }: Props) {
               >
                 {legend.name}
               </h1>
-              <div className="flex flex-col sm:flex-row gap-2 sm:flex-shrink-0">
+              <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06] flex flex-row gap-2 sm:static sm:bg-transparent sm:p-0 sm:border-0 sm:backdrop-blur-none sm:flex-shrink-0">
                 <Link
                   href={`/play?legend=${legend.referenceId}`}
-                  className="group relative inline-block overflow-hidden px-8 py-3 bg-white text-black transition-all duration-300"
+                  className="group relative flex-1 sm:flex-initial inline-flex items-center justify-center overflow-hidden px-3 py-3 sm:px-8 bg-white text-black transition-all duration-300 text-center"
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
                   <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                  <span className="relative text-sm font-medium text-black group-hover:text-white transition-colors duration-300">
-                    Play as {legend.name}
+                  <span className="relative text-sm font-medium text-black group-hover:text-white transition-colors duration-300 truncate">
+                    <span className="sm:hidden">{legend.name} vs Bot</span>
+                    <span className="hidden sm:inline">Play as {legend.name}</span>
                   </span>
                 </Link>
                 <ChallengeLegendButton
