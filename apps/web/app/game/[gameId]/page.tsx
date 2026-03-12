@@ -19,6 +19,7 @@ import { motion } from "motion/react";
 import { PlayerInfoCard } from "./PlayerInfoCard";
 import { GameActionButtons } from "./GameActionButtons";
 import { AnalysisPhaseBannerMobile, AnalysisPhaseBannerDesktop } from "./AnalysisPhaseBanner";
+import { ShareLinkModal } from "@/app/play/ShareLinkModal";
 import type {
   Player,
   GameStartedPayload,
@@ -108,6 +109,12 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
   // Game end overlay state
   const [showGameEndOverlay, setShowGameEndOverlay] = useState(false);
   const [tournamentRef, setTournamentRef] = useState<string | null>(null);
+
+  // Rematch state (friend games only)
+  const [isFriendGame, setIsFriendGame] = useState(false);
+  const [rematchCreating, setRematchCreating] = useState(false);
+  const [rematchGameRef, setRematchGameRef] = useState<string | null>(null);
+  const [rematchInviteLink, setRematchInviteLink] = useState<string | null>(null);
 
   const onThinkingStart = useCallback(() => setIsBotThinking(true), []);
   const onThinkingEnd = useCallback(() => setIsBotThinking(false), []);
@@ -292,6 +299,35 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
     socketRef.current.emit("resign", { gameReferenceId: gameId });
     setShowResignConfirm(false);
   }, [gameId, gameOver]);
+
+  // Rematch handler (friend games only)
+  const handleRematch = async () => {
+    if (!userReferenceId || rematchCreating) return;
+    setRematchCreating(true);
+    try {
+      const response = await fetch("/api/chess/create-game", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userReferenceId,
+          initialTimeSeconds: whiteTime > 0 ? Math.max(whiteTime, blackTime) : 300,
+          incrementSeconds: 5,
+          gameMode: "friend",
+          playAsLegend: true,
+          selectedLegend: null,
+        }),
+      });
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || "Failed to create rematch");
+      const ref = data.data.game.referenceId;
+      setRematchGameRef(ref);
+      setRematchInviteLink(`${window.location.origin}/join/${ref}?autojoin=true`);
+    } catch (err) {
+      logger.error("Error creating rematch:", err);
+      toast.error("Failed to create rematch");
+      setRematchCreating(false);
+    }
+  };
 
   // Move navigation handler
   const handleNavigate = useCallback((index: number | null) => {
@@ -503,13 +539,16 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
       setWhiteTime(payload.whiteTime);
       setBlackTime(payload.blackTime);
 
-      // Check if this is a tournament game for "Back to Tournament" button
+      // Check game mode for tournament/rematch buttons
       fetch(`/api/chess/game-by-ref/${gameId}`)
         .then((r) => r.json())
         .then((data) => {
           const gd = data?.data?.gameData;
           if (gd?.gameMode === "tournament" && gd?.tournamentReferenceId) {
             setTournamentRef(gd.tournamentReferenceId);
+          }
+          if (gd?.gameMode === "friend") {
+            setIsFriendGame(true);
           }
         })
         .catch(() => {});
@@ -937,6 +976,16 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
                       Find Match
                     </button>
                   )}
+                  {isFriendGame && !isSpectator && (
+                    <button
+                      onClick={handleRematch}
+                      disabled={rematchCreating}
+                      className="w-full py-2.5 bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ fontFamily: "'Geist', sans-serif" }}
+                    >
+                      {rematchCreating ? "Creating..." : "Rematch"}
+                    </button>
+                  )}
                   <button
                     onClick={() => router.push(tournamentRef ? `/tournament/${tournamentRef}` : "/play")}
                     className="w-full py-2.5 border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-colors"
@@ -1166,6 +1215,16 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
                           Find Match
                         </button>
                       )}
+                      {isFriendGame && !isSpectator && (
+                        <button
+                          onClick={handleRematch}
+                          disabled={rematchCreating}
+                          className="h-9 sm:h-11 px-3 text-xs bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-colors disabled:opacity-50"
+                          style={{ fontFamily: "'Geist', sans-serif" }}
+                        >
+                          {rematchCreating ? "..." : "Rematch"}
+                        </button>
+                      )}
                       <button
                         onClick={() => router.push(tournamentRef ? `/tournament/${tournamentRef}` : "/play")}
                         className="h-9 sm:h-11 px-3 text-xs border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-colors"
@@ -1288,6 +1347,30 @@ const GamePage = ({ params }: { params: Promise<{ gameId: string }> }) => {
           </motion.div>
         )}
       </div>
+
+      {/* Rematch ShareLinkModal */}
+      <ShareLinkModal
+        isOpen={!!rematchInviteLink}
+        inviteLink={rematchInviteLink || ""}
+        onGoToGame={() => {
+          if (rematchGameRef) router.push(`/game/${rematchGameRef}`);
+        }}
+        onCancel={async () => {
+          if (rematchGameRef) {
+            await fetch("/api/chess/cancel-game", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                gameReferenceId: rematchGameRef,
+                userReferenceId,
+              }),
+            });
+          }
+          setRematchInviteLink(null);
+          setRematchGameRef(null);
+          setRematchCreating(false);
+        }}
+      />
     </div>
   );
 };

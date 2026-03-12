@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Copy, Check, ArrowRight } from "lucide-react";
+import { Copy, Check, ArrowRight, X } from "lucide-react";
 
 interface TournamentShareModalProps {
   isOpen: boolean;
@@ -64,19 +64,27 @@ export function TournamentShareModal({ isOpen, referenceId, onGoToTournament }: 
             transition={{ duration: 0.5, ease: modalEasing }}
           >
             <motion.div
-              className="flex items-center gap-3 mb-5"
+              className="flex items-center justify-between mb-5"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.1 }}
             >
-              <div className="h-px flex-1 bg-gradient-to-r from-white/30 to-transparent" />
-              <span
-                style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+              <div className="flex items-center gap-3 flex-1">
+                <div className="h-px flex-1 bg-gradient-to-r from-white/30 to-transparent" />
+                <span
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+                >
+                  Tournament Created
+                </span>
+                <div className="h-px flex-1 bg-gradient-to-l from-white/30 to-transparent" />
+              </div>
+              <button
+                onClick={onGoToTournament}
+                className="ml-3 text-white/30 hover:text-white/60 transition-colors"
               >
-                Tournament Created
-              </span>
-              <div className="h-px flex-1 bg-gradient-to-l from-white/30 to-transparent" />
+                <X className="w-4 h-4" />
+              </button>
             </motion.div>
 
             <motion.div

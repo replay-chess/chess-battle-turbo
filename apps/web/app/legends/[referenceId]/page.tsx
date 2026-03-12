@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { safeJsonLd } from "@/lib/seo";
 import { Navbar } from "../../components/Navbar";
 import { Footer } from "../../components/Footer";
+import { ChallengeLegendButton } from "./ChallengeLegendButton";
 
 
 interface Props {
@@ -115,16 +116,22 @@ export default async function LegendDetailPage({ params }: Props) {
               >
                 {legend.name}
               </h1>
-              <Link
-                href={`/play?legend=${legend.referenceId}`}
-                className="group relative inline-block overflow-hidden px-8 py-3 bg-white text-black transition-all duration-300 sm:flex-shrink-0"
-                style={{ fontFamily: "'Geist', sans-serif" }}
-              >
-                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                <span className="relative text-sm font-medium text-black group-hover:text-white transition-colors duration-300">
-                  Play as {legend.name}
-                </span>
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-2 sm:flex-shrink-0">
+                <Link
+                  href={`/play?legend=${legend.referenceId}`}
+                  className="group relative inline-block overflow-hidden px-8 py-3 bg-white text-black transition-all duration-300"
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                >
+                  <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                  <span className="relative text-sm font-medium text-black group-hover:text-white transition-colors duration-300">
+                    Play as {legend.name}
+                  </span>
+                </Link>
+                <ChallengeLegendButton
+                  legendReferenceId={legend.referenceId}
+                  legendName={legend.name}
+                />
+              </div>
             </div>
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-4">
               <span

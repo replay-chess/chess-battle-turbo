@@ -1,21 +1,37 @@
 "use client";
 
-import React, { useEffect, useState, use } from "react";
+import React, { useEffect, useState, useRef, use } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { cn, getInitials } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 import { useRequireAuth, UseRequireAuthReturn } from "@/lib/hooks";
 import { motion } from "motion/react";
 import { Navbar } from "@/app/components/Navbar";
-import { Swords, Clock, ArrowLeft } from "lucide-react";
+import { Swords, Clock } from "lucide-react";
+import { Chess } from "chess.js";
+import ChessBoard from "@/app/components/ChessBoard";
+
+interface PositionInfo {
+  whitePlayerName: string | null;
+  blackPlayerName: string | null;
+  tournamentName?: string | null;
+  openingName?: string | null;
+  openingEco?: string | null;
+}
 
 interface GameDetails {
   referenceId: string;
   status: string;
   initialTimeSeconds: number;
   incrementSeconds: number;
+  startingFen?: string;
+  gameData?: {
+    positionInfo?: PositionInfo;
+    gameMode?: string;
+    [key: string]: unknown;
+  };
   creator: {
     userReferenceId: string;
     name: string;
@@ -38,10 +54,12 @@ export default function JoinPage({
   const { isReady, userObject }: UseRequireAuthReturn = useRequireAuth();
   const userReferenceId = userObject?.user?.referenceId;
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [gameDetails, setGameDetails] = useState<GameDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
+  const autoJoinAttempted = useRef(false);
 
   const { gameReferenceId } = use(params);
 
@@ -102,8 +120,26 @@ export default function JoinPage({
           : "Failed to join game. Please try again."
       );
       setJoining(false);
+      autoJoinAttempted.current = true;
     }
   };
+
+  // Auto-join when ?autojoin=true
+  useEffect(() => {
+    if (
+      !autoJoinAttempted.current &&
+      searchParams.get("autojoin") === "true" &&
+      isReady &&
+      userReferenceId &&
+      gameDetails &&
+      gameDetails.status === "WAITING_FOR_OPPONENT" &&
+      !joining
+    ) {
+      autoJoinAttempted.current = true;
+      handleJoinGame();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, userReferenceId, gameDetails, joining, searchParams]);
 
   if (loading || !isReady) {
     return (
@@ -117,7 +153,7 @@ export default function JoinPage({
           >
             <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin" />
             <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-sm tracking-wide">
-              Loading...
+              {searchParams.get("autojoin") === "true" ? "Joining game..." : "Loading..."}
             </p>
           </motion.div>
         </div>
@@ -177,6 +213,29 @@ export default function JoinPage({
   }
 
   const alreadyStarted = gameDetails.status !== "WAITING_FOR_OPPONENT";
+  const positionInfo = gameDetails.gameData?.positionInfo;
+  const startingFen = gameDetails.startingFen;
+
+  // If auto-joining, show a joining state
+  if (joining) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen bg-black flex items-center justify-center pt-16 md:pt-24">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center gap-4"
+          >
+            <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-sm tracking-wide">
+              Joining game...
+            </p>
+          </motion.div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -254,6 +313,66 @@ export default function JoinPage({
             </div>
           </motion.div>
 
+          {/* Position Preview */}
+          {startingFen && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              className="mb-6"
+            >
+              <div className="border border-white/10 p-4">
+                <div className="max-w-[280px] mx-auto mb-3">
+                  <ChessBoard
+                    board={new Chess(startingFen).board()}
+                    isInteractive={false}
+                    showCoordinates={false}
+                    squareSize="responsive-md"
+                  />
+                </div>
+                {positionInfo && (
+                  <div className="text-center">
+                    {positionInfo.openingName ? (
+                      <div className="flex items-center justify-center gap-2">
+                        {positionInfo.openingEco && (
+                          <span
+                            style={{ fontFamily: "'Geist', sans-serif" }}
+                            className="text-[10px] tracking-wider text-white/50 bg-white/10 px-1.5 py-0.5 uppercase"
+                          >
+                            {positionInfo.openingEco}
+                          </span>
+                        )}
+                        <p
+                          style={{ fontFamily: "'Instrument Serif', serif" }}
+                          className="text-white/50 text-sm italic"
+                        >
+                          {positionInfo.openingName}
+                        </p>
+                      </div>
+                    ) : positionInfo.whitePlayerName && positionInfo.blackPlayerName ? (
+                      <p
+                        style={{ fontFamily: "'Instrument Serif', serif" }}
+                        className="text-white/50 text-sm"
+                      >
+                        {positionInfo.whitePlayerName}
+                        <span className="text-white/20 mx-1.5">vs</span>
+                        {positionInfo.blackPlayerName}
+                      </p>
+                    ) : null}
+                    {positionInfo.tournamentName && (
+                      <p
+                        style={{ fontFamily: "'Geist', sans-serif" }}
+                        className="text-white/30 text-xs mt-1"
+                      >
+                        {positionInfo.tournamentName}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
           {/* Game Details */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -293,29 +412,14 @@ export default function JoinPage({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="flex gap-4"
+            className="space-y-3"
           >
-            <button
-              onClick={() => router.push("/")}
-              disabled={joining}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-2 px-6 py-4",
-                "border border-white/10 hover:border-white/30",
-                "text-white/60 hover:text-white transition-all duration-300",
-                "disabled:opacity-50 disabled:cursor-not-allowed"
-              )}
-              style={{ fontFamily: "'Geist', sans-serif" }}
-            >
-              <ArrowLeft className="w-4 h-4" strokeWidth={1.5} />
-              <span>Cancel</span>
-            </button>
-
             <button
               data-testid="accept-challenge-button"
               onClick={handleJoinGame}
               disabled={joining || alreadyStarted}
               className={cn(
-                "group relative flex-1 flex items-center justify-center gap-2 px-6 py-4",
+                "group relative w-full flex items-center justify-center gap-2 px-6 py-4",
                 "transition-all duration-300 overflow-hidden",
                 alreadyStarted
                   ? "bg-white/10 text-white/30 cursor-not-allowed"
@@ -337,6 +441,15 @@ export default function JoinPage({
                     ? "Unavailable"
                     : "Accept Challenge"}
               </span>
+            </button>
+
+            <button
+              onClick={() => router.push("/")}
+              disabled={joining}
+              className="w-full text-center py-2 text-white/40 hover:text-white/60 transition-colors text-sm"
+              style={{ fontFamily: "'Geist', sans-serif" }}
+            >
+              Cancel
             </button>
           </motion.div>
         </motion.div>

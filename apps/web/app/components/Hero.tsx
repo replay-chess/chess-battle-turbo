@@ -2,10 +2,16 @@
 
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Users } from "lucide-react";
 import Link from "next/link";
+import { useUserStore } from "@/lib/stores";
 
 export default function Hero() {
+  const user = useUserStore((s) => s.user);
+  const challengeHref = user
+    ? "/challenge/new"
+    : "/sign-in?redirect_url=/challenge/new";
+
   return (
     <section aria-label="Hero" className="relative h-full w-full flex items-center justify-center overflow-hidden bg-black">
       {/* Video Background */}
@@ -87,11 +93,12 @@ export default function Hero() {
           Play and Relive the Critical Moves of Chess Legends.
         </motion.p>
 
-        {/* CTA Button */}
+        {/* CTA Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
+          className="flex flex-col items-center gap-3"
         >
           <Link href="/play">
             <button
@@ -109,6 +116,23 @@ export default function Hero() {
               <span className="relative flex items-center gap-3 group-hover:text-white transition-colors duration-300">
                 Start Playing Legendary Games for Free
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </button>
+          </Link>
+          <Link href={challengeHref}>
+            <button
+              className={cn(
+                "group relative overflow-hidden",
+                "border border-white/20 hover:border-white/40 text-white/60 hover:text-white",
+                "px-10 py-3",
+                "text-sm font-semibold tracking-[0.1em] uppercase",
+                "transition-all duration-300"
+              )}
+              style={{ fontFamily: "'Geist', sans-serif" }}
+            >
+              <span className="relative flex items-center gap-3 transition-colors duration-300">
+                <Users className="w-4 h-4" strokeWidth={1.5} />
+                Challenge a Friend
               </span>
             </button>
           </Link>

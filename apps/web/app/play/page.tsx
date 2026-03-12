@@ -109,7 +109,7 @@ function PlayContent() {
   }, [openingParam]);
 
   const inviteLink = createdGameRef
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/join/${createdGameRef}`
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/join/${createdGameRef}?autojoin=true`
     : "";
 
   const handleGoToGame = () => {

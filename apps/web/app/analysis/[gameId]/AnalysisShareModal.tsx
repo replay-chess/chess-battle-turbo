@@ -172,7 +172,7 @@ export function AnalysisShareModal({
         throw new Error(data.error || "Failed to create game");
       }
 
-      const newInviteLink = `${origin}/join/${data.data.game.referenceId}`;
+      const newInviteLink = `${origin}/join/${data.data.game.referenceId}?autojoin=true`;
       setInviteLink(newInviteLink);
       navigator.clipboard.writeText(newInviteLink).catch(() => {});
     } catch (err) {

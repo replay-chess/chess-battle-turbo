@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Copy, Check, ArrowRight } from "lucide-react";
+import { Copy, Check, ArrowRight, Share2, MessageCircle, Send, X } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 interface ShareLinkModalProps {
   isOpen: boolean;
@@ -12,6 +13,10 @@ interface ShareLinkModalProps {
 }
 
 const modalEasing = [0.22, 1, 0.36, 1] as const;
+
+function hasNativeShare(): boolean {
+  return typeof navigator !== "undefined" && !!navigator.share;
+}
 
 export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: ShareLinkModalProps) {
   const [copied, setCopied] = useState(false);
@@ -51,6 +56,21 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleNativeShare = async () => {
+    try {
+      await navigator.share({
+        title: "Chess Battle Challenge",
+        text: "I challenge you to a chess battle!",
+        url: inviteLink,
+      });
+    } catch {
+      // User cancelled or share failed — ignore
+    }
+  };
+
+  const shareText = encodeURIComponent("I challenge you to a chess battle! " + inviteLink);
+  const shareUrl = encodeURIComponent(inviteLink);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -67,28 +87,40 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
           }}
         >
           <motion.div
-            className="bg-neutral-900 border border-white/10 p-6 w-[90%] max-w-sm"
+            className="bg-neutral-900 border border-white/10 p-6 w-[90%] max-w-sm max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.5, ease: modalEasing }}
           >
-            {/* Divider label */}
+            {/* Divider label + close button */}
             <motion.div
-              className="flex items-center gap-3 mb-5"
+              className="flex items-center justify-between mb-5"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.1 }}
             >
-              <div className="h-px flex-1 bg-gradient-to-r from-white/30 to-transparent" />
-              <span
-                style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+              <div className="flex items-center gap-3 flex-1">
+                <div className="h-px flex-1 bg-gradient-to-r from-white/30 to-transparent" />
+                <span
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+                >
+                  Share Invitation
+                </span>
+                <div className="h-px flex-1 bg-gradient-to-l from-white/30 to-transparent" />
+              </div>
+              <button
+                onClick={async () => {
+                  if (cancelling) return;
+                  setCancelling(true);
+                  await onCancel();
+                }}
+                className="ml-3 text-white/30 hover:text-white/60 transition-colors"
               >
-                Share Invitation
-              </span>
-              <div className="h-px flex-1 bg-gradient-to-l from-white/30 to-transparent" />
+                <X className="w-4 h-4" />
+              </button>
             </motion.div>
 
             {/* Heading */}
@@ -187,6 +219,65 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
               </AnimatePresence>
             </motion.button>
 
+            {/* Share buttons row */}
+            <motion.div
+              className="flex gap-2 mb-3"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55, ease: modalEasing }}
+            >
+              {hasNativeShare() && (
+                <button
+                  onClick={handleNativeShare}
+                  className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/70 hover:text-white h-10 flex items-center justify-center gap-2 transition-all duration-200"
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span className="text-xs tracking-[0.1em] font-semibold">SHARE</span>
+                </button>
+              )}
+              <a
+                href={`https://wa.me/?text=${shareText}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/70 hover:text-white h-10 flex items-center justify-center gap-2 transition-all duration-200"
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="text-xs tracking-[0.1em] font-semibold"
+                >
+                  WHATSAPP
+                </span>
+              </a>
+              <a
+                href={`https://t.me/share/url?url=${shareUrl}&text=${encodeURIComponent("I challenge you to a chess battle!")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/70 hover:text-white h-10 flex items-center justify-center gap-2 transition-all duration-200"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="text-xs tracking-[0.1em] font-semibold"
+                >
+                  TELEGRAM
+                </span>
+              </a>
+            </motion.div>
+
+            {/* QR Code */}
+            <motion.div
+              className="flex justify-center mb-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, ease: modalEasing }}
+            >
+              <div className="bg-white p-3 rounded-sm">
+                <QRCodeSVG value={inviteLink} size={120} level="M" />
+              </div>
+            </motion.div>
+
             {/* Go to Game button */}
             <motion.button
               data-testid="go-to-game-button"
@@ -195,7 +286,7 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
               className="w-full group relative overflow-hidden bg-white text-black h-10 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6, ease: modalEasing }}
+              transition={{ delay: 0.65, ease: modalEasing }}
             >
               <div className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
               <div className="relative z-10 flex items-center justify-center gap-2">

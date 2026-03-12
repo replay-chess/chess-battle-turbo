@@ -152,7 +152,7 @@ export default function PositionPage({
 
       const origin = window.location.origin;
       setFriendGameRef(data.data.game.referenceId);
-      setFriendGameLink(`${origin}/join/${data.data.game.referenceId}`);
+      setFriendGameLink(`${origin}/join/${data.data.game.referenceId}?autojoin=true`);
     } catch (err) {
       logger.error("Error creating friend game:", err);
       setCreatingFriendGame(false);
