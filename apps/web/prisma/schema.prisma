@@ -263,6 +263,9 @@ model Opening {
   sideToMove String   // "white" or "black" — whose turn after PGN
   moveCount  Int      // Number of half-moves (plies)
 
+  explanation         Json?
+  explanationAudioUrl String?
+
   isActive    Boolean      @default(true)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt

@@ -8,23 +8,23 @@ export const HowToPlay = () => {
   const steps = [
     {
       number: "01",
-      title: "Choose Position",
-      description: "Select from iconic positions played by Kasparov, Carlsen, Morphy, and other chess legends.",
+      title: "Pick a Position",
+      description: "Browse legendary games and choose a critical moment from chess history.",
     },
     {
       number: "02",
-      title: "Challenge",
-      description: "Get a unique link and challenge your friend to battle from that critical moment.",
+      title: "Share a Challenge",
+      description: "Get a unique link and send it to a friend to play from that exact position.",
     },
     {
       number: "03",
-      title: "Play",
-      description: "Step into the shoes of chess legends. Navigate the same critical decisions they faced.",
+      title: "Play the Moment",
+      description: "Step into the game from that exact point and make your own moves.",
     },
     {
       number: "04",
-      title: "Master",
-      description: "Learn from the best games ever played. Experience tactical brilliance firsthand.",
+      title: "Compare & Learn",
+      description: "See how your continuation stacks up against the best engine line.",
     },
   ];
 

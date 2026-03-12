@@ -29,6 +29,32 @@ async function main() {
   });
   console.log(`🤖 Created/Updated bot user: ${botUser.name} (${botUser.email}) - Reference ID: ${botUser.referenceId}`);
 
+  // Create demo user for unauthenticated try-before-signup flow
+  const demoUser = await prisma.user.upsert({
+    where: { email: 'demo@replaychess.local' },
+    update: {},
+    create: {
+      code: 'DEMO_PLAYER_001',
+      googleId: 'demo_system_user',
+      email: 'demo@replaychess.local',
+      name: 'Demo Player',
+      profilePictureUrl: null,
+      isActive: true,
+      onboarded: true,
+      stats: {
+        create: {
+          totalGamesPlayed: 0,
+          gamesWon: 0,
+          gamesLost: 0,
+          gamesDrawn: 0,
+          currentWinStreak: 0,
+          longestWinStreak: 0,
+        },
+      },
+    },
+  });
+  console.log(`🎮 Created/Updated demo user: ${demoUser.name} (${demoUser.email}) - Reference ID: ${demoUser.referenceId}`);
+
   // Create dummy users
   const users = [
     {

@@ -98,7 +98,7 @@ export function GameHistory({ games }: GameHistoryProps) {
       </div>
 
       {/* Game list */}
-      <div className="max-h-[480px] overflow-y-auto">
+      <div className="max-h-[480px] overflow-y-auto custom-scrollbar">
         {games.map((game, index) => {
           const style = OUTCOME_STYLES[game.outcome];
           const opponentName = game.opponent?.name || "Unknown";
