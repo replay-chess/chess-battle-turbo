@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface AudioControlsProps {
@@ -21,7 +21,10 @@ interface AudioControlsProps {
   onSeekToSegment: (index: number) => void;
   onSkipBack: () => void;
   onSkipForward: () => void;
+  hideSpeedAndVolume?: boolean;
+  extraControls?: React.ReactNode;
 }
+
 
 const RATES = [0.5, 1, 1.5, 2];
 const DISPLAY_UPDATE_MS = 250; // ~4Hz — plenty for a progress bar with CSS transitions
@@ -49,6 +52,8 @@ export default function AudioControls({
   onSetPlaybackRate,
   onSkipBack,
   onSkipForward,
+  hideSpeedAndVolume = false,
+  extraControls,
 }: AudioControlsProps) {
   const [displayTime, setDisplayTime] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval>>(null);
@@ -181,11 +186,71 @@ export default function AudioControls({
           </svg>
         </button>
 
-        {/* Separator */}
-        {hasAudio && <div className="w-px h-6 bg-white/10 mx-1" />}
+        {/* Extra controls slot (e.g. Share button) */}
+        {extraControls && (
+          <>
+            <div className="w-px h-6 bg-white/10 mx-1" />
+            {extraControls}
+          </>
+        )}
 
-        {/* Speed selector */}
-        {hasAudio && (
+        {/* Speed selector + Mute toggle — hidden when docked to bottom bar */}
+        {!hideSpeedAndVolume && (
+          <>
+            {/* Separator */}
+            {hasAudio && <div className="w-px h-6 bg-white/10 mx-1" />}
+
+            {/* Speed selector */}
+            {hasAudio && (
+              <div className="flex items-center gap-1">
+                {RATES.map((rate) => (
+                  <button
+                    key={rate}
+                    onClick={() => onSetPlaybackRate(rate)}
+                    className={cn(
+                      "px-1.5 py-0.5 text-[10px] font-mono border transition-colors",
+                      playbackRate === rate
+                        ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
+                        : "border-white/10 text-white/30 hover:text-white/50"
+                    )}
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                  >
+                    {rate}x
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Mute toggle */}
+            {hasAudio && (
+              <>
+                <div className="w-px h-6 bg-white/10 mx-1" />
+                <button
+                  onClick={onToggleMute}
+                  className="w-8 h-8 flex items-center justify-center border border-white/10 hover:bg-white/5 transition-colors"
+                >
+                  {isMuted ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19" />
+                      <line x1="23" y1="9" x2="17" y2="15" />
+                      <line x1="17" y1="9" x2="23" y2="15" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    </svg>
+                  )}
+                </button>
+              </>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Speed + Volume — second row when separated from main controls */}
+      {hideSpeedAndVolume && hasAudio && (
+        <div className="flex items-center justify-center gap-2 px-4 mt-2">
           <div className="flex items-center gap-1">
             {RATES.map((rate) => (
               <button
@@ -203,32 +268,26 @@ export default function AudioControls({
               </button>
             ))}
           </div>
-        )}
-
-        {/* Mute toggle */}
-        {hasAudio && (
-          <>
-            <div className="w-px h-6 bg-white/10 mx-1" />
-            <button
-              onClick={onToggleMute}
-              className="w-8 h-8 flex items-center justify-center border border-white/10 hover:bg-white/5 transition-colors"
-            >
-              {isMuted ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19" />
-                  <line x1="23" y1="9" x2="17" y2="15" />
-                  <line x1="17" y1="9" x2="23" y2="15" />
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19" />
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-                </svg>
-              )}
-            </button>
-          </>
-        )}
-      </div>
+          <div className="w-px h-6 bg-white/10 mx-1" />
+          <button
+            onClick={onToggleMute}
+            className="w-8 h-8 flex items-center justify-center border border-white/10 hover:bg-white/5 transition-colors"
+          >
+            {isMuted ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Segment indicator */}
       <div className="flex justify-center">

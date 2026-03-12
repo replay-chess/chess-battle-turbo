@@ -28,6 +28,10 @@ interface AnalysisData {
   // Explanation
   explanation: unknown | null;
   explanationAudioUrl: string | null;
+
+  // Position sharing
+  chessPositionReferenceId: string | null;
+  openingReferenceId: string | null;
 }
 
 /**
@@ -207,11 +211,13 @@ export async function GET(
     let positionGameMetadata: Record<string, unknown> | null = null;
     let explanation: unknown | null = null;
     let explanationAudioUrl: string | null = null;
+    let chessPositionReferenceId: string | null = null;
 
     if (game.chessPositionId) {
       const chessPosition = await prisma.chessPosition.findUnique({
         where: { id: game.chessPositionId },
         select: {
+          referenceId: true,
           pgn: true,
           moveNumber: true,
           whitePlayerName: true,
@@ -225,6 +231,7 @@ export async function GET(
       });
 
       if (chessPosition) {
+        chessPositionReferenceId = chessPosition.referenceId;
         whitePlayerName = chessPosition.whitePlayerName;
         blackPlayerName = chessPosition.blackPlayerName;
         tournamentName = chessPosition.tournamentName;
@@ -263,6 +270,9 @@ export async function GET(
     const openingName = gameData?.openingInfo?.name || gameData?.positionInfo?.openingName || null;
     const openingEco = gameData?.openingInfo?.eco || gameData?.positionInfo?.openingEco || null;
 
+    // 5c. Extract position referenceIds for sharing
+    const openingReferenceId = gameData?.openingInfo?.referenceId ?? null;
+
     // 6. Build response
     const analysisData: AnalysisData = {
       gameReferenceId: game.referenceId,
@@ -282,6 +292,8 @@ export async function GET(
       openingEco,
       explanation,
       explanationAudioUrl,
+      chessPositionReferenceId,
+      openingReferenceId,
     };
 
     return NextResponse.json({

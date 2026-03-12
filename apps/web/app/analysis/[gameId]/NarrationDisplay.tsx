@@ -33,8 +33,19 @@ export default function NarrationDisplay({
   const [animatedTime, setAnimatedTime] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const rafRef = useRef<number>(0);
   const measureRef = useRef<HTMLDivElement>(null);
+  const expanded = isExpanded || isDesktop;
+
+  // On desktop (md+), always show expanded
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 768px)");
+    setIsDesktop(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     if (!isPlaying || isManualMode) {
@@ -64,7 +75,7 @@ export default function NarrationDisplay({
 
   // Auto-scroll so active word's line is visible when collapsed
   useEffect(() => {
-    if (isExpanded || !activeWordRef.current || !textRef.current) return;
+    if (expanded || !activeWordRef.current || !textRef.current) return;
     const wordEl = activeWordRef.current;
     const container = textRef.current;
     // Get the word's offset relative to the text container
@@ -74,12 +85,12 @@ export default function NarrationDisplay({
     if (Math.abs(container.scrollTop - targetScroll) > 2) {
       container.scrollTo({ top: targetScroll, behavior: "smooth" });
     }
-  }, [animatedTime, isExpanded]);
+  }, [animatedTime, expanded]);
 
   const segment = explanation.segments[currentSegmentIndex];
   if (!segment) return null;
 
-  const containerStyle = isExpanded
+  const containerStyle = expanded
     ? { fontFamily: "'Geist', sans-serif" }
     : { fontFamily: "'Geist', sans-serif", maxHeight: `${LINE_HEIGHT}px`, overflow: "hidden" as const };
 
@@ -99,7 +110,7 @@ export default function NarrationDisplay({
         >
           {segment.narration}
         </p>
-        {overflows && (
+        {overflows && !isDesktop && (
           <button
             onClick={() => setIsExpanded((v) => !v)}
             className="mt-1.5 text-[10px] text-white/30 hover:text-white/50 transition-colors tracking-wider uppercase"
@@ -161,7 +172,7 @@ export default function NarrationDisplay({
           );
         })}
       </p>
-      {overflows && (
+      {overflows && !isDesktop && (
         <button
           onClick={() => setIsExpanded((v) => !v)}
           className="mt-1.5 text-[10px] text-white/30 hover:text-white/50 transition-colors tracking-wider uppercase"

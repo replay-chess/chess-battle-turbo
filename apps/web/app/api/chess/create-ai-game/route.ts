@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getRandomChessPosition, getRandomPositionByLegend, incrementPositionPlayCount } from "@/lib/services/chess-position.service";
+import { getRandomChessPosition, getRandomPositionByLegend, getPositionByReferenceId, incrementPositionPlayCount } from "@/lib/services/chess-position.service";
 import { getOpeningByReferenceId, getOpeningPlayerColor } from "@/lib/services/opening.service";
 import { ValidationError } from "@/lib/errors/validation-error";
 import { logger } from "@/lib/logger";
@@ -18,6 +18,7 @@ const createAIGameSchema = z.object({
   incrementSeconds: z.number().int().min(0, "Increment seconds must be 0 or greater"),
   selectedLegend: z.string().optional(), // Optional legend ID to play their famous positions
   selectedOpening: z.string().optional(), // Optional opening referenceId
+  chessPositionReferenceId: z.string().optional(), // Optional position referenceId for shared positions
 });
 
 type Difficulty = "easy" | "medium" | "hard" | "expert";
@@ -171,7 +172,14 @@ export async function POST(request: NextRequest) {
     let legendPosition: Awaited<ReturnType<typeof getRandomPositionByLegend>> = null;
     let opening: Awaited<ReturnType<typeof getOpeningByReferenceId>> = null;
 
-    if (selectedOpeningRef) {
+    if (validatedData.chessPositionReferenceId) {
+      // Position shared by referenceId
+      const positionByRef = await getPositionByReferenceId(validatedData.chessPositionReferenceId);
+      if (positionByRef) {
+        chessPosition = positionByRef;
+      }
+      logger.debug(`[AI Game] Position by ref fetched: ref=${validatedData.chessPositionReferenceId}, found=${!!positionByRef}`);
+    } else if (selectedOpeningRef) {
       // Opening selected — fetch from openings table
       opening = await getOpeningByReferenceId(selectedOpeningRef);
       logger.debug(`[AI Game] Opening fetched: opening=${selectedOpeningRef}, found=${!!opening}`);

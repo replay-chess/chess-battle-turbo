@@ -11,6 +11,7 @@ import PracticeMoveList from "./PracticeMoveList";
 import ExplanationView, { ExplanationComingSoon } from "./ExplanationView";
 import NarrationDisplay from "./NarrationDisplay";
 import SegmentList from "./SegmentList";
+import { AnalysisShareModal } from "./AnalysisShareModal";
 import { useAnalysisBoard } from "@/lib/hooks/useAnalysisBoard";
 import { usePlayFromPosition } from "@/lib/hooks/usePlayFromPosition";
 import { useExplanationPlayer } from "@/lib/hooks/useExplanationPlayer";
@@ -59,6 +60,8 @@ interface AnalysisData {
   openingEco: string | null;
   explanation: ExplanationData | null;
   explanationAudioUrl: string | null;
+  chessPositionReferenceId: string | null;
+  openingReferenceId: string | null;
 }
 
 const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
@@ -70,6 +73,7 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<AnalysisData | null>(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   // Fetch analysis data
   useEffect(() => {
@@ -517,7 +521,7 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
             </motion.div>
 
             {/* Tabs - Mobile Only */}
-            <div className="flex items-center justify-center gap-2 md:gap-3 mb-3 sm:mb-3 md:mb-4 px-2 lg:hidden">
+            <div className="flex items-center justify-center gap-2 md:gap-3 mb-1.5 sm:mb-1.5 md:mb-2 px-2 lg:hidden">
               <button
                 onClick={() => setActiveTab("explanation")}
                 className={cn(
@@ -572,7 +576,7 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
 
             {/* Turn indicator — explanation mode only */}
             {activeTab === "explanation" && hasExplanation && (
-              <div className="flex justify-center mb-1 px-2">
+              <div className="flex justify-center mb-3 sm:mb-3 md:mb-4 lg:mb-1 px-2">
                 <div className="flex items-center gap-2 border border-white/10 bg-white/[0.03] px-2.5 py-1.5 sm:px-2 sm:py-1">
                   <div className={`w-3.5 h-3.5 sm:w-3 sm:h-3 rounded-full border ${explanationPlayer.turn === "w" ? "bg-white border-white/40" : "bg-zinc-800 border-white/25"}`} />
                   <span
@@ -593,6 +597,7 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
                     explanation={data.explanation as ExplanationData}
                     player={explanationPlayer}
                     playerColor={(data.userColor || "w") as Color}
+                    onShare={() => setShareModalOpen(true)}
                   />
                 ) : (
                   <ExplanationComingSoon />
@@ -738,6 +743,13 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
               {/* Action Buttons */}
               <div className="flex items-center gap-1 md:gap-2 lg:gap-1">
                 <button
+                  onClick={() => setShareModalOpen(true)}
+                  className="h-9 md:h-10 lg:h-9 px-3 md:px-4 lg:px-3 text-sm md:text-sm lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                >
+                  Share
+                </button>
+                <button
                   onClick={currentToggleFlip}
                   className="h-9 md:h-10 lg:h-9 px-3 md:px-4 lg:px-3 text-sm md:text-sm lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
                   style={{ fontFamily: "'Geist', sans-serif" }}
@@ -754,6 +766,7 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
               </div>
             </div>
             )}
+
 
             {/* Legend Key / Practice Status (Mobile) */}
             <div className="lg:hidden mt-2 md:mt-3 px-4 md:px-8">
@@ -1113,6 +1126,17 @@ const AnalysisPage = ({ params }: { params: Promise<{ gameId: string }> }) => {
           </div>
         </motion.div>
       </div>
+
+      {data && userReferenceId && (
+        <AnalysisShareModal
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+          gameReferenceId={data.gameReferenceId}
+          chessPositionReferenceId={data.chessPositionReferenceId}
+          openingReferenceId={data.openingReferenceId}
+          userReferenceId={userReferenceId}
+        />
+      )}
     </div>
   );
 };

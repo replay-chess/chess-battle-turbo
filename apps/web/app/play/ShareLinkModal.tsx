@@ -8,12 +8,14 @@ interface ShareLinkModalProps {
   isOpen: boolean;
   inviteLink: string;
   onGoToGame: () => void;
+  onCancel: () => Promise<void>;
 }
 
 const modalEasing = [0.22, 1, 0.36, 1] as const;
 
-export function ShareLinkModal({ isOpen, inviteLink, onGoToGame }: ShareLinkModalProps) {
+export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: ShareLinkModalProps) {
   const [copied, setCopied] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   // Auto-copy on mount (fire-and-forget for headless Chrome)
   useEffect(() => {
@@ -22,9 +24,12 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame }: ShareLinkModa
     }
   }, [isOpen, inviteLink]);
 
-  // Reset copied state when modal closes
+  // Reset state when modal closes
   useEffect(() => {
-    if (!isOpen) setCopied(false);
+    if (!isOpen) {
+      setCopied(false);
+      setCancelling(false);
+    }
   }, [isOpen]);
 
   const handleCopy = async () => {
@@ -55,9 +60,15 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame }: ShareLinkModa
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
+          onClick={async () => {
+            if (cancelling) return;
+            setCancelling(true);
+            await onCancel();
+          }}
         >
           <motion.div
             className="bg-neutral-900 border border-white/10 p-6 w-[90%] max-w-sm"
+            onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -179,21 +190,56 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame }: ShareLinkModa
             {/* Go to Game button */}
             <motion.button
               data-testid="go-to-game-button"
-              onClick={onGoToGame}
-              className="w-full group relative overflow-hidden bg-white text-black h-10 transition-all duration-300"
+              onClick={cancelling ? undefined : onGoToGame}
+              disabled={cancelling}
+              className="w-full group relative overflow-hidden bg-white text-black h-10 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, ease: modalEasing }}
             >
               <div className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
               <div className="relative z-10 flex items-center justify-center gap-2">
-                <span
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-xs tracking-[0.1em] font-semibold group-hover:text-white transition-colors"
-                >
-                  GO TO GAME
-                </span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                <AnimatePresence mode="wait">
+                  {cancelling ? (
+                    <motion.div
+                      key="cancelling"
+                      className="flex items-center gap-2"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <motion.div
+                        className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      />
+                      <span
+                        style={{ fontFamily: "'Geist', sans-serif" }}
+                        className="text-xs tracking-[0.1em] font-semibold"
+                      >
+                        CANCELLING
+                      </span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="go-to-game"
+                      className="flex items-center gap-2"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <span
+                        style={{ fontFamily: "'Geist', sans-serif" }}
+                        className="text-xs tracking-[0.1em] font-semibold group-hover:text-white transition-colors"
+                      >
+                        GO TO GAME
+                      </span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </motion.button>
           </motion.div>

@@ -108,7 +108,9 @@ function PlayContent() {
     }
   }, [openingParam]);
 
-  const inviteLink = createdGameRef ? `${window.location.origin}/join/${createdGameRef}` : "";
+  const inviteLink = createdGameRef
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/join/${createdGameRef}`
+    : "";
 
   const handleGoToGame = () => {
     if (createdGameRef) router.push(`/game/${createdGameRef}`);
@@ -625,7 +627,23 @@ function PlayContent() {
         <div className="absolute bottom-6 right-6 w-16 h-16 border-r border-b border-white/10" />
       </div>
 
-      <ShareLinkModal isOpen={shareLinkModalOpen} inviteLink={inviteLink} onGoToGame={handleGoToGame} />
+      <ShareLinkModal
+        isOpen={shareLinkModalOpen}
+        inviteLink={inviteLink}
+        onGoToGame={handleGoToGame}
+        onCancel={async () => {
+          await fetch("/api/chess/cancel-game", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              gameReferenceId: createdGameRef,
+              userReferenceId,
+            }),
+          });
+          setShareLinkModalOpen(false);
+          setCreatedGameRef(null);
+        }}
+      />
     </>
   );
 }

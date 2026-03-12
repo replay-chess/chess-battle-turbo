@@ -2,7 +2,7 @@ import {NextRequest, NextResponse} from "next/server";
 import {z} from "zod";
 import * as Sentry from "@sentry/nextjs";
 import {prisma} from "@/lib/prisma";
-import {getRandomChessPosition, getRandomPositionByLegend, incrementPositionPlayCount} from "@/lib/services/chess-position.service";
+import {getRandomChessPosition, getRandomPositionByLegend, getPositionByReferenceId, incrementPositionPlayCount} from "@/lib/services/chess-position.service";
 import { getOpeningByReferenceId, getOpeningPlayerColor } from "@/lib/services/opening.service";
 import { ValidationError } from "@/lib/errors/validation-error";
 import { validateAndFetchUser } from "@/lib/services/user-validation.service";
@@ -18,6 +18,7 @@ const createGameSchema = z.object({
   playAsLegend: z.boolean(),
   selectedLegend: z.string().nullable(),
   selectedOpening: z.string().nullable().optional(),
+  chessPositionReferenceId: z.string().optional(),
 });
 
 function calculateExpirationTime(hoursFromNow: number = 1): Date {
@@ -39,7 +40,12 @@ export async function POST(request: NextRequest) {
     let legendPosition: Awaited<ReturnType<typeof getRandomPositionByLegend>> = null;
     let opening: Awaited<ReturnType<typeof getOpeningByReferenceId>> = null;
 
-    if (validatedData.selectedOpening) {
+    if (validatedData.chessPositionReferenceId) {
+      const positionByRef = await getPositionByReferenceId(validatedData.chessPositionReferenceId);
+      if (positionByRef) {
+        chessPosition = positionByRef;
+      }
+    } else if (validatedData.selectedOpening) {
       opening = await getOpeningByReferenceId(validatedData.selectedOpening);
     } else if (validatedData.playAsLegend && validatedData.selectedLegend) {
       legendPosition = await getRandomPositionByLegend(validatedData.selectedLegend);
@@ -87,7 +93,9 @@ export async function POST(request: NextRequest) {
     if (traceData) {
       extraGameData.traceContext = traceData;
     }
-    if (opening) {
+    if (validatedData.chessPositionReferenceId && chessPosition && 'sideToMove' in chessPosition) {
+      extraGameData.creatorColor = chessPosition.sideToMove === "white" ? "white" : "black";
+    } else if (opening) {
       extraGameData.creatorColor = getOpeningPlayerColor(opening.sideToMove);
       extraGameData.selectedOpening = validatedData.selectedOpening;
       extraGameData.openingInfo = {

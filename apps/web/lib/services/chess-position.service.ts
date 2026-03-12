@@ -49,6 +49,34 @@ export async function getRandomChessPosition() {
  * Increments the timesPlayed counter for a chess position
  * @param positionId - The ID of the chess position
  */
+/**
+ * Fetches a chess position by its referenceId
+ * @param referenceId - The CUID referenceId
+ * @returns The chess position or null if not found
+ */
+export async function getPositionByReferenceId(referenceId: string) {
+  return prisma.chessPosition.findUnique({
+    where: { referenceId },
+    select: {
+      id: true,
+      referenceId: true,
+      fen: true,
+      sideToMove: true,
+      whitePlayerName: true,
+      blackPlayerName: true,
+      tournamentName: true,
+      positionType: true,
+      sourceType: true,
+      whiteLegend: {
+        select: { profilePhotoUrl: true },
+      },
+      blackLegend: {
+        select: { profilePhotoUrl: true },
+      },
+    },
+  });
+}
+
 export async function incrementPositionPlayCount(positionId: bigint) {
   await prisma.chessPosition.update({
     where: { id: positionId },

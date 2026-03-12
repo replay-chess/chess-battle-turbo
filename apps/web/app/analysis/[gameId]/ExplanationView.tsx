@@ -12,6 +12,7 @@ interface ExplanationViewProps {
   explanation: ExplanationData;
   player: ReturnType<typeof useExplanationPlayer>;
   playerColor: Color;
+  onShare?: () => void;
 }
 
 /** Board + narration + controls only — segment list lives in page's left panel */
@@ -19,6 +20,7 @@ export default function ExplanationView({
   explanation,
   player,
   playerColor,
+  onShare,
 }: ExplanationViewProps) {
   return (
     <div className="flex flex-col items-center w-full">
@@ -78,6 +80,26 @@ export default function ExplanationView({
           onSeekToSegment={player.seekToSegment}
           onSkipBack={player.skipBack}
           onSkipForward={player.skipForward}
+          hideSpeedAndVolume
+          extraControls={onShare ? (
+            <button
+              onClick={onShare}
+              className="group relative overflow-hidden h-8 px-4 bg-white text-black transition-all duration-300"
+              style={{ fontFamily: "'Geist', sans-serif" }}
+            >
+              <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
+              <span className="relative z-10 flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.1em] group-hover:text-white transition-colors duration-300">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-white transition-colors">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+                SHARE
+              </span>
+            </button>
+          ) : undefined}
         />
       </div>
     </div>
