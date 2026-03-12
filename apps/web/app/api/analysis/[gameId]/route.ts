@@ -256,6 +256,22 @@ export async function GET(
       tournamentName = gameData.positionInfo.tournamentName || null;
     }
 
+    // If game has opening info with a referenceId, fetch explanation from Opening table
+    if (!explanation && gameData?.openingInfo?.referenceId) {
+      const opening = await prisma.opening.findUnique({
+        where: { referenceId: gameData.openingInfo.referenceId },
+        select: {
+          explanation: true,
+          explanationAudioUrl: true,
+        },
+      });
+
+      if (opening) {
+        explanation = opening.explanation;
+        explanationAudioUrl = opening.explanationAudioUrl;
+      }
+    }
+
     // 4. Determine user game outcome
     let userGameOutcome: "win" | "loss" | "draw" | null = null;
     if (currentUserId && game.result) {
