@@ -7,7 +7,7 @@ import { Navbar } from "@/app/components/Navbar";
 import ChessBoard from "@/app/components/ChessBoard";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Crown } from "lucide-react";
 
 interface FeaturedPosition {
   referenceId: string;
@@ -37,44 +37,50 @@ export default function TryPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black text-white pt-16 sm:pt-20 md:pt-24 pb-8 relative">
-        {/* Subtle grid */}
+      <div className="min-h-screen bg-black text-white pt-16 sm:pt-20 md:pt-24 pb-12 relative">
+        {/* Ambient background glow */}
         <div
-          className="fixed inset-0 opacity-[0.015] pointer-events-none"
+          className="fixed inset-0 pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
-            backgroundSize: "60px 60px",
+            background:
+              "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(255,255,255,0.03) 0%, transparent 70%)",
           }}
         />
 
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-8">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-8">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-8 sm:mb-12"
+            transition={{ duration: 0.6 }}
+            className="text-center mb-10 sm:mb-14"
           >
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="h-px w-12 bg-white/30" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1, duration: 0.4 }}
+              className="inline-flex items-center gap-2 border border-white/10 bg-white/[0.03] px-4 py-1.5 mb-6"
+            >
+              <Crown className="w-3 h-3 text-white/40" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+                className="text-white/50 text-[10px] tracking-[0.3em] uppercase"
               >
                 No Account Required
               </span>
-              <div className="h-px w-12 bg-white/30" />
-            </div>
+            </motion.div>
             <h1
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-4xl sm:text-5xl md:text-6xl text-white mb-3"
+              className="text-4xl sm:text-5xl md:text-6xl text-white mb-4"
             >
-              Try a Position
+              Play Legendary Positions
             </h1>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-base sm:text-lg max-w-lg mx-auto"
+              className="text-white/35 text-base sm:text-lg max-w-md mx-auto leading-relaxed"
             >
-              Play against the bot on iconic chess positions. No sign-up needed.
+              Step into iconic moments from chess history.
+              Challenge the bot — no sign-up needed.
             </p>
           </motion.div>
 
@@ -90,8 +96,8 @@ export default function TryPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+              transition={{ delay: 0.2, duration: 0.5 }}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6"
             >
               {positions.map((pos, i) => {
                 const context = pos.positionContext as Record<string, string> | null;
@@ -100,61 +106,81 @@ export default function TryPage() {
                   || context?.gameName
                   || pos.positionType
                   || "Position";
+                const isBlack = pos.sideToMove === "black" || pos.sideToMove === "b";
 
                 return (
                   <motion.div
                     key={pos.referenceId}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 24 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 * i }}
+                    transition={{ delay: 0.08 * i, duration: 0.5 }}
                   >
                     <Link href={`/try/${pos.referenceId}`}>
-                      <div className="group border border-white/10 hover:border-white/25 transition-all duration-300 cursor-pointer">
+                      <div
+                        className={cn(
+                          "group relative bg-zinc-950 border border-white/[0.06]",
+                          "hover:border-white/15 transition-all duration-500",
+                          "hover:bg-zinc-900/50"
+                        )}
+                      >
                         {/* Board preview */}
-                        <div className="p-3 sm:p-4">
+                        <div className="p-4 pt-6 sm:p-6 sm:pt-8">
                           <ChessBoard
                             board={new Chess(pos.fen).board()}
-                            playerColor={pos.sideToMove === "black" ? "b" : "w"}
+                            playerColor={isBlack ? "b" : "w"}
                             isInteractive={false}
                             showCoordinates={false}
-                            squareSize="responsive-md"
+                            squareSize="md"
                           />
                         </div>
 
-                        {/* Info */}
-                        <div className="px-4 pb-4 pt-1">
-                          <h3
-                            style={{ fontFamily: "'Instrument Serif', serif" }}
-                            className="text-white text-lg mb-1 group-hover:text-white/90"
-                          >
-                            {title}
-                          </h3>
-                          {pos.whitePlayerName && pos.blackPlayerName && (
-                            <p
-                              style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-white/40 text-xs mb-2"
-                            >
-                              {pos.whitePlayerName} vs {pos.blackPlayerName}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className={cn(
-                                  "w-3 h-3 rounded-full border",
-                                  pos.sideToMove === "white" || pos.sideToMove === "w"
-                                    ? "bg-white border-white/40"
-                                    : "bg-zinc-800 border-white/25"
-                                )}
-                              />
-                              <span
-                                style={{ fontFamily: "'Geist', sans-serif" }}
-                                className="text-white/30 text-[10px] tracking-wider uppercase"
+                        {/* Info section */}
+                        <div className="relative px-4 sm:px-6 pb-4 sm:pb-6 pt-0">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <h3
+                                style={{ fontFamily: "'Instrument Serif', serif" }}
+                                className="text-white text-lg leading-tight mb-1 truncate group-hover:text-white/90 transition-colors"
                               >
-                                {pos.sideToMove === "black" || pos.sideToMove === "b" ? "Black" : "White"} to move
-                              </span>
+                                {title}
+                              </h3>
+                              {pos.whitePlayerName && pos.blackPlayerName && (
+                                <p
+                                  style={{ fontFamily: "'Geist', sans-serif" }}
+                                  className="text-white/30 text-xs truncate"
+                                >
+                                  {pos.whitePlayerName} vs {pos.blackPlayerName}
+                                </p>
+                              )}
                             </div>
-                            <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-white/50 group-hover:translate-x-1 transition-all" />
+                            <div
+                              className={cn(
+                                "shrink-0 mt-1 flex items-center justify-center",
+                                "w-8 h-8 border transition-all duration-500",
+                                "border-white/[0.06] group-hover:border-white/15",
+                                "group-hover:bg-white/[0.04]"
+                              )}
+                            >
+                              <ArrowRight className="w-3.5 h-3.5 text-white/25 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all duration-300" />
+                            </div>
+                          </div>
+
+                          {/* Side to move badge */}
+                          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.04]">
+                            <div
+                              className={cn(
+                                "w-2.5 h-2.5 rounded-full",
+                                isBlack
+                                  ? "bg-zinc-700 ring-1 ring-white/10"
+                                  : "bg-white/90 ring-1 ring-white/20"
+                              )}
+                            />
+                            <span
+                              style={{ fontFamily: "'Geist', sans-serif" }}
+                              className="text-white/25 text-[10px] tracking-[0.15em] uppercase"
+                            >
+                              {isBlack ? "Black" : "White"} to move
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -173,38 +199,6 @@ export default function TryPage() {
               </p>
             </div>
           )}
-
-          {/* Sign up nudge */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-center mt-10 sm:mt-14"
-          >
-            <p
-              style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/30 text-sm mb-3"
-            >
-              Create a free account to unlock all positions and track your progress
-            </p>
-            <Link href="/sign-in">
-              <button
-                className={cn(
-                  "group relative overflow-hidden",
-                  "border border-white/20 hover:border-white/40 text-white/60 hover:text-white",
-                  "px-8 py-3",
-                  "text-sm font-semibold tracking-[0.1em] uppercase",
-                  "transition-all duration-300"
-                )}
-                style={{ fontFamily: "'Geist', sans-serif" }}
-              >
-                <span className="relative flex items-center gap-3 transition-colors duration-300">
-                  Sign Up Free
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </span>
-              </button>
-            </Link>
-          </motion.div>
         </div>
       </div>
     </>
