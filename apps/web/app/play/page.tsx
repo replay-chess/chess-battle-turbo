@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 import { trackApiResponseTime } from "@/lib/metrics";
@@ -286,12 +285,21 @@ function PlayContent() {
                     initial={{ opacity: 0, y: -40 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 + index * 0.1, duration: 0.4 }}
-                    onClick={() => setSelectedMode(mode.id)}
+                    onClick={() => {
+                      if (isCreatingGame) return;
+                      if (selectedMode === mode.id) {
+                        handleCreateGame();
+                      } else {
+                        setSelectedMode(mode.id);
+                      }
+                    }}
                     onMouseEnter={() => setHoveredMode(mode.id)}
                     onMouseLeave={() => setHoveredMode(null)}
+                    disabled={isCreatingGame}
                     className={cn(
                       "w-full group relative overflow-hidden transition-all duration-500",
                       "border rounded-none",
+                      isCreatingGame && "cursor-not-allowed",
                       isSelected
                         ? "bg-white border-white"
                         : "bg-transparent border-white/10 hover:border-white/30"
@@ -334,9 +342,20 @@ function PlayContent() {
                           "text-xs transition-colors duration-300",
                           isSelected || isHovered ? "text-black/50" : "text-white/40"
                         )}>
-                          {mode.subtitle}
+                          {isSelected && isCreatingGame
+                            ? (selectedMode === "quick" ? "Finding opponent..." : "Starting game...")
+                            : mode.subtitle}
                         </p>
                       </div>
+
+                      {/* Loading spinner when creating game on this mode */}
+                      {isSelected && isCreatingGame && (
+                        <motion.div
+                          className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full flex-shrink-0"
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        />
+                      )}
                     </div>
                   </motion.button>
                 );

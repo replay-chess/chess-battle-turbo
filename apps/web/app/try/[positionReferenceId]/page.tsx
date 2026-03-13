@@ -5,10 +5,23 @@ import { useRouter } from "next/navigation";
 import { Chess } from "chess.js";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { Navbar } from "@/app/components/Navbar";
 import ChessBoard from "@/app/components/ChessBoard";
-import { Bot } from "lucide-react";
+import { Bot, Users, Zap, Lock, Crown, Sparkles, BarChart3 } from "lucide-react";
+import { SignInButton } from "@clerk/nextjs";
+
+const lockedModes = [
+  { id: "friend" as const, title: "Challenge Friend", subtitle: "Share a private invitation", icon: Users },
+  { id: "quick" as const, title: "Quick Match", subtitle: "Play opponents worldwide", icon: Zap },
+];
+
+const platformFeatures = [
+  { icon: Crown, title: "Play as Legends", description: "Step into the shoes of Kasparov, Fischer, and more" },
+  { icon: BarChart3, title: "Engine Analysis", description: "Compare your moves to the best computer lines" },
+  { icon: Users, title: "Challenge Friends", description: "Send private invitations with shareable links" },
+  { icon: Sparkles, title: "10K+ Positions", description: "Iconic moments from chess history's greatest games" },
+];
 
 interface PositionData {
   referenceId: string;
@@ -33,6 +46,7 @@ export default function TryPositionPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [hoveredLockedButton, setHoveredLockedButton] = useState<"friend" | "quick" | null>(null);
 
   useEffect(() => {
     fetch("/api/chess-positions/featured")
@@ -263,8 +277,156 @@ export default function TryPositionPage({
               </span>
             </motion.div>
 
-            {/* CTA button — sticky on mobile */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06] lg:static lg:bg-transparent lg:p-0 lg:border-0 lg:backdrop-blur-none">
+            {/* Play vs Bot — desktop only inline */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="hidden lg:block mb-3"
+            >
+              <button
+                onClick={handlePlayVsBot}
+                disabled={creating}
+                className={cn(
+                  "group relative w-full flex items-center justify-center gap-2 px-5 py-3.5",
+                  "bg-white text-black",
+                  "transition-all duration-300 overflow-hidden",
+                  "disabled:opacity-50 disabled:cursor-not-allowed"
+                )}
+                style={{ fontFamily: "'Geist', sans-serif" }}
+              >
+                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                <Bot className="relative z-10 w-4 h-4 group-hover:text-white transition-colors flex-shrink-0" strokeWidth={1.5} />
+                <span className="relative z-10 text-sm font-medium group-hover:text-white transition-colors duration-300">
+                  {creating ? "Starting..." : "Play vs Bot"}
+                </span>
+              </button>
+            </motion.div>
+
+            {/* Locked game mode buttons */}
+            <div className="relative space-y-2 mb-6">
+              {lockedModes.map((mode, i) => (
+                <motion.div
+                  key={mode.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 + i * 0.1 }}
+                >
+                  <button
+                    disabled
+                    onMouseEnter={() => setHoveredLockedButton(mode.id)}
+                    onMouseLeave={() => setHoveredLockedButton(null)}
+                    className="w-full flex items-center justify-between px-5 py-3.5 border border-white/10 text-white/30 cursor-not-allowed transition-colors duration-200 hover:border-white/20"
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <mode.icon className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} />
+                      <div className="text-left">
+                        <span className="text-sm font-medium block">{mode.title}</span>
+                        <span className="text-[11px] text-white/20 block">{mode.subtitle}</span>
+                      </div>
+                    </div>
+                    <Lock className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} />
+                  </button>
+                </motion.div>
+              ))}
+
+              {/* Hover tooltip */}
+              <AnimatePresence>
+                {hoveredLockedButton && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute left-0 right-0 top-full mt-2 z-20"
+                    onMouseEnter={() => setHoveredLockedButton(hoveredLockedButton)}
+                    onMouseLeave={() => setHoveredLockedButton(null)}
+                  >
+                    <div className="bg-zinc-950 border border-white/10 p-4">
+                      <p
+                        style={{ fontFamily: "'Geist', sans-serif" }}
+                        className="text-white/80 text-sm font-medium mb-1"
+                      >
+                        Create a free account
+                      </p>
+                      <p
+                        style={{ fontFamily: "'Geist', sans-serif" }}
+                        className="text-white/40 text-xs mb-3"
+                      >
+                        Unlock{" "}
+                        <span className="text-white/60">
+                          {lockedModes.find((m) => m.id === hoveredLockedButton)?.title}
+                        </span>
+                        , multiplayer, analysis, and more
+                      </p>
+                      <SignInButton forceRedirectUrl="/play">
+                        <button
+                          className={cn(
+                            "group relative w-full flex items-center justify-center gap-2 px-4 py-2.5",
+                            "bg-white text-black",
+                            "transition-all duration-300 overflow-hidden"
+                          )}
+                          style={{ fontFamily: "'Geist', sans-serif" }}
+                        >
+                          <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                          <span className="relative z-10 text-sm font-medium group-hover:text-white transition-colors duration-300">
+                            Sign Up Free
+                          </span>
+                        </button>
+                      </SignInButton>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Platform value props — 2x2 grid */}
+            <div className="grid grid-cols-2 gap-px bg-white/[0.06] mb-6">
+              {platformFeatures.map((feature, i) => (
+                <motion.div
+                  key={feature.title}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.9 + i * 0.08 }}
+                  className="bg-black p-4 hover:bg-white/[0.03] transition-colors duration-300"
+                >
+                  <feature.icon className="w-4 h-4 text-white/40 mb-2" strokeWidth={1.5} />
+                  <h3
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                    className="text-white/80 text-xs font-medium mb-1"
+                  >
+                    {feature.title}
+                  </h3>
+                  <p
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                    className="text-white/30 text-[11px] leading-relaxed"
+                  >
+                    {feature.description}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Bottom CTA */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.2 }}
+              className="text-center"
+            >
+              <SignInButton forceRedirectUrl="/play">
+                <button
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="text-white/40 text-xs tracking-wide hover:text-white/70 transition-colors duration-300 underline underline-offset-4 decoration-white/20 hover:decoration-white/40"
+                >
+                  Create a free account — Unlock everything
+                </button>
+              </SignInButton>
+            </motion.div>
+
+            {/* Mobile sticky bar — Play vs Bot only */}
+            <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06] lg:hidden">
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
