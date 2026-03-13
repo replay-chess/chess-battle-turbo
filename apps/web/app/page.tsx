@@ -96,7 +96,7 @@ export default function Home() {
         </div>
         <HowToPlay />
         <AgadmatorFeature />
-        {/* <Testimonials /> */}
+        <Testimonials />
         <Footer />
       </div>
     </>

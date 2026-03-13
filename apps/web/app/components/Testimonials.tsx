@@ -6,27 +6,21 @@ import { motion } from "motion/react";
 const testimonials = [
   {
     name: "Alex R.",
-    title: "Chess Enthusiast",
-    elo: "1800 ELO",
-    quote:
-      "ReplayChess completely changed how I study openings. Playing through Kasparov's legendary positions with a friend is an experience no other platform offers.",
-    stars: 5,
+    handle: "@alexr_chess",
+    text: "ReplayChess completely changed how I study openings. Playing through Kasparov's legendary positions with a friend is an experience no other platform offers.",
+    tweetUrl: "https://twitter.com",
   },
   {
     name: "Maria K.",
-    title: "Chess Coach",
-    elo: "2100 ELO",
-    quote:
-      "I use ReplayChess with all my students. Walking them through grandmaster games interactively is far more effective than static analysis boards.",
-    stars: 5,
+    handle: "@mariak_coach",
+    text: "I use ReplayChess with all my students. Walking them through grandmaster games interactively is far more effective than static analysis boards.",
+    tweetUrl: "https://twitter.com",
   },
   {
     name: "Daniel T.",
-    title: "Agadmator Fan",
-    elo: "1500 ELO",
-    quote:
-      "Finally I can actually play those 'pause the video' moments instead of just guessing in my head. This is exactly what the chess community needed.",
-    stars: 5,
+    handle: "@dant_agad",
+    text: "Finally I can actually play those 'pause the video' moments instead of just guessing in my head. This is exactly what the chess community needed.",
+    tweetUrl: "https://twitter.com",
   },
 ];
 
@@ -73,40 +67,40 @@ export const Testimonials = () => {
             style={{ fontFamily: "'Geist', sans-serif" }}
             className="text-white/40 text-lg max-w-xl mx-auto"
           >
-            Join hundreds of players reliving legendary chess moments
+            See what players are saying on X
           </p>
         </motion.div>
 
         {/* Testimonials Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/10">
           {testimonials.map((testimonial, index) => (
-            <motion.div
+            <motion.a
               key={index}
+              href={testimonial.tweetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
               className={cn(
-                "group relative bg-black p-8",
+                "group relative bg-black p-8 block",
                 "hover:bg-white transition-colors duration-500"
               )}
             >
-              {/* Stars */}
-              <div className="flex gap-1 mb-6">
-                {Array.from({ length: testimonial.stars }).map((_, i) => (
-                  <svg
-                    key={i}
-                    className={cn(
-                      "w-4 h-4",
-                      "text-white/40 group-hover:text-black/60",
-                      "transition-colors duration-500"
-                    )}
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                ))}
+              {/* X icon */}
+              <div className="mb-6">
+                <svg
+                  className={cn(
+                    "w-5 h-5",
+                    "text-white/40 group-hover:text-black/60",
+                    "transition-colors duration-500"
+                  )}
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
               </div>
 
               {/* Quote */}
@@ -118,7 +112,7 @@ export const Testimonials = () => {
                   "transition-colors duration-500"
                 )}
               >
-                "{testimonial.quote}"
+                &ldquo;{testimonial.text}&rdquo;
               </p>
 
               {/* Author */}
@@ -160,7 +154,7 @@ export const Testimonials = () => {
                       "transition-colors duration-500"
                     )}
                   >
-                    {testimonial.title} &middot; {testimonial.elo}
+                    {testimonial.handle}
                   </p>
                 </div>
               </div>
@@ -174,7 +168,7 @@ export const Testimonials = () => {
                   "transition-colors duration-500"
                 )}
               />
-            </motion.div>
+            </motion.a>
           ))}
         </div>
       </div>

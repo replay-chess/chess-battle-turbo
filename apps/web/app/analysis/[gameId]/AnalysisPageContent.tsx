@@ -12,6 +12,7 @@ import ExplanationView, { ExplanationComingSoon } from "./ExplanationView";
 import NarrationDisplay from "./NarrationDisplay";
 import SegmentList from "./SegmentList";
 import { AnalysisShareModal } from "./AnalysisShareModal";
+import { TwitterShareBanner } from "./TwitterShareBanner";
 import { useAnalysisBoard } from "@/lib/hooks/useAnalysisBoard";
 import { usePlayFromPosition } from "@/lib/hooks/usePlayFromPosition";
 import { useExplanationPlayer } from "@/lib/hooks/useExplanationPlayer";
@@ -1138,6 +1139,16 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
           chessPositionReferenceId={data.chessPositionReferenceId}
           openingReferenceId={data.openingReferenceId}
           userReferenceId={userReferenceId}
+        />
+      )}
+
+      {data && !isDemo && (
+        <TwitterShareBanner
+          whitePlayerName={data.whitePlayerName}
+          blackPlayerName={data.blackPlayerName}
+          tournamentName={data.tournamentName}
+          openingName={data.openingName}
+          isDemo={isDemo}
         />
       )}
     </div>

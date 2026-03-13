@@ -555,6 +555,14 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
         })
         .catch(() => {});
 
+      // Track completed games for Twitter share prompt
+      if (!isDemo && !isSpectatorRef.current) {
+        try {
+          const count = parseInt(localStorage.getItem('games_completed') || '0', 10);
+          localStorage.setItem('games_completed', String(count + 1));
+        } catch {}
+      }
+
       // Play game end sound
       playSound('game-end');
     });
