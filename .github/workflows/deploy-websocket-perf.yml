@@ -1,11 +1,6 @@
 name: Deploy WebSocket Server (PERF)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'apps/web-socket/**'
   workflow_dispatch:
 
 jobs:
