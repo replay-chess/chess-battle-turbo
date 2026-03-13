@@ -19,6 +19,7 @@
     "@sentry/node": "^10.38.0",
     "@types/express": "^5.0.3",
     "chess.js": "^1.4.0",
+    "dotenv": "^17.3.1",
     "express": "4",
     "socket.io": "^4.8.1"
   }

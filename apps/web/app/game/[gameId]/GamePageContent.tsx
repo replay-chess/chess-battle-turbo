@@ -871,15 +871,6 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
           >
             {/* Left - Game Info (hidden on mobile) */}
             <div className="lg:col-span-3 space-y-4 order-2 lg:order-1 hidden lg:flex lg:flex-col lg:max-h-[calc(100vh-2rem)] lg:overflow-hidden">
-              {/* Analysis Phase - Desktop sidebar version */}
-              <AnalysisPhaseBannerDesktop
-                isAnalysisPhase={isAnalysisPhase}
-                analysisTimeRemaining={analysisTimeRemaining}
-                totalAnalysisTime={totalAnalysisTime}
-                currentTurn={currentTurn}
-                myColor={myColor}
-              />
-
               {/* Current Turn */}
               <div className="border border-white/10 p-5 shrink-0">
                 <p
@@ -915,6 +906,15 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                   </div>
                 )}
               </div>
+
+              {/* Analysis Phase - Desktop sidebar version */}
+              <AnalysisPhaseBannerDesktop
+                isAnalysisPhase={isAnalysisPhase}
+                analysisTimeRemaining={analysisTimeRemaining}
+                totalAnalysisTime={totalAnalysisTime}
+                currentTurn={currentTurn}
+                myColor={myColor}
+              />
 
               {/* Game Status */}
               {(gameOver || game.isCheck()) && (
@@ -1256,23 +1256,6 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
 
             {/* Right - Controls and info */}
             <div className="lg:col-span-3 order-3 hidden lg:block space-y-4">
-              {/* Move Navigation - Desktop */}
-              <div className="border border-white/10 p-5">
-                <p
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-3"
-                >
-                  Navigation
-                </p>
-                <MoveNavigation
-                  totalMoves={moveHistory.length}
-                  viewingMoveIndex={viewingMoveIndex}
-                  onNavigate={handleNavigate}
-                  onPlaySound={() => playSound('move')}
-                  disabled={!gameStarted}
-                />
-              </div>
-
               {/* Sound Controls */}
               <div className="border border-white/10 p-5">
                 <p
@@ -1294,6 +1277,23 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                   <span className="text-lg">{isMuted ? "\uD83D\uDD07" : "\uD83D\uDD0A"}</span>
                   <span className="text-sm">{isMuted ? "Unmute" : "Mute"}</span>
                 </button>
+              </div>
+
+              {/* Move Navigation - Desktop */}
+              <div className="border border-white/10 p-5">
+                <p
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-3"
+                >
+                  Navigation
+                </p>
+                <MoveNavigation
+                  totalMoves={moveHistory.length}
+                  viewingMoveIndex={viewingMoveIndex}
+                  onNavigate={handleNavigate}
+                  onPlaySound={() => playSound('move')}
+                  disabled={!gameStarted}
+                />
               </div>
 
               {/* Game Actions - Desktop (hidden for spectators) */}

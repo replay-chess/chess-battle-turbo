@@ -306,7 +306,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
         }}
       />
 
-      <div className="relative max-w-7xl mx-auto px-0 sm:px-8 md:px-8 lg:px-4 pb-4 md:pb-6 lg:pb-8 pt-16 sm:pt-20 md:pt-24 lg:pt-32 min-h-[100dvh] flex flex-col justify-center">
+      <div className="relative max-w-7xl mx-auto px-0 sm:px-8 md:px-8 lg:px-4 pb-4 md:pb-6 lg:pb-8 pt-16 sm:pt-20 md:pt-24 lg:pt-[108px] min-h-[100dvh] flex flex-col justify-center lg:justify-start">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -579,8 +579,8 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
             </div>
 
             {/* Board */}
-            <div className="mx-1 sm:p-5 md:p-5 lg:p-0 lg:mt-6 lg:mb-4 lg:mx-0">
-              <p className="text-[10px] text-white/30 uppercase tracking-wider text-center mb-0.5">
+            <div className="mx-1 sm:p-5 md:p-5 lg:p-0 lg:mt-1 lg:mb-4 lg:mx-0">
+              <p className="text-[10px] text-white/50 uppercase tracking-wider text-center mb-0.5">
                 {(activeTab === "explanation" ? data?.userColor === "b" : currentFlipped) ? "White" : "Black"}
               </p>
               {activeTab === "explanation" ? (
@@ -627,9 +627,11 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                   squareSize="responsive-md"
                 />
               )}
-              <p className="text-[10px] text-white/30 uppercase tracking-wider text-center mt-0.5">
-                {(activeTab === "explanation" ? data?.userColor === "b" : currentFlipped) ? "Black" : "White"}
-              </p>
+              {activeTab !== "explanation" && (
+                <p className="text-[10px] text-white/50 uppercase tracking-wider text-center mt-0.5">
+                  {currentFlipped ? "Black" : "White"}
+                </p>
+              )}
             </div>
 
             {/* Promotion Popup */}

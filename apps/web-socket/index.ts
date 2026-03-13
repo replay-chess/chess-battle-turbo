@@ -1,3 +1,4 @@
+import "dotenv/config";
 // Must be first import — initializes Sentry before anything else
 import "./instrument";
 

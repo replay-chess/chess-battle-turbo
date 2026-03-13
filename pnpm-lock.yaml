@@ -197,6 +197,9 @@ importers:
       chess.js:
         specifier: ^1.4.0
         version: 1.4.0
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
       express:
         specifier: '4'
         version: 4.21.2
@@ -3266,6 +3269,10 @@ packages:
 
   dotenv@17.2.2:
     resolution: {integrity: sha512-Sf2LSQP+bOlhKWWyhFsn0UsfdK/kCWRv1iuA2gXAwt3dyNabr6QSj00I2V10pidqz69soatm9ZwZvpQMTIOd5Q==}
+    engines: {node: '>=12'}
+
+  dotenv@17.3.1:
+    resolution: {integrity: sha512-IO8C/dzEb6O3F9/twg6ZLXz164a2fhTnEWb95H23Dm4OuN+92NmEAlTrupP9VW6Jm3sO26tQlqyvyi4CsnY9GA==}
     engines: {node: '>=12'}
 
   dotenv@9.0.2:
@@ -8862,6 +8869,8 @@ snapshots:
   dotenv@16.6.1: {}
 
   dotenv@17.2.2: {}
+
+  dotenv@17.3.1: {}
 
   dotenv@9.0.2: {}
 

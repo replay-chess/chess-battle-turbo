@@ -48,6 +48,9 @@ export default function ExplanationView({
           />
         </div>
       </div>
+      <p className="text-[10px] text-white/50 uppercase tracking-wider text-center mt-0.5">
+        {playerColor === "b" ? "Black" : "White"}
+      </p>
 
       {/* Audio/navigation controls — lg:mt-7 clears the board's decorative frame on desktop */}
       <div className="w-full mt-2 lg:mt-7">
@@ -69,16 +72,15 @@ export default function ExplanationView({
           onSeekToSegment={player.seekToSegment}
           onSkipBack={player.skipBack}
           onSkipForward={player.skipForward}
-          hideSpeedAndVolume
           extraControls={onShare ? (
             <button
               onClick={onShare}
-              className="group relative overflow-hidden h-8 px-4 bg-white text-black transition-all duration-300"
+              className="group relative overflow-hidden h-10 px-6 bg-white text-black transition-all duration-300"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
-              <span className="relative z-10 flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.1em] group-hover:text-white transition-colors duration-300">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-white transition-colors">
+              <span className="relative z-10 flex items-center gap-2 text-xs font-semibold tracking-[0.1em] group-hover:text-white transition-colors duration-300">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-white transition-colors">
                   <circle cx="18" cy="5" r="3" />
                   <circle cx="6" cy="12" r="3" />
                   <circle cx="18" cy="19" r="3" />
@@ -92,16 +94,6 @@ export default function ExplanationView({
         />
       </div>
 
-      {/* Narration — mobile only; on desktop it lives in the right sidebar */}
-      <div className="w-full mt-2 border border-white/10 bg-white/[0.02] lg:hidden">
-        <NarrationDisplay
-          explanation={explanation}
-          currentSegmentIndex={player.currentSegmentIndex}
-          currentTimeRef={player.currentTimeRef}
-          isPlaying={player.isPlaying}
-          isManualMode={player.isManualMode}
-        />
-      </div>
     </div>
   );
 }
