@@ -71,6 +71,7 @@ jobs:
           NEXT_PUBLIC_DODO_PLAYER_PRODUCT_ID: "pdt_0NYhwCW2cH6Rs73vtYwmW"
           DODO_PAYMENTS_RETURN_URL: "http://localhost:3000/pricing?checkout=success"
           DODO_PAYMENTS_ENVIRONMENT: "test_mode"
+          INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
           E2E_USER_A_EMAIL: ${{ secrets.E2E_USER_A_EMAIL }}
           E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
           E2E_USER_B_EMAIL: ${{ secrets.E2E_USER_B_EMAIL }}
