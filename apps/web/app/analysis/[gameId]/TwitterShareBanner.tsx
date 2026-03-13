@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import { X, Trophy } from "lucide-react";
 
 interface TwitterShareBannerProps {
   whitePlayerName: string | null;
   blackPlayerName: string | null;
   tournamentName: string | null;
   openingName: string | null;
+  chessPositionReferenceId: string | null;
+  openingReferenceId: string | null;
   isDemo: boolean;
 }
 
@@ -20,21 +22,39 @@ function buildTweetText(
   openingName: string | null
 ): string {
   if (whitePlayerName && blackPlayerName && tournamentName) {
-    return `Just relived ${whitePlayerName} vs ${blackPlayerName} (${tournamentName}) on ReplayChess — such a brilliant game!\n\nTry it yourself:`;
+    return `Just relived ${whitePlayerName} vs ${blackPlayerName} (${tournamentName}) on @ReplayChess — such a brilliant game!`;
   }
   if (openingName) {
-    return `Just played the ${openingName} on ReplayChess — what a fun way to learn openings!\n\nTry it yourself:`;
+    return `Just played the ${openingName} on @ReplayChess — what a fun way to learn openings!`;
   }
-  return `Having a blast on ReplayChess — replaying legendary chess games is incredibly fun!\n\nTry it yourself:`;
+  return `Having a blast on @ReplayChess — replaying legendary chess games is incredibly fun!`;
 }
 
-const SITE_URL = "https://www.playchess.tech";
+function buildSubtitle(
+  whitePlayerName: string | null,
+  blackPlayerName: string | null,
+  tournamentName: string | null,
+  openingName: string | null
+): string {
+  if (whitePlayerName && blackPlayerName) {
+    const match = `${whitePlayerName} vs ${blackPlayerName}`;
+    return tournamentName ? `${match} — ${tournamentName}` : match;
+  }
+  if (openingName) return openingName;
+  return "another legendary game";
+}
+
+const SITE_URL = "playchess.tech";
+const SHARE_THRESHOLD = parseInt(process.env.NEXT_PUBLIC_TWITTER_SHARE_GAME_THRESHOLD || "5", 10);
+const modalEasing = [0.22, 1, 0.36, 1] as const;
 
 export function TwitterShareBanner({
   whitePlayerName,
   blackPlayerName,
   tournamentName,
   openingName,
+  chessPositionReferenceId,
+  openingReferenceId,
   isDemo,
 }: TwitterShareBannerProps) {
   const [visible, setVisible] = useState(false);
@@ -47,7 +67,7 @@ export function TwitterShareBanner({
       if (prompted === "true") return;
 
       const gamesCompleted = parseInt(localStorage.getItem("games_completed") || "0", 10);
-      if (gamesCompleted < 5) return;
+      if (gamesCompleted < SHARE_THRESHOLD) return;
 
       const snoozedAt = localStorage.getItem("twitter_share_snoozed_at");
       if (snoozedAt) {
@@ -61,7 +81,15 @@ export function TwitterShareBanner({
 
   function handleShare() {
     const text = buildTweetText(whitePlayerName, blackPlayerName, tournamentName, openingName);
-    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text + "\n" + SITE_URL)}`;
+    let positionUrl: string;
+    if (chessPositionReferenceId) {
+      positionUrl = `${SITE_URL}/position/${chessPositionReferenceId}`;
+    } else if (openingReferenceId) {
+      positionUrl = `${SITE_URL}/position/${openingReferenceId}?type=opening`;
+    } else {
+      positionUrl = SITE_URL;
+    }
+    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(positionUrl)}`;
     window.open(tweetUrl, "_blank", "noopener,noreferrer");
     try {
       localStorage.setItem("twitter_share_prompted", "true");
@@ -84,61 +112,149 @@ export function TwitterShareBanner({
     setVisible(false);
   }
 
+  const subtitle = buildSubtitle(whitePlayerName, blackPlayerName, tournamentName, openingName);
+
   return (
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className={cn(
-            "fixed bottom-0 left-0 right-0 z-40",
-            "bg-neutral-950 border-t border-white/10",
-            "px-4 py-3 sm:px-6 sm:py-4"
-          )}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          onClick={handleDismiss}
         >
-          <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
-            <p
-              style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/70 text-sm"
-            >
-              Enjoying ReplayChess? Share your experience!
-            </p>
+          <motion.div
+            className="bg-neutral-900 border border-white/10 w-full max-w-sm relative overflow-hidden"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.5, ease: modalEasing }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Corner accents */}
+            <div className="absolute top-3 left-3 w-6 h-6 border-l border-t border-white/15" />
+            <div className="absolute top-3 right-3 w-6 h-6 border-r border-t border-white/15" />
+            <div className="absolute bottom-3 left-3 w-6 h-6 border-l border-b border-white/15" />
+            <div className="absolute bottom-3 right-3 w-6 h-6 border-r border-b border-white/15" />
 
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={handleShare}
-                className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-md",
-                  "bg-white text-black hover:bg-white/90",
-                  "transition-colors duration-200"
-                )}
+            {/* Dismiss */}
+            <button
+              onClick={handleDismiss}
+              className="absolute top-4 right-4 z-10 text-white/30 hover:text-white/60 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="px-8 pt-10 pb-8 text-center">
+              {/* Trophy icon */}
+              <motion.div
+                initial={{ scale: 0, rotate: -20 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", damping: 12, stiffness: 200, delay: 0.2 }}
+                className="mx-auto mb-5 w-14 h-14 flex items-center justify-center border border-white/10 bg-white/5"
               >
-                Share on X
-              </button>
-              <button
-                onClick={handleMaybeLater}
-                className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-md",
-                  "text-white/50 hover:text-white/80",
-                  "transition-colors duration-200"
-                )}
+                <Trophy className="w-7 h-7 text-white/60" strokeWidth={1.5} />
+              </motion.div>
+
+              {/* Heading */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.4 }}
               >
-                Maybe Later
-              </button>
-              <button
-                onClick={handleDismiss}
-                className={cn(
-                  "p-2 text-white/30 hover:text-white/60",
-                  "transition-colors duration-200"
-                )}
-                aria-label="Dismiss"
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  <div className="h-px w-10 bg-gradient-to-r from-transparent to-white/30" />
+                  <span
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                    className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+                  >
+                    Milestone
+                  </span>
+                  <div className="h-px w-10 bg-gradient-to-l from-transparent to-white/30" />
+                </div>
+
+                <h2
+                  style={{ fontFamily: "'Instrument Serif', serif" }}
+                  className="text-2xl sm:text-3xl text-white mb-2"
+                >
+                  You&apos;re on a Roll!
+                </h2>
+
+                <p
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="text-white/40 text-sm leading-relaxed mb-1"
+                >
+                  You just played through
+                </p>
+                <p
+                  style={{ fontFamily: "'Instrument Serif', serif" }}
+                  className="text-white/60 text-base italic mb-6"
+                >
+                  {subtitle}
+                </p>
+
+                <p
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="text-white/50 text-xs leading-relaxed"
+                >
+                  Spread the word and let your friends discover legendary chess games too.
+                </p>
+              </motion.div>
+
+              {/* Actions */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45, duration: 0.4 }}
+                className="mt-7 flex flex-col gap-3"
               >
-                <X className="w-4 h-4" />
-              </button>
+                {/* Share on X button */}
+                <button
+                  onClick={handleShare}
+                  className={cn(
+                    "w-full group relative overflow-hidden bg-white text-black h-11 transition-all duration-300"
+                  )}
+                >
+                  <div className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
+                  <div className="relative z-10 flex items-center justify-center gap-2.5">
+                    <svg
+                      className="w-4 h-4 group-hover:text-white transition-colors"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                    <span
+                      style={{ fontFamily: "'Geist', sans-serif" }}
+                      className="text-xs tracking-[0.15em] font-semibold group-hover:text-white transition-colors"
+                    >
+                      SHARE ON X
+                    </span>
+                  </div>
+                </button>
+
+                {/* Maybe Later */}
+                <button
+                  onClick={handleMaybeLater}
+                  className={cn(
+                    "w-full h-11 border border-white/10 hover:border-white/20",
+                    "text-white/40 hover:text-white/70",
+                    "transition-all duration-200"
+                  )}
+                >
+                  <span
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                    className="text-xs tracking-[0.15em] font-semibold"
+                  >
+                    MAYBE LATER
+                  </span>
+                </button>
+              </motion.div>
             </div>
-          </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>

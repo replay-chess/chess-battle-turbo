@@ -1148,6 +1148,8 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
           blackPlayerName={data.blackPlayerName}
           tournamentName={data.tournamentName}
           openingName={data.openingName}
+          chessPositionReferenceId={data.chessPositionReferenceId}
+          openingReferenceId={data.openingReferenceId}
           isDemo={isDemo}
         />
       )}

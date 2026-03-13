@@ -4,10 +4,10 @@ import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Users } from "lucide-react";
 import Link from "next/link";
-import { useUserStore } from "@/lib/stores";
+import { useAuth } from "@clerk/nextjs";
 
 export default function Hero() {
-  const user = useUserStore((s) => s.user);
+  const { isSignedIn } = useAuth();
 
   return (
     <section aria-label="Hero" className="relative h-full w-full flex items-center justify-center overflow-hidden bg-black">
@@ -97,7 +97,7 @@ export default function Hero() {
           transition={{ delay: 0.7 }}
           className="hidden sm:flex flex-col items-center gap-3"
         >
-          {user ? (
+          {isSignedIn ? (
             <>
               <Link href="/play">
                 <button
@@ -197,7 +197,7 @@ export default function Hero() {
 
       {/* Sticky mobile CTA */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06]">
-        {user ? (
+        {isSignedIn ? (
           <div className="flex gap-2">
             <Link href="/play" className="flex-1">
               <button
