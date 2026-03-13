@@ -49,17 +49,6 @@ export default function ExplanationView({
         </div>
       </div>
 
-      {/* Narration — mobile only; on desktop it lives in the right sidebar */}
-      <div className="w-full mt-3 sm:mt-7 border border-white/10 bg-white/[0.02] lg:hidden">
-        <NarrationDisplay
-          explanation={explanation}
-          currentSegmentIndex={player.currentSegmentIndex}
-          currentTimeRef={player.currentTimeRef}
-          isPlaying={player.isPlaying}
-          isManualMode={player.isManualMode}
-        />
-      </div>
-
       {/* Audio/navigation controls — lg:mt-7 clears the board's decorative frame on desktop */}
       <div className="w-full mt-2 lg:mt-7">
         <AudioControls
@@ -100,6 +89,17 @@ export default function ExplanationView({
               </span>
             </button>
           ) : undefined}
+        />
+      </div>
+
+      {/* Narration — mobile only; on desktop it lives in the right sidebar */}
+      <div className="w-full mt-2 border border-white/10 bg-white/[0.02] lg:hidden">
+        <NarrationDisplay
+          explanation={explanation}
+          currentSegmentIndex={player.currentSegmentIndex}
+          currentTimeRef={player.currentTimeRef}
+          isPlaying={player.isPlaying}
+          isManualMode={player.isManualMode}
         />
       </div>
     </div>

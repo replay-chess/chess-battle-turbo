@@ -578,23 +578,11 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
               </button>
             </div>
 
-            {/* Turn indicator — explanation mode only */}
-            {activeTab === "explanation" && hasExplanation && (
-              <div className="flex justify-center mb-3 sm:mb-3 md:mb-4 lg:mb-1 px-2">
-                <div className="flex items-center gap-2 border border-white/10 bg-white/[0.03] px-2.5 py-1.5 sm:px-2 sm:py-1">
-                  <div className={`w-3.5 h-3.5 sm:w-3 sm:h-3 rounded-full border ${explanationPlayer.turn === "w" ? "bg-white border-white/40" : "bg-zinc-800 border-white/25"}`} />
-                  <span
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs sm:text-[11px] tracking-wider text-white/60 uppercase font-medium"
-                  >
-                    {explanationPlayer.turn === "w" ? "White" : "Black"} to move
-                  </span>
-                </div>
-              </div>
-            )}
-
             {/* Board */}
             <div className="mx-1 sm:p-5 md:p-5 lg:p-0 lg:mt-6 lg:mb-4 lg:mx-0">
+              <p className="text-[10px] text-white/30 uppercase tracking-wider text-center mb-0.5">
+                {(activeTab === "explanation" ? data?.userColor === "b" : currentFlipped) ? "White" : "Black"}
+              </p>
               {activeTab === "explanation" ? (
                 hasExplanation ? (
                   <ExplanationView
@@ -639,6 +627,9 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                   squareSize="responsive-md"
                 />
               )}
+              <p className="text-[10px] text-white/30 uppercase tracking-wider text-center mt-0.5">
+                {(activeTab === "explanation" ? data?.userColor === "b" : currentFlipped) ? "Black" : "White"}
+              </p>
             </div>
 
             {/* Promotion Popup */}
