@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Chess, Move, Color, Square } from "chess.js";
+import { useStockfish } from "./useStockfish";
+import type { UseStockfishReturn } from "./useStockfish";
 import { useBotMove } from "./useBotMove";
 import { useChessSound } from "./useChessSound";
 import type { BoardState } from "./useAnalysisBoard";
@@ -10,6 +12,10 @@ interface UsePlayFromPositionProps {
   startingFen: string | null; // null = not active
   playerColor: Color;
   resetKey?: number; // bump to force re-init even for the same FEN
+  skillLevel?: number; // 0-20
+  depth?: number; // 1-20
+  searchTimeMs?: number; // max search time in ms
+  disableBot?: boolean; // when true, user plays both sides (no auto bot moves)
 }
 
 interface UsePlayFromPositionReturn {
@@ -41,6 +47,11 @@ interface UsePlayFromPositionReturn {
   // Board flip
   isFlipped: boolean;
   toggleFlip: () => void;
+
+  // Engine analysis
+  currentFen: string;
+  analyzePosition: UseStockfishReturn["analyzePosition"];
+  stopAnalysis: () => void;
 }
 
 function getGameOverInfo(
@@ -71,6 +82,10 @@ export function usePlayFromPosition({
   startingFen,
   playerColor,
   resetKey = 0,
+  skillLevel,
+  depth,
+  searchTimeMs,
+  disableBot = false,
 }: UsePlayFromPositionProps): UsePlayFromPositionReturn {
   const [game, setGame] = useState<Chess>(new Chess());
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
@@ -100,8 +115,13 @@ export function usePlayFromPosition({
   const botMoveInProgressRef = useRef(false);
 
   const { playSoundForMove, playSound } = useChessSound();
+  const engine = useStockfish();
+  const botConfig = (skillLevel !== undefined && depth !== undefined)
+    ? { skillLevel, depth, searchTimeMs }
+    : { difficulty: "expert" as const };
   const { computeBotMove, isThinking: isBotThinking, isEngineReady } = useBotMove({
-    difficulty: "expert",
+    ...botConfig,
+    engine,
   });
 
   // Synchronous initialization when startingFen or resetKey changes — runs during render
@@ -191,12 +211,17 @@ export function usePlayFromPosition({
 
   const handleSquareClick = useCallback(
     (square: Square) => {
-      if (gameOver || !isPlayerTurn) return;
+      if (gameOver) return;
+      // When disableBot, user plays both sides; otherwise only on their turn
+      if (!disableBot && !isPlayerTurn) return;
+
+      // Which color can move right now
+      const activeColor = disableBot ? game.turn() : playerColor;
 
       // No piece selected yet — try to select one
       if (!selectedSquare) {
         const piece = game.get(square);
-        if (piece && piece.color === playerColor) {
+        if (piece && piece.color === activeColor) {
           setSelectedSquare(square);
           setLegalMoves(getLegalMovesForSquare(square));
         }
@@ -210,9 +235,9 @@ export function usePlayFromPosition({
         return;
       }
 
-      // Clicked another of own pieces — reselect
+      // Clicked another piece of the active color — reselect
       const piece = game.get(square);
-      if (piece && piece.color === playerColor) {
+      if (piece && piece.color === activeColor) {
         setSelectedSquare(square);
         setLegalMoves(getLegalMovesForSquare(square));
         return;
@@ -233,6 +258,7 @@ export function usePlayFromPosition({
     },
     [
       gameOver,
+      disableBot,
       isPlayerTurn,
       selectedSquare,
       game,
@@ -243,12 +269,14 @@ export function usePlayFromPosition({
     ]
   );
 
-  // Bot move effect
+  // Bot move effect — skipped when disableBot (user plays both sides)
   useEffect(() => {
+    if (disableBot) return;
     if (!startingFen) return;
     if (gameOver) return;
     if (currentTurn === playerColor) return;
     if (botMoveInProgressRef.current) return;
+    if (!isEngineReady) return;
 
     const gameLegalMoves = game.moves({ verbose: true });
     if (gameLegalMoves.length === 0) return;
@@ -304,6 +332,7 @@ export function usePlayFromPosition({
 
     makeBotMove();
   }, [
+    disableBot,
     startingFen,
     gameOver,
     currentTurn,
@@ -312,6 +341,7 @@ export function usePlayFromPosition({
     computeBotMove,
     playSoundForMove,
     playSound,
+    isEngineReady,
   ]);
 
   // Clear selection when game ends
@@ -360,5 +390,8 @@ export function usePlayFromPosition({
     resetGame,
     isFlipped,
     toggleFlip,
+    currentFen: game.fen(),
+    analyzePosition: engine.analyzePosition,
+    stopAnalysis: engine.stopSearch,
   };
 }

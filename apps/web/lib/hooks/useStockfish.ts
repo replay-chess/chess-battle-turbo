@@ -2,19 +2,48 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 
-interface UseStockfishReturn {
-  getBestMove: (fen: string, depth: number) => Promise<string>;
+export interface MultiPvLine {
+  depth: number;
+  multipv: number;        // 1-indexed line number
+  scoreCp: number | null; // centipawns (null if mate)
+  scoreMate: number | null;
+  pv: string[];           // UCI moves, e.g. ["e2e4", "e7e5"]
+}
+
+export interface UseStockfishReturn {
+  getBestMove: (fen: string, depth: number, skillLevel?: number, searchTimeMs?: number) => Promise<string>;
+  analyzePosition: (fen: string, depth: number, multiPvCount: number, onLine: (line: MultiPvLine) => void) => void;
   isReady: boolean;
   isSearching: boolean;
   stopSearch: () => void;
 }
 
-// Timeout for Stockfish to respond (15 seconds for pure JS version which is slower)
+// Timeout for Stockfish to respond (15 seconds)
 const STOCKFISH_TIMEOUT_MS = 15000;
 
+function parseInfoLine(line: string): MultiPvLine | null {
+  if (!line.startsWith("info") || !line.includes(" multipv ")) return null;
+
+  const depthMatch = line.match(/\bdepth (\d+)/);
+  const multipvMatch = line.match(/\bmultipv (\d+)/);
+  const scoreCpMatch = line.match(/\bscore cp (-?\d+)/);
+  const scoreMateMatch = line.match(/\bscore mate (-?\d+)/);
+  const pvMatch = line.match(/\bpv (.+)/);
+
+  if (!depthMatch || !multipvMatch || !pvMatch) return null;
+
+  return {
+    depth: parseInt(depthMatch[1]!, 10),
+    multipv: parseInt(multipvMatch[1]!, 10),
+    scoreCp: scoreCpMatch ? parseInt(scoreCpMatch[1]!, 10) : null,
+    scoreMate: scoreMateMatch ? parseInt(scoreMateMatch[1]!, 10) : null,
+    pv: pvMatch[1]!.trim().split(/\s+/),
+  };
+}
+
 /**
- * Hook for using Stockfish chess engine via Web Worker.
- * Uses pure JavaScript version for maximum compatibility.
+ * Hook for using Stockfish 18 chess engine via Web Worker.
+ * Uses lite single-threaded WASM build with NNUE for strong play without COOP/COEP headers.
  */
 export function useStockfish(): UseStockfishReturn {
   const workerRef = useRef<Worker | null>(null);
@@ -23,6 +52,7 @@ export function useStockfish(): UseStockfishReturn {
   const resolveRef = useRef<((move: string) => void) | null>(null);
   const rejectRef = useRef<((error: Error) => void) | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const infoCallbackRef = useRef<((line: MultiPvLine) => void) | null>(null);
 
   useEffect(() => {
     // Only run on client
@@ -32,8 +62,8 @@ export function useStockfish(): UseStockfishReturn {
       console.log("[Stockfish] Initializing Web Worker...");
     }
 
-    // Use pure JavaScript version (no WASM) for better compatibility
-    const worker = new Worker("/workers/stockfish-pure.js");
+    // Stockfish 18 lite single-threaded WASM build (with NNUE)
+    const worker = new Worker("/workers/stockfish-18-lite-single.js");
     workerRef.current = worker;
 
     worker.onmessage = (event) => {
@@ -54,6 +84,14 @@ export function useStockfish(): UseStockfishReturn {
         setIsReady(true);
       }
 
+      // Parse info lines for MultiPV analysis
+      if (line.startsWith("info") && infoCallbackRef.current) {
+        const parsed = parseInfoLine(line);
+        if (parsed) {
+          infoCallbackRef.current(parsed);
+        }
+      }
+
       // Best move found
       if (line.startsWith("bestmove")) {
         const parts = line.split(" ");
@@ -66,6 +104,14 @@ export function useStockfish(): UseStockfishReturn {
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
           timeoutRef.current = null;
+        }
+
+        // If no resolveRef, this is either an analysis completion or a stale
+        // bestmove from a stop command. Don't clear infoCallbackRef here —
+        // stopSearch and getBestMove manage it explicitly.
+        if (!resolveRef.current) {
+          setIsSearching(false);
+          return;
         }
 
         if (move && resolveRef.current) {
@@ -111,7 +157,7 @@ export function useStockfish(): UseStockfishReturn {
   }, []);
 
   const getBestMove = useCallback(
-    (fen: string, depth: number): Promise<string> => {
+    (fen: string, depth: number, skillLevel?: number, searchTimeMs?: number): Promise<string> => {
       return new Promise((resolve, reject) => {
         if (!workerRef.current) {
           if (process.env.NODE_ENV === 'development') {
@@ -133,6 +179,9 @@ export function useStockfish(): UseStockfishReturn {
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
         }
+
+        // Clear any active analysis callback so it doesn't interfere
+        infoCallbackRef.current = null;
 
         resolveRef.current = resolve;
         rejectRef.current = reject;
@@ -156,15 +205,23 @@ export function useStockfish(): UseStockfishReturn {
 
         const worker = workerRef.current;
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[Stockfish] Searching: depth=${depth}`);
+          console.log(`[Stockfish] Searching: depth=${depth}, skillLevel=${skillLevel}, searchTimeMs=${searchTimeMs}`);
           console.log(`[Stockfish] FEN: ${fen}`);
         }
 
         // Send UCI commands
         worker.postMessage("ucinewgame");
-        worker.postMessage("isready"); // Wait for readyok
+        worker.postMessage("setoption name MultiPV value 1");
+        if (skillLevel !== undefined) {
+          worker.postMessage(`setoption name Skill Level value ${skillLevel}`);
+        }
+        worker.postMessage("isready");
         worker.postMessage(`position fen ${fen}`);
-        worker.postMessage(`go depth ${depth}`);
+        // Use movetime to cap search duration when specified, depth still limits max depth
+        const goCmd = searchTimeMs
+          ? `go depth ${depth} movetime ${searchTimeMs}`
+          : `go depth ${depth}`;
+        worker.postMessage(goCmd);
       });
     },
     [isReady]
@@ -182,7 +239,31 @@ export function useStockfish(): UseStockfishReturn {
     setIsSearching(false);
     resolveRef.current = null;
     rejectRef.current = null;
+    infoCallbackRef.current = null;
   }, []);
 
-  return { getBestMove, isReady, isSearching, stopSearch };
+  const analyzePosition = useCallback(
+    (fen: string, depth: number, multiPvCount: number, onLine: (line: MultiPvLine) => void) => {
+      if (!workerRef.current || !isReady) return;
+
+      // Stop any ongoing search
+      workerRef.current.postMessage("stop");
+      resolveRef.current = null;
+      rejectRef.current = null;
+
+      // Set up analysis callback (no resolveRef — fire-and-forget)
+      // Don't set isSearching — analysis is background work that shouldn't
+      // trigger isBotThinking or cause cascading re-renders
+      infoCallbackRef.current = onLine;
+
+      const worker = workerRef.current;
+      worker.postMessage(`setoption name MultiPV value ${multiPvCount}`);
+      worker.postMessage("isready");
+      worker.postMessage(`position fen ${fen}`);
+      worker.postMessage(`go depth ${depth}`);
+    },
+    [isReady]
+  );
+
+  return { getBestMove, analyzePosition, isReady, isSearching, stopSearch };
 }

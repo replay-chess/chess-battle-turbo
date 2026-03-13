@@ -2,7 +2,7 @@
 
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
-import { ArrowRight, Users } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 
@@ -98,43 +98,24 @@ export default function Hero() {
           className="hidden sm:flex flex-col items-center gap-3"
         >
           {isSignedIn ? (
-            <>
-              <Link href="/play">
-                <button
-                  className={cn(
-                    "group relative overflow-hidden",
-                    "bg-white text-black",
-                    "px-10 py-4",
-                    "text-sm font-semibold tracking-[0.1em] uppercase",
-                    "transition-all duration-300"
-                  )}
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                >
-                  <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                  <span className="relative flex items-center gap-3 group-hover:text-white transition-colors duration-300">
-                    Play Legendary Games — Free
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </span>
-                </button>
-              </Link>
-              <Link href="/challenge/new">
-                <button
-                  className={cn(
-                    "group relative overflow-hidden",
-                    "border border-white/20 hover:border-white/40 text-white/60 hover:text-white",
-                    "px-10 py-3",
-                    "text-sm font-semibold tracking-[0.1em] uppercase",
-                    "transition-all duration-300"
-                  )}
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                >
-                  <span className="relative flex items-center gap-3 transition-colors duration-300">
-                    <Users className="w-4 h-4" strokeWidth={1.5} />
-                    Challenge a Friend
-                  </span>
-                </button>
-              </Link>
-            </>
+            <Link href="/play">
+              <button
+                className={cn(
+                  "group relative overflow-hidden",
+                  "bg-white text-black",
+                  "px-10 py-4",
+                  "text-sm font-semibold tracking-[0.1em] uppercase",
+                  "transition-all duration-300"
+                )}
+                style={{ fontFamily: "'Geist', sans-serif" }}
+              >
+                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                <span className="relative flex items-center gap-3 group-hover:text-white transition-colors duration-300">
+                  Play Legendary Games — Free
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </span>
+              </button>
+            </Link>
           ) : (
             <Link href="/try">
               <button
@@ -157,39 +138,6 @@ export default function Hero() {
           )}
         </motion.div>
 
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.9 }}
-          className="mt-16 flex items-center gap-8 sm:gap-12"
-        >
-          {[
-            { value: "10K+", label: "Legendary Positions" },
-            { value: "100+", label: "Players" },
-            { value: "100+", label: "Games Played" },
-          ].map((stat, index, arr) => (
-            <div key={index} className="flex items-center gap-8 sm:gap-12">
-              <div className="text-center">
-                <p
-                  style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-2xl sm:text-3xl text-white mb-1"
-                >
-                  {stat.value}
-                </p>
-                <p
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] tracking-[0.2em] uppercase text-white/30"
-                >
-                  {stat.label}
-                </p>
-              </div>
-              {index < arr.length - 1 && (
-                <div className="h-10 w-px bg-white/20" />
-              )}
-            </div>
-          ))}
-        </motion.div>
       </motion.div>
 
       {/* Bottom gradient fade */}
@@ -198,43 +146,24 @@ export default function Hero() {
       {/* Sticky mobile CTA */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06]">
         {isSignedIn ? (
-          <div className="flex gap-2">
-            <Link href="/play" className="flex-1">
-              <button
-                className={cn(
-                  "group relative overflow-hidden w-full",
-                  "bg-white text-black",
-                  "px-3 py-3",
-                  "text-sm font-semibold tracking-wide uppercase",
-                  "transition-all duration-300"
-                )}
-                style={{ fontFamily: "'Geist', sans-serif" }}
-              >
-                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                <span className="relative flex items-center justify-center gap-2 group-hover:text-white transition-colors duration-300">
-                  Play Free
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </span>
-              </button>
-            </Link>
-            <Link href="/challenge/new" className="flex-1">
-              <button
-                className={cn(
-                  "group relative overflow-hidden w-full",
-                  "border border-white/20 text-white/60",
-                  "px-3 py-3",
-                  "text-sm font-semibold tracking-wide uppercase",
-                  "transition-all duration-300"
-                )}
-                style={{ fontFamily: "'Geist', sans-serif" }}
-              >
-                <span className="relative flex items-center justify-center gap-2 transition-colors duration-300">
-                  <Users className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} />
-                  vs Friend
-                </span>
-              </button>
-            </Link>
-          </div>
+          <Link href="/play" className="block">
+            <button
+              className={cn(
+                "group relative overflow-hidden w-full",
+                "bg-white text-black",
+                "px-3 py-3",
+                "text-sm font-semibold tracking-wide uppercase",
+                "transition-all duration-300"
+              )}
+              style={{ fontFamily: "'Geist', sans-serif" }}
+            >
+              <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+              <span className="relative flex items-center justify-center gap-2 group-hover:text-white transition-colors duration-300">
+                Play Free
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </button>
+          </Link>
         ) : (
           <Link href="/try" className="block">
             <button

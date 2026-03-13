@@ -5,9 +5,8 @@ test.describe("Play with Bot", () => {
     const page = playerE.page;
     const board = new ChessBoardHelper(page);
 
-    // Navigate to /play and select AI mode
+    // Navigate to /play — AI mode is selected by default
     await page.goto("/play");
-    await page.locator('[data-testid="mode-ai"]').click();
     await page.locator('[data-testid="start-game-button"]').click();
 
     // Wait for redirect to game page

@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useStockfish } from "./useStockfish";
+import type { UseStockfishReturn } from "./useStockfish";
 
 export type Difficulty = "easy" | "medium" | "hard" | "expert";
 
@@ -12,24 +13,24 @@ interface DifficultyConfig {
 }
 
 /**
- * Difficulty is now controlled by Stockfish search depth.
- * Shallower search = weaker play (naturally makes mistakes).
- * No more artificial "blunder chance" - the engine just plays weaker at lower depths.
- *
- * Note: Using pure JS Stockfish (not WASM) so depths are reduced for performance.
+ * Difficulty is controlled by Stockfish search depth and Skill Level.
+ * NNUE evaluation is much stronger per depth than old pure JS, so depths are lower.
  */
 const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
-  easy: { depth: 3, moveTime: 300, elo: 800 },
-  medium: { depth: 6, moveTime: 500, elo: 1400 },
-  hard: { depth: 10, moveTime: 1000, elo: 1800 },
-  expert: { depth: 14, moveTime: 1500, elo: 2200 },
+  easy: { depth: 1, moveTime: 300, elo: 800 },
+  medium: { depth: 4, moveTime: 500, elo: 1400 },
+  hard: { depth: 8, moveTime: 1000, elo: 1800 },
+  expert: { depth: 12, moveTime: 1500, elo: 2200 },
 };
 
-interface UseBotMoveOptions {
-  difficulty: Difficulty;
+type UseBotMoveOptions = {
+  engine?: Pick<UseStockfishReturn, "getBestMove" | "isReady" | "isSearching" | "stopSearch">;
   onThinkingStart?: () => void;
   onThinkingEnd?: () => void;
-}
+} & (
+  | { difficulty: Difficulty; skillLevel?: never; depth?: never }
+  | { difficulty?: never; skillLevel: number; depth: number; searchTimeMs?: number }
+);
 
 interface UseBotMoveReturn {
   computeBotMove: (fen: string, legalMoves: string[]) => Promise<string>;
@@ -45,14 +46,25 @@ interface UseBotMoveReturn {
  * Runs entirely in the browser via Web Worker for optimal performance.
  */
 export function useBotMove(options: UseBotMoveOptions): UseBotMoveReturn {
-  const { difficulty, onThinkingStart, onThinkingEnd } = options;
-  const { getBestMove, isReady, isSearching, stopSearch } = useStockfish();
+  const { onThinkingStart, onThinkingEnd, engine } = options;
+  const internalEngine = useStockfish();
+  const { getBestMove, isReady, isSearching, stopSearch } = engine ?? internalEngine;
   const [isThinking, setIsThinking] = useState(false);
   const cancelledRef = useRef(false);
 
+  const difficulty = 'difficulty' in options ? options.difficulty : undefined;
+  const customSkillLevel = 'skillLevel' in options ? options.skillLevel : undefined;
+  const customDepth = 'depth' in options ? options.depth : undefined;
+  const customSearchTimeMs = 'searchTimeMs' in options ? options.searchTimeMs : undefined;
+
   const getDifficultyConfig = useCallback((): DifficultyConfig => {
-    return DIFFICULTIES[difficulty] || DIFFICULTIES.medium;
-  }, [difficulty]);
+    if (difficulty) return DIFFICULTIES[difficulty] || DIFFICULTIES.medium;
+    return {
+      depth: customDepth ?? 12,
+      moveTime: Math.min(300 + (customDepth ?? 12) * 100, 2000),
+      elo: 600 + (customSkillLevel ?? 20) * 80,
+    };
+  }, [difficulty, customDepth, customSkillLevel]);
 
   const getThinkingTime = useCallback((): number => {
     const config = getDifficultyConfig();
@@ -83,7 +95,9 @@ export function useBotMove(options: UseBotMoveOptions): UseBotMoveReturn {
         const startTime = Date.now();
 
         // Get best move from Stockfish
-        const bestMove = await getBestMove(fen, config.depth);
+        const skillLevel = difficulty ? undefined : customSkillLevel;
+        const searchTimeMs = difficulty ? undefined : customSearchTimeMs;
+        const bestMove = await getBestMove(fen, config.depth, skillLevel, searchTimeMs);
 
         // Ensure minimum thinking time for better UX
         const elapsed = Date.now() - startTime;
@@ -133,7 +147,7 @@ export function useBotMove(options: UseBotMoveOptions): UseBotMoveReturn {
         onThinkingEnd?.();
       }
     },
-    [getBestMove, getDifficultyConfig, getThinkingTime, onThinkingStart, onThinkingEnd]
+    [getBestMove, getDifficultyConfig, getThinkingTime, onThinkingStart, onThinkingEnd, difficulty, customSkillLevel, customSearchTimeMs]
   );
 
   const cancelThinking = useCallback(() => {

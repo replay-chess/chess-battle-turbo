@@ -14,6 +14,8 @@ interface PracticeMoveListProps {
   onBackToAnalysis: () => void;
   playerColor: Color;
   startingSide: "w" | "b";
+  skillLevel?: number;
+  depth?: number;
 }
 
 export default function PracticeMoveList({
@@ -26,6 +28,8 @@ export default function PracticeMoveList({
   onBackToAnalysis,
   playerColor,
   startingSide,
+  skillLevel,
+  depth,
 }: PracticeMoveListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -99,6 +103,14 @@ export default function PracticeMoveList({
         >
           Practice Mode
         </p>
+        {skillLevel !== undefined && depth !== undefined && (
+          <p
+            style={{ fontFamily: "'Geist', sans-serif" }}
+            className="text-[10px] text-white/30 mt-1"
+          >
+            ~{600 + skillLevel * 80} ELO &middot; Depth {depth}
+          </p>
+        )}
       </div>
 
       {/* Thinking indicator */}

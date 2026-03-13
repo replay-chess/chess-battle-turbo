@@ -29,7 +29,7 @@ export const HowToPlay = () => {
   ];
 
   return (
-    <section className="w-full py-12 sm:py-24 px-6 bg-black relative">
+    <section className="w-full -mt-24 sm:-mt-32 pt-12 sm:pt-24 pb-12 sm:pb-24 px-6 bg-black relative">
       {/* Subtle grid background */}
       <div
         className="absolute inset-0 opacity-[0.02]"
