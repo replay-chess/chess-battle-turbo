@@ -28,8 +28,8 @@ jobs:
       - name: Install Chromium
         run: pnpm --filter web exec playwright install --with-deps chromium
 
-      - name: Apply database schema changes
-        run: pnpm --filter web exec prisma db push --skip-generate
+      - name: Apply pending migrations
+        run: pnpm --filter web exec prisma migrate deploy
         env:
           DATABASE_URL: ${{ secrets.PERF_DATABASE_URL }}
 
