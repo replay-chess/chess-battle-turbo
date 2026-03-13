@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "../../../../lib/prisma";
+import { resolveUser } from "@/lib/auth/resolve-user";
 import { logger } from "@/lib/sentry/logger";
 import { trackUserAction } from "@/lib/metrics";
 
 const moveSchema = z.object({
   gameReferenceId: z.string().min(1, "Game reference ID is required"),
-  userReferenceId: z.string().min(1, "User reference ID is required"),
   from: z.string().min(2).max(2),
   to: z.string().min(2).max(2),
   promotion: z.string().optional(),
@@ -21,14 +21,20 @@ type MoveRequest = z.infer<typeof moveSchema>;
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Parse and validate request body
+    // 1. Authenticate user via Clerk session
+    const authUser = await resolveUser(request);
+    if (!authUser) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 2. Parse and validate request body
     const body = await request.json();
     const validatedData = moveSchema.parse(body);
 
     Sentry.setTag("game.referenceId", validatedData.gameReferenceId);
     trackUserAction("make_move");
 
-    // 2. Find game with user relations to get reference IDs
+    // 3. Find game with user relations to get reference IDs
     const game = await prisma.game.findUnique({
       where: { referenceId: validatedData.gameReferenceId },
       include: {
@@ -44,7 +50,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Verify game status
+    // 4. Verify game status
     if (game.status !== "IN_PROGRESS") {
       return NextResponse.json(
         { success: false, error: "Game is not in progress" },
@@ -52,9 +58,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Verify user is part of the game (compare reference IDs)
-    const isCreator = game.creator.referenceId === validatedData.userReferenceId;
-    const isOpponent = game.opponent?.referenceId === validatedData.userReferenceId;
+    // 5. Verify authenticated user is part of the game
+    const isCreator = game.creator.referenceId === authUser.referenceId;
+    const isOpponent = game.opponent?.referenceId === authUser.referenceId;
 
     if (!isCreator && !isOpponent) {
       return NextResponse.json(

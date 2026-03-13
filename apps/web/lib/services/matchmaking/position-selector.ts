@@ -111,6 +111,7 @@ export async function getRandomChessPosition(): Promise<MatchedPosition | null> 
 export async function selectOpeningPosition(
   openingReferenceId: string
 ): Promise<{
+  id: bigint;
   referenceId: string;
   name: string;
   eco: string;
@@ -121,6 +122,7 @@ export async function selectOpeningPosition(
   const opening = await prisma.opening.findFirst({
     where: { referenceId: openingReferenceId, isActive: true },
     select: {
+      id: true,
       referenceId: true,
       name: true,
       eco: true,

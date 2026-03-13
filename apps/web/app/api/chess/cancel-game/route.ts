@@ -2,20 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ValidationError } from "@/lib/errors/validation-error";
-import { validateAndFetchUser } from "@/lib/services/user-validation.service";
+import { resolveUser } from "@/lib/auth/resolve-user";
 import { logger } from "@/lib/logger";
 
 const cancelGameSchema = z.object({
   gameReferenceId: z.string().min(1, "Game reference ID is required"),
-  userReferenceId: z.string().min(1, "User reference ID is required"),
 });
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await resolveUser(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const validatedData = cancelGameSchema.parse(body);
-
-    const user = await validateAndFetchUser(validatedData.userReferenceId);
 
     const game = await prisma.game.findUnique({
       where: { referenceId: validatedData.gameReferenceId },

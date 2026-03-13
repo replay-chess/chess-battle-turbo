@@ -147,6 +147,7 @@ export async function POST(request: NextRequest) {
             creatorId: whiteUserId,
             opponentId: blackUserId,
             chessPositionId: positionData.chessPositionId,
+            openingId: positionData.openingId ?? null,
             startingFen: positionData.fen,
             initialTimeSeconds: tournament.initialTimeSeconds,
             incrementSeconds: tournament.incrementSeconds,

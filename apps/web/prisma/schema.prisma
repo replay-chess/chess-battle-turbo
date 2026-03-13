@@ -55,6 +55,7 @@ model Game {
   result                GameResult?
   winnerId              BigInt?
   chessPositionId       BigInt?
+  openingId             BigInt?
   startingFen           String
   initialTimeSeconds    Int
   incrementSeconds      Int
@@ -71,6 +72,7 @@ model Game {
   creator               User          @relation("CreatorGames", fields: [creatorId], references: [id], onDelete: Cascade)
   opponent              User?         @relation("OpponentGames", fields: [opponentId], references: [id], onDelete: Cascade)
   winner                User?         @relation("WinnerGames", fields: [winnerId], references: [id])
+  opening               Opening?      @relation("OpeningGames", fields: [openingId], references: [id], onDelete: SetNull)
   tournament            Tournament?   @relation("TournamentGames", fields: [tournamentId], references: [id], onDelete: SetNull)
 
   @@index([creatorId])
@@ -80,6 +82,7 @@ model Game {
   @@index([expiresAt])
   @@index([referenceId])
   @@index([chessPositionId])
+  @@index([openingId])
   @@index([tournamentId])
   @@map("games")
 }
@@ -269,6 +272,7 @@ model Opening {
   isActive    Boolean      @default(true)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  games       Game[]       @relation("OpeningGames")
   tournaments Tournament[]
 
   @@index([eco])

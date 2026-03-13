@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createMatchRequest } from "@/lib/services/matchmaking";
+import { resolveUser } from "@/lib/auth/resolve-user";
 import { logger } from "@/lib/logger";
 
 const createMatchRequestSchema = z.object({
-  userReferenceId: z.string().min(1, "User reference ID is required"),
   legendReferenceId: z.string().nullable().optional(),
   openingReferenceId: z.string().nullable().optional(),
   initialTimeSeconds: z
@@ -19,20 +19,25 @@ const createMatchRequestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await resolveUser(request);
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const validatedData = createMatchRequestSchema.parse(body);
 
-    logger.info(`POST /api/matchmaking/create-match-request - user ${validatedData.userReferenceId}, time ${validatedData.initialTimeSeconds}+${validatedData.incrementSeconds}`);
+    logger.info(`POST /api/matchmaking/create-match-request - user ${user.referenceId}, time ${validatedData.initialTimeSeconds}+${validatedData.incrementSeconds}`);
 
     const result = await createMatchRequest({
-      userReferenceId: validatedData.userReferenceId,
+      userReferenceId: user.referenceId,
       legendReferenceId: validatedData.legendReferenceId,
       openingReferenceId: validatedData.openingReferenceId,
       initialTimeSeconds: validatedData.initialTimeSeconds,
       incrementSeconds: validatedData.incrementSeconds,
     });
 
-    logger.info(`Match request created for user ${validatedData.userReferenceId}`);
+    logger.info(`Match request created for user ${user.referenceId}`);
 
     return NextResponse.json(
       {

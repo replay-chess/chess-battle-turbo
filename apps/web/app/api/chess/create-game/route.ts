@@ -5,7 +5,7 @@ import {prisma} from "@/lib/prisma";
 import {getRandomChessPosition, getRandomPositionByLegend, getPositionByReferenceId, incrementPositionPlayCount} from "@/lib/services/chess-position.service";
 import { getOpeningByReferenceId, getOpeningPlayerColor } from "@/lib/services/opening.service";
 import { ValidationError } from "@/lib/errors/validation-error";
-import { validateAndFetchUser } from "@/lib/services/user-validation.service";
+import { resolveUser } from "@/lib/auth/resolve-user";
 import { captureGameTraceData } from "@/lib/sentry/game-trace";
 import { logger } from "@/lib/logger";
 import { trackUserAction } from "@/lib/metrics";
@@ -27,12 +27,15 @@ function calculateExpirationTime(hoursFromNow: number = 1): Date {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Parse and validate request body using Zod schema
+    // 1. Authenticate user via Clerk session
+    const user = await resolveUser(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 2. Parse and validate request body using Zod schema
     const body = await request.json();
     const validatedData = createGameSchema.parse(body);
-
-    // 2. Validate user exists and is active
-    const user = await validateAndFetchUser(validatedData.userReferenceId);
 
     // 3. Fetch chess position, opening, or legend position
     const DEFAULT_STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -59,6 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     const chessPositionId = opening ? null : (chessPosition?.id ?? null);
+    const openingId = opening?.id ?? null;
     const startingFen = opening ? opening.fen : (chessPosition?.fen ?? DEFAULT_STARTING_FEN);
 
     // 4. Build position info for display
@@ -119,6 +123,7 @@ export async function POST(request: NextRequest) {
       data: {
         creatorId: user.id,
         chessPositionId,
+        openingId,
         startingFen,
         initialTimeSeconds: validatedData.initialTimeSeconds,
         incrementSeconds: validatedData.incrementSeconds,

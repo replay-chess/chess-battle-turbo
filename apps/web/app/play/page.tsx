@@ -267,19 +267,6 @@ function PlayContent() {
             className="w-full max-w-md"
           >
             {/* Header */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex items-center gap-3 mb-4 lg:mb-6"
-            >
-              <div className="h-px flex-1 bg-gradient-to-r from-white/30 to-transparent" />
-              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/50 text-[10px] tracking-[0.4em] uppercase">
-                New Game
-              </span>
-              <div className="h-px flex-1 bg-gradient-to-l from-white/30 to-transparent" />
-            </motion.div>
-
             {/* Game Mode Cards */}
             <motion.div
               initial={{ opacity: 0 }}

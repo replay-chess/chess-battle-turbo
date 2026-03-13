@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "../../../../lib/prisma";
+import { resolveUser, isInternalServiceRequest } from "@/lib/auth/resolve-user";
 import { logger } from "@/lib/sentry/logger";
 import { trackUserAction } from "@/lib/metrics";
 import { updateTournamentStandings } from "@/lib/services/tournament/tournament.service";
@@ -46,14 +47,24 @@ type GameOverRequest = z.infer<typeof gameOverSchema>;
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Parse and validate request body
+    const isInternal = isInternalServiceRequest(request);
+
+    // 1. Authenticate: Clerk session (browser) or internal service token (WebSocket server)
+    if (!isInternal) {
+      const authUser = await resolveUser(request);
+      if (!authUser) {
+        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      }
+    }
+
+    // 2. Parse and validate request body
     const body = await request.json();
     const validatedData = gameOverSchema.parse(body);
 
     Sentry.setTag("game.referenceId", validatedData.gameReferenceId);
     trackUserAction("game_over");
 
-    // 2. Find game
+    // 3. Find game
     const game = await prisma.game.findUnique({
       where: { referenceId: validatedData.gameReferenceId },
       include: {
@@ -68,7 +79,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Verify game is in progress
+    // 4. Verify game is in progress
     if (game.status !== "IN_PROGRESS") {
       return NextResponse.json(
         { success: false, error: "Game is not in progress" },

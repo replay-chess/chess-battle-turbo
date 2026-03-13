@@ -147,6 +147,7 @@ export async function GET(
         creatorId: true,
         opponentId: true,
         chessPositionId: true,
+        openingId: true,
       },
     });
 
@@ -256,19 +257,28 @@ export async function GET(
       tournamentName = gameData.positionInfo.tournamentName || null;
     }
 
-    // If game has opening info with a referenceId, fetch explanation from Opening table
-    if (!explanation && gameData?.openingInfo?.referenceId) {
-      const opening = await prisma.opening.findUnique({
-        where: { referenceId: gameData.openingInfo.referenceId },
-        select: {
-          explanation: true,
-          explanationAudioUrl: true,
-        },
-      });
+    // If game has an opening, fetch explanation from Opening table
+    // Prefer openingId FK (fast PK lookup), fall back to gameData referenceId for backward compat
+    if (!explanation) {
+      const openingWhere = game.openingId
+        ? { id: game.openingId }
+        : gameData?.openingInfo?.referenceId
+          ? { referenceId: gameData.openingInfo.referenceId }
+          : null;
 
-      if (opening) {
-        explanation = opening.explanation;
-        explanationAudioUrl = opening.explanationAudioUrl;
+      if (openingWhere) {
+        const opening = await prisma.opening.findUnique({
+          where: openingWhere,
+          select: {
+            explanation: true,
+            explanationAudioUrl: true,
+          },
+        });
+
+        if (opening) {
+          explanation = opening.explanation;
+          explanationAudioUrl = opening.explanationAudioUrl;
+        }
       }
     }
 

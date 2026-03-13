@@ -1,21 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { cancelMatchRequest } from "@/lib/services/matchmaking";
+import { resolveUser } from "@/lib/auth/resolve-user";
 import { logger } from "@/lib/logger";
 
 const cancelMatchRequestSchema = z.object({
   queueReferenceId: z.string().min(1, "Queue reference ID is required"),
-  userReferenceId: z.string().min(1, "User reference ID is required"),
 });
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await resolveUser(request);
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const validatedData = cancelMatchRequestSchema.parse(body);
 
     const result = await cancelMatchRequest(
       validatedData.queueReferenceId,
-      validatedData.userReferenceId
+      user.referenceId
     );
 
     // All results are successful (idempotent operation)

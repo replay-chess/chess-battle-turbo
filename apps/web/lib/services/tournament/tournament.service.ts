@@ -117,6 +117,7 @@ export async function resolveStartingPosition(tournament: {
           return {
             fen: opening.fen,
             chessPositionId: null,
+            openingId: opening.id,
             positionInfo: {
               whitePlayerName: null,
               blackPlayerName: null,
@@ -147,6 +148,7 @@ export async function resolveStartingPosition(tournament: {
           return {
             fen: position.fen,
             chessPositionId: position.id,
+            openingId: null,
             positionInfo: {
               whitePlayerName: position.whitePlayerName ?? null,
               blackPlayerName: position.blackPlayerName ?? null,
@@ -167,6 +169,7 @@ export async function resolveStartingPosition(tournament: {
         return {
           fen: tournament.chessPosition.fen,
           chessPositionId: tournament.chessPositionId,
+          openingId: null,
           positionInfo: {
             whitePlayerName: tournament.chessPosition.whitePlayerName ?? null,
             blackPlayerName: tournament.chessPosition.blackPlayerName ?? null,
@@ -187,6 +190,7 @@ export async function resolveStartingPosition(tournament: {
     return {
       fen: randomPosition.fen,
       chessPositionId: randomPosition.id,
+      openingId: null,
       positionInfo: {
         whitePlayerName: randomPosition.whitePlayerName ?? null,
         blackPlayerName: randomPosition.blackPlayerName ?? null,
@@ -203,6 +207,7 @@ export async function resolveStartingPosition(tournament: {
   return {
     fen: DEFAULT_FEN,
     chessPositionId: null,
+    openingId: null,
     positionInfo: null,
     openingInfo: null,
   };

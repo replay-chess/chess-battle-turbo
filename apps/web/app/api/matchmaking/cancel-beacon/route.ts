@@ -1,41 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cancelMatchRequest } from "@/lib/services/matchmaking";
+import { resolveUser } from "@/lib/auth/resolve-user";
 import { logger } from "@/lib/logger";
 
 /**
  * Beacon-compatible cancel endpoint
  * Accepts application/x-www-form-urlencoded for sendBeacon() compatibility
  * Returns minimal response and gracefully handles already-processed entries
+ *
+ * Auth: Uses Clerk session cookie (sendBeacon includes cookies for same-origin).
+ * The user from the session is used instead of trusting userReferenceId from the body.
  */
 export async function POST(request: NextRequest) {
   try {
+    const user = await resolveUser(request);
+    if (!user) {
+      return NextResponse.json({ success: false }, { status: 401 });
+    }
+
     const contentType = request.headers.get("content-type") || "";
 
     let queueReferenceId: string | null = null;
-    let userReferenceId: string | null = null;
 
     if (contentType.includes("application/x-www-form-urlencoded")) {
       const formData = await request.text();
       const params = new URLSearchParams(formData);
       queueReferenceId = params.get("queueReferenceId");
-      userReferenceId = params.get("userReferenceId");
     } else if (contentType.includes("application/json")) {
       const body = await request.json();
       queueReferenceId = body.queueReferenceId;
-      userReferenceId = body.userReferenceId;
     } else {
-      // Try to parse as form data anyway (sendBeacon default)
       const formData = await request.text();
       const params = new URLSearchParams(formData);
       queueReferenceId = params.get("queueReferenceId");
-      userReferenceId = params.get("userReferenceId");
     }
 
-    if (!queueReferenceId || !userReferenceId) {
+    if (!queueReferenceId) {
       return NextResponse.json({ success: false }, { status: 400 });
     }
 
-    await cancelMatchRequest(queueReferenceId, userReferenceId);
+    await cancelMatchRequest(queueReferenceId, user.referenceId);
 
     // Minimal response for beacon
     return NextResponse.json({ success: true });

@@ -3,13 +3,12 @@ import { z } from "zod";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { ValidationError } from "@/lib/errors/validation-error";
-import { validateAndFetchUser } from "@/lib/services/user-validation.service";
+import { resolveUser } from "@/lib/auth/resolve-user";
 import { logger } from "@/lib/sentry/logger";
 import { trackUserAction } from "@/lib/metrics";
 
 const joinGameSchema = z.object({
   gameReferenceId: z.string().min(1, "Game reference ID is required"),
-  opponentReferenceId: z.string().min(1, "Opponent reference ID is required"),
 });
 
 async function validateAndFetchGame(gameReferenceId: string) {
@@ -54,24 +53,27 @@ async function validateAndFetchGame(gameReferenceId: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Parse and validate request body
+    // 1. Authenticate user via Clerk session
+    const opponent = await resolveUser(request);
+    if (!opponent) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 2. Parse and validate request body
     const body = await request.json();
     const validatedData = joinGameSchema.parse(body);
     logger.info(`Join game request: game=${validatedData.gameReferenceId}`);
 
-    // 2. Fetch and validate game
+    // 3. Fetch and validate game
     const game = await validateAndFetchGame(validatedData.gameReferenceId);
 
-    // 2b. Continue the game's distributed trace if trace context is available
+    // 3b. Continue the game's distributed trace if trace context is available
     const traceContext = (game.gameData as any)?.traceContext;
     Sentry.setTag("game.referenceId", game.referenceId);
 
     trackUserAction("join_game");
 
     const executeJoin = async () => {
-      // 3. Fetch and validate opponent
-      const opponent = await validateAndFetchUser(validatedData.opponentReferenceId);
-
       // 4. Prevent self-play
       if (game.creatorId === opponent.id) {
         throw new ValidationError("You cannot join your own game", 400);

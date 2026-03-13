@@ -11,6 +11,7 @@ import { trackApiLatency, trackApiError } from "./sentry";
 
 // Configuration
 const API_BASE_URL = process.env.WEB_APP_URL || "http://localhost:3000";
+const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET || "";
 
 /**
  * Returns sentry-trace and baggage headers for the current active span.
@@ -75,6 +76,7 @@ export async function persistMove(moveData: ApiMoveRequest): Promise<void> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-internal-token": INTERNAL_API_SECRET,
         ...getSentryHeaders(),
       },
       body: JSON.stringify(moveData),
@@ -113,6 +115,7 @@ export async function completeGame(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-internal-token": INTERNAL_API_SECRET,
         ...getSentryHeaders(),
       },
       body: JSON.stringify(gameOverData),
@@ -160,6 +163,7 @@ export async function updateGameState(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-internal-token": INTERNAL_API_SECRET,
         ...getSentryHeaders(),
       },
       body: JSON.stringify(stateData),

@@ -133,7 +133,8 @@ export async function POST(request: NextRequest) {
         status: "IN_PROGRESS",
         startedAt: new Date(),
         gameData: {
-          gameMode: "DEMO",
+          gameMode: "AI",
+          isDemo: true,
           difficulty: DEMO_DIFFICULTY,
           playerColor,
           playerReferenceId: demoUser.referenceId,

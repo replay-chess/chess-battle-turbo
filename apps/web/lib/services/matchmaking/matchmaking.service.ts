@@ -9,6 +9,7 @@ import {
 } from "./types";
 import { selectPositionFromLegends, getDefaultFen, selectOpeningPosition } from "./position-selector";
 
+const DEMO_USER_CODE = "DEMO_PLAYER_001";
 const QUEUE_TIMEOUT_SECONDS = 60;
 const TIGHT_RATING_RANGE = 200;
 const WIDE_RATING_RANGE = 400;
@@ -32,6 +33,10 @@ export async function createMatchRequest(
 
   if (!user) {
     throw new Error("User not found");
+  }
+
+  if (user.code === DEMO_USER_CODE) {
+    throw new Error("Demo accounts cannot use matchmaking");
   }
 
   // 2. Check for existing active queue entry (prevent duplicate searches)
@@ -255,6 +260,7 @@ async function tryFindMatch(params: {
         creatorId: whiteUserId,
         opponentId: blackUserId,
         chessPositionId,
+        openingId: openingData?.id ?? null,
         startingFen,
         initialTimeSeconds: params.timeControlSeconds,
         incrementSeconds: params.incrementSeconds,

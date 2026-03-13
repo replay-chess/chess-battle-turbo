@@ -4,28 +4,28 @@ import { prisma } from "@/lib/prisma";
 import { getRandomChessPosition, getRandomPositionByLegend, getPositionByReferenceId, incrementPositionPlayCount } from "@/lib/services/chess-position.service";
 import { getOpeningByReferenceId, getOpeningPlayerColor } from "@/lib/services/opening.service";
 import { ValidationError } from "@/lib/errors/validation-error";
+import { resolveUser } from "@/lib/auth/resolve-user";
 import { logger } from "@/lib/logger";
 import { trackUserAction } from "@/lib/metrics";
 
-// Bot user constants - must match the seeded bot user
+// System user constants - must match the seeded users
 const BOT_USER_CODE = "CHESS_BOT_001";
 const BOT_USER_EMAIL = "bot@replaychess.local";
 
 // Difficulty and playerColor are now optional - auto-determined
 const createAIGameSchema = z.object({
-  userReferenceId: z.string().min(1, "User reference ID is required"),
   initialTimeSeconds: z.number().int().positive("Initial time must be greater than 0"),
   incrementSeconds: z.number().int().min(0, "Increment seconds must be 0 or greater"),
-  selectedLegend: z.string().optional(), // Optional legend ID to play their famous positions
-  selectedOpening: z.string().optional(), // Optional opening referenceId
-  chessPositionReferenceId: z.string().optional(), // Optional position referenceId for shared positions
+  selectedLegend: z.string().optional(),
+  selectedOpening: z.string().optional(),
+  chessPositionReferenceId: z.string().optional(),
 });
 
 type Difficulty = "easy" | "medium" | "hard" | "expert";
 
-async function validateAndFetchUserWithRating(userReferenceId: string) {
-  const user = await prisma.user.findUnique({
-    where: { referenceId: userReferenceId },
+async function fetchUserWithRating(userId: bigint) {
+  return prisma.user.findUnique({
+    where: { id: userId },
     include: {
       chessComProfile: {
         select: {
@@ -36,16 +36,6 @@ async function validateAndFetchUserWithRating(userReferenceId: string) {
       },
     },
   });
-
-  if (!user) {
-    throw new ValidationError("User not found", 404);
-  }
-
-  if (!user.isActive) {
-    throw new ValidationError("User account is not active", 400);
-  }
-
-  return user;
 }
 
 /**
@@ -142,14 +132,23 @@ const DEFAULT_STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Parse and validate request body
+    // 1. Authenticate user via Clerk session
+    const authUser = await resolveUser(request);
+    if (!authUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 2. Parse and validate request body
     const body = await request.json();
     const validatedData = createAIGameSchema.parse(body);
 
-    logger.info(`POST /api/chess/create-ai-game - user ${validatedData.userReferenceId}, time ${validatedData.initialTimeSeconds}+${validatedData.incrementSeconds}`);
+    logger.info(`POST /api/chess/create-ai-game - user ${authUser.referenceId}, time ${validatedData.initialTimeSeconds}+${validatedData.incrementSeconds}`);
 
-    // 2. Validate user and fetch with rating
-    const user = await validateAndFetchUserWithRating(validatedData.userReferenceId);
+    // 3. Fetch user with rating data
+    const user = await fetchUserWithRating(authUser.id);
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
     // 3. Get or create bot user
     const botUser = await getOrCreateBotUser();
@@ -219,6 +218,7 @@ export async function POST(request: NextRequest) {
     logger.debug(`[AI Game] Settings: timeFormat=${timeFormat}, userRating=${userRating}, difficulty=${difficulty}, playerColor=${resolvedPlayerColor}`);
 
     const chessPositionId = opening ? null : (chessPosition?.id ?? null);
+    const openingId = opening?.id ?? null;
     const startingFen = opening ? opening.fen : (chessPosition?.fen ?? DEFAULT_STARTING_FEN);
 
     logger.debug(`[AI Game] Starting position: positionId=${chessPositionId?.toString()}, fen=${startingFen}, isOpening=${!!opening}`);
@@ -267,6 +267,7 @@ export async function POST(request: NextRequest) {
         creatorId,
         opponentId,
         chessPositionId,
+        openingId,
         startingFen,
         initialTimeSeconds: validatedData.initialTimeSeconds,
         incrementSeconds: validatedData.incrementSeconds,
