@@ -55,6 +55,7 @@
     "@types/react": "19.1.0",
     "@types/react-dom": "19.1.1",
     "babel-plugin-react-compiler": "^1.0.0",
+    "dotenv": "^17.3.1",
     "eslint": "^9.34.0",
     "prisma": "^6.17.1",
     "tailwindcss": "^4.1.14",

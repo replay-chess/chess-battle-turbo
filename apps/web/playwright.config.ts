@@ -1,4 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
+import { config } from "dotenv";
+import path from "path";
+
+// Load .env.test FIRST with override so E2E tests always use the perf database,
+// never prod — even if a dev server is already running or .env.local is present.
+config({ path: path.resolve(__dirname, ".env.test"), override: true });
 
 export default defineConfig({
   testDir: "./e2e/specs",
@@ -25,13 +31,13 @@ export default defineConfig({
     {
       command: process.env.CI ? "pnpm start" : "pnpm dev",
       port: 3000,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: process.env.CI ? 30_000 : 60_000,
     },
     {
       command: "pnpm --filter web-socket dev",
       port: 3002,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 30_000,
     },
   ],
