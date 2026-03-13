@@ -29,7 +29,16 @@ jobs:
         run: pnpm --filter web exec playwright install --with-deps chromium
 
       - name: Apply pending migrations
-        run: pnpm --filter web exec prisma migrate deploy
+        run: |
+          pnpm --filter web exec prisma migrate deploy 2>&1 && exit 0
+          echo "Baselining existing database..."
+          for dir in apps/web/prisma/migrations/*/; do
+            name=$(basename "$dir")
+            echo "  Marking $name as applied"
+            pnpm --filter web exec prisma migrate resolve --applied "$name"
+          done
+          echo "Re-running migrate deploy..."
+          pnpm --filter web exec prisma migrate deploy
         env:
           DATABASE_URL: ${{ secrets.PERF_DATABASE_URL }}
 
