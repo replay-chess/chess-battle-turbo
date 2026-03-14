@@ -91,6 +91,9 @@ const sizeConfig = {
 const fileArr = ["a", "b", "c", "d", "e", "f", "g", "h"] as const;
 const rankArr = ["8", "7", "6", "5", "4", "3", "2", "1"] as const;
 
+// Minimum pixel distance before a pointerdown becomes a drag
+const DRAG_THRESHOLD = 4;
+
 type ChessProps = {
   board?: PieceInfo[][];
   squareSize?: keyof typeof sizeConfig;
@@ -135,7 +138,22 @@ const ChessBoard = ({
 }: ChessProps) => {
   const boardContainerRef = useRef<HTMLDivElement>(null);
   const animOverlayRef = useRef<HTMLDivElement>(null);
+  const dragGhostRef = useRef<HTMLDivElement>(null);
+  const dragInfoRef = useRef<{
+    startClientX: number;
+    startClientY: number;
+    piece: { type: PieceSymbol; color: Color };
+    sourceSquare: Square;
+    pointerId: number;
+  } | null>(null);
+  const suppressClickRef = useRef(false);
   const [boardPixelSize, setBoardPixelSize] = useState(0);
+  const [dragState, setDragState] = useState<{
+    piece: { type: PieceSymbol; color: Color };
+    sourceSquare: Square;
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Measure the board container for SVG arrows and piece animation overlay
   useEffect(() => {
@@ -179,6 +197,118 @@ const ChessBoard = ({
     el.style.transition = "transform 500ms cubic-bezier(0.25, 0.1, 0.25, 1)";
     el.style.transform = `translate(${toPos.x}px, ${toPos.y}px)`;
   }, [animatingMove, boardPixelSize, playerColor]);
+
+  // --- Drag-and-drop handlers ---
+
+  const handlePiecePointerDown = (
+    e: React.PointerEvent,
+    piece: { type: PieceSymbol; color: Color },
+    sourceSquare: Square
+  ) => {
+    if (!isInteractive || !onSquareClick || e.button !== 0) return;
+    if (dragInfoRef.current) return; // prevent multi-touch conflicts
+    dragInfoRef.current = {
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      piece,
+      sourceSquare,
+      pointerId: e.pointerId,
+    };
+    boardContainerRef.current?.setPointerCapture(e.pointerId);
+  };
+
+  const handleBoardPointerMove = (e: React.PointerEvent) => {
+    const info = dragInfoRef.current;
+    if (!info) return;
+    const container = boardContainerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+
+    if (!dragState) {
+      // Not yet dragging — check threshold
+      const dx = e.clientX - info.startClientX;
+      const dy = e.clientY - info.startClientY;
+      if (dx * dx + dy * dy < DRAG_THRESHOLD * DRAG_THRESHOLD) return;
+      // Start drag: select the source square
+      onSquareClick?.(info.sourceSquare);
+      suppressClickRef.current = true;
+      setDragState({
+        piece: info.piece,
+        sourceSquare: info.sourceSquare,
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+    } else {
+      // Already dragging — update ghost position via ref (no re-render)
+      if (dragGhostRef.current) {
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const sqSize = rect.width / 8;
+        const pieceSize = sqSize * 0.95;
+        dragGhostRef.current.style.transform = `translate(${x - pieceSize / 2}px, ${y - pieceSize / 2}px)`;
+      }
+    }
+  };
+
+  const handleBoardPointerUp = (e: React.PointerEvent) => {
+    const info = dragInfoRef.current;
+    if (!info) return;
+
+    const container = boardContainerRef.current;
+
+    if (dragState && container) {
+      const rect = container.getBoundingClientRect();
+      const pointerX = e.clientX - rect.left;
+      const pointerY = e.clientY - rect.top;
+
+      // Check if pointer is within the board
+      if (pointerX >= 0 && pointerX < rect.width && pointerY >= 0 && pointerY < rect.height) {
+        const sqSize = rect.width / 8;
+        const col = Math.floor(pointerX / sqSize);
+        const row = Math.floor(pointerY / sqSize);
+        let file: number, rank: number;
+        if (playerColor === "b") {
+          file = 7 - col;
+          rank = row;
+        } else {
+          file = col;
+          rank = 7 - row;
+        }
+        const targetSquare = `${fileArr[file]}${rank + 1}` as Square;
+        onSquareClick?.(targetSquare);
+      } else {
+        // Pointer outside board — deselect by clicking source again
+        onSquareClick?.(info.sourceSquare);
+      }
+    }
+
+    // Clean up
+    if (container) {
+      try {
+        container.releasePointerCapture(info.pointerId);
+      } catch {
+        // already released
+      }
+    }
+    dragInfoRef.current = null;
+    setDragState(null);
+  };
+
+  const handleLostPointerCapture = () => {
+    if (dragInfoRef.current) {
+      dragInfoRef.current = null;
+      setDragState(null);
+    }
+  };
+
+  // Cancel drag if board becomes non-interactive mid-drag
+  useEffect(() => {
+    if (!isInteractive && dragInfoRef.current) {
+      dragInfoRef.current = null;
+      setDragState(null);
+    }
+  }, [isInteractive]);
 
   // Helper: get pixel coords for the center of a square
   const getSquareCenter = (sq: Square): { x: number; y: number } => {
@@ -270,10 +400,14 @@ const ChessBoard = ({
         {/* Main board container */}
         <div
           ref={boardContainerRef}
+          onPointerMove={handleBoardPointerMove}
+          onPointerUp={handleBoardPointerUp}
+          onLostPointerCapture={handleLostPointerCapture}
           className={cn(
             "relative border border-white/20 shadow-2xl shadow-black/80",
             gameEndState === "defeat" && "transition-all duration-1000"
           )}
+          style={isInteractive ? { touchAction: "none" } : undefined}
         >
           {/* Game end overlays */}
           <DefeatOverlay isActive={gameEndState === "defeat"} />
@@ -299,7 +433,13 @@ const ChessBoard = ({
                   <div
                     key={columnIndex}
                     data-square={squareNotation}
-                    onClick={() => isInteractive && onSquareClick?.(squareNotation)}
+                    onClick={() => {
+                      if (suppressClickRef.current) {
+                        suppressClickRef.current = false;
+                        return;
+                      }
+                      isInteractive && onSquareClick?.(squareNotation);
+                    }}
                     className={cn(
                       sizeConfig[squareSize],
                       "relative flex items-center justify-center",
@@ -409,15 +549,27 @@ const ChessBoard = ({
                     {/* Chess piece */}
                     {square !== null && (() => {
                       const isAnimatingTo = animatingMove?.to === squareNotation;
+                      const isDragSource = dragState?.sourceSquare === squareNotation;
                       return (
                       <div
+                        onPointerDown={(e) =>
+                          handlePiecePointerDown(e, { type: square.type, color: square.color }, squareNotation)
+                        }
                         className={cn(
                           "relative z-20 w-[85%] h-[85%]",
                           "transition-transform duration-100",
                           isInteractive && "hover:scale-105",
                           isSelected && "scale-105"
                         )}
-                        style={isAnimatingTo ? { opacity: 0 } : fadedPieces ? { opacity: 0.8 } : undefined}
+                        style={
+                          isDragSource
+                            ? { opacity: 0.3 }
+                            : isAnimatingTo
+                              ? { opacity: 0 }
+                              : fadedPieces
+                                ? { opacity: 0.8 }
+                                : undefined
+                        }
                       >
                         <Image
                           src={`/chess-icons/${square.color}${square.type}.png`}
@@ -518,6 +670,41 @@ const ChessBoard = ({
                     animatingMove.piece.color === "w"
                       ? "drop-shadow-[0_2px_3px_rgba(0,0,0,0.3)]"
                       : "drop-shadow-[0_2px_3px_rgba(0,0,0,0.5)]"
+                  )}
+                  draggable={false}
+                />
+              </div>
+            );
+          })()}
+
+          {/* Drag ghost piece — follows pointer during drag */}
+          {dragState && boardPixelSize > 0 && (() => {
+            const sqSize = boardPixelSize / 8;
+            const pieceSize = sqSize * 0.95;
+            return (
+              <div
+                ref={dragGhostRef}
+                style={{
+                  position: "absolute",
+                  width: pieceSize,
+                  height: pieceSize,
+                  left: 0,
+                  top: 0,
+                  transform: `translate(${dragState.x - pieceSize / 2}px, ${dragState.y - pieceSize / 2}px)`,
+                  zIndex: 50,
+                  pointerEvents: "none",
+                }}
+              >
+                <Image
+                  src={`/chess-icons/${dragState.piece.color}${dragState.piece.type}.png`}
+                  alt="Dragging piece"
+                  width={100}
+                  height={100}
+                  className={cn(
+                    "w-full h-full object-contain",
+                    dragState.piece.color === "w"
+                      ? "drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)]"
+                      : "drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]"
                   )}
                   draggable={false}
                 />

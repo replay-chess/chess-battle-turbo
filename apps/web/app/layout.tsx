@@ -10,6 +10,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { ThemeAwareClerkProvider } from "./components/ThemeAwareClerkProvider";
 import { ThemeAwareToaster } from "./components/ThemeAwareToaster";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -122,6 +123,7 @@ export default function RootLayout({
           <ThemeAwareClerkProvider>
             <GoogleAnalytics />
             <Analytics />
+            <SpeedInsights />
             <UserSync />
             <ThemeAwareToaster />
             {children}
