@@ -288,8 +288,11 @@ const ChessBoard = ({
       // No drag occurred — this was a click on a piece.
       // setPointerCapture redirected pointerup here, suppressing the
       // normal click event on the square div, so fire it manually.
-      // Suppress the next onClick to prevent double-fire (select then deselect).
+      // Suppress any onClick that fires in the same event batch (browsers that
+      // don't fully suppress click after e.preventDefault() on pointerdown).
+      // Reset after the current frame so the next deliberate click works.
       suppressClickRef.current = true;
+      requestAnimationFrame(() => { suppressClickRef.current = false; });
       onSquareClick?.(info.sourceSquare);
     }
 
