@@ -130,10 +130,10 @@ export const DefeatOverlay = ({ isActive }: DefeatOverlayProps) => {
             style={{
               background: `linear-gradient(
                 to bottom,
-                rgba(0, 0, 0, 0.6) 0%,
-                rgba(15, 15, 15, 0.5) 30%,
-                rgba(20, 20, 20, 0.4) 60%,
-                rgba(10, 10, 10, 0.3) 100%
+                var(--cb-defeat-wash-start) 0%,
+                var(--cb-defeat-wash-start) 30%,
+                var(--cb-defeat-wash-end) 60%,
+                var(--cb-defeat-wash-end) 100%
               )`,
             }}
           />
@@ -161,8 +161,8 @@ export const DefeatOverlay = ({ isActive }: DefeatOverlayProps) => {
                 0deg,
                 transparent,
                 transparent 2px,
-                rgba(0, 0, 0, 0.5) 2px,
-                rgba(0, 0, 0, 0.5) 4px
+                var(--cb-defeat-scanline) 2px,
+                var(--cb-defeat-scanline) 4px
               )`,
             }}
           />
@@ -177,7 +177,7 @@ export const DefeatOverlay = ({ isActive }: DefeatOverlayProps) => {
               background: `radial-gradient(
                 ellipse at center,
                 transparent 30%,
-                rgba(0, 0, 0, 0.4) 100%
+                var(--cb-defeat-vignette) 100%
               )`,
             }}
           />
@@ -227,7 +227,7 @@ const AshParticles = () => {
           style={{
             width: particle.size,
             height: particle.size,
-            backgroundColor: "rgba(100, 100, 100, 0.6)",
+            backgroundColor: "var(--cb-defeat-ash)",
             filter: "blur(0.5px)",
           }}
         />
@@ -253,9 +253,9 @@ export const DrawOverlay = ({ isActive }: DrawOverlayProps) => {
           style={{
             background: `linear-gradient(
               135deg,
-              rgba(255, 255, 255, 0.05) 0%,
-              rgba(0, 0, 0, 0.1) 50%,
-              rgba(255, 255, 255, 0.05) 100%
+              var(--cb-draw-gradient-edge) 0%,
+              var(--cb-draw-gradient-mid) 50%,
+              var(--cb-draw-gradient-edge) 100%
             )`,
           }}
         >
@@ -278,11 +278,11 @@ interface GameResultBannerProps {
 }
 
 const BANNER_CONFIG = {
-  victory: { text: "You Won!", color: "text-amber-200", bg: "rgba(180, 130, 30, 0.35)" },
-  defeat: { text: "You Lost", color: "text-cb-text-secondary", bg: "rgba(40, 40, 40, 0.45)" },
-  draw: { text: "Draw", color: "text-cb-text", bg: "rgba(100, 100, 100, 0.35)" },
-  white_wins: { text: "White Wins", color: "text-amber-200", bg: "rgba(180, 130, 30, 0.35)" },
-  black_wins: { text: "Black Wins", color: "text-amber-200", bg: "rgba(180, 130, 30, 0.35)" },
+  victory: { text: "You Won!", color: "text-amber-200", bg: "var(--cb-result-victory-bg)" },
+  defeat: { text: "You Lost", color: "text-cb-text-secondary", bg: "var(--cb-result-defeat-bg)" },
+  draw: { text: "Draw", color: "text-cb-text", bg: "var(--cb-result-draw-bg)" },
+  white_wins: { text: "White Wins", color: "text-amber-200", bg: "var(--cb-result-victory-bg)" },
+  black_wins: { text: "Black Wins", color: "text-amber-200", bg: "var(--cb-result-victory-bg)" },
 } as const;
 
 export const GameResultBanner = ({ gameEndState }: GameResultBannerProps) => {
@@ -411,7 +411,7 @@ export const GameEndOverlay = ({
           transition={{ duration: 0.4 }}
           className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-auto"
           style={{
-            background: "rgba(0, 0, 0, 0.7)",
+            background: "var(--cb-overlay-scrim)",
             backdropFilter: "blur(4px)",
             WebkitBackdropFilter: "blur(4px)",
           }}

@@ -146,6 +146,18 @@ button,
   --cb-backdrop: rgba(250,249,246,0.85);
   --cb-grid-line: rgba(0,0,0,0.03);
   --cb-gradient-from: #FAF9F6;
+  /* Game end effects */
+  --cb-overlay-scrim: rgba(61, 50, 41, 0.55);
+  --cb-defeat-wash-start: rgba(245, 243, 240, 0.55);
+  --cb-defeat-wash-end: rgba(250, 249, 246, 0.3);
+  --cb-defeat-vignette: rgba(245, 243, 240, 0.45);
+  --cb-defeat-scanline: rgba(61, 50, 41, 0.3);
+  --cb-defeat-ash: rgba(180, 170, 155, 0.5);
+  --cb-draw-gradient-edge: rgba(0, 0, 0, 0.03);
+  --cb-draw-gradient-mid: rgba(0, 0, 0, 0.06);
+  --cb-result-victory-bg: rgba(180, 130, 30, 0.2);
+  --cb-result-defeat-bg: rgba(61, 50, 41, 0.12);
+  --cb-result-draw-bg: rgba(61, 50, 41, 0.1);
   /* Darker accent colors for light backgrounds */
   --cb-emerald-400: #059669;
   --cb-emerald-500: #047857;
@@ -210,6 +222,18 @@ button,
   --cb-backdrop: rgba(0,0,0,0.85);
   --cb-grid-line: rgba(255,255,255,0.015);
   --cb-gradient-from: #000000;
+  /* Game end effects */
+  --cb-overlay-scrim: rgba(0, 0, 0, 0.7);
+  --cb-defeat-wash-start: rgba(0, 0, 0, 0.6);
+  --cb-defeat-wash-end: rgba(10, 10, 10, 0.3);
+  --cb-defeat-vignette: rgba(0, 0, 0, 0.4);
+  --cb-defeat-scanline: rgba(0, 0, 0, 0.5);
+  --cb-defeat-ash: rgba(100, 100, 100, 0.6);
+  --cb-draw-gradient-edge: rgba(255, 255, 255, 0.05);
+  --cb-draw-gradient-mid: rgba(0, 0, 0, 0.1);
+  --cb-result-victory-bg: rgba(180, 130, 30, 0.35);
+  --cb-result-defeat-bg: rgba(40, 40, 40, 0.45);
+  --cb-result-draw-bg: rgba(100, 100, 100, 0.35);
   /* Original Tailwind accent colors for dark backgrounds */
   --cb-emerald-400: #34d399;
   --cb-emerald-500: #10b981;
