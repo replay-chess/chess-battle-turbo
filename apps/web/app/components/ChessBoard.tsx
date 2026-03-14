@@ -156,6 +156,22 @@ const ChessBoard = ({
   // Prevents the square onClick from double-firing after pointerup already handled the click
   const suppressClickRef = useRef(false);
 
+  // Native capture-phase click handler: intercepts spurious click events that fire
+  // after pointerup already handled the interaction. stopPropagation in capture phase
+  // prevents the event from reaching React's bubble-phase onClick on the square div.
+  useEffect(() => {
+    const board = boardContainerRef.current;
+    if (!board) return;
+    const handler = (e: MouseEvent) => {
+      if (suppressClickRef.current) {
+        e.stopPropagation();
+        suppressClickRef.current = false;
+      }
+    };
+    board.addEventListener("click", handler, true);
+    return () => board.removeEventListener("click", handler, true);
+  }, []);
+
   // Measure the board container for SVG arrows and piece animation overlay
   useEffect(() => {
     if (!boardContainerRef.current) return;
@@ -446,13 +462,7 @@ const ChessBoard = ({
                   <div
                     key={columnIndex}
                     data-square={squareNotation}
-                    onClick={() => {
-                      if (suppressClickRef.current) {
-                        suppressClickRef.current = false;
-                        return;
-                      }
-                      isInteractive && onSquareClick?.(squareNotation);
-                    }}
+                    onClick={() => isInteractive && onSquareClick?.(squareNotation)}
                     className={cn(
                       sizeConfig[squareSize],
                       "relative flex items-center justify-center",
