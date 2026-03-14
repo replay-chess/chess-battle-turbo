@@ -153,6 +153,8 @@ const ChessBoard = ({
     x: number;
     y: number;
   } | null>(null);
+  // Prevents the square onClick from double-firing after pointerup already handled the click
+  const suppressClickRef = useRef(false);
 
   // Measure the board container for SVG arrows and piece animation overlay
   useEffect(() => {
@@ -286,6 +288,8 @@ const ChessBoard = ({
       // No drag occurred — this was a click on a piece.
       // setPointerCapture redirected pointerup here, suppressing the
       // normal click event on the square div, so fire it manually.
+      // Suppress the next onClick to prevent double-fire (select then deselect).
+      suppressClickRef.current = true;
       onSquareClick?.(info.sourceSquare);
     }
 
@@ -439,7 +443,13 @@ const ChessBoard = ({
                   <div
                     key={columnIndex}
                     data-square={squareNotation}
-                    onClick={() => isInteractive && onSquareClick?.(squareNotation)}
+                    onClick={() => {
+                      if (suppressClickRef.current) {
+                        suppressClickRef.current = false;
+                        return;
+                      }
+                      isInteractive && onSquareClick?.(squareNotation);
+                    }}
                     className={cn(
                       sizeConfig[squareSize],
                       "relative flex items-center justify-center",
