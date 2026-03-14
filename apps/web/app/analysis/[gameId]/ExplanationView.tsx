@@ -92,6 +92,18 @@ export default function ExplanationView({
             </button>
           ) : undefined}
         />
+
+        {/* Mobile narration — single synced line */}
+        <div className="lg:hidden">
+          <NarrationDisplay
+            explanation={explanation}
+            currentSegmentIndex={player.currentSegmentIndex}
+            currentTimeRef={player.currentTimeRef}
+            isPlaying={player.isPlaying}
+            isManualMode={player.isManualMode}
+            hideShowMore
+          />
+        </div>
       </div>
 
     </div>

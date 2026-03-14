@@ -148,6 +148,15 @@ export default function TournamentPage({
             isEnding={isEnding}
           />
 
+          {/* Inspirational quote */}
+          <div className="border-l-2 border-white/10 pl-4 py-2">
+            <p style={{ fontFamily: "'Instrument Serif', serif" }} className="text-white/50 text-sm sm:text-base italic">
+              &ldquo;I know what you&rsquo;re thinking — this is a random critical position, someone might be winning,
+              someone might be losing, that&rsquo;s unfair. But that&rsquo;s life, right? When you don&rsquo;t give up
+              on life, why give up on a position? Fight like hell, champion!!&rdquo;
+            </p>
+          </div>
+
           {/* Share link (LOBBY or ACTIVE) */}
           {tournament.status === "LOBBY" && (
             <div className="border border-white/10 p-4">

@@ -77,7 +77,7 @@ export default function AudioControls({
     <div className="space-y-2">
       {/* Audio progress bar */}
       {hasAudio && (
-        <div className="px-4">
+        <div className="hidden lg:block px-4">
           <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
             <div
               className="h-full bg-emerald-400/60 transition-[width] duration-100"

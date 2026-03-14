@@ -16,6 +16,7 @@ interface NarrationDisplayProps {
   currentTimeRef: RefObject<number>;
   isPlaying: boolean;
   isManualMode: boolean;
+  hideShowMore?: boolean;
 }
 
 // Single line height (text-sm leading-relaxed ≈ 24px)
@@ -27,6 +28,7 @@ export default function NarrationDisplay({
   currentTimeRef,
   isPlaying,
   isManualMode,
+  hideShowMore,
 }: NarrationDisplayProps) {
   const activeWordRef = useRef<HTMLSpanElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
@@ -110,7 +112,7 @@ export default function NarrationDisplay({
         >
           {segment.narration}
         </p>
-        {overflows && !isDesktop && (
+        {!hideShowMore && overflows && !isDesktop && (
           <button
             onClick={() => setIsExpanded((v) => !v)}
             className="mt-1.5 text-[10px] text-white/30 hover:text-white/50 transition-colors tracking-wider uppercase"
@@ -172,7 +174,7 @@ export default function NarrationDisplay({
           );
         })}
       </p>
-      {overflows && !isDesktop && (
+      {!hideShowMore && overflows && !isDesktop && (
         <button
           onClick={() => setIsExpanded((v) => !v)}
           className="mt-1.5 text-[10px] text-white/30 hover:text-white/50 transition-colors tracking-wider uppercase"
