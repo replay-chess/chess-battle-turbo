@@ -60,7 +60,7 @@ export default function ChallengeNewPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black flex items-center justify-center pt-16 md:pt-24">
+      <div className="min-h-screen bg-cb-bg flex items-center justify-center pt-16 md:pt-24">
         {!inviteLink && !creating && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -70,26 +70,26 @@ export default function ChallengeNewPage() {
           >
             {/* Header */}
             <div className="flex items-center gap-3 mb-6">
-              <div className="h-px flex-1 bg-gradient-to-r from-white/30 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-r from-cb-text-muted to-transparent" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-secondary text-[10px] tracking-[0.4em] uppercase"
               >
                 Challenge a Friend
               </span>
-              <div className="h-px flex-1 bg-gradient-to-l from-white/30 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-l from-cb-text-muted to-transparent" />
             </div>
 
             {/* Title */}
             <h1
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-2xl text-white mb-2 text-center"
+              className="text-2xl text-cb-text mb-2 text-center"
             >
               Choose Time Control
             </h1>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-sm mb-6 text-center"
+              className="text-cb-text-muted text-sm mb-6 text-center"
             >
               Pick how long each player gets
             </p>
@@ -104,14 +104,14 @@ export default function ChallengeNewPage() {
               onClick={handleCreateChallenge}
               disabled={!isReady}
               className={cn(
-                "w-full group relative overflow-hidden bg-white text-black h-12 transition-all duration-300",
+                "w-full group relative overflow-hidden bg-cb-accent text-cb-accent-fg h-12 transition-all duration-300",
                 "disabled:opacity-50 disabled:cursor-not-allowed"
               )}
             >
-              <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
+              <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="relative z-10 text-sm tracking-[0.1em] font-semibold group-hover:text-white transition-colors"
+                className="relative z-10 text-sm tracking-[0.1em] font-semibold group-hover:text-cb-text transition-colors"
               >
                 CREATE CHALLENGE
               </span>
@@ -125,10 +125,10 @@ export default function ChallengeNewPage() {
             animate={{ opacity: 1 }}
             className="flex flex-col items-center gap-4"
           >
-            <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            <div className="w-12 h-12 border-2 border-cb-border-strong border-t-cb-text rounded-full animate-spin" />
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-sm tracking-wide"
+              className="text-cb-text-muted text-sm tracking-wide"
             >
               Creating challenge...
             </p>

@@ -69,8 +69,8 @@ export function PlayerInfoCard({
 
   const fallbackPiece = pieceColor === "w" ? "♔" : "♚";
   const squareBg = pieceColor === "w"
-    ? (isOpponent ? "bg-black border border-white/30" : "bg-white")
-    : (isOpponent ? "bg-white" : "bg-black border border-white/30");
+    ? (isOpponent ? "bg-black border border-cb-border-strong" : "bg-white")
+    : (isOpponent ? "bg-white" : "bg-black border border-cb-border-strong");
   const pieceTextColor = pieceColor === "w"
     ? (isOpponent ? "text-white" : "text-black")
     : (isOpponent ? "text-black" : "text-white");
@@ -88,16 +88,16 @@ export function PlayerInfoCard({
           <span className={pieceTextColor}>{displayPiece}</span>
         </div>
         <div>
-          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white font-medium text-xs sm:text-sm md:text-base">
+          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text font-medium text-xs sm:text-sm md:text-base">
             {playerName}
             {isOpponent && isAIGame && botColor && myColor !== botColor && (
-              <span className="text-white/40"> (Bot)</span>
+              <span className="text-cb-text-muted"> (Bot)</span>
             )}
-            {!isOpponent && !isSpectator && <span className="text-white/40"> (You)</span>}
+            {!isOpponent && !isSpectator && <span className="text-cb-text-muted"> (You)</span>}
           </p>
           <p
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/40 text-[10px] sm:text-xs md:text-sm leading-tight"
+            className="text-cb-text-muted text-[10px] sm:text-xs md:text-sm leading-tight"
           >
             {pieceColor === "w" ? "White" : "Black"}
           </p>
@@ -106,11 +106,11 @@ export function PlayerInfoCard({
       <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
         {positionInfo && !positionInfo.openingName && (
           <div className="flex items-center gap-2">
-            <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white font-medium text-sm">
-              <span className="text-white/40">as </span>
+            <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text font-medium text-sm">
+              <span className="text-cb-text-muted">as </span>
               {legendName}
             </p>
-            <div className="w-8 h-8 bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden relative">
+            <div className="w-8 h-8 bg-cb-surface-elevated border border-cb-border-strong flex items-center justify-center overflow-hidden relative">
               {legendImage ? (
                 <Image
                   src={legendImage}
@@ -122,7 +122,7 @@ export function PlayerInfoCard({
               ) : (
                 <span className={cn(
                   "text-sm",
-                  pieceColor === "w" ? "text-white" : "text-white/60"
+                  pieceColor === "w" ? "text-cb-text" : "text-cb-text-secondary"
                 )}>
                   {fallbackPiece}
                 </span>
@@ -132,7 +132,7 @@ export function PlayerInfoCard({
         )}
         <div className={cn(
           "px-2.5 py-1 sm:px-4 sm:py-2 md:px-5 md:py-2.5 font-mono text-base sm:text-xl md:text-2xl",
-          isActive ? "bg-white text-black" : "bg-white/10 text-white"
+          isActive ? "bg-cb-accent text-cb-accent-fg" : "bg-cb-surface-elevated text-cb-text"
         )}>
           {formatTime(time)}
         </div>

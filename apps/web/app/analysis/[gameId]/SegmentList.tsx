@@ -31,8 +31,8 @@ export default function SegmentList({
   return (
     <div
       ref={listRef}
-      className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/25"
-      style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}
+      className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-cb-text-faint [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-cb-text-faint"
+      style={{ scrollbarWidth: "thin", scrollbarColor: "var(--cb-border) transparent" }}
     >
       {explanation.segments.map((segment, index) => {
         const isActive = index === currentSegmentIndex;
@@ -48,10 +48,10 @@ export default function SegmentList({
             ref={isActive ? activeRef : undefined}
             onClick={() => onSegmentClick(index)}
             className={cn(
-              "w-full text-left px-4 py-3 border-b border-white/5 transition-colors",
+              "w-full text-left px-4 py-3 border-b border-cb-border/50 transition-colors",
               isActive
                 ? "bg-emerald-500/10 border-l-2 border-l-emerald-400/60"
-                : "hover:bg-white/5 border-l-2 border-l-transparent"
+                : "hover:bg-cb-hover border-l-2 border-l-transparent"
             )}
           >
             <div className="flex items-start gap-2">
@@ -59,7 +59,7 @@ export default function SegmentList({
                 style={{ fontFamily: "'Geist', sans-serif" }}
                 className={cn(
                   "text-[10px] font-mono mt-0.5 shrink-0",
-                  isActive ? "text-emerald-400" : "text-white/30"
+                  isActive ? "text-emerald-400" : "text-cb-text-muted"
                 )}
               >
                 {String(index + 1).padStart(2, "0")}
@@ -68,7 +68,7 @@ export default function SegmentList({
                 style={{ fontFamily: "'Geist', sans-serif" }}
                 className={cn(
                   "text-xs leading-relaxed line-clamp-2",
-                  isActive ? "text-white/80" : "text-white/40"
+                  isActive ? "text-cb-text/80" : "text-cb-text-muted"
                 )}
               >
                 {preview}

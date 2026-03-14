@@ -33,7 +33,7 @@ interface Tournament {
 const statusColors: Record<string, string> = {
   LOBBY: "text-amber-400 bg-amber-400/10 border-amber-400/20",
   ACTIVE: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
-  COMPLETED: "text-white/40 bg-white/5 border-white/10",
+  COMPLETED: "text-cb-text-muted bg-cb-hover border-cb-border",
   CANCELLED: "text-red-400 bg-red-400/10 border-red-400/20",
 };
 
@@ -101,11 +101,11 @@ export default function TournamentsPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black pt-20 md:pt-28 relative">
+      <div className="min-h-screen bg-cb-bg pt-20 md:pt-28 relative">
         <div
           className="fixed inset-0 opacity-[0.015] pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
           }}
         />
@@ -113,12 +113,12 @@ export default function TournamentsPage() {
         <div className="relative max-w-3xl mx-auto px-4 py-8 z-10">
           {/* Header */}
           <div className="flex items-center gap-3 mb-6">
-            <Trophy className="w-6 h-6 text-white/40" strokeWidth={1.5} />
+            <Trophy className="w-6 h-6 text-cb-text-muted" strokeWidth={1.5} />
             <div>
-              <h1 style={serifFont} className="text-3xl text-white">
+              <h1 style={serifFont} className="text-3xl text-cb-text">
                 Tournaments
               </h1>
-              <p style={geistFont} className="text-white/40 text-sm">
+              <p style={geistFont} className="text-cb-text-muted text-sm">
                 Join or spectate live tournaments
               </p>
             </div>
@@ -133,8 +133,8 @@ export default function TournamentsPage() {
                 className={cn(
                   "px-4 py-2 text-sm border transition-all duration-200",
                   activeFilter === i
-                    ? "bg-white text-black border-white"
-                    : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border-white/10"
+                    ? "bg-cb-accent text-cb-accent-fg border-cb-accent"
+                    : "bg-cb-hover text-cb-text-secondary hover:bg-cb-surface-elevated hover:text-cb-text border-cb-border"
                 )}
                 style={geistFont}
               >
@@ -149,15 +149,15 @@ export default function TournamentsPage() {
               {[...Array(3)].map((_, i) => (
                 <div
                   key={i}
-                  className="h-24 border border-white/10 bg-white/5 animate-pulse"
+                  className="h-24 border border-cb-border bg-cb-hover animate-pulse"
                   style={{ animationDelay: `${i * 150}ms` }}
                 />
               ))}
             </div>
           ) : tournaments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 border border-white/10">
-              <Trophy className="w-10 h-10 text-white/20 mb-4" strokeWidth={1} />
-              <p style={geistFont} className="text-white/40 text-sm">
+            <div className="flex flex-col items-center justify-center py-20 border border-cb-border">
+              <Trophy className="w-10 h-10 text-cb-text-faint mb-4" strokeWidth={1} />
+              <p style={geistFont} className="text-cb-text-muted text-sm">
                 No tournaments found
               </p>
             </div>
@@ -166,26 +166,26 @@ export default function TournamentsPage() {
               {tournaments.map((t) => (
                 <Link key={t.referenceId} href={`/tournament/${t.referenceId}`}>
                   <motion.div
-                    className="border border-white/10 p-5 hover:border-white/20 transition-all duration-300 cursor-pointer"
+                    className="border border-cb-border p-5 hover:border-cb-border-strong transition-all duration-300 cursor-pointer"
                     whileHover={{ y: -2 }}
                     transition={{ type: "spring", stiffness: 400, damping: 25 }}
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <h3 style={serifFont} className="text-lg text-white truncate">
+                      <h3 style={serifFont} className="text-lg text-cb-text truncate">
                         {t.name}
                       </h3>
                       <span
                         style={geistFont}
                         className={cn(
                           "text-[10px] tracking-wider uppercase px-2 py-0.5 border shrink-0 ml-3",
-                          statusColors[t.status] || "text-white/40"
+                          statusColors[t.status] || "text-cb-text-muted"
                         )}
                       >
                         {t.status}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-4 text-white/40 text-xs mb-2" style={geistFont}>
+                    <div className="flex items-center gap-4 text-cb-text-muted text-xs mb-2" style={geistFont}>
                       <span className="flex items-center gap-1.5">
                         <Gamepad2 className="w-3.5 h-3.5" />
                         {t.mode}
@@ -205,7 +205,7 @@ export default function TournamentsPage() {
                     {/* Countdown for active tournaments */}
                     {(t.status === "LOBBY" || t.status === "ACTIVE") && (
                       <div className="flex items-center gap-2" style={geistFont}>
-                        <span className="text-white/30 text-xs">
+                        <span className="text-cb-text-muted text-xs">
                           {t.status === "LOBBY" ? "Starts in:" : "Ends in:"}
                         </span>
                         <CountdownTimer

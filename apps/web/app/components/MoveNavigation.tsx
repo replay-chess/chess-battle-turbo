@@ -110,12 +110,12 @@ export default function MoveNavigation({
         disabled={disabled || !canGoBack || currentIndex === 0}
         className={cn(
           "w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center transition-all duration-200",
-          "border border-white/20 bg-white/5 hover:bg-white/15 active:bg-white/20",
-          "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white/5"
+          "border border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated",
+          "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-cb-hover"
         )}
         title="First move (Home)"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text">
           <polyline points="11 17 6 12 11 7" />
           <line x1="18" y1="6" x2="18" y2="18" />
         </svg>
@@ -127,12 +127,12 @@ export default function MoveNavigation({
         disabled={disabled || !canGoBack}
         className={cn(
           "w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center transition-all duration-200",
-          "border border-white/20 bg-white/5 hover:bg-white/15 active:bg-white/20",
-          "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white/5"
+          "border border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated",
+          "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-cb-hover"
         )}
         title="Previous move (Left Arrow)"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text">
           <polyline points="15 18 9 12 15 6" />
         </svg>
       </button>
@@ -143,12 +143,12 @@ export default function MoveNavigation({
         disabled={disabled || !canGoForward}
         className={cn(
           "w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center transition-all duration-200",
-          "border border-white/20 bg-white/5 hover:bg-white/15 active:bg-white/20",
-          "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white/5"
+          "border border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated",
+          "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-cb-hover"
         )}
         title="Next move (Right Arrow)"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text">
           <polyline points="9 18 15 12 9 6" />
         </svg>
       </button>
@@ -159,12 +159,12 @@ export default function MoveNavigation({
         disabled={disabled || isLive || totalMoves === 0}
         className={cn(
           "w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center transition-all duration-200",
-          "border border-white/20 bg-white/5 hover:bg-white/15 active:bg-white/20",
-          "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white/5"
+          "border border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated",
+          "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-cb-hover"
         )}
         title="Latest move (End)"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text">
           <polyline points="13 17 18 12 13 7" />
           <line x1="6" y1="6" x2="6" y2="18" />
         </svg>

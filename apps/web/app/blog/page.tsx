@@ -14,12 +14,12 @@ const categories = ["All", "Strategy", "Updates", "Legends", "Community"];
 const articles = blogPosts.filter((p) => !p.featured);
 
 const gradients = [
-  "from-white/[0.08] to-white/[0.02]",
-  "from-white/[0.06] to-white/[0.01]",
-  "from-white/[0.04] to-white/[0.08]",
-  "from-white/[0.03] to-white/[0.06]",
-  "from-white/[0.07] to-white/[0.02]",
-  "from-white/[0.05] to-white/[0.03]",
+  "from-cb-surface-elevated to-cb-hover",
+  "from-cb-hover to-cb-hover",
+  "from-cb-hover to-cb-surface-elevated",
+  "from-cb-hover to-cb-hover",
+  "from-cb-surface-elevated to-cb-hover",
+  "from-cb-hover to-cb-hover",
 ];
 
 export default function BlogPage() {
@@ -33,14 +33,14 @@ export default function BlogPage() {
   const showFeatured = activeCategory === "All" || activeCategory === featuredPost.category;
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
       {/* Grid background */}
       <div
         className="fixed inset-0 opacity-[0.015] pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -55,24 +55,24 @@ export default function BlogPage() {
             className="text-center"
           >
             <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="h-px w-12 bg-white/20" />
+              <div className="h-px w-12 bg-cb-border-strong" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
               >
                 Insights & Stories
               </span>
-              <div className="h-px w-12 bg-white/20" />
+              <div className="h-px w-12 bg-cb-border-strong" />
             </div>
             <h1
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-5xl sm:text-6xl md:text-7xl text-white mb-4"
+              className="text-5xl sm:text-6xl md:text-7xl text-cb-text mb-4"
             >
               The ReplayChess Journal
             </h1>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-lg text-white/40 max-w-xl mx-auto"
+              className="text-lg text-cb-text-muted max-w-xl mx-auto"
             >
               Strategy, stories, and updates from the world of ReplayChess.
             </p>
@@ -91,8 +91,8 @@ export default function BlogPage() {
               className={cn(
                 "px-4 py-2 text-xs uppercase tracking-widest transition-all duration-300",
                 activeCategory === category
-                  ? "bg-white text-black"
-                  : "border border-white/10 text-white/40 hover:text-white hover:border-white/30"
+                  ? "bg-cb-accent text-cb-accent-fg"
+                  : "border border-cb-border text-cb-text-muted hover:text-cb-text hover:border-cb-border-strong"
               )}
             >
               {category}
@@ -101,7 +101,7 @@ export default function BlogPage() {
         </div>
       </section>
 
-      <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-cb-border to-transparent" />
 
       {/* Featured Post */}
       {showFeatured && (
@@ -112,50 +112,50 @@ export default function BlogPage() {
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                className="group relative border border-white/10 overflow-hidden hover:border-white/20 transition-colors cursor-pointer"
+                className="group relative border border-cb-border overflow-hidden hover:border-cb-border-strong transition-colors cursor-pointer"
               >
-                <div className="aspect-[21/9] bg-gradient-to-br from-white/[0.06] via-transparent to-white/[0.03] relative">
+                <div className="aspect-[21/9] bg-gradient-to-br from-cb-hover via-transparent to-cb-hover relative">
                   {/* Decorative chess notation */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span
                       style={{ fontFamily: "'Instrument Serif', serif" }}
-                      className="text-[120px] sm:text-[200px] text-white/[0.03] select-none"
+                      className="text-[120px] sm:text-[200px] text-cb-text-faint select-none"
                     >
                       1.e4 e5
                     </span>
                   </div>
 
                   {/* Content overlay */}
-                  <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-10 bg-gradient-to-t from-black via-black/80 to-transparent">
+                  <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-10 bg-gradient-to-t from-cb-gradient-from via-cb-bg to-transparent">
                     <span
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="inline-block text-[10px] px-2 py-0.5 border border-white/20 text-white/60 uppercase tracking-wider mb-3"
+                      className="inline-block text-[10px] px-2 py-0.5 border border-cb-border-strong text-cb-text-secondary uppercase tracking-wider mb-3"
                     >
                       {featuredPost.category}
                     </span>
                     <h2
                       style={{ fontFamily: "'Instrument Serif', serif" }}
-                      className="text-2xl sm:text-4xl text-white mb-3 group-hover:text-white/80 transition-colors"
+                      className="text-2xl sm:text-4xl text-cb-text mb-3 group-hover:text-cb-text-secondary transition-colors"
                     >
                       {featuredPost.title}
                     </h2>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-sm text-white/40 max-w-2xl mb-4 hidden sm:block"
+                      className="text-sm text-cb-text-muted max-w-2xl mb-4 hidden sm:block"
                     >
                       {featuredPost.excerpt}
                     </p>
                     <div className="flex items-center gap-4">
                       <span
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-xs text-white/30"
+                        className="text-xs text-cb-text-muted"
                       >
                         {featuredPost.date}
                       </span>
-                      <span className="text-white/10">|</span>
+                      <span className="text-cb-text-faint">|</span>
                       <span
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-xs text-white/30"
+                        className="text-xs text-cb-text-muted"
                       >
                         {featuredPost.readTime}
                       </span>
@@ -171,7 +171,7 @@ export default function BlogPage() {
       {/* Article Grid */}
       <section className="relative py-12 sm:py-16 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-white/10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-cb-surface-elevated">
             {filteredArticles.map((article, index) => (
               <Link key={article.slug} href={`/blog/${article.slug}`}>
                 <motion.article
@@ -180,8 +180,8 @@ export default function BlogPage() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: index * 0.08 }}
                   className={cn(
-                    "group relative bg-black p-0 cursor-pointer",
-                    "hover:bg-white transition-colors duration-500"
+                    "group relative bg-cb-bg p-0 cursor-pointer",
+                    "hover:bg-cb-accent transition-colors duration-500"
                   )}
                 >
                   {/* Gradient placeholder */}
@@ -197,13 +197,13 @@ export default function BlogPage() {
                     <div className="flex items-center gap-3 mb-3">
                       <span
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-[10px] px-2 py-0.5 border border-white/10 group-hover:border-black/10 text-white/40 group-hover:text-black/40 uppercase tracking-wider transition-colors duration-500"
+                        className="text-[10px] px-2 py-0.5 border border-cb-border group-hover:border-cb-accent-fg/10 text-cb-text-muted group-hover:text-cb-accent-fg/40 uppercase tracking-wider transition-colors duration-500"
                       >
                         {article.category}
                       </span>
                       <span
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-[10px] text-white/20 group-hover:text-black/20 transition-colors duration-500"
+                        className="text-[10px] text-cb-text-faint group-hover:text-cb-accent-fg/20 transition-colors duration-500"
                       >
                         {article.readTime}
                       </span>
@@ -211,21 +211,21 @@ export default function BlogPage() {
 
                     <h3
                       style={{ fontFamily: "'Instrument Serif', serif" }}
-                      className="text-xl text-white group-hover:text-black transition-colors duration-500 mb-2"
+                      className="text-xl text-cb-text group-hover:text-cb-accent-fg transition-colors duration-500 mb-2"
                     >
                       {article.title}
                     </h3>
 
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-sm text-white/35 group-hover:text-black/50 transition-colors duration-500 leading-relaxed mb-4"
+                      className="text-sm text-cb-text-muted group-hover:text-cb-accent-fg/50 transition-colors duration-500 leading-relaxed mb-4"
                     >
                       {article.excerpt}
                     </p>
 
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-xs text-white/20 group-hover:text-black/30 transition-colors duration-500"
+                      className="text-xs text-cb-text-faint group-hover:text-cb-accent-fg/30 transition-colors duration-500"
                     >
                       {article.date}
                     </p>
@@ -234,7 +234,7 @@ export default function BlogPage() {
                   <div className={cn(
                     "absolute top-4 right-4 w-8 h-8",
                     "border-t border-r",
-                    "border-white/10 group-hover:border-black/10",
+                    "border-cb-border group-hover:border-cb-accent-fg/10",
                     "transition-colors duration-500"
                   )} />
                 </motion.article>
@@ -254,13 +254,13 @@ export default function BlogPage() {
           >
             <h2
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-3xl sm:text-4xl text-white mb-4"
+              className="text-3xl sm:text-4xl text-cb-text mb-4"
             >
               Never Miss a Post
             </h2>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-sm mb-6"
+              className="text-cb-text-muted text-sm mb-6"
             >
               Get the latest articles and updates delivered straight to your inbox.
             </p>
@@ -269,10 +269,10 @@ export default function BlogPage() {
                 type="email"
                 placeholder="Enter your email"
                 className={cn(
-                  "flex-1 bg-white/[0.03] border border-white/10",
-                  "px-4 py-3 text-sm text-white",
-                  "placeholder:text-white/20",
-                  "focus:outline-none focus:border-white/30 focus:bg-white/[0.05]",
+                  "flex-1 bg-cb-hover border border-cb-border",
+                  "px-4 py-3 text-sm text-cb-text",
+                  "placeholder:text-cb-text-faint",
+                  "focus:outline-none focus:border-cb-border-strong focus:bg-cb-hover",
                   "transition-all duration-300"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
@@ -281,14 +281,14 @@ export default function BlogPage() {
                 type="submit"
                 className={cn(
                   "group/btn relative overflow-hidden",
-                  "px-6 py-3 bg-white text-black",
+                  "px-6 py-3 bg-cb-accent text-cb-accent-fg",
                   "text-sm font-medium",
                   "transition-all duration-300"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
-                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300" />
-                <span className="relative flex items-center gap-2 group-hover/btn:text-white transition-colors duration-300">
+                <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300" />
+                <span className="relative flex items-center gap-2 group-hover/btn:text-cb-text transition-colors duration-300">
                   Subscribe
                   <ArrowRight className="w-3.5 h-3.5" />
                 </span>

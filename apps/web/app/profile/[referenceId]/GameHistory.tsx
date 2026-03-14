@@ -26,7 +26,7 @@ interface GameHistoryProps {
 const OUTCOME_STYLES = {
   win: { label: "W", color: "text-green-400", border: "border-l-green-400/50", bg: "bg-green-400/5" },
   loss: { label: "L", color: "text-red-400", border: "border-l-red-400/50", bg: "bg-red-400/5" },
-  draw: { label: "D", color: "text-white/40", border: "border-l-white/20", bg: "bg-white/[0.02]" },
+  draw: { label: "D", color: "text-cb-text-muted", border: "border-l-cb-border-strong", bg: "bg-cb-hover" },
 } as const;
 
 function timeAgo(dateString: string | null): string {
@@ -52,18 +52,18 @@ export function GameHistory({ games }: GameHistoryProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="border border-white/10 p-8 sm:p-10 text-center"
+        className="border border-cb-border p-8 sm:p-10 text-center"
       >
-        <span className="text-white/20 text-4xl block mb-4">♜</span>
+        <span className="text-cb-text-faint text-4xl block mb-4">♜</span>
         <p
           style={{ fontFamily: "'Instrument Serif', serif" }}
-          className="text-white/30 text-lg mb-2"
+          className="text-cb-text-muted text-lg mb-2"
         >
           No games yet
         </p>
         <p
           style={{ fontFamily: "'Geist', sans-serif" }}
-          className="text-white/15 text-sm"
+          className="text-cb-text-faint text-sm"
         >
           Completed games will appear here
         </p>
@@ -76,22 +76,22 @@ export function GameHistory({ games }: GameHistoryProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="border border-white/10"
+      className="border border-cb-border"
     >
       {/* Section header */}
       <div className="px-6 sm:px-8 pt-6 sm:pt-8 pb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-px w-8 bg-gradient-to-r from-white/20 to-transparent" />
+          <div className="h-px w-8 bg-gradient-to-r from-cb-border-strong to-transparent" />
           <span
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/40 text-[10px] tracking-[0.3em] uppercase"
+            className="text-cb-text-muted text-[10px] tracking-[0.3em] uppercase"
           >
             Recent Games
           </span>
         </div>
         <span
           style={{ fontFamily: "'Geist Mono', monospace" }}
-          className="text-white/20 text-xs"
+          className="text-cb-text-faint text-xs"
         >
           {games.length}
         </span>
@@ -111,8 +111,8 @@ export function GameHistory({ games }: GameHistoryProps) {
                 "flex items-center gap-3 sm:gap-4 px-6 sm:px-8 py-3.5",
                 "border-l-2",
                 style.border,
-                "hover:bg-white/[0.03] transition-colors duration-200",
-                index < games.length - 1 && "border-b border-b-white/[0.04]"
+                "hover:bg-cb-hover transition-colors duration-200",
+                index < games.length - 1 && "border-b border-b-cb-border"
               )}
             >
               {/* Outcome badge */}
@@ -132,7 +132,7 @@ export function GameHistory({ games }: GameHistoryProps) {
 
               {/* Opponent info */}
               <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="w-7 h-7 border border-white/10 bg-white/5 flex-shrink-0 overflow-hidden relative">
+                <div className="w-7 h-7 border border-cb-border bg-cb-hover flex-shrink-0 overflow-hidden relative">
                   {game.opponent?.profilePictureUrl ? (
                     <Image
                       src={game.opponent.profilePictureUrl}
@@ -145,7 +145,7 @@ export function GameHistory({ games }: GameHistoryProps) {
                     <div className="w-full h-full flex items-center justify-center">
                       <span
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-white/30 text-[10px]"
+                        className="text-cb-text-muted text-[10px]"
                       >
                         {getInitials(opponentName)}
                       </span>
@@ -154,7 +154,7 @@ export function GameHistory({ games }: GameHistoryProps) {
                 </div>
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/80 text-sm truncate"
+                  className="text-cb-text-secondary text-sm truncate"
                 >
                   {opponentName}
                 </span>
@@ -163,7 +163,7 @@ export function GameHistory({ games }: GameHistoryProps) {
               {/* Time control */}
               <span
                 style={{ fontFamily: "'Geist Mono', monospace" }}
-                className="text-white/20 text-xs flex-shrink-0 hidden sm:block"
+                className="text-cb-text-faint text-xs flex-shrink-0 hidden sm:block"
               >
                 {game.timeControl}
               </span>
@@ -171,13 +171,13 @@ export function GameHistory({ games }: GameHistoryProps) {
               {/* Time ago */}
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/15 text-xs flex-shrink-0 w-16 text-right"
+                className="text-cb-text-faint text-xs flex-shrink-0 w-16 text-right"
               >
                 {timeAgo(game.completedAt)}
               </span>
 
               {/* Chevron */}
-              <ChevronRight className="w-3.5 h-3.5 text-white/10 flex-shrink-0" />
+              <ChevronRight className="w-3.5 h-3.5 text-cb-text-faint flex-shrink-0" />
             </Link>
           );
         })}

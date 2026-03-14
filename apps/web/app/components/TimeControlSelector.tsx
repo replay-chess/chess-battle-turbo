@@ -89,18 +89,18 @@ export default function TimeControlSelector({ value, onChange }: TimeControlSele
   };
 
   return (
-    <div className="w-full border border-white/10 bg-black overflow-hidden">
+    <div className="w-full border border-cb-border bg-cb-bg overflow-hidden">
       {/* Selected Time Control Header */}
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
         className={cn(
           "w-full px-4 py-3 flex items-center justify-between",
-          "hover:bg-white/5 transition-colors"
+          "hover:bg-cb-hover transition-colors"
         )}
       >
-        <div className="flex items-center gap-3 text-white">
-          <span className="text-white/60">{getCurrentModeIcon()}</span>
+        <div className="flex items-center gap-3 text-cb-text">
+          <span className="text-cb-text-secondary">{getCurrentModeIcon()}</span>
           <span
             style={{ fontFamily: "'Geist', sans-serif" }}
             className="font-medium"
@@ -109,15 +109,15 @@ export default function TimeControlSelector({ value, onChange }: TimeControlSele
           </span>
           <span
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/40 text-sm"
+            className="text-cb-text-muted text-sm"
           >
             {value.mode}
           </span>
         </div>
         {isExpanded ? (
-          <ChevronUp className="text-white/40" size={18} />
+          <ChevronUp className="text-cb-text-muted" size={18} />
         ) : (
-          <ChevronDown className="text-white/40" size={18} />
+          <ChevronDown className="text-cb-text-muted" size={18} />
         )}
       </button>
 
@@ -129,15 +129,15 @@ export default function TimeControlSelector({ value, onChange }: TimeControlSele
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="border-t border-white/10"
+            className="border-t border-cb-border"
           >
             {gameModes.map((mode) => (
-              <div key={mode.name} className="px-4 py-4 border-b border-white/5 last:border-b-0">
+              <div key={mode.name} className="px-4 py-4 border-b border-cb-hover last:border-b-0">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-white/50">{mode.icon}</span>
+                  <span className="text-cb-text-secondary">{mode.icon}</span>
                   <span
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-sm font-medium text-white/70"
+                    className="text-sm font-medium text-cb-text-secondary"
                   >
                     {mode.name}
                   </span>
@@ -161,8 +161,8 @@ export default function TimeControlSelector({ value, onChange }: TimeControlSele
                         className={cn(
                           "flex-1 px-3 py-2 text-sm font-medium transition-all duration-200",
                           isSelected
-                            ? "bg-white text-black"
-                            : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+                            ? "bg-cb-accent text-cb-accent-fg"
+                            : "bg-cb-hover text-cb-text-secondary hover:bg-cb-surface-elevated hover:text-cb-text"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                       >

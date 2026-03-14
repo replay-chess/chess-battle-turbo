@@ -38,13 +38,13 @@ export default function MultiPvDisplay({ lines, currentDepth, playerColor }: Mul
       <div className="flex items-center justify-between mb-1.5">
         <p
           style={{ fontFamily: "'Geist', sans-serif" }}
-          className="text-[10px] tracking-[0.2em] uppercase text-white/40"
+          className="text-[10px] tracking-[0.2em] uppercase text-cb-text-muted"
         >
           Engine Lines
         </p>
         <span
           style={{ fontFamily: "'Geist', sans-serif" }}
-          className="text-[10px] text-white/30 font-mono"
+          className="text-[10px] text-cb-text-muted font-mono"
         >
           d{currentDepth}
         </span>
@@ -57,13 +57,13 @@ export default function MultiPvDisplay({ lines, currentDepth, playerColor }: Mul
           />
           <span
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/80 font-mono w-14 text-right flex-shrink-0"
+            className="text-cb-text/80 font-mono w-14 text-right flex-shrink-0"
           >
             {formatScore(line, playerColor)}
           </span>
           <span
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/40 font-mono truncate"
+            className="text-cb-text-muted font-mono truncate"
           >
             {formatPv(line.pv)}
           </span>

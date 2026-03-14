@@ -40,9 +40,9 @@ export const Navbar = () => {
         "fixed top-0 left-0 right-0 w-full z-50",
         "flex justify-between items-center",
         "px-4 sm:px-6 lg:px-8 py-3",
-        "bg-black/40 backdrop-blur-xl",
-        "border-b border-white/[0.08]",
-        "supports-[backdrop-filter]:bg-black/30"
+        "bg-cb-backdrop backdrop-blur-xl",
+        "border-b border-cb-border",
+        "supports-[backdrop-filter]:bg-cb-backdrop"
       )}
       style={{
         WebkitBackdropFilter: 'blur(20px)',
@@ -64,7 +64,7 @@ export const Navbar = () => {
         />
         <span
           style={{ fontFamily: "'Instrument Serif', serif" }}
-          className="hidden sm:block text-white text-lg tracking-tight"
+          className="hidden sm:block text-cb-text text-lg tracking-tight"
         >
           ReplayChess
         </span>
@@ -82,7 +82,7 @@ export const Navbar = () => {
           onClick={handlePlayClick}
           className={cn(
             "group relative overflow-hidden",
-            "bg-white text-black",
+            "bg-cb-accent text-cb-accent-fg",
             "h-9 px-5",
             "text-sm font-medium tracking-wide",
             "transition-all duration-300"
@@ -90,8 +90,8 @@ export const Navbar = () => {
           style={{ fontFamily: "'Geist', sans-serif" }}
         >
           {/* Invert animation */}
-          <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-          <span className="relative flex items-center gap-2 group-hover:text-white transition-colors duration-300">
+          <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+          <span className="relative flex items-center gap-2 group-hover:text-cb-text transition-colors duration-300">
             <Home className="w-3.5 h-3.5" />
             Home
           </span>
@@ -103,16 +103,16 @@ export const Navbar = () => {
               className={cn(
                 "group relative overflow-hidden",
                 "h-9 px-4",
-                "border border-white/20 hover:border-white/40",
-                "bg-white/5",
+                "border border-cb-border-strong hover:border-cb-border-strong",
+                "bg-cb-hover",
                 "text-sm font-medium tracking-wide",
                 "transition-all duration-300",
                 "backdrop-blur-sm"
               )}
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
-              <span className="absolute inset-0 bg-white origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-              <span className="relative text-white/70 group-hover:text-black transition-colors duration-300">
+              <span className="absolute inset-0 bg-cb-accent origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+              <span className="relative text-cb-text-secondary group-hover:text-cb-accent-fg transition-colors duration-300">
                 Sign In
               </span>
             </button>
@@ -126,7 +126,7 @@ export const Navbar = () => {
               href="/admin"
               className={cn(
                 "group relative overflow-hidden",
-                "bg-white text-black",
+                "bg-cb-accent text-cb-accent-fg",
                 "h-9 px-3 sm:px-5",
                 "text-sm font-medium tracking-wide",
                 "transition-all duration-300",
@@ -134,8 +134,8 @@ export const Navbar = () => {
               )}
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
-              <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-              <span className="relative flex items-center gap-1.5 text-black group-hover:text-white transition-colors duration-300">
+              <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+              <span className="relative flex items-center gap-1.5 text-cb-accent-fg group-hover:text-cb-text transition-colors duration-300">
                 <Shield className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Admin</span>
               </span>
@@ -146,7 +146,7 @@ export const Navbar = () => {
               href={`/profile/${userReferenceId}`}
               className={cn(
                 "group relative overflow-hidden",
-                "bg-white text-black",
+                "bg-cb-accent text-cb-accent-fg",
                 "h-9 px-3 sm:px-5",
                 "text-sm font-medium tracking-wide",
                 "transition-all duration-300",
@@ -154,8 +154,8 @@ export const Navbar = () => {
               )}
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
-              <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-              <span className="relative flex items-center gap-1.5 text-black group-hover:text-white transition-colors duration-300">
+              <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+              <span className="relative flex items-center gap-1.5 text-cb-accent-fg group-hover:text-cb-text transition-colors duration-300">
                 <User className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Profile</span>
               </span>
@@ -165,68 +165,68 @@ export const Navbar = () => {
             <UserButton
               appearance={{
                 variables: {
-                  colorBackground: '#000000',
-                  colorText: '#ffffff',
-                  colorTextSecondary: 'rgba(255, 255, 255, 0.5)',
-                  colorPrimary: '#ffffff',
-                  colorNeutral: 'rgba(255, 255, 255, 0.4)',
+                  colorBackground: 'var(--cb-bg)',
+                  colorText: 'var(--cb-text)',
+                  colorTextSecondary: 'var(--cb-text-secondary)',
+                  colorPrimary: 'var(--cb-text)',
+                  colorNeutral: 'var(--cb-text-muted)',
                   colorDanger: '#ef4444',
                   borderRadius: '0px',
                   fontFamily: "'Geist', sans-serif",
                 },
                 elements: {
-                  avatarBox: "w-9 h-9 border border-white/20 hover:border-white/40 transition-all duration-300",
+                  avatarBox: "w-9 h-9 border border-cb-border-strong hover:border-cb-border-strong transition-all duration-300",
                   userButtonTrigger: "focus:shadow-none focus:ring-0",
                   userButtonPopoverCard: {
-                    backgroundColor: '#000000',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backgroundColor: 'var(--cb-bg)',
+                    border: '1px solid var(--cb-border)',
                     boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
                     borderRadius: '0px',
                   },
                   userButtonPopoverActionButton: {
                     fontFamily: "'Geist', sans-serif",
                     fontSize: '13px',
-                    color: 'rgba(255, 255, 255, 0.7)',
+                    color: 'var(--cb-text-secondary)',
                     borderRadius: '0px',
                     '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                      color: '#ffffff',
+                      backgroundColor: 'var(--cb-hover)',
+                      color: 'var(--cb-text)',
                     },
                   },
                   userButtonPopoverActionButtonText: {
                     fontFamily: "'Geist', sans-serif",
                   },
                   userButtonPopoverActionButtonIcon: {
-                    color: 'rgba(255, 255, 255, 0.5)',
+                    color: 'var(--cb-text-secondary)',
                   },
                   userButtonPopoverCustomItemButton: {
                     fontFamily: "'Geist', sans-serif",
                     fontSize: '13px',
-                    color: 'rgba(255, 255, 255, 0.7)',
+                    color: 'var(--cb-text-secondary)',
                     borderRadius: '0px',
                     '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                      color: '#ffffff',
+                      backgroundColor: 'var(--cb-hover)',
+                      color: 'var(--cb-text)',
                     },
                   },
                   userButtonPopoverCustomItemButtonIconBox: {
-                    color: 'rgba(255, 255, 255, 0.5)',
+                    color: 'var(--cb-text-secondary)',
                   },
                   userButtonPopoverFooter: {
                     display: 'none',
                   },
                   userPreview: {
                     padding: '16px',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderBottom: '1px solid var(--cb-border)',
                   },
                   userPreviewMainIdentifier: {
                     fontFamily: "'Geist', sans-serif",
                     fontWeight: '500',
-                    color: '#ffffff',
+                    color: 'var(--cb-text)',
                   },
                   userPreviewSecondaryIdentifier: {
                     fontFamily: "'Geist', sans-serif",
-                    color: 'rgba(255, 255, 255, 0.4)',
+                    color: 'var(--cb-text-muted)',
                     fontSize: '12px',
                   },
                 },

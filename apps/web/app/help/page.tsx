@@ -42,14 +42,14 @@ export default function HelpPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
       {/* Grid background */}
       <div
         className="fixed inset-0 opacity-[0.015] pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -64,24 +64,24 @@ export default function HelpPage() {
           >
             <h1
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-5xl sm:text-6xl md:text-7xl text-white mb-8"
+              className="text-5xl sm:text-6xl md:text-7xl text-cb-text mb-8"
             >
               How Can We Help?
             </h1>
 
             {/* Search Input */}
             <div className="relative max-w-xl mx-auto">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-cb-text-muted" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search for articles..."
                 className={cn(
-                  "w-full bg-white/[0.03] border border-white/10",
-                  "pl-12 pr-4 py-4 text-sm text-white",
-                  "placeholder:text-white/20",
-                  "focus:outline-none focus:border-white/30 focus:bg-white/[0.05]",
+                  "w-full bg-cb-hover border border-cb-border",
+                  "pl-12 pr-4 py-4 text-sm text-cb-text",
+                  "placeholder:text-cb-text-faint",
+                  "focus:outline-none focus:border-cb-border-strong focus:bg-cb-hover",
                   "transition-all duration-300"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
@@ -91,7 +91,7 @@ export default function HelpPage() {
         </div>
       </section>
 
-      <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-cb-border to-transparent" />
 
       {/* Categories */}
       <section className="relative py-16 sm:py-24 px-6">
@@ -103,18 +103,18 @@ export default function HelpPage() {
             className="text-center mb-12"
           >
             <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="h-px w-16 bg-white/20" />
+              <div className="h-px w-16 bg-cb-border-strong" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
               >
                 Browse Topics
               </span>
-              <div className="h-px w-16 bg-white/20" />
+              <div className="h-px w-16 bg-cb-border-strong" />
             </div>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-white/10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-cb-surface-elevated">
             {helpCategories.map((category, index) => (
               <motion.div
                 key={category.title}
@@ -123,29 +123,29 @@ export default function HelpPage() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.08 }}
                 className={cn(
-                  "group relative bg-black p-8 cursor-pointer",
-                  "hover:bg-white transition-colors duration-500"
+                  "group relative bg-cb-bg p-8 cursor-pointer",
+                  "hover:bg-cb-accent transition-colors duration-500"
                 )}
               >
                 <category.icon
-                  className="w-5 h-5 text-white/40 group-hover:text-black/40 transition-colors duration-500 mb-4"
+                  className="w-5 h-5 text-cb-text-muted group-hover:text-cb-accent-fg/40 transition-colors duration-500 mb-4"
                   strokeWidth={1.5}
                 />
                 <h3
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-lg font-semibold text-white group-hover:text-black transition-colors duration-500 mb-1"
+                  className="text-lg font-semibold text-cb-text group-hover:text-cb-accent-fg transition-colors duration-500 mb-1"
                 >
                   {category.title}
                 </h3>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-sm text-white/30 group-hover:text-black/40 transition-colors duration-500 mb-3"
+                  className="text-sm text-cb-text-muted group-hover:text-cb-accent-fg/40 transition-colors duration-500 mb-3"
                 >
                   {category.description}
                 </p>
                 <p
                   style={{ fontFamily: "'Geist Mono', monospace" }}
-                  className="text-xs text-white/20 group-hover:text-black/30 transition-colors duration-500"
+                  className="text-xs text-cb-text-faint group-hover:text-cb-accent-fg/30 transition-colors duration-500"
                 >
                   {category.count} articles
                 </p>
@@ -153,7 +153,7 @@ export default function HelpPage() {
                 <div className={cn(
                   "absolute top-4 right-4 w-8 h-8",
                   "border-t border-r",
-                  "border-white/10 group-hover:border-black/10",
+                  "border-cb-border group-hover:border-cb-accent-fg/10",
                   "transition-colors duration-500"
                 )} />
               </motion.div>
@@ -167,7 +167,7 @@ export default function HelpPage() {
         <div
           className="absolute inset-0 opacity-[0.015]"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
           }}
         />
@@ -179,14 +179,14 @@ export default function HelpPage() {
             className="mb-12"
           >
             <div className="flex items-center gap-4 mb-6">
-              <div className="h-px w-12 bg-white/20" />
+              <div className="h-px w-12 bg-cb-border-strong" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
               >
                 Popular Articles
               </span>
-              <div className="h-px w-12 bg-white/20" />
+              <div className="h-px w-12 bg-cb-border-strong" />
             </div>
           </motion.div>
 
@@ -198,18 +198,18 @@ export default function HelpPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: index * 0.05 }}
-                className="group flex items-center gap-4 p-4 hover:bg-white/[0.03] transition-colors cursor-pointer border-b border-white/[0.05]"
+                className="group flex items-center gap-4 p-4 hover:bg-cb-hover transition-colors cursor-pointer border-b border-cb-border"
               >
-                <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/50 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                <ChevronRight className="w-4 h-4 text-cb-text-faint group-hover:text-cb-text-secondary group-hover:translate-x-1 transition-all flex-shrink-0" />
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-sm text-white/50 group-hover:text-white transition-colors flex-1"
+                  className="text-sm text-cb-text-secondary group-hover:text-cb-text transition-colors flex-1"
                 >
                   {article.question}
                 </p>
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] px-2 py-0.5 border border-white/10 text-white/30 uppercase tracking-wider hidden sm:inline-block"
+                  className="text-[10px] px-2 py-0.5 border border-cb-border text-cb-text-muted uppercase tracking-wider hidden sm:inline-block"
                 >
                   {article.category}
                 </span>
@@ -229,13 +229,13 @@ export default function HelpPage() {
           >
             <h2
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-3xl sm:text-4xl text-white mb-4"
+              className="text-3xl sm:text-4xl text-cb-text mb-4"
             >
               Still Need Help?
             </h2>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-base mb-8"
+              className="text-cb-text-muted text-base mb-8"
             >
               Our support team is ready to assist you with any questions.
             </p>
@@ -243,15 +243,15 @@ export default function HelpPage() {
               <button
                 className={cn(
                   "group relative overflow-hidden",
-                  "bg-white text-black",
+                  "bg-cb-accent text-cb-accent-fg",
                   "px-8 py-3",
                   "text-sm font-medium tracking-[0.1em] uppercase",
                   "transition-all duration-300"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
-                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                <span className="relative flex items-center gap-2 group-hover:text-white transition-colors duration-300">
+                <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                <span className="relative flex items-center gap-2 group-hover:text-cb-text transition-colors duration-300">
                   Contact Us
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </span>

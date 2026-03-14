@@ -54,14 +54,14 @@ export default async function OpeningsPage({ searchParams }: Props) {
   const sortedLetters = [...grouped.keys()].sort();
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
       {/* Grid background */}
       <div
         className="fixed inset-0 opacity-[0.015] pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -70,24 +70,24 @@ export default async function OpeningsPage({ searchParams }: Props) {
       <section className="relative pt-32 pb-12 sm:pt-40 sm:pb-16 px-6">
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-4 mb-6">
-            <div className="h-px w-12 bg-white/20" />
+            <div className="h-px w-12 bg-cb-border-strong" />
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+              className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
             >
               Encyclopedia
             </span>
-            <div className="h-px w-12 bg-white/20" />
+            <div className="h-px w-12 bg-cb-border-strong" />
           </div>
           <h1
             style={{ fontFamily: "'Instrument Serif', serif" }}
-            className="text-5xl sm:text-6xl md:text-7xl text-white mb-4"
+            className="text-5xl sm:text-6xl md:text-7xl text-cb-text mb-4"
           >
             Chess Openings
           </h1>
           <p
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-lg text-white/40 max-w-xl mx-auto"
+            className="text-lg text-cb-text-muted max-w-xl mx-auto"
           >
             Browse openings by ECO code. Study the moves, then play from the position.
           </p>
@@ -95,7 +95,7 @@ export default async function OpeningsPage({ searchParams }: Props) {
         </div>
       </section>
 
-      <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-cb-border to-transparent" />
 
       {/* Openings grouped by ECO letter */}
       <section className="relative py-12 sm:py-16 px-6">
@@ -107,51 +107,51 @@ export default async function OpeningsPage({ searchParams }: Props) {
                 <div className="flex items-center gap-4 mb-8">
                   <h2
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs font-medium uppercase tracking-[0.2em] text-white/50"
+                    className="text-xs font-medium uppercase tracking-[0.2em] text-cb-text-secondary"
                   >
                     {letter} — {ecoLabels[letter] ?? "Other"}
                   </h2>
-                  <div className="flex-1 h-px bg-white/[0.06]" />
+                  <div className="flex-1 h-px bg-cb-hover" />
                   <span
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-[10px] text-white/20"
+                    className="text-[10px] text-cb-text-faint"
                   >
                     {letterOpenings.length} openings
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-white/[0.06]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-cb-hover">
                   {letterOpenings.map((opening) => (
                     <Link
                       key={opening.referenceId}
                       href={`/openings/${opening.referenceId}`}
-                      className="group bg-black p-5 hover:bg-white/[0.03] transition-colors duration-300"
+                      className="group bg-cb-bg p-5 hover:bg-cb-hover transition-colors duration-300"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1.5">
                             <span
                               style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-[10px] px-1.5 py-0.5 border border-white/10 text-white/40 font-medium"
+                              className="text-[10px] px-1.5 py-0.5 border border-cb-border text-cb-text-muted font-medium"
                             >
                               {opening.eco}
                             </span>
                             <span
                               style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-[10px] text-white/20"
+                              className="text-[10px] text-cb-text-faint"
                             >
                               {opening.moveCount} plies
                             </span>
                           </div>
                           <h3
                             style={{ fontFamily: "'Instrument Serif', serif" }}
-                            className="text-base text-white group-hover:text-white/80 transition-colors truncate"
+                            className="text-base text-cb-text group-hover:text-cb-text-secondary transition-colors truncate"
                           >
                             {opening.name}
                           </h3>
                           <p
                             style={{ fontFamily: "'Geist', sans-serif" }}
-                            className="text-[11px] text-white/25 mt-1 truncate"
+                            className="text-[11px] text-cb-text-faint mt-1 truncate"
                           >
                             {opening.pgn}
                           </p>
@@ -166,10 +166,10 @@ export default async function OpeningsPage({ searchParams }: Props) {
 
           {openings.length === 0 && (
             <div className="text-center py-20">
-              <span className="text-white/10 text-6xl block mb-6">♞</span>
+              <span className="text-cb-text-faint text-6xl block mb-6">♞</span>
               <p
                 style={{ fontFamily: "'Instrument Serif', serif" }}
-                className="text-white/40 text-xl"
+                className="text-cb-text-muted text-xl"
               >
                 {q ? "No openings match your search" : "Openings coming soon"}
               </p>

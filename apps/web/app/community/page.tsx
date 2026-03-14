@@ -29,14 +29,14 @@ const leaderboard = [
 
 export default function CommunityPage() {
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
       {/* Grid background */}
       <div
         className="fixed inset-0 opacity-[0.015] pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -50,22 +50,22 @@ export default function CommunityPage() {
             transition={{ duration: 0.6 }}
           >
             <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="h-px w-12 bg-white/20" />
+              <div className="h-px w-12 bg-cb-border-strong" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
               >
                 Community
               </span>
-              <div className="h-px w-12 bg-white/20" />
+              <div className="h-px w-12 bg-cb-border-strong" />
             </div>
             <h1
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-5xl sm:text-6xl md:text-7xl text-white mb-4"
+              className="text-5xl sm:text-6xl md:text-7xl text-cb-text mb-4"
             >
               Join the ReplayChess
               <br />
-              <span className="text-white/40">Community</span>
+              <span className="text-cb-text-muted">Community</span>
             </h1>
             <motion.div
               initial={{ opacity: 0 }}
@@ -73,10 +73,10 @@ export default function CommunityPage() {
               transition={{ delay: 0.3 }}
               className="flex items-center justify-center gap-2 mt-6"
             >
-              <Users className="w-4 h-4 text-white/40" />
+              <Users className="w-4 h-4 text-cb-text-muted" />
               <span
                 style={{ fontFamily: "'Geist Mono', monospace" }}
-                className="text-sm text-white/40"
+                className="text-sm text-cb-text-muted"
               >
                 10,000+ members
               </span>
@@ -85,7 +85,7 @@ export default function CommunityPage() {
         </div>
       </section>
 
-      <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-cb-border to-transparent" />
 
       {/* Discord Card */}
       <section className="relative py-16 sm:py-24 px-6">
@@ -94,27 +94,27 @@ export default function CommunityPage() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="border border-white/10 p-8 sm:p-12 relative overflow-hidden"
+            className="border border-cb-border p-8 sm:p-12 relative overflow-hidden"
           >
-            <div className="absolute top-4 right-4 w-16 h-16 border-t border-r border-white/10" />
-            <div className="absolute bottom-4 left-4 w-16 h-16 border-b border-l border-white/10" />
+            <div className="absolute top-4 right-4 w-16 h-16 border-t border-r border-cb-border" />
+            <div className="absolute bottom-4 left-4 w-16 h-16 border-b border-l border-cb-border" />
 
             <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-8">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-white/[0.05] border border-white/10 flex items-center justify-center">
+                  <div className="w-12 h-12 bg-cb-hover border border-cb-border flex items-center justify-center">
                     <span className="text-2xl">💬</span>
                   </div>
                   <div>
                     <h2
                       style={{ fontFamily: "'Instrument Serif', serif" }}
-                      className="text-2xl sm:text-3xl text-white"
+                      className="text-2xl sm:text-3xl text-cb-text"
                     >
                       Join Our Discord
                     </h2>
                     <p
                       style={{ fontFamily: "'Geist Mono', monospace" }}
-                      className="text-xs text-white/30"
+                      className="text-xs text-cb-text-muted"
                     >
                       3,200 members online
                     </p>
@@ -122,7 +122,7 @@ export default function CommunityPage() {
                 </div>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-sm text-white/40 leading-relaxed max-w-lg"
+                  className="text-sm text-cb-text-muted leading-relaxed max-w-lg"
                 >
                   Connect with fellow players, share strategies, find opponents for friendly matches, and stay updated on
                   tournaments and events.
@@ -131,15 +131,15 @@ export default function CommunityPage() {
               <button
                 className={cn(
                   "group relative overflow-hidden",
-                  "bg-white text-black",
+                  "bg-cb-accent text-cb-accent-fg",
                   "px-8 py-3",
                   "text-sm font-semibold tracking-[0.1em] uppercase",
                   "transition-all duration-300 flex-shrink-0"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
-                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                <span className="relative flex items-center gap-2 group-hover:text-white transition-colors duration-300">
+                <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                <span className="relative flex items-center gap-2 group-hover:text-cb-text transition-colors duration-300">
                   Join Server
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </span>
@@ -154,7 +154,7 @@ export default function CommunityPage() {
         <div
           className="absolute inset-0 opacity-[0.015]"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
           }}
         />
@@ -166,18 +166,18 @@ export default function CommunityPage() {
             className="text-center mb-12"
           >
             <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="h-px w-16 bg-white/20" />
+              <div className="h-px w-16 bg-cb-border-strong" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
               >
                 Compete
               </span>
-              <div className="h-px w-16 bg-white/20" />
+              <div className="h-px w-16 bg-cb-border-strong" />
             </div>
             <h2
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-4xl sm:text-5xl text-white"
+              className="text-4xl sm:text-5xl text-cb-text"
             >
               Tournaments
             </h2>
@@ -191,16 +191,16 @@ export default function CommunityPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="border border-white/10 p-6 hover:border-white/20 transition-colors"
+                className="border border-cb-border p-6 hover:border-cb-border-strong transition-colors"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <Trophy className="w-5 h-5 text-white/30" strokeWidth={1.5} />
+                  <Trophy className="w-5 h-5 text-cb-text-muted" strokeWidth={1.5} />
                   <span
                     style={{ fontFamily: "'Geist', sans-serif" }}
                     className={cn(
                       "text-[10px] px-2 py-0.5 border uppercase tracking-wider",
                       tournament.status === "Completed"
-                        ? "border-white/10 text-white/30"
+                        ? "border-cb-border text-cb-text-muted"
                         : "border-emerald-500/30 text-emerald-400/70"
                     )}
                   >
@@ -209,19 +209,19 @@ export default function CommunityPage() {
                 </div>
                 <h3
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-xl text-white mb-2"
+                  className="text-xl text-cb-text mb-2"
                 >
                   {tournament.name}
                 </h3>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-xs text-white/30 mb-1"
+                  className="text-xs text-cb-text-muted mb-1"
                 >
                   {tournament.date}
                 </p>
                 <p
                   style={{ fontFamily: "'Geist Mono', monospace" }}
-                  className="text-xs text-white/20"
+                  className="text-xs text-cb-text-faint"
                 >
                   {tournament.participants} players
                 </p>
@@ -242,13 +242,13 @@ export default function CommunityPage() {
           >
             <h2
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-4xl sm:text-5xl text-white"
+              className="text-4xl sm:text-5xl text-cb-text"
             >
               Player Spotlights
             </h2>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-cb-surface-elevated">
             {spotlights.map((player, index) => (
               <motion.div
                 key={player.username}
@@ -257,28 +257,28 @@ export default function CommunityPage() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 className={cn(
-                  "group bg-black p-8 text-center",
-                  "hover:bg-white transition-colors duration-500"
+                  "group bg-cb-bg p-8 text-center",
+                  "hover:bg-cb-accent transition-colors duration-500"
                 )}
               >
                 <span className="text-5xl mb-4 block">{player.piece}</span>
                 <h3
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-lg font-semibold text-white group-hover:text-black transition-colors duration-500 mb-1"
+                  className="text-lg font-semibold text-cb-text group-hover:text-cb-accent-fg transition-colors duration-500 mb-1"
                 >
                   {player.username}
                 </h3>
                 <p
                   style={{ fontFamily: "'Geist Mono', monospace" }}
-                  className="text-sm text-white/40 group-hover:text-black/40 transition-colors duration-500 mb-3"
+                  className="text-sm text-cb-text-muted group-hover:text-cb-accent-fg/40 transition-colors duration-500 mb-3"
                 >
                   {player.rating}
                 </p>
                 <div className="flex items-center justify-center gap-1.5">
-                  <Star className="w-3 h-3 text-white/20 group-hover:text-black/20 transition-colors duration-500" />
+                  <Star className="w-3 h-3 text-cb-text-faint group-hover:text-cb-accent-fg/20 transition-colors duration-500" />
                   <span
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs text-white/30 group-hover:text-black/40 transition-colors duration-500"
+                    className="text-xs text-cb-text-muted group-hover:text-cb-accent-fg/40 transition-colors duration-500"
                   >
                     {player.achievement}
                   </span>
@@ -294,7 +294,7 @@ export default function CommunityPage() {
         <div
           className="absolute inset-0 opacity-[0.015]"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
           }}
         />
@@ -306,54 +306,54 @@ export default function CommunityPage() {
             className="text-center mb-12"
           >
             <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="h-px w-16 bg-white/20" />
+              <div className="h-px w-16 bg-cb-border-strong" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
               >
                 Rankings
               </span>
-              <div className="h-px w-16 bg-white/20" />
+              <div className="h-px w-16 bg-cb-border-strong" />
             </div>
             <h2
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-4xl sm:text-5xl text-white"
+              className="text-4xl sm:text-5xl text-cb-text"
             >
               Leaderboard
             </h2>
           </motion.div>
 
-          <div className="border border-white/10 overflow-x-auto">
+          <div className="border border-cb-border overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/10">
+                <tr className="border-b border-cb-border">
                   <th
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="p-4 text-left text-xs text-white/40 uppercase tracking-widest bg-white/[0.03]"
+                    className="p-4 text-left text-xs text-cb-text-muted uppercase tracking-widest bg-cb-hover"
                   >
                     Rank
                   </th>
                   <th
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="p-4 text-left text-xs text-white/40 uppercase tracking-widest bg-white/[0.03]"
+                    className="p-4 text-left text-xs text-cb-text-muted uppercase tracking-widest bg-cb-hover"
                   >
                     Player
                   </th>
                   <th
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="p-4 text-right text-xs text-white/40 uppercase tracking-widest bg-white/[0.03]"
+                    className="p-4 text-right text-xs text-cb-text-muted uppercase tracking-widest bg-cb-hover"
                   >
                     Rating
                   </th>
                   <th
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="p-4 text-right text-xs text-white/40 uppercase tracking-widest bg-white/[0.03] hidden sm:table-cell"
+                    className="p-4 text-right text-xs text-cb-text-muted uppercase tracking-widest bg-cb-hover hidden sm:table-cell"
                   >
                     Win Rate
                   </th>
                   <th
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="p-4 text-right text-xs text-white/40 uppercase tracking-widest bg-white/[0.03] hidden sm:table-cell"
+                    className="p-4 text-right text-xs text-cb-text-muted uppercase tracking-widest bg-cb-hover hidden sm:table-cell"
                   >
                     Games
                   </th>
@@ -361,34 +361,34 @@ export default function CommunityPage() {
               </thead>
               <tbody>
                 {leaderboard.map((row) => (
-                  <tr key={row.rank} className="border-b border-white/[0.05] hover:bg-white/[0.02] transition-colors">
+                  <tr key={row.rank} className="border-b border-cb-border hover:bg-cb-hover transition-colors">
                     <td
                       style={{ fontFamily: "'Geist Mono', monospace" }}
-                      className="p-4 text-white/50"
+                      className="p-4 text-cb-text-secondary"
                     >
                       #{row.rank}
                     </td>
                     <td
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="p-4 text-white font-medium"
+                      className="p-4 text-cb-text font-medium"
                     >
                       {row.player}
                     </td>
                     <td
                       style={{ fontFamily: "'Geist Mono', monospace" }}
-                      className="p-4 text-right text-white/60"
+                      className="p-4 text-right text-cb-text-secondary"
                     >
                       {row.rating}
                     </td>
                     <td
                       style={{ fontFamily: "'Geist Mono', monospace" }}
-                      className="p-4 text-right text-white/40 hidden sm:table-cell"
+                      className="p-4 text-right text-cb-text-muted hidden sm:table-cell"
                     >
                       {row.winRate}
                     </td>
                     <td
                       style={{ fontFamily: "'Geist Mono', monospace" }}
-                      className="p-4 text-right text-white/30 hidden sm:table-cell"
+                      className="p-4 text-right text-cb-text-muted hidden sm:table-cell"
                     >
                       {row.games}
                     </td>
@@ -410,14 +410,14 @@ export default function CommunityPage() {
           >
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-sm mb-4"
+              className="text-cb-text-muted text-sm mb-4"
             >
               Please review our community guidelines to help keep ReplayChess a welcoming place for everyone.
             </p>
             <Link
               href="/help"
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/60 hover:text-white text-sm underline transition-colors"
+              className="text-cb-text-secondary hover:text-cb-text text-sm underline transition-colors"
             >
               Read Community Guidelines
             </Link>

@@ -264,7 +264,7 @@ export const DrawOverlay = ({ isActive }: DrawOverlayProps) => {
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-[1px] bg-white/20"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-[1px] bg-cb-border-strong"
           />
         </motion.div>
       )}
@@ -279,8 +279,8 @@ interface GameResultBannerProps {
 
 const BANNER_CONFIG = {
   victory: { text: "You Won!", color: "text-amber-200", bg: "rgba(180, 130, 30, 0.35)" },
-  defeat: { text: "You Lost", color: "text-white/60", bg: "rgba(40, 40, 40, 0.45)" },
-  draw: { text: "Draw", color: "text-white/90", bg: "rgba(100, 100, 100, 0.35)" },
+  defeat: { text: "You Lost", color: "text-cb-text-secondary", bg: "rgba(40, 40, 40, 0.45)" },
+  draw: { text: "Draw", color: "text-cb-text", bg: "rgba(100, 100, 100, 0.35)" },
   white_wins: { text: "White Wins", color: "text-amber-200", bg: "rgba(180, 130, 30, 0.35)" },
   black_wins: { text: "Black Wins", color: "text-amber-200", bg: "rgba(180, 130, 30, 0.35)" },
 } as const;
@@ -386,13 +386,13 @@ export const GameEndOverlay = ({
       case "victory":
       case "white_wins":
       case "black_wins":
-        return "text-white";
+        return "text-cb-text";
       case "defeat":
-        return "text-white/60";
+        return "text-cb-text-secondary";
       case "draw":
-        return "text-white/80";
+        return "text-cb-text-secondary";
       default:
-        return "text-white";
+        return "text-cb-text";
     }
   };
 
@@ -445,7 +445,7 @@ export const GameEndOverlay = ({
               <div className="flex items-center gap-3">
                 <button
                   onClick={onAnalysisClick}
-                  className="group relative px-8 py-3 bg-white text-black hover:bg-white/90 transition-all duration-300"
+                  className="group relative px-8 py-3 bg-cb-accent text-cb-accent-fg hover:bg-cb-accent/90 transition-all duration-300"
                 >
                   <span
                     className="text-sm uppercase tracking-[0.2em]"
@@ -457,7 +457,7 @@ export const GameEndOverlay = ({
                 {onFindGameClick && (
                   <button
                     onClick={onFindGameClick}
-                    className="group relative px-8 py-3 bg-white text-black hover:bg-white/90 transition-all duration-300"
+                    className="group relative px-8 py-3 bg-cb-accent text-cb-accent-fg hover:bg-cb-accent/90 transition-all duration-300"
                   >
                     <span
                       className="text-sm uppercase tracking-[0.2em]"
@@ -470,10 +470,10 @@ export const GameEndOverlay = ({
               </div>
               <button
                 onClick={onBackClick || onDismiss}
-                className="group relative px-8 py-3 border border-white/30 bg-white/5 hover:bg-white/10 hover:border-white/50 transition-all duration-300"
+                className="group relative px-8 py-3 border border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated hover:border-cb-border-strong transition-all duration-300"
               >
                 <span
-                  className="text-sm uppercase tracking-[0.2em] text-white/80 group-hover:text-white"
+                  className="text-sm uppercase tracking-[0.2em] text-cb-text-secondary group-hover:text-cb-text"
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
                   Back
@@ -483,7 +483,7 @@ export const GameEndOverlay = ({
 
             {/* Skip text */}
             <p
-              className="text-white/30 text-xs"
+              className="text-cb-text-muted text-xs"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               Click anywhere to dismiss

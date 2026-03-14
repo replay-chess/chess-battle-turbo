@@ -78,7 +78,7 @@ export default function AudioControls({
       {/* Audio progress bar */}
       {hasAudio && (
         <div className="hidden lg:block px-4">
-          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+          <div className="w-full h-1 bg-cb-surface-elevated rounded-full overflow-hidden">
             <div
               className="h-full bg-emerald-400/60 transition-[width] duration-100"
               style={{ width: `${progress}%` }}
@@ -87,13 +87,13 @@ export default function AudioControls({
           <div className="flex justify-between mt-1">
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-[10px] text-white/30 font-mono"
+              className="text-[10px] text-cb-text-muted font-mono"
             >
               {formatAudioTime(displayTime)}
             </span>
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-[10px] text-white/30 font-mono"
+              className="text-[10px] text-cb-text-muted font-mono"
             >
               {formatAudioTime(duration)}
             </span>
@@ -113,11 +113,11 @@ export default function AudioControls({
             className={cn(
               "w-8 h-8 flex items-center justify-center border transition-colors",
               currentSegmentIndex === 0
-                ? "opacity-30 cursor-not-allowed border-white/10"
-                : "border-white/20 bg-white/5 hover:bg-white/15"
+                ? "opacity-30 cursor-not-allowed border-cb-border"
+                : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated"
             )}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/70">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary">
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
@@ -125,14 +125,14 @@ export default function AudioControls({
           {hasAudio && (
             <button
               onClick={onSkipBack}
-              className="w-8 h-8 flex items-center justify-center border border-white/20 bg-white/5 hover:bg-white/15 transition-colors relative"
+              className="w-8 h-8 flex items-center justify-center border border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated transition-colors relative"
               title="Rewind 5s (Left Arrow)"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/70">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary">
                 <path d="M1 4v6h6" />
                 <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
               </svg>
-              <span className="absolute text-[7px] font-bold text-white/50" style={{ fontFamily: "'Geist', sans-serif", top: '10px' }}>5</span>
+              <span className="absolute text-[7px] font-bold text-cb-text-secondary" style={{ fontFamily: "'Geist', sans-serif", top: '10px' }}>5</span>
             </button>
           )}
 
@@ -157,14 +157,14 @@ export default function AudioControls({
           {hasAudio && (
             <button
               onClick={onSkipForward}
-              className="w-8 h-8 flex items-center justify-center border border-white/20 bg-white/5 hover:bg-white/15 transition-colors relative"
+              className="w-8 h-8 flex items-center justify-center border border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated transition-colors relative"
               title="Forward 5s (Right Arrow)"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/70">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary">
                 <path d="M23 4v6h-6" />
                 <path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10" />
               </svg>
-              <span className="absolute text-[7px] font-bold text-white/50" style={{ fontFamily: "'Geist', sans-serif", top: '10px' }}>5</span>
+              <span className="absolute text-[7px] font-bold text-cb-text-secondary" style={{ fontFamily: "'Geist', sans-serif", top: '10px' }}>5</span>
             </button>
           )}
 
@@ -174,11 +174,11 @@ export default function AudioControls({
             className={cn(
               "w-8 h-8 flex items-center justify-center border transition-colors",
               currentSegmentIndex >= totalSegments - 1
-                ? "opacity-30 cursor-not-allowed border-white/10"
-                : "border-white/20 bg-white/5 hover:bg-white/15"
+                ? "opacity-30 cursor-not-allowed border-cb-border"
+                : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated"
             )}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/70">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary">
               <polyline points="9 18 15 12 9 6" />
             </svg>
           </button>
@@ -199,7 +199,7 @@ export default function AudioControls({
                     "px-1.5 py-0.5 text-[10px] font-mono border transition-colors",
                     playbackRate === rate
                       ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
-                      : "border-white/10 text-white/30 hover:text-white/50"
+                      : "border-cb-border text-cb-text-muted hover:text-cb-text-secondary"
                   )}
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
@@ -207,19 +207,19 @@ export default function AudioControls({
                 </button>
               ))}
             </div>
-            <div className="w-px h-6 bg-white/10 mx-1" />
+            <div className="w-px h-6 bg-cb-border mx-1" />
             <button
               onClick={onToggleMute}
-              className="w-8 h-8 flex items-center justify-center border border-white/10 hover:bg-white/5 transition-colors"
+              className="w-8 h-8 flex items-center justify-center border border-cb-border hover:bg-cb-hover transition-colors"
             >
               {isMuted ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-muted">
                   <polygon points="11 5 6 9 2 9 2 15 6 15 11 19" />
                   <line x1="23" y1="9" x2="17" y2="15" />
                   <line x1="17" y1="9" x2="23" y2="15" />
                 </svg>
               ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary">
                   <polygon points="11 5 6 9 2 9 2 15 6 15 11 19" />
                   <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
                 </svg>
@@ -241,7 +241,7 @@ export default function AudioControls({
                   "px-1.5 py-0.5 text-[10px] font-mono border transition-colors",
                   playbackRate === rate
                     ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
-                    : "border-white/10 text-white/30 hover:text-white/50"
+                    : "border-cb-border text-cb-text-muted hover:text-cb-text-secondary"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
@@ -249,19 +249,19 @@ export default function AudioControls({
               </button>
             ))}
           </div>
-          <div className="w-px h-6 bg-white/10 mx-1" />
+          <div className="w-px h-6 bg-cb-border mx-1" />
           <button
             onClick={onToggleMute}
-            className="w-8 h-8 flex items-center justify-center border border-white/10 hover:bg-white/5 transition-colors"
+            className="w-8 h-8 flex items-center justify-center border border-cb-border hover:bg-cb-hover transition-colors"
           >
             {isMuted ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-muted">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19" />
                 <line x1="23" y1="9" x2="17" y2="15" />
                 <line x1="17" y1="9" x2="23" y2="15" />
               </svg>
             ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19" />
                 <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
               </svg>

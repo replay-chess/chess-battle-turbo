@@ -87,7 +87,7 @@ export default function PracticeView({
       <div className="lg:col-span-6 order-1 lg:order-2 flex flex-col lg:block">
         {/* Board */}
         <div className="mx-1 sm:p-5 md:p-5 lg:p-0 lg:mt-1 lg:mb-4 lg:mx-0">
-          <p className="text-[10px] text-white/50 uppercase tracking-wider text-center mb-0.5">
+          <p className="text-[10px] text-cb-text-secondary uppercase tracking-wider text-center mb-0.5">
             {practiceGame.isFlipped ? "White" : "Black"}
           </p>
           <ChessBoard
@@ -111,7 +111,7 @@ export default function PracticeView({
             squareSize="responsive-md"
             arrows={multiPvAnalysis.arrows}
           />
-          <p className="text-[10px] text-white/50 uppercase tracking-wider text-center mt-0.5">
+          <p className="text-[10px] text-cb-text-secondary uppercase tracking-wider text-center mt-0.5">
             {practiceGame.isFlipped ? "Black" : "White"}
           </p>
         </div>
@@ -136,7 +136,7 @@ export default function PracticeView({
             </button>
             <button
               onClick={onBackToAnalysis}
-              className="h-9 md:h-11 px-3 md:px-5 text-sm md:text-base border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 transition-colors"
+              className="h-9 md:h-11 px-3 md:px-5 text-sm md:text-base border border-cb-border-strong text-cb-text-secondary bg-cb-hover hover:bg-cb-surface-elevated transition-colors"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               Back to Analysis
@@ -147,21 +147,21 @@ export default function PracticeView({
           <div className="flex items-center gap-1 md:gap-2 lg:gap-1">
             <button
               onClick={onShare}
-              className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
+              className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-cb-border-strong text-cb-text-secondary bg-cb-hover hover:bg-cb-surface-elevated hover:text-cb-text transition-colors"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               Share
             </button>
             <button
               onClick={practiceGame.toggleFlip}
-              className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
+              className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-cb-border-strong text-cb-text-secondary bg-cb-hover hover:bg-cb-surface-elevated hover:text-cb-text transition-colors"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               Flip
             </button>
             <button
               onClick={onGoBack}
-              className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
+              className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-cb-border-strong text-cb-text-secondary bg-cb-hover hover:bg-cb-surface-elevated hover:text-cb-text transition-colors"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               Back
@@ -171,7 +171,7 @@ export default function PracticeView({
 
         {/* Mobile status + sliders */}
         <div className="lg:hidden mt-2 md:mt-3 px-4 md:px-8">
-          <div className="flex items-center justify-center gap-6 md:gap-10 py-2 md:py-3 border-t border-white/10">
+          <div className="flex items-center justify-center gap-6 md:gap-10 py-2 md:py-3 border-t border-cb-border">
             <div className="flex items-center gap-2">
               {practiceGame.isBotThinking ? (
                 <>
@@ -190,8 +190,8 @@ export default function PracticeView({
                   className={cn(
                     "text-xs",
                     practiceGame.gameResult === "win" && "text-amber-400",
-                    practiceGame.gameResult === "loss" && "text-white/50",
-                    practiceGame.gameResult === "draw" && "text-white/60"
+                    practiceGame.gameResult === "loss" && "text-cb-text-secondary",
+                    practiceGame.gameResult === "draw" && "text-cb-text-secondary"
                   )}
                 >
                   {practiceGame.gameOverReason}{practiceGame.gameResult === "win" ? " — You win!" : practiceGame.gameResult === "draw" ? " — Draw" : ""}
@@ -231,17 +231,17 @@ export default function PracticeView({
       {/* Right column - desktop */}
       <div className="lg:col-span-3 order-3 hidden lg:flex lg:flex-col space-y-4">
         {/* View Mode Tabs */}
-        <div className="border border-white/10 p-4">
+        <div className="border border-cb-border p-4">
           <p
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-3"
+            className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-3"
           >
             View Mode
           </p>
           <div className="flex flex-col gap-2">
             <button
               onClick={() => onTabChange("explanation")}
-              className="w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+              className="w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               Explanation
@@ -249,7 +249,7 @@ export default function PracticeView({
             {hasLegendMoves && (
               <button
                 onClick={() => onTabChange("legend-moves")}
-                className="w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+                className="w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong"
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
                 Legend&apos;s Moves
@@ -257,7 +257,7 @@ export default function PracticeView({
             )}
             <button
               onClick={() => onTabChange("your-moves")}
-              className="w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+              className="w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               Your Moves
@@ -285,9 +285,9 @@ export default function PracticeView({
             <div className="flex items-center gap-2">
               <div className={cn(
                 "w-2 h-2 rounded-full",
-                practiceGame.isEngineReady ? "bg-amber-400" : "bg-white/30 animate-pulse"
+                practiceGame.isEngineReady ? "bg-amber-400" : "bg-cb-text-muted animate-pulse"
               )} />
-              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/60 text-sm">
+              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-sm">
                 {practiceGame.isEngineReady ? `Stockfish (~${600 + skillLevel * 80} ELO)` : "Loading engine..."}
               </span>
             </div>
@@ -311,18 +311,18 @@ export default function PracticeView({
                   className={cn(
                     "text-sm",
                     practiceGame.gameResult === "win" && "text-amber-400",
-                    practiceGame.gameResult === "loss" && "text-white/50",
-                    practiceGame.gameResult === "draw" && "text-white/60"
+                    practiceGame.gameResult === "loss" && "text-cb-text-secondary",
+                    practiceGame.gameResult === "draw" && "text-cb-text-secondary"
                   )}
                 >
                   {practiceGame.gameOverReason}
                 </span>
               ) : practiceGame.isPlayerTurn ? (
-                <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/60 text-sm">
+                <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-sm">
                   Your turn
                 </span>
               ) : (
-                <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-sm">
+                <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm">
                   Waiting...
                 </span>
               )}
@@ -330,16 +330,16 @@ export default function PracticeView({
 
             {/* Moves played */}
             <div className="flex justify-between">
-              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-sm">
+              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm">
                 Moves played
               </span>
-              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white text-sm font-mono">
+              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text text-sm font-mono">
                 {practiceGame.moveHistory.length}
               </span>
             </div>
 
             {/* Engine config sliders */}
-            <div className="pt-2 border-t border-white/10">
+            <div className="pt-2 border-t border-cb-border">
               <EngineConfigSliders
                 skillLevel={skillLevel}
                 depth={depth}
@@ -354,7 +354,7 @@ export default function PracticeView({
 
             {/* MultiPV evaluation display */}
             {multiPvCount > 0 && multiPvAnalysis.lines.length > 0 && (
-              <div className="pt-2 border-t border-white/10">
+              <div className="pt-2 border-t border-cb-border">
                 <MultiPvDisplay
                   lines={multiPvAnalysis.lines}
                   currentDepth={multiPvAnalysis.currentDepth}

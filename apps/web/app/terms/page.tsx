@@ -30,7 +30,7 @@ const sections = [
           positions, challenge friends, and analyze games using AI-powered tools. The Platform includes, but is not
           limited to:
         </p>
-        <ul className="list-disc list-inside space-y-2 text-white/35">
+        <ul className="list-disc list-inside space-y-2 text-cb-text-muted">
           <li>Real-time multiplayer chess games</li>
           <li>Historical position replay from famous grandmaster games</li>
           <li>AI-powered game analysis and coaching</li>
@@ -66,7 +66,7 @@ const sections = [
     content: (
       <>
         <p>You agree not to engage in any of the following activities while using the Platform:</p>
-        <ul className="list-disc list-inside space-y-2 text-white/35">
+        <ul className="list-disc list-inside space-y-2 text-cb-text-muted">
           <li>Using chess engines, bots, or external assistance during rated games</li>
           <li>Intentionally disconnecting or stalling to avoid losses</li>
           <li>Creating multiple accounts to manipulate ratings or circumvent bans</li>
@@ -98,8 +98,8 @@ const sections = [
     title: "6. Fair Play Policy",
     content: (
       <>
-        <div className="border-l-2 border-white/20 pl-4 bg-white/[0.02] py-3">
-          <p className="text-white/50">
+        <div className="border-l-2 border-cb-border-strong pl-4 bg-cb-hover py-3">
+          <p className="text-cb-text-secondary">
             ReplayChess is committed to maintaining a fair and competitive environment for all players. We employ
             advanced statistical analysis and behavioral detection systems to identify cheating.
           </p>
@@ -216,7 +216,7 @@ const sections = [
         </p>
         <p>
           If you have any questions about these Terms, please contact us at{" "}
-          <a href="mailto:legal@playchess.tech" className="text-white/60 hover:text-white underline transition-colors">
+          <a href="mailto:legal@playchess.tech" className="text-cb-text-secondary hover:text-cb-text underline transition-colors">
             legal@playchess.tech
           </a>
           .

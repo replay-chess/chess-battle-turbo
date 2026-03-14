@@ -47,14 +47,14 @@ export function LegalPageLayout({ title, lastUpdated, sections }: LegalPageLayou
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
       {/* Grid background */}
       <div
         className="fixed inset-0 opacity-[0.015] pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -68,24 +68,24 @@ export function LegalPageLayout({ title, lastUpdated, sections }: LegalPageLayou
             transition={{ duration: 0.6 }}
           >
             <div className="flex items-center gap-4 mb-6">
-              <div className="h-px w-12 bg-white/20" />
+              <div className="h-px w-12 bg-cb-border-strong" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
               >
                 Legal
               </span>
-              <div className="h-px w-12 bg-white/20" />
+              <div className="h-px w-12 bg-cb-border-strong" />
             </div>
             <h1
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-5xl sm:text-6xl md:text-7xl text-white mb-4"
+              className="text-5xl sm:text-6xl md:text-7xl text-cb-text mb-4"
             >
               {title}
             </h1>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-sm text-white/30"
+              className="text-sm text-cb-text-muted"
             >
               Last updated: {lastUpdated}
             </p>
@@ -93,10 +93,10 @@ export function LegalPageLayout({ title, lastUpdated, sections }: LegalPageLayou
         </div>
       </section>
 
-      <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-cb-border to-transparent" />
 
       {/* Mobile TOC */}
-      <div className="lg:hidden sticky top-[57px] md:top-[89px] z-40 bg-black/80 backdrop-blur-xl border-b border-white/[0.08]">
+      <div className="lg:hidden sticky top-[57px] md:top-[89px] z-40 bg-cb-backdrop backdrop-blur-xl border-b border-cb-border">
         <div className="overflow-x-auto scrollbar-hide">
           <div className="flex gap-2 px-6 py-3 min-w-max">
             {sections.map((section) => (
@@ -107,8 +107,8 @@ export function LegalPageLayout({ title, lastUpdated, sections }: LegalPageLayou
                 className={cn(
                   "px-3 py-1.5 text-xs whitespace-nowrap transition-all duration-300",
                   activeSection === section.id
-                    ? "bg-white text-black"
-                    : "border border-white/10 text-white/40 hover:text-white hover:border-white/30"
+                    ? "bg-cb-accent text-cb-accent-fg"
+                    : "border border-cb-border text-cb-text-muted hover:text-cb-text hover:border-cb-border-strong"
                 )}
               >
                 {section.title}
@@ -126,7 +126,7 @@ export function LegalPageLayout({ title, lastUpdated, sections }: LegalPageLayou
             <div className="sticky top-36">
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-xs text-white/30 uppercase tracking-[0.2em] mb-4"
+                className="text-xs text-cb-text-muted uppercase tracking-[0.2em] mb-4"
               >
                 Contents
               </p>
@@ -139,8 +139,8 @@ export function LegalPageLayout({ title, lastUpdated, sections }: LegalPageLayou
                     className={cn(
                       "block w-full text-left px-3 py-2 text-sm transition-all duration-300",
                       activeSection === section.id
-                        ? "text-white bg-white/[0.05] border-l-2 border-white"
-                        : "text-white/30 hover:text-white/60 border-l-2 border-transparent"
+                        ? "text-cb-text bg-cb-hover border-l-2 border-cb-text"
+                        : "text-cb-text-muted hover:text-cb-text-secondary border-l-2 border-transparent"
                     )}
                   >
                     {section.title}
@@ -164,13 +164,13 @@ export function LegalPageLayout({ title, lastUpdated, sections }: LegalPageLayou
               >
                 <h2
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-2xl sm:text-3xl text-white mb-6"
+                  className="text-2xl sm:text-3xl text-cb-text mb-6"
                 >
                   {section.title}
                 </h2>
                 <div
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-sm text-white/40 leading-relaxed space-y-4"
+                  className="text-sm text-cb-text-muted leading-relaxed space-y-4"
                 >
                   {section.content}
                 </div>

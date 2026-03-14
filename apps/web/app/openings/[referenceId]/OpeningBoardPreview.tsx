@@ -41,7 +41,7 @@ export function OpeningBoardPreview({ fen, pgn }: { fen: string; pgn?: string })
       </div>
       <p
         style={{ fontFamily: "'Geist', sans-serif" }}
-        className="text-[10px] text-white/25 uppercase tracking-[0.2em] text-center mt-6"
+        className="text-[10px] text-cb-text-faint uppercase tracking-[0.2em] text-center mt-6"
       >
         Resulting Position
       </p>

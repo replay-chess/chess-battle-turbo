@@ -22,8 +22,8 @@ export function GameActionButtons({
           className={cn(
             "h-8 sm:h-10 px-3 sm:px-5 text-sm border transition-colors",
             drawOffered
-              ? "border-white/10 text-white/30 cursor-not-allowed bg-white/5"
-              : "border-white/20 text-white bg-white/5 hover:bg-white/15 active:bg-white/20"
+              ? "border-cb-border text-cb-text-muted cursor-not-allowed bg-cb-hover"
+              : "border-cb-border-strong text-cb-text bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
           )}
           style={{ fontFamily: "'Geist', sans-serif" }}
         >
@@ -42,10 +42,10 @@ export function GameActionButtons({
   }
 
   return (
-    <div className="border border-white/10 p-5 space-y-3">
+    <div className="border border-cb-border p-5 space-y-3">
       <p
         style={{ fontFamily: "'Geist', sans-serif" }}
-        className="text-[10px] tracking-[0.3em] uppercase text-white/40"
+        className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted"
       >
         Game Actions
       </p>
@@ -55,8 +55,8 @@ export function GameActionButtons({
         className={cn(
           "w-full py-2 border transition-colors",
           drawOffered
-            ? "border-white/10 text-white/30 cursor-not-allowed"
-            : "border-white/20 text-white/60 hover:border-white/40 hover:text-white"
+            ? "border-cb-border text-cb-text-muted cursor-not-allowed"
+            : "border-cb-border-strong text-cb-text-secondary hover:border-cb-text-muted hover:text-cb-text"
         )}
         style={{ fontFamily: "'Geist', sans-serif" }}
       >

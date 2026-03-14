@@ -55,7 +55,7 @@ export default async function BlogPostPage({ params }: Props) {
   });
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
       <script
@@ -67,7 +67,7 @@ export default async function BlogPostPage({ params }: Props) {
       <div
         className="fixed inset-0 opacity-[0.015] pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -77,7 +77,7 @@ export default async function BlogPostPage({ params }: Props) {
         <Link
           href="/blog"
           style={{ fontFamily: "'Geist', sans-serif" }}
-          className="inline-flex items-center gap-2 text-xs text-white/30 hover:text-white/60 transition-colors uppercase tracking-widest mb-8"
+          className="inline-flex items-center gap-2 text-xs text-cb-text-muted hover:text-cb-text-secondary transition-colors uppercase tracking-widest mb-8"
         >
           ← All Articles
         </Link>
@@ -87,40 +87,40 @@ export default async function BlogPostPage({ params }: Props) {
           <div className="flex items-center gap-3 mb-4">
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-[10px] px-2 py-0.5 border border-white/15 text-white/50 uppercase tracking-wider"
+              className="text-[10px] px-2 py-0.5 border border-cb-border text-cb-text-secondary uppercase tracking-wider"
             >
               {post.category}
             </span>
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-[10px] text-white/25"
+              className="text-[10px] text-cb-text-faint"
             >
               {post.readTime}
             </span>
           </div>
           <h1
             style={{ fontFamily: "'Instrument Serif', serif" }}
-            className="text-4xl sm:text-5xl text-white mb-4 leading-tight"
+            className="text-4xl sm:text-5xl text-cb-text mb-4 leading-tight"
           >
             {post.title}
           </h1>
           <p
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-base text-white/40 leading-relaxed"
+            className="text-base text-cb-text-muted leading-relaxed"
           >
             {post.excerpt}
           </p>
           <div className="flex items-center gap-4 mt-6">
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-xs text-white/25"
+              className="text-xs text-cb-text-faint"
             >
               {post.date}
             </span>
           </div>
         </header>
 
-        <div className="h-px w-full bg-white/[0.06] mb-12" />
+        <div className="h-px w-full bg-cb-hover mb-12" />
 
         {/* Article content */}
         <div className="space-y-8">
@@ -129,7 +129,7 @@ export default async function BlogPostPage({ params }: Props) {
               {section.heading && (
                 <h2
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-2xl text-white mb-4"
+                  className="text-2xl text-cb-text mb-4"
                 >
                   {section.heading}
                 </h2>
@@ -140,7 +140,7 @@ export default async function BlogPostPage({ params }: Props) {
                     <p
                       key={`${i}-${j}-${k}`}
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-sm text-white/50 leading-relaxed mb-4"
+                      className="text-sm text-cb-text-secondary leading-relaxed mb-4"
                     >
                       {paragraph}
                     </p>
@@ -153,7 +153,7 @@ export default async function BlogPostPage({ params }: Props) {
                   <div key={`${i}-${j}`} className="mb-4">
                     <h3
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-base text-white/70 font-medium mb-2"
+                      className="text-base text-cb-text-secondary font-medium mb-2"
                     >
                       {subHeading}
                     </h3>
@@ -161,7 +161,7 @@ export default async function BlogPostPage({ params }: Props) {
                       <p
                         key={`${i}-${j}-${k}`}
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-sm text-white/50 leading-relaxed mb-3"
+                        className="text-sm text-cb-text-secondary leading-relaxed mb-3"
                       >
                         {paragraph}
                       </p>

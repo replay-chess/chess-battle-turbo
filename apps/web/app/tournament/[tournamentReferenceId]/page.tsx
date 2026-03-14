@@ -36,8 +36,8 @@ export default function TournamentPage({
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black pt-20 md:pt-28 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 text-white/30 animate-spin" />
+        <div className="min-h-screen bg-cb-bg pt-20 md:pt-28 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 text-cb-text-muted animate-spin" />
         </div>
       </>
     );
@@ -47,8 +47,8 @@ export default function TournamentPage({
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black pt-20 md:pt-28 flex items-center justify-center">
-          <p style={geistFont} className="text-white/40 text-sm">
+        <div className="min-h-screen bg-cb-bg pt-20 md:pt-28 flex items-center justify-center">
+          <p style={geistFont} className="text-cb-text-muted text-sm">
             {error || "Tournament not found"}
           </p>
         </div>
@@ -126,12 +126,12 @@ export default function TournamentPage({
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black pt-20 md:pt-28 relative">
+      <div className="min-h-screen bg-cb-bg pt-20 md:pt-28 relative">
         {/* Grid bg */}
         <div
           className="fixed inset-0 opacity-[0.015] pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
           }}
         />
@@ -149,8 +149,8 @@ export default function TournamentPage({
           />
 
           {/* Inspirational quote */}
-          <div className="border-l-2 border-white/10 pl-4 py-2">
-            <p style={{ fontFamily: "'Instrument Serif', serif" }} className="text-white/50 text-sm sm:text-base italic">
+          <div className="border-l-2 border-cb-border pl-4 py-2">
+            <p style={{ fontFamily: "'Instrument Serif', serif" }} className="text-cb-text-secondary text-sm sm:text-base italic">
               &ldquo;I know what you&rsquo;re thinking — this is a random critical position, someone might be winning,
               someone might be losing, that&rsquo;s unfair. But that&rsquo;s life, right? When you don&rsquo;t give up
               on life, why give up on a position? Fight like hell, champion!!&rdquo;
@@ -159,15 +159,15 @@ export default function TournamentPage({
 
           {/* Share link (LOBBY or ACTIVE) */}
           {tournament.status === "LOBBY" && (
-            <div className="border border-white/10 p-4">
-              <label style={geistFont} className="block text-white/40 text-xs tracking-wider uppercase mb-2">
+            <div className="border border-cb-border p-4">
+              <label style={geistFont} className="block text-cb-text-muted text-xs tracking-wider uppercase mb-2">
                 Share Link
               </label>
               <div className="flex gap-2">
                 <input
                   readOnly
                   value={`${typeof window !== "undefined" ? window.location.origin : ""}/join-tournament/${tournamentReferenceId}`}
-                  className="flex-1 bg-transparent border border-white/10 text-white/60 text-sm px-3 py-2 outline-none"
+                  className="flex-1 bg-transparent border border-cb-border text-cb-text-secondary text-sm px-3 py-2 outline-none"
                   style={geistFont}
                 />
                 <button
@@ -176,7 +176,7 @@ export default function TournamentPage({
                     "px-4 py-2 border text-sm transition-all duration-300",
                     copied
                       ? "border-emerald-400/30 text-emerald-400"
-                      : "border-white/10 text-white/60 hover:border-white/30 hover:text-white"
+                      : "border-cb-border text-cb-text-secondary hover:border-cb-border-strong hover:text-cb-text"
                   )}
                   style={geistFont}
                 >
@@ -200,8 +200,8 @@ export default function TournamentPage({
                 className={cn(
                   "w-full py-3 text-sm font-medium tracking-wide transition-all duration-300",
                   isJoining
-                    ? "bg-white/10 text-white/30 cursor-not-allowed"
-                    : "bg-white text-black hover:bg-white/90"
+                    ? "bg-cb-surface-elevated text-cb-text-muted cursor-not-allowed"
+                    : "bg-cb-accent text-cb-accent-fg hover:opacity-90"
                 )}
                 style={geistFont}
               >

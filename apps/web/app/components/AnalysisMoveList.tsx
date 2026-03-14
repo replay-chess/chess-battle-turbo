@@ -139,15 +139,15 @@ function LegendFullMoveList({
   return (
     <div
       ref={listRef}
-      className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/25"
+      className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-cb-text-faint [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-cb-text-faint"
     >
       {/* Header */}
-      <div className="sticky top-0 z-10 grid grid-cols-[40px_1fr_1fr] gap-1 px-2 py-2 bg-black/80 backdrop-blur-sm border-b border-white/10">
-        <div className="text-[10px] text-white/40 uppercase tracking-wider">#</div>
-        <div className="text-[10px] text-white/40 uppercase tracking-wider">
+      <div className="sticky top-0 z-10 grid grid-cols-[40px_1fr_1fr] gap-1 px-2 py-2 bg-cb-backdrop backdrop-blur-sm border-b border-cb-border">
+        <div className="text-[10px] text-cb-text-muted uppercase tracking-wider">#</div>
+        <div className="text-[10px] text-cb-text-muted uppercase tracking-wider">
           White
         </div>
-        <div className="text-[10px] text-white/40 uppercase tracking-wider">
+        <div className="text-[10px] text-cb-text-muted uppercase tracking-wider">
           Black
         </div>
       </div>
@@ -186,7 +186,7 @@ function LegendFullMoveList({
                 {/* Move number */}
                 <div className={cn(
                   "text-xs font-mono py-1",
-                  whiteIsPreGame && blackIsPreGame ? "text-white/20" : "text-white/30"
+                  whiteIsPreGame && blackIsPreGame ? "text-cb-text-faint" : "text-cb-text-muted"
                 )}>
                   {row.moveNumber}.
                 </div>
@@ -237,7 +237,7 @@ function LegendMoveCell({ san, isActive, isPreGame, onClick }: LegendMoveCellPro
       className={cn(
         "py-1 px-1.5 rounded cursor-pointer transition-all duration-150",
         isActive && "bg-sky-500/20 ring-1 ring-sky-400/30",
-        !isActive && "hover:bg-white/5"
+        !isActive && "hover:bg-cb-hover"
       )}
     >
       <div
@@ -318,15 +318,15 @@ function UserMoveList({
   return (
     <div
       ref={listRef}
-      className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/25"
+      className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-cb-text-faint [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-cb-text-faint"
     >
       {/* Header */}
-      <div className="sticky top-0 z-10 grid grid-cols-[40px_1fr_1fr] gap-1 px-2 py-2 bg-black/80 backdrop-blur-sm border-b border-white/10">
-        <div className="text-[10px] text-white/40 uppercase tracking-wider">#</div>
-        <div className="text-[10px] text-white/40 uppercase tracking-wider">
+      <div className="sticky top-0 z-10 grid grid-cols-[40px_1fr_1fr] gap-1 px-2 py-2 bg-cb-backdrop backdrop-blur-sm border-b border-cb-border">
+        <div className="text-[10px] text-cb-text-muted uppercase tracking-wider">#</div>
+        <div className="text-[10px] text-cb-text-muted uppercase tracking-wider">
           White
         </div>
-        <div className="text-[10px] text-white/40 uppercase tracking-wider">
+        <div className="text-[10px] text-cb-text-muted uppercase tracking-wider">
           Black
         </div>
       </div>
@@ -345,7 +345,7 @@ function UserMoveList({
               className="grid grid-cols-[40px_1fr_1fr] gap-1"
             >
               {/* Move number */}
-              <div className="text-xs text-white/30 font-mono py-1">
+              <div className="text-xs text-cb-text-muted font-mono py-1">
                 {row.moveNumber}.
               </div>
 
@@ -357,7 +357,7 @@ function UserMoveList({
                   onClick={() => onPlyClick(row.whitePlyIndex)}
                 />
               ) : (
-                <div className="text-xs text-white/20 py-1">...</div>
+                <div className="text-xs text-cb-text-faint py-1">...</div>
               )}
 
               {/* Black's move */}
@@ -376,7 +376,7 @@ function UserMoveList({
 
         {/* Empty state */}
         {moveRows.length === 0 && (
-          <div className="text-center text-white/40 py-8 text-sm">
+          <div className="text-center text-cb-text-muted py-8 text-sm">
             No moves to display
           </div>
         )}
@@ -397,11 +397,11 @@ function UserMoveCell({ san, isActive, onClick }: UserMoveCellProps) {
       onClick={onClick}
       className={cn(
         "py-1 px-1.5 rounded cursor-pointer transition-all duration-150",
-        isActive && "bg-white/10 ring-1 ring-white/20",
-        !isActive && "hover:bg-white/5"
+        isActive && "bg-cb-surface-elevated ring-1 ring-cb-border-strong",
+        !isActive && "hover:bg-cb-hover"
       )}
     >
-      <div className="text-xs font-mono truncate text-white/70">
+      <div className="text-xs font-mono truncate text-cb-text-secondary">
         {san}
       </div>
     </div>

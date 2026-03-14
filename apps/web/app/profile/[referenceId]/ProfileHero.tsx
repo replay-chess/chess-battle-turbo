@@ -76,7 +76,7 @@ export function ProfileHero({ user, chessComProfile }: ProfileHeroProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="border border-white/10 relative"
+      className="border border-cb-border relative"
     >
       {/* Top section: identity */}
       <div className="p-6 sm:p-8">
@@ -96,10 +96,10 @@ export function ProfileHero({ user, chessComProfile }: ProfileHeroProps) {
                 transition={{ duration: 0.15 }}
                 className="flex items-center gap-1.5"
               >
-                <Check className="w-3.5 h-3.5 text-white/60" strokeWidth={2} />
+                <Check className="w-3.5 h-3.5 text-cb-text-secondary" strokeWidth={2} />
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/60 text-[10px] tracking-[0.15em] uppercase"
+                  className="text-cb-text-secondary text-[10px] tracking-[0.15em] uppercase"
                 >
                   Copied
                 </span>
@@ -114,12 +114,12 @@ export function ProfileHero({ user, chessComProfile }: ProfileHeroProps) {
                 className="flex items-center gap-1.5"
               >
                 <LinkIcon
-                  className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors duration-200"
+                  className="w-3.5 h-3.5 text-cb-text-faint group-hover:text-cb-text-secondary transition-colors duration-200"
                   strokeWidth={1.5}
                 />
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/20 group-hover:text-white/50 text-[10px] tracking-[0.15em] uppercase transition-colors duration-200"
+                  className="text-cb-text-faint group-hover:text-cb-text-secondary text-[10px] tracking-[0.15em] uppercase transition-colors duration-200"
                 >
                   Share
                 </span>
@@ -130,7 +130,7 @@ export function ProfileHero({ user, chessComProfile }: ProfileHeroProps) {
 
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           {/* Avatar */}
-          <div className="relative w-20 h-20 sm:w-24 sm:h-24 border border-white/20 bg-white/5 flex-shrink-0 overflow-hidden">
+          <div className="relative w-20 h-20 sm:w-24 sm:h-24 border border-cb-border-strong bg-cb-hover flex-shrink-0 overflow-hidden">
             {user.profilePictureUrl ? (
               <Image
                 src={user.profilePictureUrl}
@@ -143,7 +143,7 @@ export function ProfileHero({ user, chessComProfile }: ProfileHeroProps) {
               <div className="w-full h-full flex items-center justify-center">
                 <span
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-white/60 text-2xl sm:text-3xl"
+                  className="text-cb-text-secondary text-2xl sm:text-3xl"
                 >
                   {getInitials(user.name)}
                 </span>
@@ -155,7 +155,7 @@ export function ProfileHero({ user, chessComProfile }: ProfileHeroProps) {
           <div className="flex flex-col items-center sm:items-start gap-2">
             <h1
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-white text-2xl sm:text-3xl tracking-tight"
+              className="text-cb-text text-2xl sm:text-3xl tracking-tight"
             >
               {user.name}
             </h1>
@@ -163,14 +163,14 @@ export function ProfileHero({ user, chessComProfile }: ProfileHeroProps) {
             <div className="flex items-center gap-3">
               <span
                 style={{ fontFamily: "'Geist Mono', monospace" }}
-                className="text-white/40 text-sm tracking-wider"
+                className="text-cb-text-muted text-sm tracking-wider"
               >
                 #{user.code}
               </span>
-              <div className="w-px h-3 bg-white/15" />
+              <div className="w-px h-3 bg-cb-text-faint" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/30 text-xs tracking-wide"
+                className="text-cb-text-muted text-xs tracking-wide"
               >
                 Member since {formatMemberSince(user.createdAt)}
               </span>
@@ -182,7 +182,7 @@ export function ProfileHero({ user, chessComProfile }: ProfileHeroProps) {
                 href={`https://www.chess.com/member/${chessComProfile.chessComHandle}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-white/20 hover:text-white/45 transition-colors duration-200 mt-1"
+                className="flex items-center gap-1.5 text-cb-text-faint hover:text-cb-text-muted transition-colors duration-200 mt-1"
               >
                 <span
                   style={{ fontFamily: "'Geist Mono', monospace" }}
@@ -199,8 +199,8 @@ export function ProfileHero({ user, chessComProfile }: ProfileHeroProps) {
 
       {/* Chess.com ratings strip */}
       {chessComProfile && (
-        <div className="border-t border-white/[0.06]">
-          <div className="grid grid-cols-4 gap-px bg-white/[0.04]">
+        <div className="border-t border-cb-border">
+          <div className="grid grid-cols-4 gap-px bg-cb-hover">
             {RATING_CATEGORIES.map(({ key, label, icon }) => {
               const rating = chessComProfile[
                 `${key}Rating` as keyof ProfileChessComProfile
@@ -212,29 +212,29 @@ export function ProfileHero({ user, chessComProfile }: ProfileHeroProps) {
               return (
                 <div
                   key={key}
-                  className="bg-black px-3 py-3.5 sm:px-5 sm:py-4 text-center sm:text-left"
+                  className="bg-cb-bg px-3 py-3.5 sm:px-5 sm:py-4 text-center sm:text-left"
                 >
                   <div className="flex items-center justify-center sm:justify-start gap-1.5 mb-1.5">
-                    <span className="text-white/10 text-xs hidden sm:inline">
+                    <span className="text-cb-text-faint text-xs hidden sm:inline">
                       {icon}
                     </span>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white/25 text-[9px] sm:text-[10px] tracking-[0.15em] uppercase"
+                      className="text-cb-text-faint text-[9px] sm:text-[10px] tracking-[0.15em] uppercase"
                     >
                       {label}
                     </p>
                   </div>
                   <p
                     style={{ fontFamily: "'Geist Mono', monospace" }}
-                    className="text-white text-lg sm:text-xl font-medium leading-none"
+                    className="text-cb-text text-lg sm:text-xl font-medium leading-none"
                   >
                     {rating ?? "—"}
                   </p>
                   {bestRating && (
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white/12 text-[10px] mt-1 hidden sm:block"
+                      className="text-cb-text-faint text-[10px] mt-1 hidden sm:block"
                     >
                       Best {bestRating}
                     </p>

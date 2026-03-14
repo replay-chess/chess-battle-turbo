@@ -12,7 +12,7 @@ export function NavbarTournaments() {
       href="/tournaments"
       className={cn(
         "group relative overflow-hidden",
-        "bg-white text-black",
+        "bg-cb-accent text-cb-accent-fg",
         "h-9 px-3 sm:px-5",
         "text-sm font-medium tracking-wide",
         "transition-all duration-300",
@@ -20,8 +20,8 @@ export function NavbarTournaments() {
       )}
       style={{ fontFamily: "'Geist', sans-serif" }}
     >
-      <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-      <span className="relative flex items-center gap-1.5 text-black group-hover:text-white transition-colors duration-300">
+      <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+      <span className="relative flex items-center gap-1.5 text-cb-accent-fg group-hover:text-cb-text transition-colors duration-300">
         <Trophy className="w-3.5 h-3.5" strokeWidth={1.5} />
         <span className="hidden sm:inline">Tournaments</span>
       </span>

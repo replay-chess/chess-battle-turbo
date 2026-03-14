@@ -67,7 +67,7 @@ export default async function LegendDetailPage({ params }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
       <script
@@ -79,7 +79,7 @@ export default async function LegendDetailPage({ params }: Props) {
       <div
         className="fixed inset-0 opacity-[0.015] pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -89,7 +89,7 @@ export default async function LegendDetailPage({ params }: Props) {
         <Link
           href="/legends"
           style={{ fontFamily: "'Geist', sans-serif" }}
-          className="inline-flex items-center gap-2 text-xs text-white/30 hover:text-white/60 transition-colors uppercase tracking-widest mb-8"
+          className="inline-flex items-center gap-2 text-xs text-cb-text-muted hover:text-cb-text-secondary transition-colors uppercase tracking-widest mb-8"
         >
           ← All Legends
         </Link>
@@ -100,10 +100,10 @@ export default async function LegendDetailPage({ params }: Props) {
             <img
               src={legend.profilePhotoUrl}
               alt={legend.name}
-              className="w-24 h-24 sm:w-32 sm:h-32 object-cover border border-white/10"
+              className="w-24 h-24 sm:w-32 sm:h-32 object-cover border border-cb-border"
             />
           ) : (
-            <div className="w-24 h-24 sm:w-32 sm:h-32 border border-white/10 flex items-center justify-center text-white/15 text-5xl">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 border border-cb-border flex items-center justify-center text-cb-text-faint text-5xl">
               ♚
             </div>
           )}
@@ -112,18 +112,18 @@ export default async function LegendDetailPage({ params }: Props) {
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
               <h1
                 style={{ fontFamily: "'Instrument Serif', serif" }}
-                className="text-4xl sm:text-5xl text-white"
+                className="text-4xl sm:text-5xl text-cb-text"
               >
                 {legend.name}
               </h1>
-              <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06] flex flex-row gap-2 sm:static sm:bg-transparent sm:p-0 sm:border-0 sm:backdrop-blur-none sm:flex-shrink-0">
+              <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-cb-backdrop backdrop-blur-sm border-t border-cb-border flex flex-row gap-2 sm:static sm:bg-transparent sm:p-0 sm:border-0 sm:backdrop-blur-none sm:flex-shrink-0">
                 <Link
                   href={`/play?legend=${legend.referenceId}`}
-                  className="group relative flex-1 sm:flex-initial inline-flex items-center justify-center overflow-hidden px-3 py-3 sm:px-8 bg-white text-black transition-all duration-300 text-center"
+                  className="group relative flex-1 sm:flex-initial inline-flex items-center justify-center overflow-hidden px-3 py-3 sm:px-8 bg-cb-accent text-cb-accent-fg transition-all duration-300 text-center"
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
-                  <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                  <span className="relative text-sm font-medium text-black group-hover:text-white transition-colors duration-300 truncate">
+                  <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                  <span className="relative text-sm font-medium text-cb-accent-fg group-hover:text-cb-text transition-colors duration-300 truncate">
                     <span className="sm:hidden">{legend.name} vs Bot</span>
                     <span className="hidden sm:inline">Play as {legend.name}</span>
                   </span>
@@ -137,14 +137,14 @@ export default async function LegendDetailPage({ params }: Props) {
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-4">
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-[10px] px-2 py-0.5 border border-white/15 text-white/50 uppercase tracking-wider"
+                className="text-[10px] px-2 py-0.5 border border-cb-border text-cb-text-secondary uppercase tracking-wider"
               >
                 {legend.era}
               </span>
               {legend.nationality && (
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] text-white/30 uppercase tracking-wider"
+                  className="text-[10px] text-cb-text-muted uppercase tracking-wider"
                 >
                   {legend.nationality}
                 </span>
@@ -152,7 +152,7 @@ export default async function LegendDetailPage({ params }: Props) {
               {legend.peakRating && (
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] text-white/30"
+                  className="text-[10px] text-cb-text-muted"
                 >
                   Peak Rating: {legend.peakRating}
                 </span>
@@ -160,7 +160,7 @@ export default async function LegendDetailPage({ params }: Props) {
               {legend.birthYear && (
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] text-white/30"
+                  className="text-[10px] text-cb-text-muted"
                 >
                   {legend.birthYear}–{legend.deathYear ?? "present"}
                 </span>
@@ -168,27 +168,27 @@ export default async function LegendDetailPage({ params }: Props) {
             </div>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-sm text-white/40 leading-relaxed"
+              className="text-sm text-cb-text-muted leading-relaxed"
             >
               {legend.shortDescription}
             </p>
           </div>
         </div>
 
-        <div className="h-px w-full bg-white/[0.06] mb-12" />
+        <div className="h-px w-full bg-cb-hover mb-12" />
 
         {/* Playing Style */}
         {legend.playingStyle && (
           <section className="mb-12">
             <h2
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-xs font-medium uppercase tracking-[0.2em] text-white/50 mb-4"
+              className="text-xs font-medium uppercase tracking-[0.2em] text-cb-text-secondary mb-4"
             >
               Playing Style
             </h2>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-sm text-white/50 leading-relaxed"
+              className="text-sm text-cb-text-secondary leading-relaxed"
             >
               {legend.playingStyle}
             </p>
@@ -200,7 +200,7 @@ export default async function LegendDetailPage({ params }: Props) {
           <section className="mb-12">
             <h2
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-xs font-medium uppercase tracking-[0.2em] text-white/50 mb-4"
+              className="text-xs font-medium uppercase tracking-[0.2em] text-cb-text-secondary mb-4"
             >
               Achievements
             </h2>
@@ -209,9 +209,9 @@ export default async function LegendDetailPage({ params }: Props) {
                 <li
                   key={i}
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="flex items-start gap-3 text-sm text-white/40"
+                  className="flex items-start gap-3 text-sm text-cb-text-muted"
                 >
-                  <span className="text-white/15 mt-0.5">◆</span>
+                  <span className="text-cb-text-faint mt-0.5">◆</span>
                   {achievement}
                 </li>
               ))}
@@ -224,7 +224,7 @@ export default async function LegendDetailPage({ params }: Props) {
           <section className="mb-12">
             <h2
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-xs font-medium uppercase tracking-[0.2em] text-white/50 mb-4"
+              className="text-xs font-medium uppercase tracking-[0.2em] text-cb-text-secondary mb-4"
             >
               Famous Games
             </h2>
@@ -232,19 +232,19 @@ export default async function LegendDetailPage({ params }: Props) {
               {famousGames.map((game, i) => (
                 <div
                   key={i}
-                  className="border border-white/[0.06] p-4 flex items-center justify-between"
+                  className="border border-cb-border p-4 flex items-center justify-between"
                 >
                   <div>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-sm text-white/60"
+                      className="text-sm text-cb-text-secondary"
                     >
                       {game.title ?? `Game ${i + 1}`}
                     </p>
                     {game.year && (
                       <p
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-[10px] text-white/25 mt-0.5"
+                        className="text-[10px] text-cb-text-faint mt-0.5"
                       >
                         {game.year}
                       </p>
@@ -261,27 +261,27 @@ export default async function LegendDetailPage({ params }: Props) {
           <section className="mb-12">
             <h2
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-xs font-medium uppercase tracking-[0.2em] text-white/50 mb-4"
+              className="text-xs font-medium uppercase tracking-[0.2em] text-cb-text-secondary mb-4"
             >
               Positions in Database
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-white/[0.06]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-cb-hover">
               {allPositions.map((pos) => (
                 <div
                   key={pos.referenceId}
-                  className="bg-black p-4 flex items-center justify-between"
+                  className="bg-cb-bg p-4 flex items-center justify-between"
                 >
                   <div>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-sm text-white/50"
+                      className="text-sm text-cb-text-secondary"
                     >
                       {pos.whitePlayerName ?? "White"} vs {pos.blackPlayerName ?? "Black"}
                     </p>
                     {pos.tournamentName && (
                       <p
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-[10px] text-white/25 mt-0.5"
+                        className="text-[10px] text-cb-text-faint mt-0.5"
                       >
                         {pos.tournamentName}
                         {pos.eventDate && ` · ${new Date(pos.eventDate).getFullYear()}`}

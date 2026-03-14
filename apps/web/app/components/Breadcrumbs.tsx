@@ -208,8 +208,8 @@ export const Breadcrumbs = () => {
           "fixed top-[68px] left-0 right-0 z-40",
           "hidden md:flex items-center",
           "px-4 sm:px-6 lg:px-8 py-2",
-          "bg-black backdrop-blur-md",
-          "border-b border-white/[0.05]"
+          "bg-cb-bg backdrop-blur-md",
+          "border-b border-cb-border"
         )}
         style={{
           WebkitBackdropFilter: "blur(12px)",
@@ -223,7 +223,7 @@ export const Breadcrumbs = () => {
               <React.Fragment key={crumb.href + index}>
                 {index > 0 && (
                   <span
-                    className="text-white/70 text-[10px] mx-1 select-none flex-shrink-0"
+                    className="text-cb-text-secondary text-[10px] mx-1 select-none flex-shrink-0"
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >
                     /
@@ -234,7 +234,7 @@ export const Breadcrumbs = () => {
                     className={cn(
                       "flex items-center gap-1.5 whitespace-nowrap flex-shrink-0",
                       "text-[10px] sm:text-[11px] uppercase tracking-[0.12em]",
-                      "text-white"
+                      "text-cb-text"
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >
@@ -247,7 +247,7 @@ export const Breadcrumbs = () => {
                     className={cn(
                       "flex items-center gap-1.5 whitespace-nowrap flex-shrink-0",
                       "text-[10px] sm:text-[11px] uppercase tracking-[0.12em]",
-                      "text-white hover:text-white",
+                      "text-cb-text hover:text-cb-text",
                       "transition-colors duration-200"
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}

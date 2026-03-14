@@ -31,7 +31,7 @@ export function QueueSearching({
       <div className="relative">
         {/* Outer pulsing ring */}
         <motion.div
-          className="absolute inset-0 border border-white/20"
+          className="absolute inset-0 border border-cb-border-strong"
           animate={{
             scale: [1, 1.3, 1],
             opacity: [0.5, 0, 0.5],
@@ -46,7 +46,7 @@ export function QueueSearching({
 
         {/* Second ring */}
         <motion.div
-          className="absolute inset-0 border border-white/10"
+          className="absolute inset-0 border border-cb-border"
           animate={{
             scale: [1, 1.2, 1],
             opacity: [0.3, 0, 0.3],
@@ -61,7 +61,7 @@ export function QueueSearching({
         />
 
         {/* Center icon */}
-        <div className="relative w-[100px] h-[100px] border border-white/20 flex items-center justify-center">
+        <div className="relative w-[100px] h-[100px] border border-cb-border-strong flex items-center justify-center">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{
@@ -70,7 +70,7 @@ export function QueueSearching({
               ease: "linear",
             }}
           >
-            <Search className="w-8 h-8 text-white/60" strokeWidth={1.5} />
+            <Search className="w-8 h-8 text-cb-text-secondary" strokeWidth={1.5} />
           </motion.div>
         </div>
       </div>
@@ -79,19 +79,19 @@ export function QueueSearching({
       <div className="text-center space-y-2">
         <h2
           style={{ fontFamily: "'Instrument Serif', serif" }}
-          className="text-2xl text-white"
+          className="text-2xl text-cb-text"
         >
           Finding Opponent
         </h2>
-        <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40">
+        <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted">
           Looking for a {timeControlLabel} match
         </p>
       </div>
 
       {/* Time remaining */}
-      <div className="flex items-center gap-3 px-4 py-2 border border-white/10">
-        <Clock className="w-4 h-4 text-white/40" strokeWidth={1.5} />
-        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-lg font-mono text-white">
+      <div className="flex items-center gap-3 px-4 py-2 border border-cb-border">
+        <Clock className="w-4 h-4 text-cb-text-muted" strokeWidth={1.5} />
+        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-lg font-mono text-cb-text">
           {formatTime(timeRemaining)}
         </span>
       </div>
@@ -102,14 +102,14 @@ export function QueueSearching({
         disabled={isLoading || isCancelling}
         className={cn(
           "group flex items-center gap-2 px-6 py-3",
-          "border border-white/10 hover:border-white/30 hover:bg-white hover:text-black",
-          "text-white/60 hover:text-black transition-all duration-300",
+          "border border-cb-border hover:border-cb-border-strong hover:bg-cb-accent hover:text-cb-accent-fg",
+          "text-cb-text-secondary hover:text-cb-accent-fg transition-all duration-300",
           "disabled:cursor-not-allowed"
         )}
         style={{ fontFamily: "'Geist', sans-serif" }}
       >
         {isCancelling ? (
-          <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 group-hover:border-black/20 group-hover:border-t-black rounded-full animate-spin transition-colors duration-300" />
+          <div className="w-4 h-4 border-2 border-cb-border-strong border-t-cb-text-secondary group-hover:border-cb-accent-fg/20 group-hover:border-t-cb-accent-fg rounded-full animate-spin transition-colors duration-300" />
         ) : (
           <X className="w-4 h-4" strokeWidth={1.5} />
         )}
@@ -118,7 +118,7 @@ export function QueueSearching({
 
       {/* Tips */}
       <div className="max-w-sm text-center">
-        <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-white/30">
+        <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-cb-text-muted">
           Matching players with similar ratings for fair games
         </p>
       </div>

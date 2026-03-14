@@ -8,22 +8,22 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-black px-6">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-cb-bg px-6">
       {/* Grid background */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.015]"
         style={{
           backgroundImage:
-            "linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)",
+            "linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)",
           backgroundSize: "60px 60px",
         }}
       />
 
       {/* Radial vignette */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,black_80%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,var(--cb-bg)_80%)]" />
 
       <div className="relative z-10 flex flex-col items-center">
-        {/* Fallen King — static (no framer-motion, server component) */}
+        {/* Fallen King -- static (no framer-motion, server component) */}
         <div className="mb-10 origin-bottom rotate-[-35deg] opacity-50">
           <svg
             width="80"
@@ -34,7 +34,8 @@ export default function NotFound() {
             aria-label="Fallen chess king"
           >
             <g
-              stroke="white"
+              stroke="currentColor"
+              className="text-cb-text"
               strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -43,11 +44,11 @@ export default function NotFound() {
               <line x1="20" y1="8" x2="25" y2="8" />
               <path
                 d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5"
-                fill="rgba(255,255,255,0.03)"
+                fill="var(--cb-hover)"
               />
               <path
                 d="M12.5 37c5.5 3.5 14.5 3.5 20 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4l0 3.5 0-3.5c-2.5-7.5-12-10.5-16-4-3 6 6 10.5 6 10.5v7z"
-                fill="rgba(255,255,255,0.06)"
+                fill="var(--cb-hover)"
               />
               <path d="M12.5 30c5.5-3 14.5-3 20 0" />
               <path d="M12.5 33.5c5.5-3 14.5-3 20 0" />
@@ -57,20 +58,20 @@ export default function NotFound() {
         </div>
 
         {/* Micro label */}
-        <span className="mb-5 text-[10px] tracking-[0.3em] uppercase text-white/30">
+        <span className="mb-5 text-[10px] tracking-[0.3em] uppercase text-cb-text-muted">
           Page not found
         </span>
 
         {/* Heading */}
-        <h1 className="mb-5 font-[family-name:var(--font-instrument-serif)] text-5xl italic text-white sm:text-6xl">
+        <h1 className="mb-5 font-[family-name:var(--font-instrument-serif)] text-5xl italic text-cb-text sm:text-6xl">
           Off the Board
         </h1>
 
         {/* Gradient divider */}
-        <div className="mb-6 h-px w-48 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+        <div className="mb-6 h-px w-48 bg-gradient-to-r from-transparent via-cb-border-strong to-transparent" />
 
         {/* Description */}
-        <p className="mb-8 max-w-md text-center text-sm leading-relaxed text-white/40">
+        <p className="mb-8 max-w-md text-center text-sm leading-relaxed text-cb-text-muted">
           This square doesn&apos;t exist. The page you&apos;re looking for may have
           been moved or removed.
         </p>
@@ -79,13 +80,13 @@ export default function NotFound() {
         <div className="flex items-center gap-4">
           <Link
             href="/"
-            className="bg-white px-8 py-3 text-sm font-semibold tracking-[0.1em] uppercase text-black transition-all duration-300 hover:bg-white/90"
+            className="bg-cb-accent px-8 py-3 text-sm font-semibold tracking-[0.1em] uppercase text-cb-accent-fg transition-all duration-300 hover:opacity-90"
           >
             Return Home
           </Link>
           <Link
             href="/play"
-            className="border border-white/20 px-8 py-3 text-sm font-semibold tracking-[0.1em] uppercase text-white/60 transition-all duration-300 hover:border-white/40 hover:text-white"
+            className="border border-cb-border-strong px-8 py-3 text-sm font-semibold tracking-[0.1em] uppercase text-cb-text-secondary transition-all duration-300 hover:border-cb-text-muted hover:text-cb-text"
           >
             Play Chess
           </Link>

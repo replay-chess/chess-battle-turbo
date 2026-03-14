@@ -18,7 +18,7 @@ export default function DifficultySelector({
     <div className="w-full">
       <label
         style={{ fontFamily: "'Geist', sans-serif" }}
-        className="block text-xs text-white/40 uppercase tracking-widest mb-4"
+        className="block text-xs text-cb-text-muted uppercase tracking-widest mb-4"
       >
         Bot Difficulty
       </label>
@@ -34,13 +34,13 @@ export default function DifficultySelector({
             className={cn(
               "group relative flex flex-col items-center justify-center p-5 border transition-all duration-300 overflow-hidden",
               value === option.value
-                ? "bg-white text-black border-white"
-                : "bg-transparent text-white/60 border-white/10 hover:border-white/30"
+                ? "bg-cb-accent text-cb-accent-fg border-cb-accent"
+                : "bg-transparent text-cb-text-secondary border-cb-border hover:border-cb-border-strong"
             )}
           >
             {/* Hover fill effect for unselected */}
             {value !== option.value && (
-              <span className="absolute inset-0 bg-white origin-bottom scale-y-0 group-hover:scale-y-100 transition-transform duration-300" />
+              <span className="absolute inset-0 bg-cb-accent origin-bottom scale-y-0 group-hover:scale-y-100 transition-transform duration-300" />
             )}
 
             <span
@@ -48,8 +48,8 @@ export default function DifficultySelector({
               className={cn(
                 "relative z-10 text-xl transition-colors duration-300",
                 value === option.value
-                  ? "text-black"
-                  : "text-white group-hover:text-black"
+                  ? "text-cb-accent-fg"
+                  : "text-cb-text group-hover:text-cb-accent-fg"
               )}
             >
               {option.label}
@@ -60,8 +60,8 @@ export default function DifficultySelector({
               className={cn(
                 "relative z-10 text-xs mt-1 transition-colors duration-300",
                 value === option.value
-                  ? "text-black/50"
-                  : "text-white/30 group-hover:text-black/50"
+                  ? "text-cb-accent-fg/50"
+                  : "text-cb-text-muted group-hover:text-cb-accent-fg/50"
               )}
             >
               ~{option.elo} ELO

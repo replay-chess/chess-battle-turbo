@@ -39,7 +39,7 @@ const AddBoxIcon = () => (
     strokeWidth="1.5"
     strokeLinecap="round"
     strokeLinejoin="round"
-    className="text-white"
+    className="text-cb-text"
   >
     <rect x="3" y="3" width="18" height="18" rx="2" />
     <path d="M12 8v8" />
@@ -58,7 +58,7 @@ export function IOSInstallModal({ isOpen, onClose }: IOSInstallModalProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-cb-backdrop backdrop-blur-sm z-50"
           />
 
           {/* Modal */}
@@ -70,7 +70,7 @@ export function IOSInstallModal({ isOpen, onClose }: IOSInstallModalProps) {
             className={cn(
               "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50",
               "w-[90%] max-w-sm",
-              "bg-neutral-900 border border-white/10",
+              "bg-cb-surface border border-cb-border",
               "p-6"
             )}
           >
@@ -80,7 +80,7 @@ export function IOSInstallModal({ isOpen, onClose }: IOSInstallModalProps) {
               className={cn(
                 "absolute top-4 right-4",
                 "p-1.5",
-                "text-white/40 hover:text-white",
+                "text-cb-text-muted hover:text-cb-text",
                 "transition-colors duration-200"
               )}
             >
@@ -90,13 +90,13 @@ export function IOSInstallModal({ isOpen, onClose }: IOSInstallModalProps) {
             {/* Header */}
             <h2
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-xl text-white mb-2"
+              className="text-xl text-cb-text mb-2"
             >
               Install ReplayChess
             </h2>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-sm mb-6"
+              className="text-cb-text-muted text-sm mb-6"
             >
               Add to your home screen for the best experience
             </p>
@@ -105,10 +105,10 @@ export function IOSInstallModal({ isOpen, onClose }: IOSInstallModalProps) {
             <div className="space-y-4">
               {/* Step 1 */}
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-white/5 border border-white/10">
+                <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-cb-hover border border-cb-border">
                   <span
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/60 text-sm"
+                    className="text-cb-text-secondary text-sm"
                   >
                     1
                   </span>
@@ -117,7 +117,7 @@ export function IOSInstallModal({ isOpen, onClose }: IOSInstallModalProps) {
                   <div className="flex items-center gap-2 mb-1">
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white text-sm"
+                      className="text-cb-text text-sm"
                     >
                       Tap the Share button
                     </p>
@@ -125,7 +125,7 @@ export function IOSInstallModal({ isOpen, onClose }: IOSInstallModalProps) {
                   </div>
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/40 text-xs"
+                    className="text-cb-text-muted text-xs"
                   >
                     At the bottom of your Safari browser
                   </p>
@@ -134,10 +134,10 @@ export function IOSInstallModal({ isOpen, onClose }: IOSInstallModalProps) {
 
               {/* Step 2 */}
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-white/5 border border-white/10">
+                <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-cb-hover border border-cb-border">
                   <span
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/60 text-sm"
+                    className="text-cb-text-secondary text-sm"
                   >
                     2
                   </span>
@@ -146,7 +146,7 @@ export function IOSInstallModal({ isOpen, onClose }: IOSInstallModalProps) {
                   <div className="flex items-center gap-2 mb-1">
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white text-sm"
+                      className="text-cb-text text-sm"
                     >
                       Tap &quot;Add to Home Screen&quot;
                     </p>
@@ -154,7 +154,7 @@ export function IOSInstallModal({ isOpen, onClose }: IOSInstallModalProps) {
                   </div>
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/40 text-xs"
+                    className="text-cb-text-muted text-xs"
                   >
                     Scroll down if you don&apos;t see it
                   </p>
@@ -163,10 +163,10 @@ export function IOSInstallModal({ isOpen, onClose }: IOSInstallModalProps) {
 
               {/* Step 3 */}
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-white/5 border border-white/10">
+                <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-cb-hover border border-cb-border">
                   <span
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/60 text-sm"
+                    className="text-cb-text-secondary text-sm"
                   >
                     3
                   </span>
@@ -174,13 +174,13 @@ export function IOSInstallModal({ isOpen, onClose }: IOSInstallModalProps) {
                 <div className="flex-1 pt-1">
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white text-sm mb-1"
+                    className="text-cb-text text-sm mb-1"
                   >
                     Tap &quot;Add&quot; in the top right
                   </p>
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/40 text-xs"
+                    className="text-cb-text-muted text-xs"
                   >
                     ReplayChess will appear on your home screen
                   </p>
@@ -194,9 +194,9 @@ export function IOSInstallModal({ isOpen, onClose }: IOSInstallModalProps) {
               className={cn(
                 "w-full mt-6",
                 "h-10",
-                "bg-white/5 hover:bg-white/10",
-                "border border-white/10 hover:border-white/20",
-                "text-white/70 hover:text-white",
+                "bg-cb-hover hover:bg-cb-surface-elevated",
+                "border border-cb-border hover:border-cb-border-strong",
+                "text-cb-text-secondary hover:text-cb-text",
                 "text-sm font-medium",
                 "transition-all duration-200"
               )}

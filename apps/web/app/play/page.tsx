@@ -210,7 +210,7 @@ function PlayContent() {
 
   if (!isReady) {
     return (
-      <div className="flex min-h-screen bg-black items-center justify-center">
+      <div className="flex min-h-screen bg-cb-bg items-center justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -219,20 +219,20 @@ function PlayContent() {
           {/* Chess piece loading animation */}
           <div className="relative w-16 h-16">
             <motion.div
-              className="absolute inset-0 border-2 border-white/20 rounded-full"
+              className="absolute inset-0 border-2 border-cb-border-strong rounded-full"
               animate={{ rotate: 360 }}
               transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
             />
             <motion.div
-              className="absolute inset-2 border-2 border-white/40 rounded-full"
+              className="absolute inset-2 border-2 border-cb-text-muted rounded-full"
               animate={{ rotate: -360 }}
               transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
             />
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-3 h-3 bg-white rounded-full" />
+              <div className="w-3 h-3 bg-cb-accent rounded-full" />
             </div>
           </div>
-          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-sm tracking-[0.2em] uppercase">
+          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm tracking-[0.2em] uppercase">
             Loading
           </p>
         </motion.div>
@@ -244,7 +244,7 @@ function PlayContent() {
     <>
       <Navbar />
 
-      <div className="min-h-screen bg-black flex flex-col lg:flex-row pt-16 sm:pt-18 md:pt-24 relative overflow-hidden">
+      <div className="min-h-screen bg-cb-bg flex flex-col lg:flex-row pt-16 sm:pt-18 md:pt-24 relative overflow-hidden">
         {/* Dramatic diagonal gradient */}
         <div
           className="absolute inset-0 opacity-60"
@@ -301,13 +301,13 @@ function PlayContent() {
                       "border rounded-none",
                       isCreatingGame && "cursor-not-allowed",
                       isSelected
-                        ? "bg-white border-white"
-                        : "bg-transparent border-white/10 hover:border-white/30"
+                        ? "bg-cb-accent border-cb-accent"
+                        : "bg-transparent border-cb-border hover:border-cb-border-strong"
                     )}
                   >
                     {/* Hover fill animation */}
                     <motion.div
-                      className="absolute inset-0 bg-white origin-left"
+                      className="absolute inset-0 bg-cb-accent origin-left"
                       initial={{ scaleX: 0 }}
                       animate={{ scaleX: isHovered && !isSelected ? 1 : 0 }}
                       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -319,14 +319,14 @@ function PlayContent() {
                         "w-9 h-9 lg:w-10 lg:h-10 flex items-center justify-center transition-colors duration-300",
                         "border",
                         isSelected
-                          ? "border-black/20 bg-black/5"
+                          ? "border-cb-accent-fg/20 bg-cb-accent-fg/5"
                           : isHovered
-                            ? "border-black/20 bg-black/5"
-                            : "border-white/20"
+                            ? "border-cb-accent-fg/20 bg-cb-accent-fg/5"
+                            : "border-cb-border-strong"
                       )}>
                         <Icon className={cn(
                           "w-4 h-4 transition-colors duration-300",
-                          isSelected || isHovered ? "text-black" : "text-white/70"
+                          isSelected || isHovered ? "text-cb-accent-fg" : "text-cb-text-secondary"
                         )} strokeWidth={1.5} />
                       </div>
 
@@ -334,13 +334,13 @@ function PlayContent() {
                       <div className="flex-1 text-left">
                         <p style={{ fontFamily: "'Geist', sans-serif" }} className={cn(
                           "font-medium tracking-tight transition-colors duration-300",
-                          isSelected || isHovered ? "text-black" : "text-white"
+                          isSelected || isHovered ? "text-cb-accent-fg" : "text-cb-text"
                         )}>
                           {mode.title}
                         </p>
                         <p style={{ fontFamily: "'Geist', sans-serif" }} className={cn(
                           "text-xs transition-colors duration-300",
-                          isSelected || isHovered ? "text-black/50" : "text-white/40"
+                          isSelected || isHovered ? "text-cb-accent-fg/50" : "text-cb-text-muted"
                         )}>
                           {isSelected && isCreatingGame
                             ? (selectedMode === "quick" ? "Finding opponent..." : "Starting game...")
@@ -351,7 +351,7 @@ function PlayContent() {
                       {/* Loading spinner when creating game on this mode */}
                       {isSelected && isCreatingGame && (
                         <motion.div
-                          className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full flex-shrink-0"
+                          className="w-5 h-5 border-2 border-cb-accent-fg/20 border-t-cb-accent-fg rounded-full flex-shrink-0"
                           animate={{ rotate: 360 }}
                           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                         />
@@ -371,8 +371,8 @@ function PlayContent() {
                 className={cn(
                   "mb-5 lg:mb-8 border overflow-hidden transition-all duration-500",
                   playAsLegend
-                    ? "border-white bg-white/5"
-                    : "border-white/10"
+                    ? "border-cb-accent bg-cb-hover"
+                    : "border-cb-border"
                 )}
               >
                 {/* Toggle */}
@@ -392,21 +392,21 @@ function PlayContent() {
                   <div className="flex items-center gap-4">
                     <div className={cn(
                       "w-9 h-9 lg:w-10 lg:h-10 border flex items-center justify-center transition-all duration-300",
-                      playAsLegend ? "border-white bg-white" : "border-white/20"
+                      playAsLegend ? "border-cb-accent bg-cb-accent" : "border-cb-border-strong"
                     )}>
                       <Crown className={cn(
                         "w-4 h-4 transition-colors",
-                        playAsLegend ? "text-black" : "text-white/60"
+                        playAsLegend ? "text-cb-accent-fg" : "text-cb-text-secondary"
                       )} strokeWidth={1.5} />
                     </div>
                     <div className="text-left">
                       <p style={{ fontFamily: "'Geist', sans-serif" }} className={cn(
                         "font-medium tracking-tight transition-colors",
-                        playAsLegend ? "text-white" : "text-white/80"
+                        playAsLegend ? "text-cb-text" : "text-cb-text-secondary"
                       )}>
                         Play as Legend
                       </p>
-                      <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-white/40 flex items-center gap-1.5">
+                      <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-cb-text-muted flex items-center gap-1.5">
                         <Sparkles className="w-3 h-3" />
                         Master iconic positions
                       </p>
@@ -416,12 +416,12 @@ function PlayContent() {
                   {/* Minimal toggle */}
                   <div className={cn(
                     "w-10 h-5 border relative overflow-hidden transition-colors duration-300 flex-shrink-0",
-                    playAsLegend ? "border-white bg-white" : "border-white/30"
+                    playAsLegend ? "border-cb-accent bg-cb-accent" : "border-cb-border-strong"
                   )}>
                     <motion.div
                       className={cn(
                         "absolute top-0 w-1/2 h-full transition-colors duration-300",
-                        playAsLegend ? "bg-black" : "bg-white/50"
+                        playAsLegend ? "bg-cb-accent-fg" : "bg-cb-text-secondary"
                       )}
                       animate={{ left: playAsLegend ? "50%" : "0%" }}
                       transition={{ type: "spring", stiffness: 500, damping: 30 }}
@@ -438,7 +438,7 @@ function PlayContent() {
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                     >
-                      <div className="px-5 pb-5 pt-4 border-t border-white/10">
+                      <div className="px-5 pb-5 pt-4 border-t border-cb-border">
                         <SearchableDropdown
                           items={legends}
                           selectedId={selectedHero}
@@ -465,8 +465,8 @@ function PlayContent() {
                 className={cn(
                   "mb-5 lg:mb-8 border overflow-hidden transition-all duration-500",
                   playOpening
-                    ? "border-white bg-white/5"
-                    : "border-white/10"
+                    ? "border-cb-accent bg-cb-hover"
+                    : "border-cb-border"
                 )}
               >
                 {/* Toggle */}
@@ -486,21 +486,21 @@ function PlayContent() {
                   <div className="flex items-center gap-4">
                     <div className={cn(
                       "w-9 h-9 lg:w-10 lg:h-10 border flex items-center justify-center transition-all duration-300",
-                      playOpening ? "border-white bg-white" : "border-white/20"
+                      playOpening ? "border-cb-accent bg-cb-accent" : "border-cb-border-strong"
                     )}>
                       <BookOpen className={cn(
                         "w-4 h-4 transition-colors",
-                        playOpening ? "text-black" : "text-white/60"
+                        playOpening ? "text-cb-accent-fg" : "text-cb-text-secondary"
                       )} strokeWidth={1.5} />
                     </div>
                     <div className="text-left">
                       <p style={{ fontFamily: "'Geist', sans-serif" }} className={cn(
                         "font-medium tracking-tight transition-colors",
-                        playOpening ? "text-white" : "text-white/80"
+                        playOpening ? "text-cb-text" : "text-cb-text-secondary"
                       )}>
                         Play Opening
                       </p>
-                      <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-white/40 flex items-center gap-1.5">
+                      <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-cb-text-muted flex items-center gap-1.5">
                         <BookOpen className="w-3 h-3" />
                         Start from a known opening
                       </p>
@@ -510,12 +510,12 @@ function PlayContent() {
                   {/* Minimal toggle */}
                   <div className={cn(
                     "w-10 h-5 border relative overflow-hidden transition-colors duration-300 flex-shrink-0",
-                    playOpening ? "border-white bg-white" : "border-white/30"
+                    playOpening ? "border-cb-accent bg-cb-accent" : "border-cb-border-strong"
                   )}>
                     <motion.div
                       className={cn(
                         "absolute top-0 w-1/2 h-full transition-colors duration-300",
-                        playOpening ? "bg-black" : "bg-white/50"
+                        playOpening ? "bg-cb-accent-fg" : "bg-cb-text-secondary"
                       )}
                       animate={{ left: playOpening ? "50%" : "0%" }}
                       transition={{ type: "spring", stiffness: 500, damping: 30 }}
@@ -532,7 +532,7 @@ function PlayContent() {
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                     >
-                      <div className="px-5 pb-5 pt-4 border-t border-white/10">
+                      <div className="px-5 pb-5 pt-4 border-t border-cb-border">
                         <SearchableDropdown
                           items={openings}
                           selectedId={selectedOpening}
@@ -558,16 +558,16 @@ function PlayContent() {
               className="mb-5 lg:mb-8"
             >
               <div className="flex items-center gap-3 mb-2 lg:mb-3">
-                <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-[10px] tracking-[0.3em] uppercase">
+                <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-[10px] tracking-[0.3em] uppercase">
                   Time Control
                 </span>
-                <div className="h-px flex-1 bg-white/10" />
+                <div className="h-px flex-1 bg-cb-border" />
               </div>
               <TimeControlSelector value={timeControl} onChange={setTimeControl} />
             </motion.div>
 
             {/* Start Button — sticky on mobile */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 p-3 md:p-5 bg-black/90 backdrop-blur-sm border-t border-white/[0.06] lg:static lg:bg-transparent lg:p-0 lg:border-0 lg:backdrop-blur-none">
+            <div className="fixed bottom-0 left-0 right-0 z-50 p-3 md:p-5 bg-cb-backdrop backdrop-blur-sm border-t border-cb-border lg:static lg:bg-transparent lg:p-0 lg:border-0 lg:backdrop-blur-none">
             <motion.button
               data-testid="start-game-button"
               initial={{ opacity: 0, y: 20 }}
@@ -577,33 +577,33 @@ function PlayContent() {
               disabled={isCreatingGame}
               className={cn(
                 "w-full group relative overflow-hidden transition-all duration-300",
-                "bg-white text-black",
+                "bg-cb-accent text-cb-accent-fg",
                 "disabled:opacity-50 disabled:cursor-not-allowed"
               )}
             >
               {/* Invert animation on hover - uses CSS for reliable hover */}
               <div
-                className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out"
+                className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out"
               />
 
               <div className="relative z-10 py-3 md:py-4 px-5 md:px-8 flex items-center justify-center gap-3">
                 {isCreatingGame ? (
                   <>
                     <motion.div
-                      className="w-4 h-4 border-2 border-black/30 border-t-black group-hover:border-white/30 group-hover:border-t-white"
+                      className="w-4 h-4 border-2 border-cb-accent-fg/30 border-t-cb-accent-fg group-hover:border-cb-text/30 group-hover:border-t-cb-text"
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                     />
-                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="font-semibold text-sm md:text-base tracking-wide group-hover:text-white transition-colors">
+                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="font-semibold text-sm md:text-base tracking-wide group-hover:text-cb-text transition-colors">
                       {selectedMode === "quick" ? "FINDING OPPONENT" : "CREATING GAME"}
                     </span>
                   </>
                 ) : (
                   <>
-                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="font-semibold text-sm md:text-base tracking-[0.1em] group-hover:text-white transition-colors">
+                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="font-semibold text-sm md:text-base tracking-[0.1em] group-hover:text-cb-text transition-colors">
                       {selectedMode === "quick" ? "FIND MATCH" : "START GAME"}
                     </span>
-                    <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                    <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:text-cb-text group-hover:translate-x-1 transition-all" />
                   </>
                 )}
               </div>
@@ -615,7 +615,7 @@ function PlayContent() {
         {/* Right Side - Chess Board */}
         <div className="hidden lg:flex flex-1 items-center justify-center p-8 relative">
           {/* Subtle light source effect */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-cb-hover rounded-full blur-3xl" />
 
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -631,8 +631,8 @@ function PlayContent() {
         </div>
 
         {/* Decorative corner elements */}
-        <div className="absolute top-20 left-6 w-16 h-16 border-l border-t border-white/10" />
-        <div className="absolute bottom-6 right-6 w-16 h-16 border-r border-b border-white/10" />
+        <div className="absolute top-20 left-6 w-16 h-16 border-l border-t border-cb-border" />
+        <div className="absolute bottom-6 right-6 w-16 h-16 border-r border-b border-cb-border" />
       </div>
 
       <ShareLinkModal
@@ -660,8 +660,8 @@ export default function Play() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen bg-black items-center justify-center">
-          <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        <div className="flex min-h-screen bg-cb-bg items-center justify-center">
+          <div className="w-12 h-12 border-2 border-cb-border-strong border-t-cb-text rounded-full animate-spin" />
         </div>
       }
     >

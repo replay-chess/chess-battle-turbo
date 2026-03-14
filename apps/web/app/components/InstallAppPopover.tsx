@@ -29,14 +29,14 @@ export function InstallAppPopover({ isIOS, onInstall }: InstallAppPopoverProps) 
           "group relative overflow-hidden",
           "h-9 w-9",
           "flex items-center justify-center",
-          "border border-white/20 hover:border-white/40",
-          "bg-white/5",
+          "border border-cb-border-strong hover:border-cb-border-strong",
+          "bg-cb-hover",
           "transition-all duration-300"
         )}
         aria-label="Install app"
       >
-        <span className="absolute inset-0 bg-white origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-        <Download className="relative w-4 h-4 text-white/70 group-hover:text-black transition-colors duration-300" />
+        <span className="absolute inset-0 bg-cb-accent origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+        <Download className="relative w-4 h-4 text-cb-text-secondary group-hover:text-cb-accent-fg transition-colors duration-300" />
       </button>
 
       {/* iOS Install Modal */}

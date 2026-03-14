@@ -37,7 +37,7 @@ const DEFAULT_STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq
 
 // Static background grid style — never changes
 const backgroundGridStyle = {
-  backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+  backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
   backgroundSize: '60px 60px',
 } as const;
 
@@ -749,7 +749,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
       data-player-color={myColor}
       data-current-turn={currentTurn}
       data-game-started={gameStarted ? "true" : "false"}
-      className="min-h-screen bg-black text-white overflow-hidden lg:overflow-auto"
+      className="min-h-screen bg-cb-bg text-cb-text overflow-hidden lg:overflow-auto"
     >
       {/* Victory confetti effect */}
       <VictoryConfetti isActive={isVictory || false} />
@@ -789,19 +789,19 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
 
       {/* Resign Confirmation Modal — hidden for spectators */}
       {showResignConfirm && !isSpectator && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-cb-backdrop backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="border border-white/20 bg-black p-6 max-w-sm w-full"
+            className="border border-cb-border-strong bg-cb-bg p-6 max-w-sm w-full"
           >
             <p
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-white text-xl mb-2"
+              className="text-cb-text text-xl mb-2"
             >
               Are you sure you want to resign?
             </p>
-            <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-sm mb-6">
+            <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm mb-6">
               This will count as a loss.
             </p>
             <div className="flex gap-3">
@@ -815,7 +815,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
               </button>
               <button
                 onClick={() => setShowResignConfirm(false)}
-                className="flex-1 py-2 border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-colors"
+                className="flex-1 py-2 border border-cb-border-strong text-cb-text-secondary hover:border-cb-text-muted hover:text-cb-text transition-colors"
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
                 Cancel
@@ -847,17 +847,17 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
               {/* Minimal chess piece spinner */}
               <div className="relative w-14 h-14 mb-6">
                 {/* Spinning ring */}
-                <div className="absolute inset-0 border border-white/20 border-t-white/60 rounded-full animate-spin" />
+                <div className="absolute inset-0 border border-cb-border-strong border-t-cb-text-secondary rounded-full animate-spin" />
                 {/* Center piece */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-xl text-white/50 animate-pulse">♟</span>
+                  <span className="text-xl text-cb-text-secondary animate-pulse">♟</span>
                 </div>
               </div>
 
               {/* Text */}
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-xs tracking-[0.2em] uppercase"
+                className="text-cb-text-muted text-xs tracking-[0.2em] uppercase"
               >
                 Joining game
               </p>
@@ -872,34 +872,34 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
             {/* Left - Game Info (hidden on mobile) */}
             <div className="lg:col-span-3 space-y-4 order-2 lg:order-1 hidden lg:flex lg:flex-col lg:max-h-[calc(100vh-2rem)] lg:overflow-hidden">
               {/* Current Turn */}
-              <div className="border border-white/10 p-5 shrink-0">
+              <div className="border border-cb-border p-5 shrink-0">
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-3"
+                  className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-3"
                 >
                   Current Turn
                 </p>
                 <div className="flex items-center gap-3">
                   <div className={cn(
                     "w-6 h-6",
-                    currentTurn === "w" ? "bg-white" : "bg-black border border-white/30"
+                    currentTurn === "w" ? "bg-white" : "bg-black border border-cb-border-strong"
                   )} />
-                  <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white font-medium">
+                  <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text font-medium">
                     {currentTurn === "w" ? "White" : "Black"}
                     {!isSpectator && currentTurn === myColor && " (You)"}
                     {isAIGame && currentTurn === botColor && " (Bot)"}
                   </span>
                 </div>
                 {isAIGame && isBotThinking && (
-                  <div className="mt-3 flex items-center gap-2 text-white/50">
-                    <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="mt-3 flex items-center gap-2 text-cb-text-secondary">
+                    <div className="w-3 h-3 border border-cb-border-strong border-t-cb-text rounded-full animate-spin" />
                     <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs">
                       Bot thinking...
                     </span>
                   </div>
                 )}
                 {!isSpectator && spectatorCount > 0 && (
-                  <div className="mt-3 flex items-center gap-2 text-white/40">
+                  <div className="mt-3 flex items-center gap-2 text-cb-text-muted">
                     <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs">
                       {spectatorCount} spectator{spectatorCount !== 1 ? "s" : ""} watching
                     </span>
@@ -922,7 +922,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                   data-testid={gameOver ? "game-result" : undefined}
                   className={cn(
                     "border p-5",
-                    gameOver ? "border-white bg-white text-black" : "border-white/10"
+                    gameOver ? "border-cb-accent bg-cb-accent text-cb-accent-fg" : "border-cb-border"
                   )}
                 >
                   {gameOver ? (
@@ -938,7 +938,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                       </p>
                     </div>
                   ) : game.isCheck() && (
-                    <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white font-medium text-center">
+                    <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text font-medium text-center">
                       Check!
                     </p>
                   )}
@@ -951,18 +951,18 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 }}
-                  className="border border-white/10 p-5 space-y-3"
+                  className="border border-cb-border p-5 space-y-3"
                 >
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-[10px] tracking-[0.3em] uppercase text-white/40"
+                    className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted"
                   >
                     What&apos;s Next?
                   </p>
                   {positionInfo && (
                     <button
                       onClick={() => router.replace(analysisPath)}
-                      className="w-full py-2.5 bg-white text-black hover:bg-white/90 transition-colors"
+                      className="w-full py-2.5 bg-cb-accent text-cb-accent-fg hover:bg-cb-accent/90 transition-colors"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
                       {positionInfo.openingName ? "Review" : "Compare"}
@@ -971,7 +971,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                   {tournamentRef && (
                     <button
                       onClick={() => router.push(`/tournament/${tournamentRef}`)}
-                      className="w-full py-2.5 bg-white text-black hover:bg-white/90 transition-colors"
+                      className="w-full py-2.5 bg-cb-accent text-cb-accent-fg hover:bg-cb-accent/90 transition-colors"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
                       Find Match
@@ -981,7 +981,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                     <button
                       onClick={handleRematch}
                       disabled={rematchCreating}
-                      className="w-full py-2.5 bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full py-2.5 bg-cb-surface-elevated text-cb-text hover:bg-cb-hover border border-cb-border-strong transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
                       {rematchCreating ? "Creating..." : "Rematch"}
@@ -989,7 +989,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                   )}
                   <button
                     onClick={() => router.push(tournamentRef ? `/tournament/${tournamentRef}` : backPath)}
-                    className="w-full py-2.5 border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-colors"
+                    className="w-full py-2.5 border border-cb-border-strong text-cb-text-secondary hover:border-cb-text-muted hover:text-cb-text transition-colors"
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >
                     {tournamentRef ? "Back to Tournament" : "Back"}
@@ -998,16 +998,16 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
               )}
 
               {/* Move History */}
-              <div className="border border-white/10 p-5 min-h-0 flex flex-col max-h-48">
+              <div className="border border-cb-border p-5 min-h-0 flex flex-col max-h-48">
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-3 shrink-0"
+                  className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-3 shrink-0"
                 >
                   Moves
                 </p>
                 <div className="overflow-y-auto custom-scrollbar space-y-1 min-h-0">
                   {moveHistory.length === 0 ? (
-                    <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/30 text-sm">
+                    <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm">
                       No moves yet
                     </p>
                   ) : (
@@ -1017,14 +1017,14 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                           key={index}
                           className={cn(
                             "px-2 py-1 text-sm",
-                            index % 2 === 0 ? "bg-white/5" : ""
+                            index % 2 === 0 ? "bg-cb-hover" : ""
                           )}
                           style={{ fontFamily: "'Geist', sans-serif" }}
                         >
                           {index % 2 === 0 && (
-                            <span className="text-white/30 mr-2">{Math.floor(index / 2) + 1}.</span>
+                            <span className="text-cb-text-muted mr-2">{Math.floor(index / 2) + 1}.</span>
                           )}
-                          <span className="text-white/80 font-mono">{move.san}</span>
+                          <span className="text-cb-text-secondary font-mono">{move.san}</span>
                         </div>
                       ))}
                     </div>
@@ -1039,7 +1039,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
               {isSpectator && (
                 <div className="flex items-center justify-center gap-2 mb-1 lg:hidden">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/50 text-xs tracking-wider uppercase">
+                  <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-xs tracking-wider uppercase">
                     Spectating {spectatorCount > 0 && `· ${spectatorCount} watching`}
                   </span>
                 </div>
@@ -1048,7 +1048,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
               {/* Spectator count for players */}
               {!isSpectator && spectatorCount > 0 && (
                 <div className="flex items-center justify-center gap-1.5 mb-1 lg:hidden">
-                  <span className="text-white/30 text-xs" style={{ fontFamily: "'Geist', sans-serif" }}>
+                  <span className="text-cb-text-muted text-xs" style={{ fontFamily: "'Geist', sans-serif" }}>
                     {spectatorCount} spectator{spectatorCount !== 1 ? "s" : ""}
                   </span>
                 </div>
@@ -1062,20 +1062,20 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                   transition={{ delay: 0.2 }}
                   className="flex items-center justify-center gap-2 lg:gap-3 mb-0.5 sm:mb-1 px-2"
                 >
-                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cb-border-strong to-transparent" />
                   {positionInfo.openingName ? (
                     <div className="flex items-center gap-2">
                       {positionInfo.openingEco && (
                         <span
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-[10px] tracking-wider text-white/50 bg-white/10 px-1.5 py-0.5 uppercase"
+                          className="text-[10px] tracking-wider text-cb-text-secondary bg-cb-surface-elevated px-1.5 py-0.5 uppercase"
                         >
                           {positionInfo.openingEco}
                         </span>
                       )}
                       <p
                         style={{ fontFamily: "'Instrument Serif', serif" }}
-                        className="text-white/40 text-xs lg:text-sm italic tracking-wide"
+                        className="text-cb-text-muted text-xs lg:text-sm italic tracking-wide"
                       >
                         {positionInfo.openingName}
                       </p>
@@ -1083,12 +1083,12 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                   ) : (
                     <p
                       style={{ fontFamily: "'Instrument Serif', serif" }}
-                      className="text-white/40 text-xs lg:text-sm italic tracking-wide"
+                      className="text-cb-text-muted text-xs lg:text-sm italic tracking-wide"
                     >
                       {positionInfo.tournamentName}
                     </p>
                   )}
-                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cb-border-strong to-transparent" />
                 </motion.div>
               )}
 
@@ -1115,20 +1115,20 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                   className="bg-amber-500/20 border border-amber-500/40 p-2 lg:p-3 mx-2 mb-2 lg:mb-4"
                 >
                   <div className="flex items-center justify-between gap-2 lg:gap-4">
-                    <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white text-xs lg:text-sm">
+                    <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text text-xs lg:text-sm">
                       Draw offer
                     </p>
                     <div className="flex gap-1 lg:gap-2">
                       <button
                         onClick={handleAcceptDraw}
-                        className="px-2 lg:px-3 py-1 text-xs lg:text-sm bg-white text-black hover:bg-white/90 transition-colors"
+                        className="px-2 lg:px-3 py-1 text-xs lg:text-sm bg-cb-accent text-cb-accent-fg hover:bg-cb-accent/90 transition-colors"
                         style={{ fontFamily: "'Geist', sans-serif" }}
                       >
                         Accept
                       </button>
                       <button
                         onClick={handleDeclineDraw}
-                        className="px-2 lg:px-3 py-1 text-xs lg:text-sm border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-colors"
+                        className="px-2 lg:px-3 py-1 text-xs lg:text-sm border border-cb-border-strong text-cb-text-secondary hover:border-cb-text-muted hover:text-cb-text transition-colors"
                         style={{ fontFamily: "'Geist', sans-serif" }}
                       >
                         Decline
@@ -1167,7 +1167,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                   {isSpectator ? (
                     <button
                       onClick={() => setBoardOrientation((o) => (o === "w" ? "b" : "w"))}
-                      className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm border border-white/20 text-white bg-white/5 hover:bg-white/15 active:bg-white/20 transition-colors"
+                      className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm border border-cb-border-strong text-cb-text bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated transition-colors"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
                       Flip
@@ -1180,8 +1180,8 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                         className={cn(
                           "h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm border transition-colors",
                           drawOffered
-                            ? "border-white/10 text-white/30 cursor-not-allowed bg-white/5"
-                            : "border-white/20 text-white bg-white/5 hover:bg-white/15 active:bg-white/20"
+                            ? "border-cb-border text-cb-text-muted cursor-not-allowed bg-cb-hover"
+                            : "border-cb-border-strong text-cb-text bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                       >
@@ -1201,7 +1201,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                       {positionInfo && (
                         <button
                           onClick={() => router.replace(analysisPath)}
-                          className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm bg-white text-black hover:bg-white/90 transition-colors"
+                          className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm bg-cb-accent text-cb-accent-fg hover:bg-cb-accent/90 transition-colors"
                           style={{ fontFamily: "'Geist', sans-serif" }}
                         >
                           {positionInfo.openingName ? "Review" : "Compare"}
@@ -1210,7 +1210,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                       {tournamentRef && (
                         <button
                           onClick={() => router.push(`/tournament/${tournamentRef}`)}
-                          className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm bg-white text-black hover:bg-white/90 transition-colors"
+                          className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm bg-cb-accent text-cb-accent-fg hover:bg-cb-accent/90 transition-colors"
                           style={{ fontFamily: "'Geist', sans-serif" }}
                         >
                           Find Match
@@ -1220,7 +1220,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                         <button
                           onClick={handleRematch}
                           disabled={rematchCreating}
-                          className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-colors disabled:opacity-50"
+                          className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm bg-cb-surface-elevated text-cb-text hover:bg-cb-hover border border-cb-border-strong transition-colors disabled:opacity-50"
                           style={{ fontFamily: "'Geist', sans-serif" }}
                         >
                           {rematchCreating ? "..." : "Rematch"}
@@ -1228,7 +1228,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                       )}
                       <button
                         onClick={() => router.push(tournamentRef ? `/tournament/${tournamentRef}` : backPath)}
-                        className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-colors"
+                        className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm border border-cb-border-strong text-cb-text-secondary hover:border-cb-text-muted hover:text-cb-text transition-colors"
                         style={{ fontFamily: "'Geist', sans-serif" }}
                       >
                         {tournamentRef ? "Back to Tournament" : "Back"}
@@ -1257,10 +1257,10 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
             {/* Right - Controls and info */}
             <div className="lg:col-span-3 order-3 hidden lg:block space-y-4">
               {/* Sound Controls */}
-              <div className="border border-white/10 p-5">
+              <div className="border border-cb-border p-5">
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-3"
+                  className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-3"
                 >
                   Sound
                 </p>
@@ -1269,8 +1269,8 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                   className={cn(
                     "w-full flex items-center justify-center gap-2 px-4 py-2 border transition-colors",
                     isMuted
-                      ? "border-white/10 text-white/40 hover:border-white/20 hover:text-white/60"
-                      : "border-white/20 text-white hover:border-white/40"
+                      ? "border-cb-border text-cb-text-muted hover:border-cb-border-strong hover:text-cb-text-secondary"
+                      : "border-cb-border-strong text-cb-text hover:border-cb-text-muted"
                   )}
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
@@ -1280,10 +1280,10 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
               </div>
 
               {/* Move Navigation - Desktop */}
-              <div className="border border-white/10 p-5">
+              <div className="border border-cb-border p-5">
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-3"
+                  className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-3"
                 >
                   Navigation
                 </p>
@@ -1308,22 +1308,22 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
 
               {/* Spectator Controls - Desktop */}
               {isSpectator && (
-                <div className="border border-white/10 p-5 space-y-3">
+                <div className="border border-cb-border p-5 space-y-3">
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-3"
+                    className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-3"
                   >
                     Spectating
                   </p>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/60 text-sm">
+                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-sm">
                       Live {spectatorCount > 0 && `· ${spectatorCount} watching`}
                     </span>
                   </div>
                   <button
                     onClick={() => setBoardOrientation((o) => (o === "w" ? "b" : "w"))}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-white/20 text-white hover:border-white/40 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-cb-border-strong text-cb-text hover:border-cb-text-muted transition-colors"
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >
                     <span className="text-lg">↕</span>
@@ -1333,14 +1333,14 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
               )}
 
               {/* Decorative element */}
-              <div className="border border-white/5 p-6 text-center">
+              <div className="border border-cb-border p-6 text-center">
                 <p
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-white/20 text-sm italic"
+                  className="text-cb-text-faint text-sm italic"
                 >
                   "The beauty of a move lies not in its appearance but in the thought behind it."
                 </p>
-                <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/10 text-[10px] uppercase tracking-widest mt-2">
+                <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-faint text-[10px] uppercase tracking-widest mt-2">
                   Aaron Nimzowitsch
                 </p>
               </div>

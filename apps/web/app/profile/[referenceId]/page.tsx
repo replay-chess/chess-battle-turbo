@@ -7,6 +7,7 @@ import { useUserStore } from "@/lib/stores";
 import { cn } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 import { Navbar } from "../../components/Navbar";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { ProfileHero } from "./ProfileHero";
 import { StatsOverview } from "./StatsOverview";
 import { GameHistory } from "./GameHistory";
@@ -113,12 +114,12 @@ const ProfilePage = ({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-cb-bg flex items-center justify-center">
         <div className="flex flex-col items-center">
-          <div className="w-10 h-10 border border-white/20 border-t-white/60 rounded-full animate-spin mb-6" />
+          <div className="w-10 h-10 border border-cb-border-strong border-t-cb-text-secondary rounded-full animate-spin mb-6" />
           <p
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/40 text-xs tracking-[0.2em] uppercase"
+            className="text-cb-text-muted text-xs tracking-[0.2em] uppercase"
           >
             Loading Profile
           </p>
@@ -129,24 +130,24 @@ const ProfilePage = ({
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-cb-bg flex items-center justify-center">
         <div className="text-center">
-          <span className="text-white/10 text-6xl block mb-6">♔</span>
+          <span className="text-cb-text-faint text-6xl block mb-6">♔</span>
           <p
             style={{ fontFamily: "'Instrument Serif', serif" }}
-            className="text-white text-xl mb-2"
+            className="text-cb-text text-xl mb-2"
           >
             {error || "Profile not found"}
           </p>
           <p
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/30 text-sm mb-8"
+            className="text-cb-text-muted text-sm mb-8"
           >
             This player may not exist or their profile is unavailable
           </p>
           <button
             onClick={() => router.push("/")}
-            className="px-6 py-2.5 border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-colors duration-300"
+            className="px-6 py-2.5 border border-cb-border-strong text-cb-text-secondary hover:border-cb-border-strong hover:text-cb-text transition-colors duration-300"
             style={{ fontFamily: "'Geist', sans-serif" }}
           >
             Back to Home
@@ -157,14 +158,14 @@ const ProfilePage = ({
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
       {/* Subtle grid background */}
       <div
         className="fixed inset-0 opacity-[0.015] pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -178,26 +179,37 @@ const ProfilePage = ({
           {/* Hero / Identity Card with integrated chess.com ratings */}
           <ProfileHero user={data.user} chessComProfile={data.chessComProfile} />
 
+          {/* Theme toggle — own profile only */}
+          {isOwnProfile && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <ThemeToggle />
+            </motion.div>
+          )}
+
           {/* Chess.com warning banner for own profile */}
           {isOwnProfile && !data.chessComProfile && (
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="border border-dashed border-white/20 bg-white/[0.02] p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6"
+              className="border border-dashed border-cb-border-strong bg-cb-hover p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6"
             >
               <div className="flex items-center gap-4 flex-1">
-                <span className="text-white/15 text-3xl flex-shrink-0">♟</span>
+                <span className="text-cb-text-faint text-3xl flex-shrink-0">♟</span>
                 <div>
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/70 text-sm font-medium"
+                    className="text-cb-text-secondary text-sm font-medium"
                   >
                     Connect your chess.com account
                   </p>
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/30 text-xs mt-0.5"
+                    className="text-cb-text-muted text-xs mt-0.5"
                   >
                     Display your ratings and stats on your profile
                   </p>
@@ -208,18 +220,18 @@ const ProfilePage = ({
                 onClick={() => setShowConnectModal(true)}
                 className={cn(
                   "group relative flex items-center gap-2 px-5 py-2.5",
-                  "bg-white text-black",
+                  "bg-cb-accent text-cb-accent-fg",
                   "transition-all duration-300 overflow-hidden",
                   "flex-shrink-0"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
-                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                <span className="relative z-10 text-sm font-medium group-hover:text-white transition-colors duration-300">
+                <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                <span className="relative z-10 text-sm font-medium group-hover:text-cb-text transition-colors duration-300">
                   Connect
                 </span>
                 <ArrowRight
-                  className="w-3.5 h-3.5 relative z-10 group-hover:text-white transition-colors duration-300"
+                  className="w-3.5 h-3.5 relative z-10 group-hover:text-cb-text transition-colors duration-300"
                   strokeWidth={1.5}
                 />
               </button>

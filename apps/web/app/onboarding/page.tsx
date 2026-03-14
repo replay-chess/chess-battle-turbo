@@ -104,16 +104,16 @@ export default function OnboardingPage() {
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-cb-bg flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="flex flex-col items-center gap-4"
         >
-          <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+          <div className="w-12 h-12 border-2 border-cb-border-strong border-t-cb-text rounded-full animate-spin" />
           <p
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/40 text-sm tracking-wide"
+            className="text-cb-text-muted text-sm tracking-wide"
           >
             Loading...
           </p>
@@ -123,12 +123,12 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-cb-bg flex items-center justify-center p-4 relative">
       {/* Subtle grid background */}
       <div
         className="absolute inset-0 opacity-[0.015]"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -142,7 +142,7 @@ export default function OnboardingPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="border border-white/10 p-8 sm:p-12"
+              className="border border-cb-border p-8 sm:p-12"
             >
               {/* Header */}
               <motion.div
@@ -153,19 +153,19 @@ export default function OnboardingPage() {
               >
                 <h1
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-3xl sm:text-4xl text-white mb-3"
+                  className="text-3xl sm:text-4xl text-cb-text mb-3"
                 >
                   Welcome to ReplayChess
                 </h1>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/40"
+                  className="text-cb-text-muted"
                 >
                   Connect your chess.com account
                 </p>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-xs text-white/20 mt-2"
+                  className="text-xs text-cb-text-faint mt-2"
                 >
                   You can add this later from your profile
                 </p>
@@ -181,7 +181,7 @@ export default function OnboardingPage() {
                   <label
                     htmlFor="chessComHandle"
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="block text-xs text-white/40 uppercase tracking-widest mb-3"
+                    className="block text-xs text-cb-text-muted uppercase tracking-widest mb-3"
                   >
                     Chess.com Username
                   </label>
@@ -192,16 +192,16 @@ export default function OnboardingPage() {
                     onChange={(e) => setChessComHandle(e.target.value)}
                     placeholder="e.g., hikaru"
                     className={cn(
-                      "w-full px-4 py-3 bg-transparent border border-white/10",
-                      "text-white placeholder-white/20",
-                      "focus:outline-none focus:border-white/40 transition-colors duration-300"
+                      "w-full px-4 py-3 bg-transparent border border-cb-border",
+                      "text-cb-text placeholder-cb-text-faint",
+                      "focus:outline-none focus:border-cb-border-strong transition-colors duration-300"
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
                     disabled={loading}
                   />
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="mt-2 text-xs text-white/20"
+                    className="mt-2 text-xs text-cb-text-faint"
                   >
                     We&apos;ll fetch your ratings and stats from chess.com
                   </p>
@@ -212,11 +212,11 @@ export default function OnboardingPage() {
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="border border-white/20 p-4"
+                    className="border border-cb-border-strong p-4"
                   >
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white/60 text-sm"
+                      className="text-cb-text-secondary text-sm"
                     >
                       {error}
                     </p>
@@ -235,19 +235,19 @@ export default function OnboardingPage() {
                     disabled={loading}
                     className={cn(
                       "group relative w-full flex items-center justify-center gap-2 px-8 py-4",
-                      "bg-white text-black",
+                      "bg-cb-accent text-cb-accent-fg",
                       "transition-all duration-300 overflow-hidden",
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >
-                    <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                    <span className="relative z-10 font-medium group-hover:text-white transition-colors duration-300">
+                    <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                    <span className="relative z-10 font-medium group-hover:text-cb-text transition-colors duration-300">
                       {loading ? "Looking up..." : "Look Up Profile"}
                     </span>
                     {!loading && (
                       <Search
-                        className="w-4 h-4 relative z-10 group-hover:text-white transition-colors duration-300"
+                        className="w-4 h-4 relative z-10 group-hover:text-cb-text transition-colors duration-300"
                         strokeWidth={1.5}
                       />
                     )}
@@ -259,8 +259,8 @@ export default function OnboardingPage() {
                     disabled={loading}
                     className={cn(
                       "group w-full flex items-center justify-center gap-2 px-8 py-4",
-                      "border border-white/10 hover:border-white/30",
-                      "text-white/60 hover:text-white transition-all duration-300",
+                      "border border-cb-border hover:border-cb-border-strong",
+                      "text-cb-text-secondary hover:text-cb-text transition-all duration-300",
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
@@ -281,7 +281,7 @@ export default function OnboardingPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="inline-flex items-center gap-1 text-xs text-white/30 hover:text-white/60 transition-colors"
+                    className="inline-flex items-center gap-1 text-xs text-cb-text-muted hover:text-cb-text-secondary transition-colors"
                   >
                     Don&apos;t have an account? Create one
                     <ExternalLink className="w-3 h-3" strokeWidth={1.5} />
@@ -307,7 +307,7 @@ export default function OnboardingPage() {
               >
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/40 text-sm"
+                  className="text-cb-text-muted text-sm"
                 >
                   Is this your account?
                 </p>
@@ -326,11 +326,11 @@ export default function OnboardingPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="border border-white/20 p-4 mt-4"
+                  className="border border-cb-border-strong p-4 mt-4"
                 >
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/60 text-sm"
+                    className="text-cb-text-secondary text-sm"
                   >
                     {error}
                   </p>

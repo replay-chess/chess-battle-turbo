@@ -41,8 +41,8 @@ export default function GlobalError({
         style={{
           margin: 0,
           padding: 0,
-          backgroundColor: "#000000",
-          color: "#ffffff",
+          backgroundColor: "var(--cb-bg)",
+          color: "var(--cb-text)",
           fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
         }}
       >
@@ -94,7 +94,7 @@ export default function GlobalError({
               inset: 0,
               opacity: 0.015,
               backgroundImage:
-                "linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)",
+                "linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)",
               backgroundSize: "60px 60px",
               pointerEvents: "none",
             }}
@@ -106,7 +106,7 @@ export default function GlobalError({
               position: "absolute",
               inset: 0,
               background:
-                "radial-gradient(ellipse at center, transparent 10%, black 70%)",
+                "radial-gradient(ellipse at center, transparent 10%, var(--cb-bg) 70%)",
               pointerEvents: "none",
             }}
           />
@@ -117,7 +117,7 @@ export default function GlobalError({
               position: "absolute",
               inset: 0,
               background:
-                "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.008) 2px, rgba(255,255,255,0.008) 4px)",
+                "repeating-linear-gradient(0deg, transparent, transparent 2px, var(--cb-hover) 2px, var(--cb-hover) 4px)",
               pointerEvents: "none",
             }}
           />
@@ -130,7 +130,7 @@ export default function GlobalError({
                 position: "absolute",
                 width: "3px",
                 height: "3px",
-                backgroundColor: "white",
+                backgroundColor: "var(--cb-text)",
                 left: `${25 + i * 10}%`,
                 bottom: "30%",
                 animation: `drift ${4 + i * 0.8}s ease-in-out ${i * 0.6}s infinite`,
@@ -173,7 +173,7 @@ export default function GlobalError({
                 }}
               >
                 <g
-                  stroke="white"
+                  stroke="var(--cb-text)"
                   strokeWidth="1.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -182,11 +182,11 @@ export default function GlobalError({
                   <line x1="20" y1="8" x2="25" y2="8" />
                   <path
                     d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5"
-                    fill="rgba(255,255,255,0.03)"
+                    fill="var(--cb-hover)"
                   />
                   <path
                     d="M12.5 37c5.5 3.5 14.5 3.5 20 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4l0 3.5 0-3.5c-2.5-7.5-12-10.5-16-4-3 6 6 10.5 6 10.5v7z"
-                    fill="rgba(255,255,255,0.06)"
+                    fill="var(--cb-hover)"
                   />
                   <path d="M12.5 30c5.5-3 14.5-3 20 0" />
                   <path d="M12.5 33.5c5.5-3 14.5-3 20 0" />
@@ -234,7 +234,7 @@ export default function GlobalError({
                   fontSize: "10px",
                   letterSpacing: "0.3em",
                   textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.3)",
+                  color: "var(--cb-text-muted)",
                 }}
               >
                 Critical Failure
@@ -263,7 +263,7 @@ export default function GlobalError({
                 height: "1px",
                 width: "200px",
                 background:
-                  "linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent)",
+                  "linear-gradient(to right, transparent, var(--cb-border-strong), transparent)",
                 marginBottom: "24px",
                 animation: "scaleIn 0.8s ease 0.9s both",
               }}
@@ -274,7 +274,7 @@ export default function GlobalError({
               style={{
                 fontSize: "14px",
                 lineHeight: 1.7,
-                color: "rgba(255,255,255,0.4)",
+                color: "var(--cb-text-muted)",
                 textAlign: "center",
                 maxWidth: "440px",
                 margin: "0 0 32px 0",
@@ -291,7 +291,7 @@ export default function GlobalError({
                 style={{
                   fontFamily: "var(--font-geist-mono), monospace",
                   fontSize: "11px",
-                  color: "rgba(255,255,255,0.12)",
+                  color: "var(--cb-text-faint)",
                   marginBottom: "32px",
                   userSelect: "all",
                   animation: "fadeIn 0.6s ease 1.2s both",
@@ -314,8 +314,8 @@ export default function GlobalError({
                 type="button"
                 onClick={reset}
                 style={{
-                  backgroundColor: "#ffffff",
-                  color: "#000000",
+                  backgroundColor: "var(--cb-accent)",
+                  color: "var(--cb-accent-fg)",
                   border: "none",
                   padding: "12px 32px",
                   fontSize: "13px",
@@ -338,8 +338,8 @@ export default function GlobalError({
               <a
                 href="/"
                 style={{
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  color: "rgba(255,255,255,0.6)",
+                  border: "1px solid var(--cb-border-strong)",
+                  color: "var(--cb-text-secondary)",
                   padding: "12px 32px",
                   fontSize: "13px",
                   fontWeight: 600,
@@ -351,12 +351,12 @@ export default function GlobalError({
                   transition: "all 0.3s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.4)";
-                  e.currentTarget.style.color = "#ffffff";
+                  e.currentTarget.style.borderColor = "var(--cb-text-muted)";
+                  e.currentTarget.style.color = "var(--cb-text)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
-                  e.currentTarget.style.color = "rgba(255,255,255,0.6)";
+                  e.currentTarget.style.borderColor = "var(--cb-border-strong)";
+                  e.currentTarget.style.color = "var(--cb-text-secondary)";
                 }}
               >
                 Return Home

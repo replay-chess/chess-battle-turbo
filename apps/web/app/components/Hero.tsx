@@ -10,7 +10,7 @@ export default function Hero() {
   const { isSignedIn } = useAuth();
 
   return (
-    <section aria-label="Hero" className="relative h-full w-full flex items-center justify-center overflow-hidden bg-black">
+    <section aria-label="Hero" className="relative h-full w-full flex items-center justify-center overflow-hidden bg-cb-bg">
       {/* Video Background */}
       <video
         aria-hidden="true"
@@ -26,18 +26,18 @@ export default function Hero() {
       </video>
 
       {/* Gradient overlays */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/50" />
+      <div className="absolute inset-0 bg-gradient-to-b from-cb-gradient-from via-transparent to-cb-gradient-from" />
+      <div className="absolute inset-0 bg-gradient-to-r from-cb-backdrop via-transparent to-cb-backdrop" />
 
       {/* Decorative elements */}
-      <div className="absolute top-20 left-8 w-32 h-32 border-l border-t border-white/10" />
-      <div className="absolute bottom-20 right-8 w-32 h-32 border-r border-b border-white/10" />
+      <div className="absolute top-20 left-8 w-32 h-32 border-l border-t border-cb-border" />
+      <div className="absolute bottom-20 right-8 w-32 h-32 border-r border-b border-cb-border" />
 
       {/* Subtle grid */}
       <div
         className="absolute inset-0 opacity-[0.02]"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: '80px 80px',
         }}
       />
@@ -56,14 +56,14 @@ export default function Hero() {
           transition={{ delay: 0.2 }}
           className="flex items-center gap-3 mb-8"
         >
-          <div className="h-px w-12 bg-white/30" />
+          <div className="h-px w-12 bg-cb-text-muted" />
           <span
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+            className="text-cb-text-secondary text-[10px] tracking-[0.4em] uppercase"
           >
             Experience Iconic Chess Moments Like Never Before
           </span>
-          <div className="h-px w-12 bg-white/30" />
+          <div className="h-px w-12 bg-cb-text-muted" />
         </motion.div>
 
         {/* Main Title */}
@@ -72,11 +72,11 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.8 }}
           style={{ fontFamily: "'Instrument Serif', serif" }}
-          className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-white leading-[0.95] tracking-tight mb-6 text-center sm:text-left"
+          className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-cb-text leading-[0.95] tracking-tight mb-6 text-center sm:text-left"
         >
           Relive Legendary
           <br />
-          <span className="text-white/40">Chess Moments</span>
+          <span className="text-cb-text-muted">Chess Moments</span>
         </motion.h1>
 
         {/* Subtitle */}
@@ -85,7 +85,7 @@ export default function Hero() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
           style={{ fontFamily: "'Geist', sans-serif" }}
-          className="text-white/40 text-lg sm:text-xl md:text-2xl max-w-2xl leading-relaxed mb-12 text-center sm:text-left"
+          className="text-cb-text-muted text-lg sm:text-xl md:text-2xl max-w-2xl leading-relaxed mb-12 text-center sm:text-left"
         >
           Play and Relive the Critical Moves of Chess Legends.
         </motion.p>
@@ -102,15 +102,15 @@ export default function Hero() {
               <button
                 className={cn(
                   "group relative overflow-hidden",
-                  "bg-white text-black",
+                  "bg-cb-accent text-cb-accent-fg",
                   "px-10 py-4",
                   "text-sm font-semibold tracking-[0.1em] uppercase",
                   "transition-all duration-300"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
-                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                <span className="relative flex items-center gap-3 group-hover:text-white transition-colors duration-300">
+                <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                <span className="relative flex items-center gap-3 group-hover:text-cb-text transition-colors duration-300">
                   Play Legendary Games — Free
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </span>
@@ -121,15 +121,15 @@ export default function Hero() {
               <button
                 className={cn(
                   "group relative overflow-hidden",
-                  "bg-white text-black",
+                  "bg-cb-accent text-cb-accent-fg",
                   "px-10 py-4",
                   "text-sm font-semibold tracking-[0.1em] uppercase",
                   "transition-all duration-300"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
-                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                <span className="relative flex items-center gap-3 group-hover:text-white transition-colors duration-300">
+                <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                <span className="relative flex items-center gap-3 group-hover:text-cb-text transition-colors duration-300">
                   Try a Position — No Sign-up
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </span>
@@ -141,24 +141,24 @@ export default function Hero() {
       </motion.div>
 
       {/* Bottom gradient fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-cb-gradient-from to-transparent" />
 
       {/* Sticky mobile CTA */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06]">
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 p-3 bg-cb-backdrop backdrop-blur-sm border-t border-cb-border">
         {isSignedIn ? (
           <Link href="/play" className="block">
             <button
               className={cn(
                 "group relative overflow-hidden w-full",
-                "bg-white text-black",
+                "bg-cb-accent text-cb-accent-fg",
                 "px-3 py-3",
                 "text-sm font-semibold tracking-wide uppercase",
                 "transition-all duration-300"
               )}
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
-              <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-              <span className="relative flex items-center justify-center gap-2 group-hover:text-white transition-colors duration-300">
+              <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+              <span className="relative flex items-center justify-center gap-2 group-hover:text-cb-text transition-colors duration-300">
                 Play Free
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
@@ -169,15 +169,15 @@ export default function Hero() {
             <button
               className={cn(
                 "group relative overflow-hidden w-full",
-                "bg-white text-black",
+                "bg-cb-accent text-cb-accent-fg",
                 "px-3 py-3",
                 "text-sm font-semibold tracking-wide uppercase",
                 "transition-all duration-300"
               )}
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
-              <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-              <span className="relative flex items-center justify-center gap-2 group-hover:text-white transition-colors duration-300">
+              <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+              <span className="relative flex items-center justify-center gap-2 group-hover:text-cb-text transition-colors duration-300">
                 Try a Position
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>

@@ -38,15 +38,15 @@ const socialLinks = [
 
 export function Footer() {
   return (
-    <footer className="w-full bg-black relative overflow-hidden">
+    <footer className="w-full bg-cb-bg relative overflow-hidden">
       {/* Top decorative border */}
-      <div className="h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-cb-border-strong to-transparent" />
 
       {/* Subtle grid background */}
       <div
         className="absolute inset-0 opacity-[0.015]"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: '60px 60px',
         }}
       />
@@ -58,19 +58,19 @@ export function Footer() {
           {/* Brand Section */}
           <div className="lg:col-span-4 space-y-6">
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-12 h-12 bg-white flex items-center justify-center group-hover:bg-white/90 transition-colors">
-                <span className="text-black text-2xl">♟</span>
+              <div className="w-12 h-12 bg-cb-surface border border-cb-border-strong flex items-center justify-center group-hover:bg-cb-hover transition-colors">
+                <span className="text-cb-text text-2xl">♟</span>
               </div>
               <div>
                 <span
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-xl text-white block"
+                  className="text-xl text-cb-text block"
                 >
                   ReplayChess
                 </span>
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] text-white/30 uppercase tracking-widest"
+                  className="text-[10px] text-cb-text-muted uppercase tracking-widest"
                 >
                   Your Go-To Place for Chess Mastery and Fun
                 </span>
@@ -79,7 +79,7 @@ export function Footer() {
 
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-sm leading-relaxed max-w-sm"
+              className="text-cb-text-muted text-sm leading-relaxed max-w-sm"
             >
               Challenge friends, play legendary positions from chess history,
               and master the game with our immersive battle experience.
@@ -89,7 +89,7 @@ export function Footer() {
             <div className="pt-2">
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-xs text-white/50 uppercase tracking-widest mb-3"
+                className="text-xs text-cb-text-secondary uppercase tracking-widest mb-3"
               >
                 Stay Updated
               </p>
@@ -98,10 +98,10 @@ export function Footer() {
                   type="email"
                   placeholder="Enter your email"
                   className={cn(
-                    "flex-1 bg-white/[0.03] border border-white/10",
-                    "px-4 py-3 text-sm text-white",
-                    "placeholder:text-white/20",
-                    "focus:outline-none focus:border-white/30 focus:bg-white/[0.05]",
+                    "flex-1 bg-cb-hover border border-cb-border",
+                    "px-4 py-3 text-sm text-cb-text",
+                    "placeholder:text-cb-text-faint",
+                    "focus:outline-none focus:border-cb-border-strong focus:bg-cb-hover",
                     "transition-all duration-300"
                   )}
                   style={{ fontFamily: "'Geist', sans-serif" }}
@@ -110,14 +110,14 @@ export function Footer() {
                   type="submit"
                   className={cn(
                     "group/btn relative overflow-hidden",
-                    "px-6 py-3 bg-white text-black",
+                    "px-6 py-3 bg-cb-accent text-cb-accent-fg",
                     "text-sm font-medium",
                     "transition-all duration-300"
                   )}
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
-                  <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300" />
-                  <span className="relative group-hover/btn:text-white transition-colors duration-300">
+                  <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300" />
+                  <span className="relative group-hover/btn:text-cb-text transition-colors duration-300">
                     Subscribe
                   </span>
                 </button>
@@ -132,10 +132,10 @@ export function Footer() {
                   href={social.href}
                   aria-label={social.label}
                   className={cn(
-                    "w-10 h-10 border border-white/10",
+                    "w-10 h-10 border border-cb-border",
                     "flex items-center justify-center",
-                    "hover:border-white/30 hover:bg-white hover:text-black",
-                    "text-white/40 transition-all duration-300"
+                    "hover:border-cb-border-strong hover:bg-cb-accent hover:text-cb-accent-fg",
+                    "text-cb-text-muted transition-all duration-300"
                   )}
                 >
                   <social.icon className="w-4 h-4" strokeWidth={1.5} />
@@ -150,7 +150,7 @@ export function Footer() {
             <div className="space-y-4">
               <h3
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-xs font-medium uppercase tracking-[0.2em] text-white/60"
+                className="text-xs font-medium uppercase tracking-[0.2em] text-cb-text-secondary"
               >
                 Product
               </h3>
@@ -160,7 +160,7 @@ export function Footer() {
                     <Link
                       href={item.href}
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="group inline-flex items-center gap-1 text-sm text-white/40 hover:text-white transition-colors"
+                      className="group inline-flex items-center gap-1 text-sm text-cb-text-muted hover:text-cb-text transition-colors"
                     >
                       {item.name}
                       <ArrowUpRight className="w-3 h-3 opacity-0 -translate-y-0.5 translate-x-0.5 group-hover:opacity-100 group-hover:translate-y-0 group-hover:translate-x-0 transition-all" />
@@ -174,7 +174,7 @@ export function Footer() {
             <div className="space-y-4">
               <h3
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-xs font-medium uppercase tracking-[0.2em] text-white/60"
+                className="text-xs font-medium uppercase tracking-[0.2em] text-cb-text-secondary"
               >
                 Company
               </h3>
@@ -184,11 +184,11 @@ export function Footer() {
                     <Link
                       href={item.href}
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="group inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors"
+                      className="group inline-flex items-center gap-2 text-sm text-cb-text-muted hover:text-cb-text transition-colors"
                     >
                       {item.name}
                       {item.badge && (
-                        <span className="relative inline-flex items-center gap-1.5 text-[9px] px-2 py-0.5 border border-white/20 text-white/60 font-medium uppercase tracking-wider group-hover:border-white/40 group-hover:text-white/80 transition-all">
+                        <span className="relative inline-flex items-center gap-1.5 text-[9px] px-2 py-0.5 border border-cb-border-strong text-cb-text-secondary font-medium uppercase tracking-wider group-hover:border-cb-border-strong group-hover:text-cb-text-secondary transition-all">
                           <span className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
                           {item.badge}
                         </span>
@@ -203,7 +203,7 @@ export function Footer() {
             <div className="space-y-4">
               <h3
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-xs font-medium uppercase tracking-[0.2em] text-white/60"
+                className="text-xs font-medium uppercase tracking-[0.2em] text-cb-text-secondary"
               >
                 Resources
               </h3>
@@ -213,7 +213,7 @@ export function Footer() {
                     <Link
                       href={item.href}
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="group inline-flex items-center gap-1 text-sm text-white/40 hover:text-white transition-colors"
+                      className="group inline-flex items-center gap-1 text-sm text-cb-text-muted hover:text-cb-text transition-colors"
                     >
                       {item.name}
                     </Link>
@@ -226,7 +226,7 @@ export function Footer() {
             <div className="space-y-4">
               <h3
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-xs font-medium uppercase tracking-[0.2em] text-white/60"
+                className="text-xs font-medium uppercase tracking-[0.2em] text-cb-text-secondary"
               >
                 Legal
               </h3>
@@ -236,7 +236,7 @@ export function Footer() {
                     <Link
                       href={item.href}
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-sm text-white/40 hover:text-white transition-colors"
+                      className="text-sm text-cb-text-muted hover:text-cb-text transition-colors"
                     >
                       {item.name}
                     </Link>
@@ -248,11 +248,11 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-10 sm:mt-16 pt-6 sm:pt-8 border-t border-white/[0.08]">
+        <div className="mt-10 sm:mt-16 pt-6 sm:pt-8 border-t border-cb-border">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-xs text-white/30 tracking-wide"
+              className="text-xs text-cb-text-muted tracking-wide"
             >
               © {new Date().getFullYear()} ReplayChess. All rights reserved.
             </p>
@@ -260,7 +260,7 @@ export function Footer() {
             <div className="flex items-center gap-6">
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-xs text-white/20"
+                className="text-xs text-cb-text-faint"
               >
                 Made with precision
               </span>
@@ -268,7 +268,7 @@ export function Footer() {
                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-xs text-white/30"
+                  className="text-xs text-cb-text-muted"
                 >
                   All systems operational
                 </span>

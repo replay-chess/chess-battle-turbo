@@ -23,12 +23,12 @@ export default function EvalBar({ score, description, flipped = false }: EvalBar
     <div className="flex flex-col items-center w-5 sm:w-6 shrink-0 self-stretch">
       {/* The bar */}
       <div
-        className="relative w-full flex-1 rounded-sm overflow-hidden border border-white/10"
+        className="relative w-full flex-1 rounded-sm overflow-hidden border border-cb-border"
         title={description}
       >
         {/* Black portion (top) */}
         <div
-          className="absolute inset-x-0 top-0 bg-neutral-800 transition-all duration-500 ease-out"
+          className="absolute inset-x-0 top-0 bg-cb-surface transition-all duration-500 ease-out"
           style={{ height: `${100 - fillPct}%` }}
         />
         {/* White portion (bottom) */}
@@ -39,7 +39,7 @@ export default function EvalBar({ score, description, flipped = false }: EvalBar
       </div>
       {/* Score label */}
       <div
-        className="mt-1 text-[8px] sm:text-[9px] text-white/50 font-medium leading-none text-center whitespace-nowrap"
+        className="mt-1 text-[8px] sm:text-[9px] text-cb-text-secondary font-medium leading-none text-center whitespace-nowrap"
         style={{ fontFamily: "'Geist', sans-serif" }}
       >
         {displayValue}

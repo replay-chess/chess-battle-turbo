@@ -45,15 +45,15 @@ export const AgadmatorFeature = () => {
   }, [userPreferredMute]);
 
   return (
-    <section className="w-full py-12 sm:py-24 px-6 bg-black relative overflow-hidden">
+    <section className="w-full py-12 sm:py-24 px-6 bg-cb-bg relative overflow-hidden">
       {/* Subtle diagonal line pattern */}
       <div
         className="absolute inset-0 opacity-[0.015]"
         style={{
           backgroundImage: `repeating-linear-gradient(
             45deg,
-            white,
-            white 1px,
+            var(--cb-grid-line),
+            var(--cb-grid-line) 1px,
             transparent 1px,
             transparent 60px
           )`,
@@ -70,26 +70,26 @@ export const AgadmatorFeature = () => {
           className="text-center mb-8 sm:mb-16"
         >
           <div className="flex items-center justify-center gap-4 mb-6">
-            <div className="h-px w-16 bg-white/20" />
+            <div className="h-px w-16 bg-cb-border-strong" />
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+              className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
             >
               Featured Content
             </span>
-            <div className="h-px w-16 bg-white/20" />
+            <div className="h-px w-16 bg-cb-border-strong" />
           </div>
 
           <h2
             style={{ fontFamily: "'Instrument Serif', serif" }}
-            className="text-4xl sm:text-5xl md:text-6xl text-white mb-4"
+            className="text-4xl sm:text-5xl md:text-6xl text-cb-text mb-4"
           >
             Challenge Yourself with Agadmator's Legendary Chess Puzzles
           </h2>
 
           <p
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/40 text-lg max-w-2xl mx-auto"
+            className="text-cb-text-muted text-lg max-w-2xl mx-auto"
           >
             Play iconic moments from Agadmator's legendary chess channel
           </p>
@@ -105,10 +105,10 @@ export const AgadmatorFeature = () => {
             className="relative"
           >
             {/* Decorative frame */}
-            <div className="absolute -inset-4 border border-white/5" />
-            <div className="absolute -inset-8 border border-white/[0.02]" />
+            <div className="absolute -inset-4 border border-cb-border" />
+            <div className="absolute -inset-8 border border-cb-border" />
 
-            <div className="relative border border-white/10 bg-black">
+            <div className="relative border border-cb-border bg-cb-bg">
               {/* Video Preview */}
               <div className="aspect-video relative overflow-hidden group">
                 <video
@@ -125,20 +125,20 @@ export const AgadmatorFeature = () => {
                 </video>
 
                 {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-cb-gradient-from via-transparent to-transparent" />
 
                 {/* Text Overlay */}
                 <div className="absolute bottom-0 left-0 right-0 p-4 z-10 flex items-end justify-between">
                   <div>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white text-sm font-medium"
+                      className="text-cb-text text-sm font-medium"
                     >
                       Agadmator's Chess Channel
                     </p>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white/50 text-xs mt-1"
+                      className="text-cb-text-secondary text-xs mt-1"
                     >
                       #pause-the-video
                     </p>
@@ -151,8 +151,8 @@ export const AgadmatorFeature = () => {
                       "w-10 h-10 flex items-center justify-center",
                       "border transition-all duration-300",
                       isMuted
-                        ? "border-white/20 hover:border-white/40"
-                        : "border-white bg-white"
+                        ? "border-cb-border-strong hover:border-cb-border-strong"
+                        : "border-cb-accent bg-cb-accent"
                     )}
                     aria-label={isMuted ? "Unmute video" : "Mute video"}
                   >
@@ -163,7 +163,7 @@ export const AgadmatorFeature = () => {
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="1.5"
-                        className="w-4 h-4 text-white"
+                        className="w-4 h-4 text-cb-text"
                       >
                         <path d="M11 5L6 9H2v6h4l5 4V5z" />
                         <line x1="23" y1="9" x2="17" y2="15" />
@@ -176,7 +176,7 @@ export const AgadmatorFeature = () => {
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="1.5"
-                        className="w-4 h-4 text-black"
+                        className="w-4 h-4 text-cb-accent-fg"
                       >
                         <path d="M11 5L6 9H2v6h4l5 4V5z" />
                         <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
@@ -188,7 +188,7 @@ export const AgadmatorFeature = () => {
               </div>
 
               {/* Stats Bar */}
-              <div className="grid grid-cols-3 border-t border-white/10">
+              <div className="grid grid-cols-3 border-t border-cb-border">
                 {[
                   { label: "Videos", value: "4000+" },
                   { label: "Positions", value: "6000+" },
@@ -198,18 +198,18 @@ export const AgadmatorFeature = () => {
                     key={index}
                     className={cn(
                       "text-center py-4",
-                      index !== 2 && "border-r border-white/10"
+                      index !== 2 && "border-r border-cb-border"
                     )}
                   >
                     <p
                       style={{ fontFamily: "'Instrument Serif', serif" }}
-                      className="text-xl text-white"
+                      className="text-xl text-cb-text"
                     >
                       {stat.value}
                     </p>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-[10px] tracking-[0.2em] uppercase text-white/30 mt-1"
+                      className="text-[10px] tracking-[0.2em] uppercase text-cb-text-muted mt-1"
                     >
                       {stat.label}
                     </p>
@@ -228,16 +228,16 @@ export const AgadmatorFeature = () => {
             className="space-y-8"
           >
             {/* Quote */}
-            <div className="border-l-2 border-white/20 pl-6">
+            <div className="border-l-2 border-cb-border-strong pl-6">
               <p
                 style={{ fontFamily: "'Instrument Serif', serif" }}
-                className="text-2xl sm:text-3xl text-white leading-relaxed italic"
+                className="text-2xl sm:text-3xl text-cb-text leading-relaxed italic"
               >
                 "Pause the video and try to find the best move"
               </p>
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-sm mt-4"
+                className="text-cb-text-muted text-sm mt-4"
               >
                 — Every Agadmator video
               </p>
@@ -246,7 +246,7 @@ export const AgadmatorFeature = () => {
             {/* Description */}
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/50 leading-relaxed"
+              className="text-cb-text-secondary leading-relaxed"
             >
               Love Agadmator's legendary chess content? Now you can play all the
               iconic "pause the video" moments from his channel with your
@@ -269,17 +269,17 @@ export const AgadmatorFeature = () => {
                   transition={{ duration: 0.4, delay: index * 0.1 }}
                   className="flex items-center gap-4 group"
                 >
-                  <div className="w-8 h-8 border border-white/10 flex items-center justify-center group-hover:bg-white group-hover:border-white transition-all duration-300">
+                  <div className="w-8 h-8 border border-cb-border flex items-center justify-center group-hover:bg-cb-accent group-hover:border-cb-accent transition-all duration-300">
                     <span
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-xs text-white/40 group-hover:text-black transition-colors"
+                      className="text-xs text-cb-text-muted group-hover:text-cb-accent-fg transition-colors"
                     >
                       {String(index + 1).padStart(2, "0")}
                     </span>
                   </div>
                   <span
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/70 group-hover:text-white transition-colors"
+                    className="text-cb-text-secondary group-hover:text-cb-text transition-colors"
                   >
                     {feature}
                   </span>
@@ -288,20 +288,20 @@ export const AgadmatorFeature = () => {
             </div>
 
             {/* Channel Badge */}
-            <div className="flex items-center gap-4 pt-6 border-t border-white/10">
-              <div className="w-12 h-12 bg-white flex items-center justify-center">
-                <span className="text-2xl text-black">♔</span>
+            <div className="flex items-center gap-4 pt-6 border-t border-cb-border">
+              <div className="w-12 h-12 bg-cb-surface border border-cb-border-strong flex items-center justify-center">
+                <span className="text-2xl text-cb-text">♔</span>
               </div>
               <div>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="font-medium text-white"
+                  className="font-medium text-cb-text"
                 >
                   Agadmator
                 </p>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-sm text-white/40"
+                  className="text-sm text-cb-text-muted"
                 >
                   World's Most Popular Chess Channel
                 </p>

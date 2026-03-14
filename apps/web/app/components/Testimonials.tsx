@@ -26,12 +26,12 @@ const testimonials = [
 
 export const Testimonials = () => {
   return (
-    <section className="w-full py-12 sm:py-24 px-6 bg-black relative">
+    <section className="w-full py-12 sm:py-24 px-6 bg-cb-bg relative">
       {/* Subtle grid background */}
       <div
         className="absolute inset-0 opacity-[0.02]"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -46,33 +46,33 @@ export const Testimonials = () => {
           className="text-center mb-10 sm:mb-20"
         >
           <div className="flex items-center justify-center gap-4 mb-6">
-            <div className="h-px w-16 bg-white/20" />
+            <div className="h-px w-16 bg-cb-border-strong" />
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+              className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
             >
               What Players Say
             </span>
-            <div className="h-px w-16 bg-white/20" />
+            <div className="h-px w-16 bg-cb-border-strong" />
           </div>
 
           <h2
             style={{ fontFamily: "'Instrument Serif', serif" }}
-            className="text-4xl sm:text-5xl md:text-6xl text-white mb-4"
+            className="text-4xl sm:text-5xl md:text-6xl text-cb-text mb-4"
           >
             Loved by Chess Players
           </h2>
 
           <p
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/40 text-lg max-w-xl mx-auto"
+            className="text-cb-text-muted text-lg max-w-xl mx-auto"
           >
             See what players are saying on X
           </p>
         </motion.div>
 
         {/* Testimonials Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-cb-border">
           {testimonials.map((testimonial, index) => (
             <motion.a
               key={index}
@@ -84,8 +84,8 @@ export const Testimonials = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
               className={cn(
-                "group relative bg-black p-8 block",
-                "hover:bg-white transition-colors duration-500"
+                "group relative bg-cb-bg p-8 block",
+                "hover:bg-cb-accent transition-colors duration-500"
               )}
             >
               {/* X icon */}
@@ -93,7 +93,7 @@ export const Testimonials = () => {
                 <svg
                   className={cn(
                     "w-5 h-5",
-                    "text-white/40 group-hover:text-black/60",
+                    "text-cb-text-muted group-hover:text-cb-accent-fg/60",
                     "transition-colors duration-500"
                   )}
                   fill="currentColor"
@@ -108,7 +108,7 @@ export const Testimonials = () => {
                 style={{ fontFamily: "'Geist', sans-serif" }}
                 className={cn(
                   "text-sm leading-relaxed mb-8",
-                  "text-white/50 group-hover:text-black/60",
+                  "text-cb-text-secondary group-hover:text-cb-accent-fg/60",
                   "transition-colors duration-500"
                 )}
               >
@@ -120,7 +120,7 @@ export const Testimonials = () => {
                 <div
                   className={cn(
                     "w-10 h-10 flex items-center justify-center",
-                    "border border-white/10 group-hover:border-black/10",
+                    "border border-cb-border group-hover:border-cb-accent-fg/10",
                     "transition-colors duration-500"
                   )}
                 >
@@ -128,7 +128,7 @@ export const Testimonials = () => {
                     style={{ fontFamily: "'Instrument Serif', serif" }}
                     className={cn(
                       "text-lg",
-                      "text-white/40 group-hover:text-black/40",
+                      "text-cb-text-muted group-hover:text-cb-accent-fg/40",
                       "transition-colors duration-500"
                     )}
                   >
@@ -140,7 +140,7 @@ export const Testimonials = () => {
                     style={{ fontFamily: "'Geist', sans-serif" }}
                     className={cn(
                       "text-sm font-medium",
-                      "text-white group-hover:text-black",
+                      "text-cb-text group-hover:text-cb-accent-fg",
                       "transition-colors duration-500"
                     )}
                   >
@@ -150,7 +150,7 @@ export const Testimonials = () => {
                     style={{ fontFamily: "'Geist', sans-serif" }}
                     className={cn(
                       "text-[10px] tracking-[0.2em] uppercase",
-                      "text-white/30 group-hover:text-black/40",
+                      "text-cb-text-muted group-hover:text-cb-accent-fg/40",
                       "transition-colors duration-500"
                     )}
                   >
@@ -164,7 +164,7 @@ export const Testimonials = () => {
                 className={cn(
                   "absolute top-4 right-4 w-8 h-8",
                   "border-t border-r",
-                  "border-white/10 group-hover:border-black/10",
+                  "border-cb-border group-hover:border-cb-accent-fg/10",
                   "transition-colors duration-500"
                 )}
               />

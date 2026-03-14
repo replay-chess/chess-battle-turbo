@@ -118,7 +118,7 @@ export function TwitterShareBanner({
     <AnimatePresence>
       {visible && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-cb-backdrop backdrop-blur-sm p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -126,7 +126,7 @@ export function TwitterShareBanner({
           onClick={handleDismiss}
         >
           <motion.div
-            className="bg-neutral-900 border border-white/10 w-full max-w-sm relative overflow-hidden"
+            className="bg-cb-surface border border-cb-border w-full max-w-sm relative overflow-hidden"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -134,15 +134,15 @@ export function TwitterShareBanner({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Corner accents */}
-            <div className="absolute top-3 left-3 w-6 h-6 border-l border-t border-white/15" />
-            <div className="absolute top-3 right-3 w-6 h-6 border-r border-t border-white/15" />
-            <div className="absolute bottom-3 left-3 w-6 h-6 border-l border-b border-white/15" />
-            <div className="absolute bottom-3 right-3 w-6 h-6 border-r border-b border-white/15" />
+            <div className="absolute top-3 left-3 w-6 h-6 border-l border-t border-cb-border" />
+            <div className="absolute top-3 right-3 w-6 h-6 border-r border-t border-cb-border" />
+            <div className="absolute bottom-3 left-3 w-6 h-6 border-l border-b border-cb-border" />
+            <div className="absolute bottom-3 right-3 w-6 h-6 border-r border-b border-cb-border" />
 
             {/* Dismiss */}
             <button
               onClick={handleDismiss}
-              className="absolute top-4 right-4 z-10 text-white/30 hover:text-white/60 transition-colors"
+              className="absolute top-4 right-4 z-10 text-cb-text-muted hover:text-cb-text-secondary transition-colors"
               aria-label="Dismiss"
             >
               <X className="w-4 h-4" />
@@ -154,9 +154,9 @@ export function TwitterShareBanner({
                 initial={{ scale: 0, rotate: -20 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: "spring", damping: 12, stiffness: 200, delay: 0.2 }}
-                className="mx-auto mb-5 w-14 h-14 flex items-center justify-center border border-white/10 bg-white/5"
+                className="mx-auto mb-5 w-14 h-14 flex items-center justify-center border border-cb-border bg-cb-hover"
               >
-                <Trophy className="w-7 h-7 text-white/60" strokeWidth={1.5} />
+                <Trophy className="w-7 h-7 text-cb-text-secondary" strokeWidth={1.5} />
               </motion.div>
 
               {/* Heading */}
@@ -166,39 +166,39 @@ export function TwitterShareBanner({
                 transition={{ delay: 0.3, duration: 0.4 }}
               >
                 <div className="flex items-center justify-center gap-3 mb-3">
-                  <div className="h-px w-10 bg-gradient-to-r from-transparent to-white/30" />
+                  <div className="h-px w-10 bg-gradient-to-r from-transparent to-cb-text-muted" />
                   <span
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+                    className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
                   >
                     Milestone
                   </span>
-                  <div className="h-px w-10 bg-gradient-to-l from-transparent to-white/30" />
+                  <div className="h-px w-10 bg-gradient-to-l from-transparent to-cb-text-muted" />
                 </div>
 
                 <h2
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-2xl sm:text-3xl text-white mb-2"
+                  className="text-2xl sm:text-3xl text-cb-text mb-2"
                 >
                   You&apos;re on a Roll!
                 </h2>
 
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/40 text-sm leading-relaxed mb-1"
+                  className="text-cb-text-muted text-sm leading-relaxed mb-1"
                 >
                   You just played through
                 </p>
                 <p
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-white/60 text-base italic mb-6"
+                  className="text-cb-text-secondary text-base italic mb-6"
                 >
                   {subtitle}
                 </p>
 
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/50 text-xs leading-relaxed"
+                  className="text-cb-text-secondary text-xs leading-relaxed"
                 >
                   Spread the word and let your friends discover legendary chess games too.
                 </p>
@@ -215,13 +215,13 @@ export function TwitterShareBanner({
                 <button
                   onClick={handleShare}
                   className={cn(
-                    "w-full group relative overflow-hidden bg-white text-black h-11 transition-all duration-300"
+                    "w-full group relative overflow-hidden bg-cb-accent text-cb-accent-fg h-11 transition-all duration-300"
                   )}
                 >
-                  <div className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
+                  <div className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
                   <div className="relative z-10 flex items-center justify-center gap-2.5">
                     <svg
-                      className="w-4 h-4 group-hover:text-white transition-colors"
+                      className="w-4 h-4 group-hover:text-cb-text transition-colors"
                       fill="currentColor"
                       viewBox="0 0 24 24"
                     >
@@ -229,7 +229,7 @@ export function TwitterShareBanner({
                     </svg>
                     <span
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-xs tracking-[0.15em] font-semibold group-hover:text-white transition-colors"
+                      className="text-xs tracking-[0.15em] font-semibold group-hover:text-cb-text transition-colors"
                     >
                       SHARE ON X
                     </span>
@@ -240,8 +240,8 @@ export function TwitterShareBanner({
                 <button
                   onClick={handleMaybeLater}
                   className={cn(
-                    "w-full h-11 border border-white/10 hover:border-white/20",
-                    "text-white/40 hover:text-white/70",
+                    "w-full h-11 border border-cb-border hover:border-cb-border-strong",
+                    "text-cb-text-muted hover:text-cb-text-secondary",
                     "transition-all duration-200"
                   )}
                 >

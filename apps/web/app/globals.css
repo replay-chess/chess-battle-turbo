@@ -93,12 +93,72 @@ button,
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  /* Chess Battle theme tokens */
+  --color-cb-bg: var(--cb-bg);
+  --color-cb-bg-pure: var(--cb-bg-pure);
+  --color-cb-surface: var(--cb-surface);
+  --color-cb-surface-elevated: var(--cb-surface-elevated);
+  --color-cb-text: var(--cb-text);
+  --color-cb-text-secondary: var(--cb-text-secondary);
+  --color-cb-text-muted: var(--cb-text-muted);
+  --color-cb-text-faint: var(--cb-text-faint);
+  --color-cb-border: var(--cb-border);
+  --color-cb-border-strong: var(--cb-border-strong);
+  --color-cb-accent: var(--cb-accent);
+  --color-cb-accent-fg: var(--cb-accent-fg);
+  --color-cb-hover: var(--cb-hover);
+  --color-cb-backdrop: var(--cb-backdrop);
+  --color-cb-grid-line: var(--cb-grid-line);
+  --color-cb-gradient-from: var(--cb-gradient-from);
+  /* Theme-adaptive accent colors — darker in light mode for contrast */
+  --color-emerald-400: var(--cb-emerald-400);
+  --color-emerald-500: var(--cb-emerald-500);
+  --color-green-400: var(--cb-green-400);
+  --color-green-500: var(--cb-green-500);
+  --color-blue-400: var(--cb-blue-400);
+  --color-blue-500: var(--cb-blue-500);
+  --color-sky-300: var(--cb-sky-300);
+  --color-sky-400: var(--cb-sky-400);
+  --color-sky-500: var(--cb-sky-500);
+  --color-amber-200: var(--cb-amber-200);
+  --color-amber-400: var(--cb-amber-400);
+  --color-amber-500: var(--cb-amber-500);
 }
 
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
+  /* Chess Battle light theme */
+  --cb-bg: #FAF9F6;
+  --cb-bg-pure: #FFFFFF;
+  --cb-surface: #FFFFFF;
+  --cb-surface-elevated: #F5F3F0;
+  --cb-text: #1A1A1A;
+  --cb-text-secondary: rgba(0,0,0,0.55);
+  --cb-text-muted: rgba(0,0,0,0.35);
+  --cb-text-faint: rgba(0,0,0,0.15);
+  --cb-border: rgba(0,0,0,0.08);
+  --cb-border-strong: rgba(0,0,0,0.15);
+  --cb-accent: #3D3229;
+  --cb-accent-fg: #FFFFFF;
+  --cb-hover: rgba(0,0,0,0.04);
+  --cb-backdrop: rgba(250,249,246,0.85);
+  --cb-grid-line: rgba(0,0,0,0.03);
+  --cb-gradient-from: #FAF9F6;
+  /* Darker accent colors for light backgrounds */
+  --cb-emerald-400: #059669;
+  --cb-emerald-500: #047857;
+  --cb-green-400: #16a34a;
+  --cb-green-500: #15803d;
+  --cb-blue-400: #2563eb;
+  --cb-blue-500: #1d4ed8;
+  --cb-sky-300: #0369a1;
+  --cb-sky-400: #0284c7;
+  --cb-sky-500: #0369a1;
+  --cb-amber-200: #b45309;
+  --cb-amber-400: #d97706;
+  --cb-amber-500: #b45309;
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
@@ -133,6 +193,36 @@ button,
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
+  /* Chess Battle dark theme */
+  --cb-bg: #000000;
+  --cb-bg-pure: #000000;
+  --cb-surface: #0A0A0A;
+  --cb-surface-elevated: rgba(255,255,255,0.03);
+  --cb-text: #FFFFFF;
+  --cb-text-secondary: rgba(255,255,255,0.5);
+  --cb-text-muted: rgba(255,255,255,0.3);
+  --cb-text-faint: rgba(255,255,255,0.1);
+  --cb-border: rgba(255,255,255,0.1);
+  --cb-border-strong: rgba(255,255,255,0.2);
+  --cb-accent: #FFFFFF;
+  --cb-accent-fg: #000000;
+  --cb-hover: rgba(255,255,255,0.05);
+  --cb-backdrop: rgba(0,0,0,0.85);
+  --cb-grid-line: rgba(255,255,255,0.015);
+  --cb-gradient-from: #000000;
+  /* Original Tailwind accent colors for dark backgrounds */
+  --cb-emerald-400: #34d399;
+  --cb-emerald-500: #10b981;
+  --cb-green-400: #4ade80;
+  --cb-green-500: #22c55e;
+  --cb-blue-400: #60a5fa;
+  --cb-blue-500: #3b82f6;
+  --cb-sky-300: #7dd3fc;
+  --cb-sky-400: #38bdf8;
+  --cb-sky-500: #0ea5e9;
+  --cb-amber-200: #fde68a;
+  --cb-amber-400: #fbbf24;
+  --cb-amber-500: #f59e0b;
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);

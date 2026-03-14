@@ -126,7 +126,7 @@ export default function SearchableDropdown<T>({
         {[...Array(3)].map((_, i) => (
           <div
             key={i}
-            className="h-10 bg-white/5 border border-white/10 animate-pulse"
+            className="h-10 bg-cb-hover border border-cb-border animate-pulse"
             style={{ animationDelay: `${i * 150}ms` }}
           />
         ))}
@@ -151,12 +151,12 @@ export default function SearchableDropdown<T>({
           className={cn(
             "w-full flex items-center gap-3 p-3 border transition-all duration-300 text-left group cursor-pointer",
             selectedItem
-              ? "border-white/30 bg-white/5"
-              : "border-white/10 hover:border-white/30"
+              ? "border-cb-border-strong bg-cb-hover"
+              : "border-cb-border hover:border-cb-border-strong"
           )}
         >
           <Search
-            className="w-3.5 h-3.5 text-white/30 group-hover:text-white/50 transition-colors shrink-0"
+            className="w-3.5 h-3.5 text-cb-text-muted group-hover:text-cb-text-secondary transition-colors shrink-0"
             strokeWidth={1.5}
           />
           {selectedItem ? (
@@ -165,27 +165,27 @@ export default function SearchableDropdown<T>({
                 {getSubLabel && (
                   <span
                     style={geistFont}
-                    className="text-[10px] tracking-wider text-white/40 bg-white/10 px-1.5 py-0.5 uppercase shrink-0"
+                    className="text-[10px] tracking-wider text-cb-text-muted bg-cb-surface-elevated px-1.5 py-0.5 uppercase shrink-0"
                   >
                     {getSubLabel(selectedItem)}
                   </span>
                 )}
                 <span
                   style={geistFont}
-                  className="text-sm text-white truncate"
+                  className="text-sm text-cb-text truncate"
                 >
                   {getLabel(selectedItem)}
                 </span>
               </div>
               <button
                 onClick={handleClear}
-                className="p-1 text-white/30 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+                className="p-1 text-cb-text-muted hover:text-cb-text hover:bg-cb-surface-elevated transition-colors shrink-0"
               >
                 <X className="w-3.5 h-3.5" strokeWidth={1.5} />
               </button>
             </div>
           ) : (
-            <span style={geistFont} className="text-sm text-white/30">
+            <span style={geistFont} className="text-sm text-cb-text-muted">
               {placeholder}
             </span>
           )}
@@ -203,9 +203,9 @@ export default function SearchableDropdown<T>({
             className="overflow-hidden"
           >
             {/* Search input */}
-            <div className="relative border border-white/30 bg-white/5">
+            <div className="relative border border-cb-border-strong bg-cb-hover">
               <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-cb-text-muted"
                 strokeWidth={1.5}
               />
               <input
@@ -216,12 +216,12 @@ export default function SearchableDropdown<T>({
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
                 style={geistFont}
-                className="w-full bg-transparent text-white text-sm pl-9 pr-8 py-3 outline-none placeholder:text-white/30"
+                className="w-full bg-transparent text-cb-text text-sm pl-9 pr-8 py-3 outline-none placeholder:text-cb-text-muted"
               />
               {query && (
                 <button
                   onClick={() => setQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-white/30 hover:text-white transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-cb-text-muted hover:text-cb-text transition-colors"
                 >
                   <X className="w-3 h-3" strokeWidth={1.5} />
                 </button>
@@ -231,11 +231,11 @@ export default function SearchableDropdown<T>({
             {/* Results list */}
             <div
               ref={listRef}
-              className="max-h-60 overflow-y-auto border border-t-0 border-white/10 custom-scrollbar"
+              className="max-h-60 overflow-y-auto border border-t-0 border-cb-border custom-scrollbar"
             >
               {filtered.length === 0 ? (
                 <div className="flex items-center justify-center py-8">
-                  <p style={geistFont} className="text-white/30 text-xs tracking-[0.2em] uppercase">
+                  <p style={geistFont} className="text-cb-text-muted text-xs tracking-[0.2em] uppercase">
                     No results found
                   </p>
                 </div>
@@ -252,8 +252,8 @@ export default function SearchableDropdown<T>({
                         onClick={() => handleSelect(id)}
                         className={cn(
                           "cursor-pointer transition-colors duration-150",
-                          isHighlighted && "bg-white/10",
-                          isSelected && "bg-white/5"
+                          isHighlighted && "bg-cb-surface-elevated",
+                          isSelected && "bg-cb-hover"
                         )}
                       >
                         {renderItem(item, isSelected)}
@@ -268,10 +268,10 @@ export default function SearchableDropdown<T>({
                       className={cn(
                         "w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors duration-150",
                         isHighlighted
-                          ? "bg-white text-black"
+                          ? "bg-cb-accent text-cb-accent-fg"
                           : isSelected
-                            ? "bg-white/10 text-white"
-                            : "text-white/70 hover:bg-white/5 hover:text-white"
+                            ? "bg-cb-surface-elevated text-cb-text"
+                            : "text-cb-text-secondary hover:bg-cb-hover hover:text-cb-text"
                       )}
                     >
                       {getSubLabel && (
@@ -280,8 +280,8 @@ export default function SearchableDropdown<T>({
                           className={cn(
                             "text-[10px] tracking-wider px-1.5 py-0.5 uppercase shrink-0 border",
                             isHighlighted
-                              ? "text-black/60 bg-black/5 border-black/20"
-                              : "text-white/40 bg-white/5 border-white/10"
+                              ? "text-cb-accent-fg/60 bg-cb-accent-fg/5 border-cb-accent-fg/20"
+                              : "text-cb-text-muted bg-cb-hover border-cb-border"
                           )}
                         >
                           {getSubLabel(item)}
@@ -291,7 +291,7 @@ export default function SearchableDropdown<T>({
                         style={geistFont}
                         className={cn(
                           "text-xs truncate",
-                          isHighlighted ? "text-black font-medium" : ""
+                          isHighlighted ? "text-cb-accent-fg font-medium" : ""
                         )}
                       >
                         {getLabel(item)}

@@ -163,16 +163,16 @@ export function PositionPageClient({
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black flex items-center justify-center pt-16 md:pt-24">
+        <div className="min-h-screen bg-cb-bg flex items-center justify-center pt-16 md:pt-24">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="flex flex-col items-center gap-4"
           >
-            <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            <div className="w-12 h-12 border-2 border-cb-border-strong border-t-cb-text rounded-full animate-spin" />
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-sm tracking-wide"
+              className="text-cb-text-muted text-sm tracking-wide"
             >
               Loading position...
             </p>
@@ -186,31 +186,31 @@ export function PositionPageClient({
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black flex items-center justify-center pt-16 md:pt-24 p-4 relative">
+        <div className="min-h-screen bg-cb-bg flex items-center justify-center pt-16 md:pt-24 p-4 relative">
           <div
             className="absolute inset-0 opacity-[0.015]"
             style={{
-              backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+              backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
               backgroundSize: "60px 60px",
             }}
           />
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative z-10 border border-white/10 p-8 max-w-md text-center"
+            className="relative z-10 border border-cb-border p-8 max-w-md text-center"
           >
-            <div className="w-16 h-16 border border-white/20 flex items-center justify-center mx-auto mb-6">
-              <span className="text-2xl text-white/40">&times;</span>
+            <div className="w-16 h-16 border border-cb-border-strong flex items-center justify-center mx-auto mb-6">
+              <span className="text-2xl text-cb-text-muted">&times;</span>
             </div>
             <h2
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-2xl text-white mb-3"
+              className="text-2xl text-cb-text mb-3"
             >
               Position Not Found
             </h2>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 mb-8"
+              className="text-cb-text-muted mb-8"
             >
               {error || "This position doesn't exist or is no longer available."}
             </p>
@@ -218,13 +218,13 @@ export function PositionPageClient({
               onClick={() => router.push("/play")}
               className={cn(
                 "group relative w-full flex items-center justify-center gap-2 px-8 py-4",
-                "bg-white text-black",
+                "bg-cb-accent text-cb-accent-fg",
                 "transition-all duration-300 overflow-hidden"
               )}
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
-              <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-              <span className="relative z-10 font-medium group-hover:text-white transition-colors duration-300">
+              <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+              <span className="relative z-10 font-medium group-hover:text-cb-text transition-colors duration-300">
                 Go to Play
               </span>
             </button>
@@ -240,16 +240,16 @@ export function PositionPageClient({
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black flex flex-col lg:flex-row pt-16 sm:pt-18 md:pt-24 relative overflow-hidden">
+      <div className="min-h-screen bg-cb-bg flex flex-col lg:flex-row pt-16 sm:pt-18 md:pt-24 relative overflow-hidden">
         {/* Diagonal gradient — matches play page */}
         <div
           className="absolute inset-0 opacity-60"
           style={{
             background: `linear-gradient(135deg,
-              rgba(255,255,255,0.03) 0%,
+              var(--cb-surface-elevated) 0%,
               transparent 40%,
               transparent 60%,
-              rgba(255,255,255,0.02) 100%
+              var(--cb-surface-elevated) 100%
             )`,
           }}
         />
@@ -269,14 +269,14 @@ export function PositionPageClient({
               transition={{ delay: 0.2 }}
               className="flex items-center gap-3 mb-4 lg:mb-6"
             >
-              <div className="h-px flex-1 bg-gradient-to-r from-white/30 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-r from-cb-text-muted to-transparent" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-secondary text-[10px] tracking-[0.4em] uppercase"
               >
                 {position.type === "opening" ? "Opening" : "Shared Position"}
               </span>
-              <div className="h-px flex-1 bg-gradient-to-l from-white/30 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-l from-cb-text-muted to-transparent" />
             </motion.div>
 
             {/* Position metadata */}
@@ -290,14 +290,14 @@ export function PositionPageClient({
                 <div>
                   <h1
                     style={{ fontFamily: "'Instrument Serif', serif" }}
-                    className="text-3xl sm:text-4xl text-white mb-2"
+                    className="text-3xl sm:text-4xl text-cb-text mb-2"
                   >
                     {position.name}
                   </h1>
                   {position.eco && (
                     <p
                       style={{ fontFamily: "'Geist Mono', monospace" }}
-                      className="text-white/40 text-sm"
+                      className="text-cb-text-muted text-sm"
                     >
                       {position.eco}
                     </p>
@@ -308,30 +308,30 @@ export function PositionPageClient({
                   {position.whitePlayerName && position.blackPlayerName ? (
                     <h1
                       style={{ fontFamily: "'Instrument Serif', serif" }}
-                      className="text-3xl sm:text-4xl text-white mb-2"
+                      className="text-3xl sm:text-4xl text-cb-text mb-2"
                     >
                       {position.whitePlayerName}
-                      <span className="text-white/30 mx-2 text-2xl">vs</span>
+                      <span className="text-cb-text-muted mx-2 text-2xl">vs</span>
                       {position.blackPlayerName}
                     </h1>
                   ) : (
                     <h1
                       style={{ fontFamily: "'Instrument Serif', serif" }}
-                      className="text-3xl sm:text-4xl text-white mb-2"
+                      className="text-3xl sm:text-4xl text-cb-text mb-2"
                     >
                       Shared Position
                     </h1>
                   )}
                   {position.tournamentName && (
                     <div className="flex items-center gap-3 mt-3">
-                      <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/30" />
+                      <div className="h-px flex-1 bg-gradient-to-r from-transparent to-cb-text-muted" />
                       <span
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+                        className="text-cb-text-secondary text-[10px] tracking-[0.4em] uppercase"
                       >
                         {position.tournamentName}
                       </span>
-                      <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/30" />
+                      <div className="h-px flex-1 bg-gradient-to-l from-transparent to-cb-text-muted" />
                     </div>
                   )}
                 </div>
@@ -374,16 +374,16 @@ export function PositionPageClient({
                 />
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/50 text-xs tracking-wider uppercase"
+                  className="text-cb-text-secondary text-xs tracking-wider uppercase"
                 >
                   {boardOrientation === "w" ? "White" : "Black"} to move
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-white/30" strokeWidth={1.5} />
+                <Clock className="w-3.5 h-3.5 text-cb-text-muted" strokeWidth={1.5} />
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-xs text-white/40 uppercase tracking-wide"
+                  className="text-xs text-cb-text-muted uppercase tracking-wide"
                 >
                   Time Control
                 </span>
@@ -405,8 +405,8 @@ export function PositionPageClient({
                     className={cn(
                       "flex-1 py-3 text-sm border transition-all duration-200",
                       selectedTimePreset === i
-                        ? "border-white/40 text-white bg-white/10"
-                        : "border-white/10 text-white/40 hover:border-white/20 hover:text-white/60"
+                        ? "border-cb-border-strong text-cb-text bg-cb-surface-elevated"
+                        : "border-cb-border text-cb-text-muted hover:border-cb-border-strong hover:text-cb-text-secondary"
                     )}
                     style={{ fontFamily: "'Instrument Serif', serif" }}
                   >
@@ -417,7 +417,7 @@ export function PositionPageClient({
             </motion.div>
 
             {/* Action buttons — sticky on mobile */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06] lg:static lg:bg-transparent lg:p-0 lg:border-0 lg:backdrop-blur-none">
+            <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-cb-backdrop backdrop-blur-sm border-t border-cb-border lg:static lg:bg-transparent lg:p-0 lg:border-0 lg:backdrop-blur-none">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -430,15 +430,15 @@ export function PositionPageClient({
                 disabled={creatingAiGame || creatingFriendGame}
                 className={cn(
                   "group relative flex-1 lg:w-full flex items-center justify-center gap-2 px-3 py-3 lg:px-5",
-                  "bg-white text-black",
+                  "bg-cb-accent text-cb-accent-fg",
                   "transition-all duration-300 overflow-hidden",
                   "disabled:opacity-50 disabled:cursor-not-allowed"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
-                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                <Users className="relative z-10 w-4 h-4 group-hover:text-white transition-colors flex-shrink-0" strokeWidth={1.5} />
-                <span className="relative z-10 text-sm font-medium group-hover:text-white transition-colors duration-300">
+                <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                <Users className="relative z-10 w-4 h-4 group-hover:text-cb-text transition-colors flex-shrink-0" strokeWidth={1.5} />
+                <span className="relative z-10 text-sm font-medium group-hover:text-cb-text transition-colors duration-300">
                   {creatingFriendGame ? "Creating..." : <><span className="lg:hidden">vs Friend</span><span className="hidden lg:inline">Challenge a Friend</span></>}
                 </span>
               </button>
@@ -449,8 +449,8 @@ export function PositionPageClient({
                 disabled={creatingAiGame || creatingFriendGame}
                 className={cn(
                   "flex-1 lg:w-full flex items-center justify-center gap-2 px-3 py-3 lg:px-5",
-                  "border border-white/10 hover:border-white/30",
-                  "text-white/60 hover:text-white transition-all duration-300",
+                  "border border-cb-border hover:border-cb-border-strong",
+                  "text-cb-text-secondary hover:text-cb-text transition-all duration-300",
                   "disabled:opacity-50 disabled:cursor-not-allowed"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
@@ -466,7 +466,7 @@ export function PositionPageClient({
         {/* Right Side — Chess Board (desktop only) */}
         <div className="hidden lg:flex flex-1 items-center justify-center p-8 relative">
           {/* Subtle light source */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-cb-surface-elevated rounded-full blur-3xl" />
 
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -486,8 +486,8 @@ export function PositionPageClient({
         </div>
 
         {/* Decorative corner elements */}
-        <div className="absolute top-20 left-6 w-16 h-16 border-l border-t border-white/10" />
-        <div className="absolute bottom-6 right-6 w-16 h-16 border-r border-b border-white/10" />
+        <div className="absolute top-20 left-6 w-16 h-16 border-l border-t border-cb-border" />
+        <div className="absolute bottom-6 right-6 w-16 h-16 border-r border-b border-cb-border" />
       </div>
 
       {/* Share link modal for friend game */}

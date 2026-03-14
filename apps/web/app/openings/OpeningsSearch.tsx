@@ -27,7 +27,7 @@ export function OpeningsSearch() {
     <div className="max-w-md mx-auto mt-8">
       <div className="relative">
         <svg
-          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20"
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cb-text-faint"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -45,7 +45,7 @@ export function OpeningsSearch() {
           onChange={(e) => handleChange(e.target.value)}
           placeholder="Search by name, ECO code, or moves..."
           style={{ fontFamily: "'Geist', sans-serif" }}
-          className="w-full bg-transparent border border-white/[0.08] text-sm text-white/70 placeholder:text-white/20 pl-10 pr-4 py-2.5 focus:outline-none focus:border-white/20 transition-colors"
+          className="w-full bg-transparent border border-cb-border text-sm text-cb-text-secondary placeholder:text-cb-text-faint pl-10 pr-4 py-2.5 focus:outline-none focus:border-cb-border-strong transition-colors"
         />
       </div>
     </div>

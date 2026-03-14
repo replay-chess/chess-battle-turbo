@@ -8,6 +8,7 @@ import ChessBoard from "@/app/components/ChessBoard";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { ArrowRight, Crown } from "lucide-react";
+import { ThemeToggle } from "@/app/components/ThemeToggle";
 
 interface FeaturedPosition {
   referenceId: string;
@@ -37,17 +38,24 @@ export default function TryPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black text-white pt-16 sm:pt-20 md:pt-24 pb-12 relative">
+      <div className="min-h-screen bg-cb-bg text-cb-text pt-16 sm:pt-20 md:pt-24 pb-12 relative">
         {/* Ambient background glow */}
         <div
           className="fixed inset-0 pointer-events-none"
           style={{
             background:
-              "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(255,255,255,0.03) 0%, transparent 70%)",
+              "radial-gradient(ellipse 60% 40% at 50% 0%, var(--cb-hover) 0%, transparent 70%)",
           }}
         />
 
         <div className="relative max-w-6xl mx-auto px-4 sm:px-8">
+          {/* Theme Toggle */}
+          <div className="flex justify-end mb-4">
+            <div className="w-48">
+              <ThemeToggle />
+            </div>
+          </div>
+
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -59,25 +67,25 @@ export default function TryPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.1, duration: 0.4 }}
-              className="inline-flex items-center gap-2 border border-white/10 bg-white/[0.03] px-4 py-1.5 mb-6"
+              className="inline-flex items-center gap-2 border border-cb-border bg-cb-hover px-4 py-1.5 mb-6"
             >
-              <Crown className="w-3 h-3 text-white/40" />
+              <Crown className="w-3 h-3 text-cb-text-muted" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/50 text-[10px] tracking-[0.3em] uppercase"
+                className="text-cb-text-secondary text-[10px] tracking-[0.3em] uppercase"
               >
                 No Account Required
               </span>
             </motion.div>
             <h1
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-4xl sm:text-5xl md:text-6xl text-white mb-4"
+              className="text-4xl sm:text-5xl md:text-6xl text-cb-text mb-4"
             >
               Play Legendary Positions
             </h1>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/35 text-base sm:text-lg max-w-md mx-auto leading-relaxed"
+              className="text-cb-text-muted text-base sm:text-lg max-w-md mx-auto leading-relaxed"
             >
               Step into iconic moments from chess history.
               Challenge the bot — no sign-up needed.
@@ -87,7 +95,7 @@ export default function TryPage() {
           {/* Loading */}
           {loading && (
             <div className="flex justify-center py-20">
-              <div className="w-10 h-10 border border-white/20 border-t-white/60 rounded-full animate-spin" />
+              <div className="w-10 h-10 border border-cb-border-strong border-t-cb-text-secondary rounded-full animate-spin" />
             </div>
           )}
 
@@ -118,9 +126,9 @@ export default function TryPage() {
                     <Link href={`/try/${pos.referenceId}`}>
                       <div
                         className={cn(
-                          "group relative bg-zinc-950 border border-white/[0.06]",
-                          "hover:border-white/15 transition-all duration-500",
-                          "hover:bg-zinc-900/50"
+                          "group relative bg-cb-surface border border-cb-border",
+                          "hover:border-cb-border-strong transition-all duration-500",
+                          "hover:bg-cb-hover"
                         )}
                       >
                         {/* Board preview */}
@@ -140,14 +148,14 @@ export default function TryPage() {
                             <div className="min-w-0">
                               <h3
                                 style={{ fontFamily: "'Instrument Serif', serif" }}
-                                className="text-white text-lg leading-tight mb-1 truncate group-hover:text-white/90 transition-colors"
+                                className="text-cb-text text-lg leading-tight mb-1 truncate group-hover:text-cb-text-secondary transition-colors"
                               >
                                 {title}
                               </h3>
                               {pos.whitePlayerName && pos.blackPlayerName && (
                                 <p
                                   style={{ fontFamily: "'Geist', sans-serif" }}
-                                  className="text-white/30 text-xs truncate"
+                                  className="text-cb-text-muted text-xs truncate"
                                 >
                                   {pos.whitePlayerName} vs {pos.blackPlayerName}
                                 </p>
@@ -157,16 +165,16 @@ export default function TryPage() {
                               className={cn(
                                 "shrink-0 mt-1 flex items-center justify-center",
                                 "w-8 h-8 border transition-all duration-500",
-                                "border-white/[0.06] group-hover:border-white/15",
-                                "group-hover:bg-white/[0.04]"
+                                "border-cb-border group-hover:border-cb-border-strong",
+                                "group-hover:bg-cb-hover"
                               )}
                             >
-                              <ArrowRight className="w-3.5 h-3.5 text-white/25 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all duration-300" />
+                              <ArrowRight className="w-3.5 h-3.5 text-cb-text-faint group-hover:text-cb-text-secondary group-hover:translate-x-0.5 transition-all duration-300" />
                             </div>
                           </div>
 
                           {/* Side to move badge */}
-                          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.04]">
+                          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-cb-border">
                             <div
                               className={cn(
                                 "w-2.5 h-2.5 rounded-full",
@@ -177,7 +185,7 @@ export default function TryPage() {
                             />
                             <span
                               style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-white/25 text-[10px] tracking-[0.15em] uppercase"
+                              className="text-cb-text-faint text-[10px] tracking-[0.15em] uppercase"
                             >
                               {isBlack ? "Black" : "White"} to move
                             </span>
@@ -194,7 +202,7 @@ export default function TryPage() {
           {/* Empty state */}
           {!loading && positions.length === 0 && (
             <div className="text-center py-20">
-              <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40">
+              <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted">
                 No featured positions available right now.
               </p>
             </div>

@@ -20,7 +20,7 @@ export default function CareersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
       {/* Hero */}
@@ -35,20 +35,20 @@ export default function CareersPage() {
           <source src="/Kings_Gambit_Chess_Board_Animation.mp4" type="video/mp4" />
         </video>
 
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/50" />
+        <div className="absolute inset-0 bg-gradient-to-b from-cb-gradient-from via-transparent to-cb-gradient-from" />
+        <div className="absolute inset-0 bg-gradient-to-r from-cb-backdrop via-transparent to-cb-backdrop" />
 
         <div
           className="absolute inset-0 opacity-[0.02]"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: "80px 80px",
           }}
         />
 
         {/* Decorative corners */}
-        <div className="absolute top-20 left-8 w-32 h-32 border-l border-t border-white/10" />
-        <div className="absolute bottom-20 right-8 w-32 h-32 border-r border-b border-white/10" />
+        <div className="absolute top-20 left-8 w-32 h-32 border-l border-t border-cb-border" />
+        <div className="absolute bottom-20 right-8 w-32 h-32 border-r border-b border-cb-border" />
 
         <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4">
           <motion.div
@@ -57,14 +57,14 @@ export default function CareersPage() {
             transition={{ delay: 0.2 }}
             className="flex items-center gap-3 mb-8"
           >
-            <div className="h-px w-12 bg-white/30" />
+            <div className="h-px w-12 bg-cb-text-muted" />
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+              className="text-cb-text-secondary text-[10px] tracking-[0.4em] uppercase"
             >
               Careers
             </span>
-            <div className="h-px w-12 bg-white/30" />
+            <div className="h-px w-12 bg-cb-text-muted" />
           </motion.div>
 
           <motion.h1
@@ -72,11 +72,11 @@ export default function CareersPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             style={{ fontFamily: "'Instrument Serif', serif" }}
-            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl mb-6 text-white leading-[0.95]"
+            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl mb-6 text-cb-text leading-[0.95]"
           >
             Great Things
             <br />
-            <span className="text-white/40">Take Time</span>
+            <span className="text-cb-text-muted">Take Time</span>
           </motion.h1>
 
           <motion.p
@@ -84,7 +84,7 @@ export default function CareersPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-base sm:text-lg text-white/40 max-w-xl leading-relaxed"
+            className="text-base sm:text-lg text-cb-text-muted max-w-xl leading-relaxed"
           >
             We&apos;re not hiring right now — but that chapter is coming.
           </motion.p>
@@ -96,7 +96,7 @@ export default function CareersPage() {
         <div
           className="absolute inset-0 opacity-[0.015]"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
           }}
         />
@@ -110,10 +110,10 @@ export default function CareersPage() {
           >
             {/* Section label */}
             <div className="flex items-center gap-4">
-              <div className="h-px w-16 bg-white/20" />
+              <div className="h-px w-16 bg-cb-border-strong" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
               >
                 Where We Are Today
               </span>
@@ -121,17 +121,17 @@ export default function CareersPage() {
 
             <h2
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-3xl sm:text-4xl md:text-5xl text-white leading-[1.1]"
+              className="text-3xl sm:text-4xl md:text-5xl text-cb-text leading-[1.1]"
             >
               A company of one,
               <br />
-              <span className="text-white/35">building for thousands.</span>
+              <span className="text-cb-text-muted">building for thousands.</span>
             </h2>
 
             <div className="space-y-6">
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-base sm:text-lg text-white/45 leading-[1.8]"
+                className="text-base sm:text-lg text-cb-text-muted leading-[1.8]"
               >
                 ReplayChess is a solo venture right now — every line of code, every
                 pixel, every decision passes through a single pair of hands. That&apos;s
@@ -140,7 +140,7 @@ export default function CareersPage() {
               </p>
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-base sm:text-lg text-white/45 leading-[1.8]"
+                className="text-base sm:text-lg text-cb-text-muted leading-[1.8]"
               >
                 The best chess games are won by players who take their time in the
                 opening. We&apos;re still in that phase — setting up the pieces,
@@ -152,7 +152,7 @@ export default function CareersPage() {
       </section>
 
       {/* The Future */}
-      <section className="relative py-24 sm:py-36 px-6 border-t border-white/[0.06]">
+      <section className="relative py-24 sm:py-36 px-6 border-t border-cb-border">
         <div className="max-w-3xl mx-auto relative">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -163,10 +163,10 @@ export default function CareersPage() {
           >
             {/* Section label */}
             <div className="flex items-center gap-4">
-              <div className="h-px w-16 bg-white/20" />
+              <div className="h-px w-16 bg-cb-border-strong" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
               >
                 What&apos;s Ahead
               </span>
@@ -174,16 +174,16 @@ export default function CareersPage() {
 
             <h2
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-3xl sm:text-4xl md:text-5xl text-white leading-[1.1]"
+              className="text-3xl sm:text-4xl md:text-5xl text-cb-text leading-[1.1]"
             >
               When we scale,
               <br />
-              <span className="text-white/35">we&apos;ll need brilliant people.</span>
+              <span className="text-cb-text-muted">we&apos;ll need brilliant people.</span>
             </h2>
 
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-base sm:text-lg text-white/45 leading-[1.8]"
+              className="text-base sm:text-lg text-cb-text-muted leading-[1.8]"
             >
               As ReplayChess expands into new markets and the platform grows beyond
               what one person can carry, we&apos;ll be looking for people who care
@@ -192,7 +192,7 @@ export default function CareersPage() {
             </p>
 
             {/* Timeline hint */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-white/10">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-cb-surface-elevated">
               {[
                 {
                   number: "01",
@@ -216,23 +216,23 @@ export default function CareersPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: index * 0.12 }}
-                  className="bg-black p-7 group hover:bg-white/[0.03] transition-colors duration-500"
+                  className="bg-cb-bg p-7 group hover:bg-cb-hover transition-colors duration-500"
                 >
                   <span
                     style={{ fontFamily: "'Instrument Serif', serif" }}
-                    className="text-4xl font-light text-white/10 block mb-4"
+                    className="text-4xl font-light text-cb-text-faint block mb-4"
                   >
                     {step.number}
                   </span>
                   <h3
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-sm font-semibold text-white mb-2"
+                    className="text-sm font-semibold text-cb-text mb-2"
                   >
                     {step.title}
                   </h3>
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-sm text-white/35 leading-relaxed"
+                    className="text-sm text-cb-text-muted leading-relaxed"
                   >
                     {step.description}
                   </p>
@@ -244,18 +244,18 @@ export default function CareersPage() {
       </section>
 
       {/* Stay in the Loop — Email + Contact */}
-      <section className="relative py-24 sm:py-36 px-6 border-t border-white/[0.06]">
+      <section className="relative py-24 sm:py-36 px-6 border-t border-cb-border">
         <div
           className="absolute inset-0 opacity-[0.015]"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
           }}
         />
         <div className="max-w-2xl mx-auto text-center relative">
           {/* Decorative corners */}
-          <div className="absolute -top-10 -left-10 w-28 h-28 border-l border-t border-white/10 hidden sm:block" />
-          <div className="absolute -bottom-10 -right-10 w-28 h-28 border-r border-b border-white/10 hidden sm:block" />
+          <div className="absolute -top-10 -left-10 w-28 h-28 border-l border-t border-cb-border hidden sm:block" />
+          <div className="absolute -bottom-10 -right-10 w-28 h-28 border-r border-b border-cb-border hidden sm:block" />
 
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -265,26 +265,26 @@ export default function CareersPage() {
             className="space-y-6"
           >
             <div className="flex items-center justify-center gap-4 mb-2">
-              <div className="h-px w-12 bg-white/20" />
+              <div className="h-px w-12 bg-cb-border-strong" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
               >
                 Stay Tuned
               </span>
-              <div className="h-px w-12 bg-white/20" />
+              <div className="h-px w-12 bg-cb-border-strong" />
             </div>
 
             <h2
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-3xl sm:text-4xl md:text-5xl text-white"
+              className="text-3xl sm:text-4xl md:text-5xl text-cb-text"
             >
               Be the first to know
             </h2>
 
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-base text-white/40 leading-relaxed max-w-lg mx-auto"
+              className="text-base text-cb-text-muted leading-relaxed max-w-lg mx-auto"
             >
               Drop your email below and we&apos;ll reach out when we start hiring.
               No spam, no newsletters — just a heads-up when roles open.
@@ -304,26 +304,26 @@ export default function CareersPage() {
                   required
                   style={{ fontFamily: "'Geist', sans-serif" }}
                   className={cn(
-                    "flex-1 bg-white/[0.04] border border-white/10 px-4 py-3",
-                    "text-sm text-white placeholder:text-white/25",
-                    "outline-none focus:border-white/30 transition-colors duration-300"
+                    "flex-1 bg-cb-hover border border-cb-border px-4 py-3",
+                    "text-sm text-cb-text placeholder:text-cb-text-faint",
+                    "outline-none focus:border-cb-border-strong transition-colors duration-300"
                   )}
                 />
                 <button
                   type="submit"
                   className={cn(
                     "group relative overflow-hidden",
-                    "px-6 py-3 bg-white text-black",
+                    "px-6 py-3 bg-cb-accent text-cb-accent-fg",
                     "text-sm font-medium",
                     "transition-all duration-300 flex items-center justify-center gap-2"
                   )}
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
-                  <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                  <span className="relative group-hover:text-white transition-colors duration-300">
+                  <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                  <span className="relative group-hover:text-cb-text transition-colors duration-300">
                     Notify Me
                   </span>
-                  <ArrowRight className="relative w-3.5 h-3.5 group-hover:text-white transition-colors duration-300" />
+                  <ArrowRight className="relative w-3.5 h-3.5 group-hover:text-cb-text transition-colors duration-300" />
                 </button>
               </form>
             ) : (
@@ -343,32 +343,32 @@ export default function CareersPage() {
 
             {/* Divider */}
             <div className="flex items-center gap-4 pt-8">
-              <div className="h-px flex-1 bg-white/[0.06]" />
+              <div className="h-px flex-1 bg-cb-hover" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/20 text-[10px] tracking-[0.3em] uppercase"
+                className="text-cb-text-faint text-[10px] tracking-[0.3em] uppercase"
               >
                 or
               </span>
-              <div className="h-px flex-1 bg-white/[0.06]" />
+              <div className="h-px flex-1 bg-cb-hover" />
             </div>
 
             {/* Direct email */}
             <div className="pt-2">
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-sm text-white/30 mb-3"
+                className="text-sm text-cb-text-muted mb-3"
               >
                 Prefer to reach out directly? Write to us anytime.
               </p>
               <a
                 href="mailto:careers@playchess.tech"
-                className="inline-flex items-center gap-2 text-white/50 hover:text-white transition-colors duration-300 group"
+                className="inline-flex items-center gap-2 text-cb-text-secondary hover:text-cb-text transition-colors duration-300 group"
               >
                 <Mail className="w-4 h-4" strokeWidth={1.5} />
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-sm underline underline-offset-4 decoration-white/20 group-hover:decoration-white/50 transition-all duration-300"
+                  className="text-sm underline underline-offset-4 decoration-cb-border-strong group-hover:decoration-cb-text-secondary transition-all duration-300"
                 >
                   careers@playchess.tech
                 </span>

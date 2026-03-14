@@ -29,7 +29,7 @@ export const PromotionPopup = ({ isOpen, color, onSelect }: PromotionPopupProps)
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-cb-backdrop backdrop-blur-sm z-50"
           />
 
           {/* Popup */}
@@ -40,11 +40,11 @@ export const PromotionPopup = ({ isOpen, color, onSelect }: PromotionPopupProps)
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
           >
-            <div className="bg-black border border-white/10 p-6 pointer-events-auto">
+            <div className="bg-cb-bg border border-cb-border p-6 pointer-events-auto">
               {/* Header */}
               <h2
                 style={{ fontFamily: "'Instrument Serif', serif" }}
-                className="text-white text-xl text-center mb-4"
+                className="text-cb-text text-xl text-center mb-4"
               >
                 Promote Pawn
               </h2>
@@ -57,7 +57,7 @@ export const PromotionPopup = ({ isOpen, color, onSelect }: PromotionPopupProps)
                     onClick={() => onSelect(piece)}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="flex flex-col items-center gap-2 p-3 border border-white/10 hover:border-white/30 hover:bg-white/5 transition-colors"
+                    className="flex flex-col items-center gap-2 p-3 border border-cb-border hover:border-cb-border-strong hover:bg-cb-hover transition-colors"
                   >
                     <div className="w-12 h-12 sm:w-16 sm:h-16">
                       <Image
@@ -71,7 +71,7 @@ export const PromotionPopup = ({ isOpen, color, onSelect }: PromotionPopupProps)
                     </div>
                     <span
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white/60 text-xs uppercase tracking-wider"
+                      className="text-cb-text-secondary text-xs uppercase tracking-wider"
                     >
                       {name}
                     </span>
@@ -82,7 +82,7 @@ export const PromotionPopup = ({ isOpen, color, onSelect }: PromotionPopupProps)
               {/* Helper text */}
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/30 text-xs text-center mt-4"
+                className="text-cb-text-muted text-xs text-center mt-4"
               >
                 Select a piece to promote your pawn
               </p>

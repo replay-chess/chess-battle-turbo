@@ -56,7 +56,7 @@ export function ChallengeLegendButton({ legendReferenceId, legendName }: Challen
       <button
         onClick={handleChallenge}
         disabled={creating || !isReady}
-        className="group relative flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 overflow-hidden px-3 py-3 sm:px-8 border border-white/20 hover:border-white/40 text-white/60 hover:text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="group relative flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 overflow-hidden px-3 py-3 sm:px-8 border border-cb-border-strong hover:border-cb-border-strong text-cb-text-secondary hover:text-cb-text transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         style={{ fontFamily: "'Geist', sans-serif" }}
       >
         <Users className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} />

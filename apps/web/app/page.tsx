@@ -90,7 +90,7 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: safeJsonLd(webAppJsonLd) }}
       />
       <Navbar />
-      <div className="w-full bg-black text-white">
+      <div className="w-full bg-cb-bg text-cb-text">
         <div className="h-screen w-full">
           <Hero />
         </div>

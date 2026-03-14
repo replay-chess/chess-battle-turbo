@@ -283,14 +283,14 @@ function QueueContent() {
 
   if (!isReady) {
     return (
-      <div className="flex min-h-screen bg-black items-center justify-center">
+      <div className="flex min-h-screen bg-cb-bg items-center justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="flex flex-col items-center gap-4"
         >
-          <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-sm tracking-wide">
+          <div className="w-12 h-12 border-2 border-cb-border-strong border-t-cb-text rounded-full animate-spin" />
+          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm tracking-wide">
             Loading...
           </p>
         </motion.div>
@@ -301,12 +301,12 @@ function QueueContent() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black flex items-center justify-center pt-16 sm:pt-18 md:pt-24 relative">
+      <div className="min-h-screen bg-cb-bg flex items-center justify-center pt-16 sm:pt-18 md:pt-24 relative">
         {/* Subtle grid background */}
         <div
           className="absolute inset-0 opacity-[0.015]"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: '60px 60px',
           }}
         />
@@ -319,21 +319,21 @@ function QueueContent() {
               animate={{ opacity: 1, y: 0 }}
               className="text-center space-y-6"
             >
-              <div className="w-16 h-16 border border-white/20 flex items-center justify-center mx-auto">
+              <div className="w-16 h-16 border border-cb-border-strong flex items-center justify-center mx-auto">
                 <span className="text-2xl">✕</span>
               </div>
               <h2
                 style={{ fontFamily: "'Instrument Serif', serif" }}
-                className="text-2xl text-white"
+                className="text-2xl text-cb-text"
               >
                 Something went wrong
               </h2>
-              <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40">
+              <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted">
                 {errorMessage || "An error occurred"}
               </p>
               <button
                 onClick={handleBack}
-                className="px-8 py-3 border border-white/20 text-white hover:bg-white hover:text-black transition-all duration-300"
+                className="px-8 py-3 border border-cb-border-strong text-cb-text hover:bg-cb-accent hover:text-cb-accent-fg transition-all duration-300"
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
                 Back to Play
@@ -383,8 +383,8 @@ export default function QueuePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen bg-black items-center justify-center">
-          <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        <div className="flex min-h-screen bg-cb-bg items-center justify-center">
+          <div className="w-12 h-12 border-2 border-cb-border-strong border-t-cb-text rounded-full animate-spin" />
         </div>
       }
     >

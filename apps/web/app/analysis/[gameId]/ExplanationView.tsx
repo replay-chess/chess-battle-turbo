@@ -48,7 +48,7 @@ export default function ExplanationView({
           />
         </div>
       </div>
-      <p className="text-[10px] text-white/50 uppercase tracking-wider text-center mt-0.5">
+      <p className="text-[10px] text-cb-text-secondary uppercase tracking-wider text-center mt-0.5">
         {playerColor === "b" ? "Black" : "White"}
       </p>
 
@@ -75,12 +75,12 @@ export default function ExplanationView({
           extraControls={onShare ? (
             <button
               onClick={onShare}
-              className="group relative overflow-hidden h-10 px-6 bg-white text-black transition-all duration-300"
+              className="group relative overflow-hidden h-10 px-6 bg-cb-accent text-cb-accent-fg transition-all duration-300"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
-              <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
-              <span className="relative z-10 flex items-center gap-2 text-xs font-semibold tracking-[0.1em] group-hover:text-white transition-colors duration-300">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-white transition-colors">
+              <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
+              <span className="relative z-10 flex items-center gap-2 text-xs font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
                   <circle cx="18" cy="5" r="3" />
                   <circle cx="6" cy="12" r="3" />
                   <circle cx="18" cy="19" r="3" />
@@ -114,8 +114,8 @@ export default function ExplanationView({
 export function ExplanationComingSoon() {
   return (
     <div className="flex flex-col items-center justify-center py-12 lg:py-20 gap-4">
-      <div className="w-16 h-16 border border-white/10 flex items-center justify-center">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/20">
+      <div className="w-16 h-16 border border-cb-border flex items-center justify-center">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-cb-text-faint">
           <path d="M12 20h9" />
           <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
         </svg>
@@ -123,13 +123,13 @@ export function ExplanationComingSoon() {
       <div className="text-center space-y-2">
         <p
           style={{ fontFamily: "'Instrument Serif', serif" }}
-          className="text-white/40 text-lg"
+          className="text-cb-text-muted text-lg"
         >
           Position explanation coming soon
         </p>
         <p
           style={{ fontFamily: "'Geist', sans-serif" }}
-          className="text-white/20 text-xs max-w-xs mx-auto leading-relaxed"
+          className="text-cb-text-faint text-xs max-w-xs mx-auto leading-relaxed"
         >
           A grandmaster-style breakdown of this position&apos;s key ideas, visualized with highlights and arrows on the board.
         </p>

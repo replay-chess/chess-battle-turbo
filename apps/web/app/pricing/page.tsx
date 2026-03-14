@@ -132,7 +132,7 @@ function PricingContent() {
 
   if (isSubscribed) {
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-screen bg-cb-bg text-cb-text">
         <Navbar />
 
         {/* Subscriber Hero */}
@@ -140,7 +140,7 @@ function PricingContent() {
           <div
             className="absolute inset-0 opacity-[0.015]"
             style={{
-              backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+              backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
               backgroundSize: '80px 80px',
             }}
           />
@@ -150,7 +150,7 @@ function PricingContent() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, ease: EASE }}
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-6"
+              className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-6"
             >
               Membership
             </motion.p>
@@ -159,7 +159,7 @@ function PricingContent() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, ease: EASE }}
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-5xl sm:text-6xl md:text-7xl mb-4 text-white"
+              className="text-5xl sm:text-6xl md:text-7xl mb-4 text-cb-text"
             >
               {storeUser?.name ? `Welcome back, ${storeUser.name.split(' ')[0]}` : 'Your Membership'}
             </motion.h1>
@@ -168,7 +168,7 @@ function PricingContent() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.15, ease: EASE }}
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-lg text-white/40"
+              className="text-lg text-cb-text-muted"
             >
               Manage your Player plan and billing details.
             </motion.p>
@@ -201,7 +201,7 @@ function PricingContent() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.2, ease: EASE }}
-              className="border border-white/10 bg-white/[0.02] mb-12"
+              className="border border-cb-border bg-cb-hover mb-12"
             >
               <div className="p-8">
                 <div className="flex items-center gap-3 mb-6">
@@ -218,40 +218,40 @@ function PricingContent() {
                 </div>
                 <h2
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-4xl sm:text-5xl text-white mb-2"
+                  className="text-4xl sm:text-5xl text-cb-text mb-2"
                 >
                   Player
                 </h2>
                 <p
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-2xl text-white/60"
+                  className="text-2xl text-cb-text-secondary"
                 >
-                  $8<span className="text-base text-white/30">/mo</span>
+                  $8<span className="text-base text-cb-text-muted">/mo</span>
                 </p>
               </div>
 
               {/* Status strip */}
-              <div className="grid grid-cols-2 gap-px bg-white/[0.04]">
-                <div className="bg-black p-5">
+              <div className="grid grid-cols-2 gap-px bg-cb-hover">
+                <div className="bg-cb-bg p-5">
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                    className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                   >
                     Next Billing Date
                   </p>
                   <p
                     style={{ fontFamily: "'Geist Mono', monospace" }}
-                    className="text-sm text-white/80"
+                    className="text-sm text-cb-text-secondary"
                   >
                     {subInfo?.subscription?.nextBillingDate
                       ? formatBillingDate(subInfo.subscription.nextBillingDate)
                       : '—'}
                   </p>
                 </div>
-                <div className="bg-black p-5">
+                <div className="bg-cb-bg p-5">
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                    className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                   >
                     Status
                   </p>
@@ -275,36 +275,36 @@ function PricingContent() {
               className="mb-12"
             >
               <div className="flex items-center gap-4 mb-6">
-                <div className="flex-1 h-px bg-gradient-to-r from-transparent to-white/10" />
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent to-cb-border" />
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] tracking-[0.3em] uppercase text-white/40"
+                  className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted"
                 >
                   Your Access
                 </p>
-                <div className="flex-1 h-px bg-gradient-to-l from-transparent to-white/10" />
+                <div className="flex-1 h-px bg-gradient-to-l from-transparent to-cb-border" />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/[0.04]">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-cb-hover">
                 {PLAN_FEATURES.map((feature, index) => (
                   <motion.div
                     key={feature}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.4 + index * 0.06, ease: EASE }}
-                    className="bg-black p-5"
+                    className="bg-cb-bg p-5"
                   >
                     <div className="flex items-center justify-center w-8 h-8 border border-amber-500/20 bg-amber-500/5 mb-3">
                       <Check className="w-3.5 h-3.5 text-amber-400" />
                     </div>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-sm text-white/80 mb-0.5"
+                      className="text-sm text-cb-text-secondary mb-0.5"
                     >
                       {feature}
                     </p>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-[11px] text-white/30"
+                      className="text-[11px] text-cb-text-muted"
                     >
                       Included
                     </p>
@@ -323,42 +323,42 @@ function PricingContent() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <a
                   href={`/api/customer-portal?customer_id=${subInfo?.customerId}`}
-                  className="group border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] transition-colors p-6 flex flex-col"
+                  className="group border border-cb-border bg-cb-hover hover:bg-cb-hover transition-colors p-6 flex flex-col"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <CreditCard className="w-5 h-5 text-white/40" />
-                    <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors" />
+                    <CreditCard className="w-5 h-5 text-cb-text-muted" />
+                    <ArrowRight className="w-4 h-4 text-cb-text-faint group-hover:text-cb-text-muted transition-colors" />
                   </div>
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-sm font-medium text-white mb-1"
+                    className="text-sm font-medium text-cb-text mb-1"
                   >
                     Manage Billing
                   </p>
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs text-white/30"
+                    className="text-xs text-cb-text-muted"
                   >
                     Update payment, view invoices, cancel
                   </p>
                 </a>
                 <a
                   href="mailto:hello@playchess.tech"
-                  className="group border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] transition-colors p-6 flex flex-col"
+                  className="group border border-cb-border bg-cb-hover hover:bg-cb-hover transition-colors p-6 flex flex-col"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <LifeBuoy className="w-5 h-5 text-white/40" />
-                    <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors" />
+                    <LifeBuoy className="w-5 h-5 text-cb-text-muted" />
+                    <ArrowRight className="w-4 h-4 text-cb-text-faint group-hover:text-cb-text-muted transition-colors" />
                   </div>
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-sm font-medium text-white mb-1"
+                    className="text-sm font-medium text-cb-text mb-1"
                   >
                     Get Support
                   </p>
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs text-white/30"
+                    className="text-xs text-cb-text-muted"
                   >
                     Help with subscription or features
                   </p>
@@ -370,7 +370,7 @@ function PricingContent() {
             <section className="mb-20">
               <h2
                 style={{ fontFamily: "'Instrument Serif', serif" }}
-                className="text-3xl sm:text-4xl mb-8 text-center text-white"
+                className="text-3xl sm:text-4xl mb-8 text-center text-cb-text"
               >
                 Subscription FAQ
               </h2>
@@ -382,19 +382,19 @@ function PricingContent() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: index * 0.1 }}
-                    className="border border-white/10 overflow-hidden"
+                    className="border border-cb-border overflow-hidden"
                   >
                     <button
                       onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                      className="w-full p-5 text-left flex justify-between items-center bg-white/[0.02] hover:bg-white/5 transition-colors"
+                      className="w-full p-5 text-left flex justify-between items-center bg-cb-hover hover:bg-cb-hover transition-colors"
                     >
                       <span
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-sm font-medium text-white"
+                        className="text-sm font-medium text-cb-text"
                       >
                         {faq.question}
                       </span>
-                      <ChevronDown className={`w-4 h-4 text-white/40 transition-transform duration-300 ${openFaq === index ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`w-4 h-4 text-cb-text-muted transition-transform duration-300 ${openFaq === index ? 'rotate-180' : ''}`} />
                     </button>
                     <AnimatePresence>
                       {openFaq === index && (
@@ -406,7 +406,7 @@ function PricingContent() {
                         >
                           <div
                             style={{ fontFamily: "'Geist', sans-serif" }}
-                            className="p-5 border-t border-white/5 text-sm text-white/40 leading-relaxed"
+                            className="p-5 border-t border-cb-border text-sm text-cb-text-muted leading-relaxed"
                           >
                             {faq.answer}
                           </div>
@@ -427,7 +427,7 @@ function PricingContent() {
 
   // Non-subscriber sales page (unchanged)
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
       {/* Hero Section with Video Background */}
@@ -446,14 +446,14 @@ function PricingContent() {
         </video>
 
         {/* Gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/50" />
+        <div className="absolute inset-0 bg-gradient-to-b from-cb-gradient-from via-transparent to-cb-gradient-from" />
+        <div className="absolute inset-0 bg-gradient-to-r from-cb-backdrop via-transparent to-cb-backdrop" />
 
         {/* Subtle grid background */}
         <div
           className="absolute inset-0 opacity-[0.02]"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: '80px 80px',
           }}
         />
@@ -464,7 +464,7 @@ function PricingContent() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             style={{ fontFamily: "'Instrument Serif', serif" }}
-            className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl mb-6 text-white"
+            className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl mb-6 text-cb-text"
           >
             Pricing
           </motion.h1>
@@ -473,7 +473,7 @@ function PricingContent() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-lg sm:text-xl md:text-2xl text-white/40 max-w-2xl"
+            className="text-lg sm:text-xl md:text-2xl text-cb-text-muted max-w-2xl"
           >
             All-in-one chess creation suite. Powered by AI.
           </motion.p>
@@ -490,7 +490,7 @@ function PricingContent() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-md text-white/40 mb-8 mx-auto"
+                className="text-md text-cb-text-muted mb-8 mx-auto"
               >
                 Game Recorder, Position Editor, AI Assistant, Voice Coach, Analysis Generator - all in one powerful package.
               </motion.p>
@@ -521,42 +521,42 @@ function PricingContent() {
               viewport={{ once: true }}
               className="max-w-md mx-auto px-4 sm:px-6"
             >
-              <div className="border border-white/10 bg-white/[0.02] p-8">
+              <div className="border border-cb-border bg-cb-hover p-8">
                 <div className="flex items-center justify-between mb-4">
                   <h3
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-sm font-medium text-white/60 uppercase tracking-widest"
+                    className="text-sm font-medium text-cb-text-secondary uppercase tracking-widest"
                   >
                     Player
                   </h3>
                 </div>
                 <p
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-5xl text-white mb-2"
+                  className="text-5xl text-cb-text mb-2"
                 >
-                  $8<span className="text-lg text-white/40">/mo</span>
+                  $8<span className="text-lg text-cb-text-muted">/mo</span>
                 </p>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-sm text-white/30 mb-8"
+                  className="text-sm text-cb-text-muted mb-8"
                 >
                   For casual players and learners
                 </p>
-                <ul className="space-y-3 text-sm text-white/40 mb-8" style={{ fontFamily: "'Geist', sans-serif" }}>
+                <ul className="space-y-3 text-sm text-cb-text-muted mb-8" style={{ fontFamily: "'Geist', sans-serif" }}>
                   <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-white/30" />
+                    <Check className="w-3.5 h-3.5 text-cb-text-muted" />
                     Unlimited positions
                   </li>
                   <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-white/30" />
+                    <Check className="w-3.5 h-3.5 text-cb-text-muted" />
                     Record &amp; export
                   </li>
                   <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-white/30" />
+                    <Check className="w-3.5 h-3.5 text-cb-text-muted" />
                     1080p quality
                   </li>
                   <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-white/30" />
+                    <Check className="w-3.5 h-3.5 text-cb-text-muted" />
                     Basic AI analysis
                   </li>
                 </ul>
@@ -566,7 +566,7 @@ function PricingContent() {
                   onClick={handleCheckout}
                   disabled={checkoutLoading}
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="w-full py-3 text-sm font-medium text-black bg-white hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full py-3 text-sm font-medium text-cb-accent-fg bg-cb-accent hover:bg-cb-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {checkoutLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -581,7 +581,7 @@ function PricingContent() {
 
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-sm text-white/30 text-center mt-8 mb-8 max-w-xl mx-auto p-4"
+              className="text-sm text-cb-text-muted text-center mt-8 mb-8 max-w-xl mx-auto p-4"
             >
               Join our community of chess creators and masters. Get priority access to new features and shape the future of chess training.
             </p>
@@ -593,7 +593,7 @@ function PricingContent() {
           <div className="w-full max-w-3xl mx-auto">
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-center text-white/30 mb-4 text-xs uppercase tracking-widest"
+              className="text-center text-cb-text-muted mb-4 text-xs uppercase tracking-widest"
             >
               Supported by grandmasters at
             </p>
@@ -601,7 +601,7 @@ function PricingContent() {
               <div className="flex animate-scroll whitespace-nowrap py-4">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div key={i} className="flex-shrink-0 mx-8">
-                    <div className="h-8 w-24 bg-white/5 border border-white/10" />
+                    <div className="h-8 w-24 bg-cb-hover border border-cb-border" />
                   </div>
                 ))}
               </div>
@@ -614,25 +614,25 @@ function PricingContent() {
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-3xl sm:text-4xl lg:text-5xl mb-12 text-center text-white"
+              className="text-3xl sm:text-4xl lg:text-5xl mb-12 text-center text-cb-text"
             >
               What&apos;s Included
             </h2>
-            <div className="overflow-x-auto border border-white/10">
+            <div className="overflow-x-auto border border-cb-border">
               <table className="w-full overflow-hidden text-sm">
                 <thead>
                   <tr>
-                    <th className="p-4 text-left bg-white/5"></th>
-                    <th className="p-4 text-center bg-white/5">
+                    <th className="p-4 text-left bg-cb-hover"></th>
+                    <th className="p-4 text-center bg-cb-hover">
                       <h3
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-sm font-medium text-white mb-2"
+                        className="text-sm font-medium text-cb-text mb-2"
                       >
                         Player
                       </h3>
                       <p
                         style={{ fontFamily: "'Instrument Serif', serif" }}
-                        className="text-xl text-white/60"
+                        className="text-xl text-cb-text-secondary"
                       >
                         $8/mo
                       </p>
@@ -644,7 +644,7 @@ function PricingContent() {
                     <td
                       colSpan={2}
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="p-4 text-xs uppercase tracking-widest font-medium text-white/60 bg-white/5 flex items-center gap-2"
+                      className="p-4 text-xs uppercase tracking-widest font-medium text-cb-text-secondary bg-cb-hover flex items-center gap-2"
                     >
                       Chess Tools <Video className="w-3 h-3" />
                     </td>
@@ -655,16 +655,16 @@ function PricingContent() {
                     { label: "Quality", value: "1080p" },
                     { label: "Recording Length", value: "15 mins" },
                   ].map((row) => (
-                    <tr key={row.label} className="border-t border-white/10">
+                    <tr key={row.label} className="border-t border-cb-border">
                       <td
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="p-4 text-white/40 bg-white/[0.02]"
+                        className="p-4 text-cb-text-muted bg-cb-hover"
                       >
                         {row.label}
                       </td>
                       <td
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="p-4 text-center text-white/40 bg-white/5"
+                        className="p-4 text-center text-cb-text-muted bg-cb-hover"
                       >
                         {row.value}
                       </td>
@@ -674,7 +674,7 @@ function PricingContent() {
                     <td
                       colSpan={2}
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="p-4 text-xs uppercase tracking-widest font-medium text-white/60 bg-white/5 flex items-center gap-2"
+                      className="p-4 text-xs uppercase tracking-widest font-medium text-cb-text-secondary bg-cb-hover flex items-center gap-2"
                     >
                       AI Features <Bot className="w-3 h-3" />
                     </td>
@@ -682,16 +682,16 @@ function PricingContent() {
                   {[
                     { label: "AI Analysis", value: "Basic" },
                   ].map((row) => (
-                    <tr key={row.label} className="border-t border-white/10">
+                    <tr key={row.label} className="border-t border-cb-border">
                       <td
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="p-4 text-white/40 bg-white/[0.02]"
+                        className="p-4 text-cb-text-muted bg-cb-hover"
                       >
                         {row.label}
                       </td>
                       <td
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="p-4 text-center text-white/40 bg-white/5"
+                        className="p-4 text-center text-cb-text-muted bg-cb-hover"
                       >
                         {row.value}
                       </td>
@@ -708,7 +708,7 @@ function PricingContent() {
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-3xl sm:text-4xl lg:text-5xl mb-12 text-center text-white"
+              className="text-3xl sm:text-4xl lg:text-5xl mb-12 text-center text-cb-text"
             >
               Frequently Asked Questions
             </h2>
@@ -720,19 +720,19 @@ function PricingContent() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
-                  className="border border-white/10 overflow-hidden"
+                  className="border border-cb-border overflow-hidden"
                 >
                   <button
                     onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                    className="w-full p-5 text-left flex justify-between items-center bg-white/[0.02] hover:bg-white/5 transition-colors"
+                    className="w-full p-5 text-left flex justify-between items-center bg-cb-hover hover:bg-cb-hover transition-colors"
                   >
                     <span
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-sm font-medium text-white"
+                      className="text-sm font-medium text-cb-text"
                     >
                       {faq.question}
                     </span>
-                    <ChevronDown className={`w-4 h-4 text-white/40 transition-transform duration-300 ${openFaq === index ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-4 h-4 text-cb-text-muted transition-transform duration-300 ${openFaq === index ? 'rotate-180' : ''}`} />
                   </button>
                   <AnimatePresence>
                     {openFaq === index && (
@@ -744,7 +744,7 @@ function PricingContent() {
                       >
                         <div
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="p-5 border-t border-white/5 text-sm text-white/40 leading-relaxed"
+                          className="p-5 border-t border-cb-border text-sm text-cb-text-muted leading-relaxed"
                         >
                           {faq.answer}
                         </div>

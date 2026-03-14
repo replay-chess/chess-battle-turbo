@@ -26,7 +26,7 @@ export function AnalysisPhaseBannerMobile({
           className="fixed top-2 left-2 right-2 z-50 pointer-events-none lg:hidden"
         >
           <div className="mx-auto max-w-md">
-            <div className="bg-black/80 backdrop-blur-md border border-white/10 px-3 py-2 shadow-2xl">
+            <div className="bg-cb-backdrop backdrop-blur-md border border-cb-border px-3 py-2 shadow-2xl">
               <div className="flex items-center justify-center gap-3">
                 <motion.div
                   key={analysisTimeRemaining}
@@ -44,23 +44,23 @@ export function AnalysisPhaseBannerMobile({
                   </span>
                 </motion.div>
 
-                <div className="w-px h-8 bg-white/20" />
+                <div className="w-px h-8 bg-cb-border-strong" />
 
                 <div className="text-left">
                   <p
                     style={{ fontFamily: "'Instrument Serif', serif" }}
-                    className="text-white text-sm tracking-wide"
+                    className="text-cb-text text-sm tracking-wide"
                   >
                     Analysis Time
                   </p>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <div className={cn(
                       "w-2.5 h-2.5",
-                      currentTurn === "w" ? "bg-white" : "bg-black border border-white/50"
+                      currentTurn === "w" ? "bg-white" : "bg-black border border-cb-text-secondary"
                     )} />
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white/50 text-[8px] uppercase tracking-[0.15em]"
+                      className="text-cb-text-secondary text-[8px] uppercase tracking-[0.15em]"
                     >
                       {currentTurn === "w" ? "White" : "Black"} to move
                     </p>
@@ -68,7 +68,7 @@ export function AnalysisPhaseBannerMobile({
                   {myColor && (
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white/60 text-[8px] tracking-[0.1em] mt-0.5"
+                      className="text-cb-text-secondary text-[8px] tracking-[0.1em] mt-0.5"
                     >
                       {myColor === currentTurn ? "You move first" : "Opponent moves first"}
                     </p>
@@ -109,11 +109,11 @@ export function AnalysisPhaseBannerDesktop({
             <div className="flex items-center gap-1.5">
               <div className={cn(
                 "w-2.5 h-2.5",
-                currentTurn === "w" ? "bg-white" : "bg-black border border-white/40"
+                currentTurn === "w" ? "bg-white" : "bg-black border border-cb-text-muted"
               )} />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-[9px] uppercase tracking-wider"
+                className="text-cb-text-muted text-[9px] uppercase tracking-wider"
               >
                 {currentTurn === "w" ? "White" : "Black"}&apos;s Move
               </span>
@@ -139,7 +139,7 @@ export function AnalysisPhaseBannerDesktop({
           </div>
 
           <div className="mt-4">
-            <div className="h-1 bg-white/5 overflow-hidden">
+            <div className="h-1 bg-cb-hover overflow-hidden">
               <motion.div
                 className="h-full bg-gradient-to-r from-amber-500/60 to-amber-400/40"
                 initial={{ width: "100%" }}
@@ -155,14 +155,14 @@ export function AnalysisPhaseBannerDesktop({
 
           <p
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/30 text-[10px] text-center mt-3 tracking-wide"
+            className="text-cb-text-muted text-[10px] text-center mt-3 tracking-wide"
           >
             Study the position before playing
           </p>
           {myColor && (
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/50 text-[10px] text-center mt-1.5 tracking-wide"
+              className="text-cb-text-secondary text-[10px] text-center mt-1.5 tracking-wide"
             >
               {myColor === currentTurn ? "You move first" : "Opponent moves first"}
             </p>

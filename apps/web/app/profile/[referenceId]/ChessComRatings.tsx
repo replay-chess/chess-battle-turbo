@@ -41,15 +41,15 @@ export function ChessComRatings({ profile }: ChessComRatingsProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="border border-white/10"
+      className="border border-cb-border"
     >
       {/* Section header */}
       <div className="px-6 sm:px-8 pt-6 sm:pt-8 pb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-px w-8 bg-gradient-to-r from-white/20 to-transparent" />
+          <div className="h-px w-8 bg-gradient-to-r from-cb-border-strong to-transparent" />
           <span
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/40 text-[10px] tracking-[0.3em] uppercase"
+            className="text-cb-text-muted text-[10px] tracking-[0.3em] uppercase"
           >
             Chess.com
           </span>
@@ -58,7 +58,7 @@ export function ChessComRatings({ profile }: ChessComRatingsProps) {
           href={`https://www.chess.com/member/${profile.chessComHandle}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-white/25 hover:text-white/50 transition-colors duration-200"
+          className="flex items-center gap-1.5 text-cb-text-faint hover:text-cb-text-secondary transition-colors duration-200"
         >
           <span
             style={{ fontFamily: "'Geist Mono', monospace" }}
@@ -72,29 +72,29 @@ export function ChessComRatings({ profile }: ChessComRatingsProps) {
 
       {/* Ratings grid */}
       <div className="px-6 sm:px-8 pb-6 sm:pb-8">
-        <div className="grid grid-cols-2 gap-px bg-white/[0.04]">
+        <div className="grid grid-cols-2 gap-px bg-cb-hover">
           {RATING_CATEGORIES.map(({ key, label }) => {
             const rating = profile[`${key}Rating` as keyof ProfileChessComProfile] as number | null;
             const bestRating = profile[`${key}BestRating` as keyof ProfileChessComProfile] as number | null;
 
             return (
-              <div key={key} className="bg-black p-4 sm:p-5">
+              <div key={key} className="bg-cb-bg p-4 sm:p-5">
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/25 text-[10px] tracking-[0.15em] uppercase mb-2"
+                  className="text-cb-text-faint text-[10px] tracking-[0.15em] uppercase mb-2"
                 >
                   {label}
                 </p>
                 <p
                   style={{ fontFamily: "'Geist Mono', monospace" }}
-                  className="text-white text-xl sm:text-2xl font-medium"
+                  className="text-cb-text text-xl sm:text-2xl font-medium"
                 >
                   {rating ?? "--"}
                 </p>
                 {bestRating && (
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/15 text-xs mt-1"
+                    className="text-cb-text-faint text-xs mt-1"
                   >
                     Best: {bestRating}
                   </p>
@@ -107,7 +107,7 @@ export function ChessComRatings({ profile }: ChessComRatingsProps) {
         {/* Last synced */}
         <p
           style={{ fontFamily: "'Geist', sans-serif" }}
-          className="text-white/10 text-[10px] tracking-wide mt-4 text-right"
+          className="text-cb-text-faint text-[10px] tracking-wide mt-4 text-right"
         >
           Synced {formatSyncDate(profile.lastSyncedAt)}
         </p>

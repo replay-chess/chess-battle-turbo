@@ -34,21 +34,21 @@ export function NoOpponentPopup({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-49 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+          className="fixed inset-0 z-49 flex items-center justify-center bg-cb-backdrop backdrop-blur-sm"
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.3, delay: 0.1 }}
-            className="w-full max-w-md mx-4 bg-black border border-white/10 p-8 sm:p-10"
+            className="w-full max-w-md mx-4 bg-cb-bg border border-cb-border p-8 sm:p-10"
           >
             {/* Bot icon with pulse animation */}
             <div className="flex justify-center mb-8">
               <div className="relative">
                 {/* Outer pulsing ring */}
                 <motion.div
-                  className="absolute inset-0 border border-white/20"
+                  className="absolute inset-0 border border-cb-border-strong"
                   animate={{
                     scale: [1, 1.3, 1],
                     opacity: [0.4, 0, 0.4],
@@ -63,7 +63,7 @@ export function NoOpponentPopup({
 
                 {/* Second ring */}
                 <motion.div
-                  className="absolute inset-0 border border-white/10"
+                  className="absolute inset-0 border border-cb-border"
                   animate={{
                     scale: [1, 1.2, 1],
                     opacity: [0.3, 0, 0.3],
@@ -78,8 +78,8 @@ export function NoOpponentPopup({
                 />
 
                 {/* Center icon */}
-                <div className="relative w-20 h-20 border border-white/20 flex items-center justify-center">
-                  <Bot className="w-8 h-8 text-white/60" strokeWidth={1.5} />
+                <div className="relative w-20 h-20 border border-cb-border-strong flex items-center justify-center">
+                  <Bot className="w-8 h-8 text-cb-text-secondary" strokeWidth={1.5} />
                 </div>
               </div>
             </div>
@@ -88,13 +88,13 @@ export function NoOpponentPopup({
             <div className="text-center mb-8">
               <h2
                 style={{ fontFamily: "'Instrument Serif', serif" }}
-                className="text-2xl sm:text-3xl text-white mb-3"
+                className="text-2xl sm:text-3xl text-cb-text mb-3"
               >
                 No Opponents Available
               </h2>
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-sm leading-relaxed"
+                className="text-cb-text-muted text-sm leading-relaxed"
               >
                 {legendName
                   ? `The battlefield is quiet. Challenge our AI using positions from ${legendName}'s famous games.`
@@ -110,32 +110,32 @@ export function NoOpponentPopup({
                 disabled={isDisabled}
                 className={cn(
                   "group relative w-full flex items-center justify-center gap-3 px-6 py-4",
-                  "bg-white text-black",
+                  "bg-cb-accent text-cb-accent-fg",
                   "transition-all duration-300",
                   "disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
                 {/* Hover effect */}
-                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
                 <Bot
                   className={cn(
-                    "w-5 h-5 relative z-10 group-hover:text-white transition-colors",
+                    "w-5 h-5 relative z-10 group-hover:text-cb-text transition-colors",
                     isCreatingBotGame && "animate-pulse"
                   )}
                   strokeWidth={1.5}
                 />
-                <span className="relative z-10 group-hover:text-white transition-colors font-medium">
+                <span className="relative z-10 group-hover:text-cb-text transition-colors font-medium">
                   {isCreatingBotGame ? "Creating Game..." : "Play Against Bot"}
                 </span>
                 {!isCreatingBotGame && (
                   <ArrowRight
-                    className="w-4 h-4 relative z-10 group-hover:text-white transition-colors ml-auto"
+                    className="w-4 h-4 relative z-10 group-hover:text-cb-text transition-colors ml-auto"
                     strokeWidth={1.5}
                   />
                 )}
                 {isCreatingBotGame && (
-                  <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin relative z-10 group-hover:border-white/30 group-hover:border-t-white ml-auto" />
+                  <div className="w-4 h-4 border-2 border-cb-accent-fg/30 border-t-cb-accent-fg rounded-full animate-spin relative z-10 group-hover:border-cb-text/30 group-hover:border-t-cb-text ml-auto" />
                 )}
               </button>
 
@@ -145,8 +145,8 @@ export function NoOpponentPopup({
                 disabled={isDisabled}
                 className={cn(
                   "group relative w-full flex items-center justify-center gap-3 px-6 py-4",
-                  "border border-white/20 hover:border-white/40",
-                  "text-white/80 hover:text-white transition-all duration-300",
+                  "border border-cb-border-strong hover:border-cb-text-muted",
+                  "text-cb-text-secondary hover:text-cb-text transition-all duration-300",
                   "disabled:opacity-50 disabled:cursor-not-allowed"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
@@ -170,7 +170,7 @@ export function NoOpponentPopup({
                 onClick={onBack}
                 disabled={isDisabled}
                 className={cn(
-                  "inline-flex items-center gap-2 text-white/40 hover:text-white/60 transition-colors",
+                  "inline-flex items-center gap-2 text-cb-text-muted hover:text-cb-text-secondary transition-colors",
                   "disabled:opacity-50 disabled:cursor-not-allowed"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}

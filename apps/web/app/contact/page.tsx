@@ -47,14 +47,14 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
       {/* Grid background */}
       <div
         className="fixed inset-0 opacity-[0.015] pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -69,24 +69,24 @@ export default function ContactPage() {
             className="text-center"
           >
             <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="h-px w-12 bg-white/20" />
+              <div className="h-px w-12 bg-cb-border-strong" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
               >
                 Contact
               </span>
-              <div className="h-px w-12 bg-white/20" />
+              <div className="h-px w-12 bg-cb-border-strong" />
             </div>
             <h1
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-5xl sm:text-6xl md:text-7xl text-white mb-4"
+              className="text-5xl sm:text-6xl md:text-7xl text-cb-text mb-4"
             >
               Get in Touch
             </h1>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-lg text-white/40 max-w-xl mx-auto"
+              className="text-lg text-cb-text-muted max-w-xl mx-auto"
             >
               Have a question, feedback, or partnership idea? We&apos;d love to hear from you.
             </p>
@@ -94,7 +94,7 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-cb-border to-transparent" />
 
       {/* Content */}
       <section className="relative py-16 sm:py-24 px-6">
@@ -107,17 +107,17 @@ export default function ContactPage() {
             className="lg:col-span-7"
           >
             {submitted ? (
-              <div className="border border-white/10 p-12 text-center">
+              <div className="border border-cb-border p-12 text-center">
                 <span className="text-4xl mb-6 block">♔</span>
                 <h2
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-3xl text-white mb-4"
+                  className="text-3xl text-cb-text mb-4"
                 >
                   Message Sent
                 </h2>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/40"
+                  className="text-cb-text-muted"
                 >
                   We&apos;ll get back to you within 24 hours. Thanks for reaching out!
                 </p>
@@ -127,7 +127,7 @@ export default function ContactPage() {
                 <div>
                   <label
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="block text-xs text-white/50 uppercase tracking-widest mb-2"
+                    className="block text-xs text-cb-text-secondary uppercase tracking-widest mb-2"
                   >
                     Name
                   </label>
@@ -139,11 +139,11 @@ export default function ContactPage() {
                       setErrors({ ...errors, name: false });
                     }}
                     className={cn(
-                      "w-full bg-white/[0.03] border px-4 py-3 text-sm text-white",
-                      "placeholder:text-white/20",
-                      "focus:outline-none focus:border-white/30 focus:bg-white/[0.05]",
+                      "w-full bg-cb-hover border px-4 py-3 text-sm text-cb-text",
+                      "placeholder:text-cb-text-faint",
+                      "focus:outline-none focus:border-cb-border-strong focus:bg-cb-hover",
                       "transition-all duration-300",
-                      errors.name ? "border-white/30" : "border-white/10"
+                      errors.name ? "border-cb-border-strong" : "border-cb-border"
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
                     placeholder="Your name"
@@ -153,7 +153,7 @@ export default function ContactPage() {
                 <div>
                   <label
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="block text-xs text-white/50 uppercase tracking-widest mb-2"
+                    className="block text-xs text-cb-text-secondary uppercase tracking-widest mb-2"
                   >
                     Email
                   </label>
@@ -165,11 +165,11 @@ export default function ContactPage() {
                       setErrors({ ...errors, email: false });
                     }}
                     className={cn(
-                      "w-full bg-white/[0.03] border px-4 py-3 text-sm text-white",
-                      "placeholder:text-white/20",
-                      "focus:outline-none focus:border-white/30 focus:bg-white/[0.05]",
+                      "w-full bg-cb-hover border px-4 py-3 text-sm text-cb-text",
+                      "placeholder:text-cb-text-faint",
+                      "focus:outline-none focus:border-cb-border-strong focus:bg-cb-hover",
                       "transition-all duration-300",
-                      errors.email ? "border-white/30" : "border-white/10"
+                      errors.email ? "border-cb-border-strong" : "border-cb-border"
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
                     placeholder="you@example.com"
@@ -179,7 +179,7 @@ export default function ContactPage() {
                 <div>
                   <label
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="block text-xs text-white/50 uppercase tracking-widest mb-2"
+                    className="block text-xs text-cb-text-secondary uppercase tracking-widest mb-2"
                   >
                     Subject
                   </label>
@@ -187,24 +187,24 @@ export default function ContactPage() {
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                     className={cn(
-                      "w-full bg-white/[0.03] border border-white/10 px-4 py-3 text-sm text-white",
-                      "focus:outline-none focus:border-white/30 focus:bg-white/[0.05]",
+                      "w-full bg-cb-hover border border-cb-border px-4 py-3 text-sm text-cb-text",
+                      "focus:outline-none focus:border-cb-border-strong focus:bg-cb-hover",
                       "transition-all duration-300 appearance-none"
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >
-                    <option value="general" className="bg-black">General Inquiry</option>
-                    <option value="support" className="bg-black">Technical Support</option>
-                    <option value="billing" className="bg-black">Billing Question</option>
-                    <option value="partnership" className="bg-black">Partnership</option>
-                    <option value="press" className="bg-black">Press & Media</option>
+                    <option value="general" className="bg-cb-bg">General Inquiry</option>
+                    <option value="support" className="bg-cb-bg">Technical Support</option>
+                    <option value="billing" className="bg-cb-bg">Billing Question</option>
+                    <option value="partnership" className="bg-cb-bg">Partnership</option>
+                    <option value="press" className="bg-cb-bg">Press & Media</option>
                   </select>
                 </div>
 
                 <div>
                   <label
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="block text-xs text-white/50 uppercase tracking-widest mb-2"
+                    className="block text-xs text-cb-text-secondary uppercase tracking-widest mb-2"
                   >
                     Message
                   </label>
@@ -216,11 +216,11 @@ export default function ContactPage() {
                     }}
                     rows={6}
                     className={cn(
-                      "w-full bg-white/[0.03] border px-4 py-3 text-sm text-white resize-none",
-                      "placeholder:text-white/20",
-                      "focus:outline-none focus:border-white/30 focus:bg-white/[0.05]",
+                      "w-full bg-cb-hover border px-4 py-3 text-sm text-cb-text resize-none",
+                      "placeholder:text-cb-text-faint",
+                      "focus:outline-none focus:border-cb-border-strong focus:bg-cb-hover",
                       "transition-all duration-300",
-                      errors.message ? "border-white/30" : "border-white/10"
+                      errors.message ? "border-cb-border-strong" : "border-cb-border"
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
                     placeholder="Tell us how we can help..."
@@ -231,14 +231,14 @@ export default function ContactPage() {
                   type="submit"
                   className={cn(
                     "group relative overflow-hidden",
-                    "px-8 py-3 bg-white text-black",
+                    "px-8 py-3 bg-cb-accent text-cb-accent-fg",
                     "text-sm font-medium",
                     "transition-all duration-300"
                   )}
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
-                  <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                  <span className="relative flex items-center gap-2 group-hover:text-white transition-colors duration-300">
+                  <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                  <span className="relative flex items-center gap-2 group-hover:text-cb-text transition-colors duration-300">
                     Send Message
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </span>
@@ -253,16 +253,16 @@ export default function ContactPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
-            className="lg:col-span-5 lg:border-l lg:border-white/10 lg:pl-16"
+            className="lg:col-span-5 lg:border-l lg:border-cb-border lg:pl-16"
           >
             <div className="space-y-10">
               {/* Email */}
               <div>
                 <div className="flex items-center gap-3 mb-3">
-                  <Mail className="w-4 h-4 text-white/40" strokeWidth={1.5} />
+                  <Mail className="w-4 h-4 text-cb-text-muted" strokeWidth={1.5} />
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs text-white/50 uppercase tracking-widest"
+                    className="text-xs text-cb-text-secondary uppercase tracking-widest"
                   >
                     Email Us
                   </p>
@@ -270,7 +270,7 @@ export default function ContactPage() {
                 <a
                   href="mailto:hello@playchess.tech"
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/60 hover:text-white text-sm transition-colors"
+                  className="text-cb-text-secondary hover:text-cb-text text-sm transition-colors"
                 >
                   hello@playchess.tech
                 </a>
@@ -279,17 +279,17 @@ export default function ContactPage() {
               {/* Response time */}
               <div>
                 <div className="flex items-center gap-3 mb-3">
-                  <Clock className="w-4 h-4 text-white/40" strokeWidth={1.5} />
+                  <Clock className="w-4 h-4 text-cb-text-muted" strokeWidth={1.5} />
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs text-white/50 uppercase tracking-widest"
+                    className="text-xs text-cb-text-secondary uppercase tracking-widest"
                   >
                     Response Time
                   </p>
                 </div>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-sm text-white/40"
+                  className="text-sm text-cb-text-muted"
                 >
                   We typically respond within 24 hours during business days.
                 </p>
@@ -299,7 +299,7 @@ export default function ContactPage() {
               <div>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-xs text-white/50 uppercase tracking-widest mb-3"
+                  className="text-xs text-cb-text-secondary uppercase tracking-widest mb-3"
                 >
                   Follow Us
                 </p>
@@ -310,10 +310,10 @@ export default function ContactPage() {
                       href={social.href}
                       aria-label={social.label}
                       className={cn(
-                        "w-10 h-10 border border-white/10",
+                        "w-10 h-10 border border-cb-border",
                         "flex items-center justify-center",
-                        "hover:border-white/30 hover:bg-white hover:text-black",
-                        "text-white/40 transition-all duration-300"
+                        "hover:border-cb-border-strong hover:bg-cb-accent hover:text-cb-accent-fg",
+                        "text-cb-text-muted transition-all duration-300"
                       )}
                     >
                       <social.icon className="w-4 h-4" strokeWidth={1.5} />
@@ -326,7 +326,7 @@ export default function ContactPage() {
               <div>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-xs text-white/50 uppercase tracking-widest mb-3"
+                  className="text-xs text-cb-text-secondary uppercase tracking-widest mb-3"
                 >
                   Common Questions
                 </p>
@@ -336,7 +336,7 @@ export default function ContactPage() {
                       key={faq.question}
                       href={faq.href}
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="group flex items-center gap-2 text-sm text-white/30 hover:text-white/60 transition-colors"
+                      className="group flex items-center gap-2 text-sm text-cb-text-muted hover:text-cb-text-secondary transition-colors"
                     >
                       <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                       {faq.question}

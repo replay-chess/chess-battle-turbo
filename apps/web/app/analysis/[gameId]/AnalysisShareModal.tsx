@@ -28,14 +28,14 @@ const TIME_PRESETS = [
 
 function LinkBox({ url }: { url: string }) {
   return (
-    <div className="bg-white/5 border border-white/10 p-3 relative mb-3">
-      <div className="absolute top-0 left-0 w-1.5 h-1.5 border-l border-t border-white/30" />
-      <div className="absolute top-0 right-0 w-1.5 h-1.5 border-r border-t border-white/30" />
-      <div className="absolute bottom-0 left-0 w-1.5 h-1.5 border-l border-b border-white/30" />
-      <div className="absolute bottom-0 right-0 w-1.5 h-1.5 border-r border-b border-white/30" />
+    <div className="bg-cb-hover border border-cb-border p-3 relative mb-3">
+      <div className="absolute top-0 left-0 w-1.5 h-1.5 border-l border-t border-cb-text-muted" />
+      <div className="absolute top-0 right-0 w-1.5 h-1.5 border-r border-t border-cb-text-muted" />
+      <div className="absolute bottom-0 left-0 w-1.5 h-1.5 border-l border-b border-cb-text-muted" />
+      <div className="absolute bottom-0 right-0 w-1.5 h-1.5 border-r border-b border-cb-text-muted" />
       <p
         style={{ fontFamily: "'Geist Mono', monospace" }}
-        className="text-white/60 text-xs truncate"
+        className="text-cb-text-secondary text-xs truncate"
       >
         {url}
       </p>
@@ -80,7 +80,7 @@ function ShareActions({ url, shareText }: { url: string; shareText: string }) {
   const encodedUrl = encodeURIComponent(url);
 
   const buttonClass =
-    "flex-1 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/70 hover:text-white h-9 flex items-center justify-center gap-2 transition-all duration-200";
+    "flex-1 bg-cb-hover hover:bg-cb-surface-elevated border border-cb-border hover:border-cb-border-strong text-cb-text-secondary hover:text-cb-text h-9 flex items-center justify-center gap-2 transition-all duration-200";
 
   return (
     <div className="flex flex-col gap-2">
@@ -212,7 +212,7 @@ export function AnalysisShareModal({
       <AnimatePresence>
         {isOpen && !shareLinkModalOpen && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-cb-backdrop backdrop-blur-sm p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -220,7 +220,7 @@ export function AnalysisShareModal({
             onClick={handleClose}
           >
             <motion.div
-              className="bg-neutral-900 border border-white/10 p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/15"
+              className="bg-cb-surface border border-cb-border p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-cb-text-faint"
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -230,18 +230,18 @@ export function AnalysisShareModal({
               {/* Header */}
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3 flex-1">
-                  <div className="h-px flex-1 bg-gradient-to-r from-white/30 to-transparent" />
+                  <div className="h-px flex-1 bg-gradient-to-r from-cb-text-muted to-transparent" />
                   <span
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+                    className="text-cb-text-secondary text-[10px] tracking-[0.4em] uppercase"
                   >
                     Share
                   </span>
-                  <div className="h-px flex-1 bg-gradient-to-l from-white/30 to-transparent" />
+                  <div className="h-px flex-1 bg-gradient-to-l from-cb-text-muted to-transparent" />
                 </div>
                 <button
                   onClick={handleClose}
-                  className="ml-3 text-white/30 hover:text-white/60 transition-colors"
+                  className="ml-3 text-cb-text-muted hover:text-cb-text-secondary transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -250,17 +250,17 @@ export function AnalysisShareModal({
               {/* Section 1: Share Game Analysis */}
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-1">
-                  <Link className="w-3.5 h-3.5 text-white/40" />
+                  <Link className="w-3.5 h-3.5 text-cb-text-muted" />
                   <h3
                     style={{ fontFamily: "'Instrument Serif', serif" }}
-                    className="text-lg text-white"
+                    className="text-lg text-cb-text"
                   >
                     Share Game Analysis
                   </h3>
                 </div>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/40 text-xs mb-3"
+                  className="text-cb-text-muted text-xs mb-3"
                 >
                   Send this link so your friend can review what you played
                 </p>
@@ -271,20 +271,20 @@ export function AnalysisShareModal({
               {/* Section 2: Share Position */}
               {hasPosition && (
                 <>
-                  <div className="h-px bg-white/10 mb-6" />
+                  <div className="h-px bg-cb-border mb-6" />
                   <div className="mb-6">
                     <div className="flex items-center gap-2 mb-1">
-                      <Swords className="w-3.5 h-3.5 text-white/40" strokeWidth={1.5} />
+                      <Swords className="w-3.5 h-3.5 text-cb-text-muted" strokeWidth={1.5} />
                       <h3
                         style={{ fontFamily: "'Instrument Serif', serif" }}
-                        className="text-lg text-white"
+                        className="text-lg text-cb-text"
                       >
                         Share Position
                       </h3>
                     </div>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white/40 text-xs mb-3"
+                      className="text-cb-text-muted text-xs mb-3"
                     >
                       Send this position so they can try playing it too
                     </p>
@@ -297,20 +297,20 @@ export function AnalysisShareModal({
               {/* Section 3: Play with a Friend */}
               {hasPosition && (
                 <>
-                  <div className="h-px bg-white/10 mb-6" />
+                  <div className="h-px bg-cb-border mb-6" />
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <Clock className="w-3.5 h-3.5 text-white/40" strokeWidth={1.5} />
+                      <Clock className="w-3.5 h-3.5 text-cb-text-muted" strokeWidth={1.5} />
                       <h3
                         style={{ fontFamily: "'Instrument Serif', serif" }}
-                        className="text-lg text-white"
+                        className="text-lg text-cb-text"
                       >
                         Play with a Friend
                       </h3>
                     </div>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white/40 text-xs mb-4"
+                      className="text-cb-text-muted text-xs mb-4"
                     >
                       Start a game from this position with a friend
                     </p>
@@ -324,8 +324,8 @@ export function AnalysisShareModal({
                           className={cn(
                             "flex-1 py-2 text-xs border transition-all duration-200",
                             selectedTimePreset === i
-                              ? "border-white/40 text-white bg-white/10"
-                              : "border-white/10 text-white/40 hover:border-white/20 hover:text-white/60"
+                              ? "border-cb-border-strong text-cb-text bg-cb-surface-elevated"
+                              : "border-cb-border text-cb-text-muted hover:border-cb-border-strong hover:text-cb-text-secondary"
                           )}
                           style={{ fontFamily: "'Geist', sans-serif" }}
                         >
@@ -339,15 +339,15 @@ export function AnalysisShareModal({
                       onClick={handleCreateGame}
                       disabled={creatingGame}
                       className={cn(
-                        "w-full group relative overflow-hidden bg-white text-black h-10 transition-all duration-300",
+                        "w-full group relative overflow-hidden bg-cb-accent text-cb-accent-fg h-10 transition-all duration-300",
                         "disabled:opacity-50 disabled:cursor-not-allowed"
                       )}
                     >
-                      <div className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
+                      <div className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
                       <div className="relative z-10 flex items-center justify-center gap-2">
                         <span
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-xs tracking-[0.1em] font-semibold group-hover:text-white transition-colors"
+                          className="text-xs tracking-[0.1em] font-semibold group-hover:text-cb-text transition-colors"
                         >
                           {creatingGame ? "CREATING..." : "CREATE GAME"}
                         </span>

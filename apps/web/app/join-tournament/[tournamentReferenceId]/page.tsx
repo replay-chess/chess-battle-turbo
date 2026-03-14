@@ -142,14 +142,14 @@ export default function JoinTournamentPage({
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black flex items-center justify-center pt-16 md:pt-24">
+        <div className="min-h-screen bg-cb-bg flex items-center justify-center pt-16 md:pt-24">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="flex flex-col items-center gap-4"
           >
-            <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-            <p style={geistFont} className="text-white/40 text-sm tracking-wide">
+            <div className="w-12 h-12 border-2 border-cb-border-strong border-t-cb-text rounded-full animate-spin" />
+            <p style={geistFont} className="text-cb-text-muted text-sm tracking-wide">
               Loading...
             </p>
           </motion.div>
@@ -162,39 +162,39 @@ export default function JoinTournamentPage({
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black flex items-center justify-center pt-16 md:pt-24 p-4 relative">
+        <div className="min-h-screen bg-cb-bg flex items-center justify-center pt-16 md:pt-24 p-4 relative">
           <div
             className="absolute inset-0 opacity-[0.015]"
             style={{
-              backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+              backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
               backgroundSize: "60px 60px",
             }}
           />
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative z-10 border border-white/10 p-8 max-w-md text-center"
+            className="relative z-10 border border-cb-border p-8 max-w-md text-center"
           >
-            <div className="w-16 h-16 border border-white/20 flex items-center justify-center mx-auto mb-6">
-              <span className="text-2xl text-white/40">&times;</span>
+            <div className="w-16 h-16 border border-cb-border-strong flex items-center justify-center mx-auto mb-6">
+              <span className="text-2xl text-cb-text-muted">&times;</span>
             </div>
-            <h2 style={serifFont} className="text-2xl text-white mb-3">
+            <h2 style={serifFont} className="text-2xl text-cb-text mb-3">
               Tournament Not Found
             </h2>
-            <p style={geistFont} className="text-white/40 mb-8">
+            <p style={geistFont} className="text-cb-text-muted mb-8">
               {error || "This tournament doesn't exist or is no longer available."}
             </p>
             <button
               onClick={() => router.push("/")}
               className={cn(
                 "group relative w-full flex items-center justify-center gap-2 px-8 py-4",
-                "bg-white text-black",
+                "bg-cb-accent text-cb-accent-fg",
                 "transition-all duration-300 overflow-hidden"
               )}
               style={geistFont}
             >
-              <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-              <span className="relative z-10 font-medium group-hover:text-white transition-colors duration-300">
+              <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+              <span className="relative z-10 font-medium group-hover:text-cb-text transition-colors duration-300">
                 Go Home
               </span>
             </button>
@@ -212,11 +212,11 @@ export default function JoinTournamentPage({
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black flex items-center justify-center pt-16 md:pt-24 sm:pt-20 p-4 relative">
+      <div className="min-h-screen bg-cb-bg flex items-center justify-center pt-16 md:pt-24 sm:pt-20 p-4 relative">
         <div
           className="absolute inset-0 opacity-[0.015]"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
           }}
         />
@@ -224,7 +224,7 @@ export default function JoinTournamentPage({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 border border-white/10 p-6 sm:p-10 max-w-xl w-full"
+          className="relative z-10 border border-cb-border p-6 sm:p-10 max-w-xl w-full"
         >
           {/* Header */}
           <motion.div
@@ -233,17 +233,17 @@ export default function JoinTournamentPage({
             transition={{ delay: 0.1 }}
             className="text-center mb-8"
           >
-            <div className="w-16 h-16 bg-white flex items-center justify-center mx-auto mb-6">
-              <Trophy className="w-8 h-8 text-black" strokeWidth={1.5} />
+            <div className="w-16 h-16 bg-cb-accent flex items-center justify-center mx-auto mb-6">
+              <Trophy className="w-8 h-8 text-cb-accent-fg" strokeWidth={1.5} />
             </div>
-            <h1 style={serifFont} className="text-3xl sm:text-4xl text-white">
+            <h1 style={serifFont} className="text-3xl sm:text-4xl text-cb-text">
               {tournament.name}
             </h1>
-            <p style={geistFont} className="text-white/40 text-sm mt-2">
+            <p style={geistFont} className="text-cb-text-muted text-sm mt-2">
               Created by {tournament.createdBy.name}
             </p>
             {tournament.description && (
-              <p style={geistFont} className="text-white/50 text-sm mt-2">
+              <p style={geistFont} className="text-cb-text-secondary text-sm mt-2">
                 {tournament.description}
               </p>
             )}
@@ -256,50 +256,50 @@ export default function JoinTournamentPage({
             transition={{ delay: 0.2 }}
             className="grid grid-cols-2 gap-4 mb-6"
           >
-            <div className="border border-white/10 p-4">
+            <div className="border border-cb-border p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Gamepad2 className="w-4 h-4 text-white/30" strokeWidth={1.5} />
-                <span style={geistFont} className="text-xs text-white/40 uppercase tracking-wide">
+                <Gamepad2 className="w-4 h-4 text-cb-text-muted" strokeWidth={1.5} />
+                <span style={geistFont} className="text-xs text-cb-text-muted uppercase tracking-wide">
                   Mode
                 </span>
               </div>
-              <p style={serifFont} className="text-2xl text-white">
+              <p style={serifFont} className="text-2xl text-cb-text">
                 {tournament.mode}
               </p>
             </div>
 
-            <div className="border border-white/10 p-4">
+            <div className="border border-cb-border p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Clock className="w-4 h-4 text-white/30" strokeWidth={1.5} />
-                <span style={geistFont} className="text-xs text-white/40 uppercase tracking-wide">
+                <Clock className="w-4 h-4 text-cb-text-muted" strokeWidth={1.5} />
+                <span style={geistFont} className="text-xs text-cb-text-muted uppercase tracking-wide">
                   Time Control
                 </span>
               </div>
-              <p style={serifFont} className="text-2xl text-white">
+              <p style={serifFont} className="text-2xl text-cb-text">
                 {formatTimeControl(tournament.initialTimeSeconds, tournament.incrementSeconds)}
               </p>
             </div>
 
-            <div className="border border-white/10 p-4">
+            <div className="border border-cb-border p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Timer className="w-4 h-4 text-white/30" strokeWidth={1.5} />
-                <span style={geistFont} className="text-xs text-white/40 uppercase tracking-wide">
+                <Timer className="w-4 h-4 text-cb-text-muted" strokeWidth={1.5} />
+                <span style={geistFont} className="text-xs text-cb-text-muted uppercase tracking-wide">
                   Duration
                 </span>
               </div>
-              <p style={serifFont} className="text-2xl text-white">
+              <p style={serifFont} className="text-2xl text-cb-text">
                 {tournament.durationMinutes}m
               </p>
             </div>
 
-            <div className="border border-white/10 p-4">
+            <div className="border border-cb-border p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Users className="w-4 h-4 text-white/30" strokeWidth={1.5} />
-                <span style={geistFont} className="text-xs text-white/40 uppercase tracking-wide">
+                <Users className="w-4 h-4 text-cb-text-muted" strokeWidth={1.5} />
+                <span style={geistFont} className="text-xs text-cb-text-muted uppercase tracking-wide">
                   Players
                 </span>
               </div>
-              <p style={serifFont} className="text-2xl text-white">
+              <p style={serifFont} className="text-2xl text-cb-text">
                 {tournament.participantCount}
                 {tournament.maxParticipants ? `/${tournament.maxParticipants}` : ""}
               </p>
@@ -311,9 +311,9 @@ export default function JoinTournamentPage({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="border border-white/10 p-4 mb-6 text-center"
+            className="border border-cb-border p-4 mb-6 text-center"
           >
-            <p style={geistFont} className="text-xs text-white/40 uppercase tracking-wide mb-2">
+            <p style={geistFont} className="text-xs text-cb-text-muted uppercase tracking-wide mb-2">
               Starts in
             </p>
             <p style={geistFont} className="text-lg">
@@ -327,9 +327,9 @@ export default function JoinTournamentPage({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="border border-white/20 p-4 mb-6"
+              className="border border-cb-border-strong p-4 mb-6"
             >
-              <p style={geistFont} className="text-white/60 text-center text-sm">
+              <p style={geistFont} className="text-cb-text-secondary text-center text-sm">
                 Registration is closed — tournament has already started.
               </p>
             </motion.div>
@@ -340,9 +340,9 @@ export default function JoinTournamentPage({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="border border-white/20 p-4 mb-6"
+              className="border border-cb-border-strong p-4 mb-6"
             >
-              <p style={geistFont} className="text-white/60 text-center text-sm">
+              <p style={geistFont} className="text-cb-text-secondary text-center text-sm">
                 This tournament is full.
               </p>
             </motion.div>
@@ -362,19 +362,19 @@ export default function JoinTournamentPage({
                 "group relative w-full flex items-center justify-center gap-2 px-8 py-4",
                 "transition-all duration-300 overflow-hidden",
                 registrationClosed || isFull
-                  ? "bg-white/10 text-white/30 cursor-not-allowed"
-                  : "bg-white text-black",
+                  ? "bg-cb-surface-elevated text-cb-text-muted cursor-not-allowed"
+                  : "bg-cb-accent text-cb-accent-fg",
                 "disabled:opacity-50 disabled:cursor-not-allowed"
               )}
               style={geistFont}
             >
               {!registrationClosed && !isFull && (
-                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
               )}
               <span
                 className={cn(
                   "relative z-10 font-medium transition-colors duration-300",
-                  !registrationClosed && !isFull && "group-hover:text-white"
+                  !registrationClosed && !isFull && "group-hover:text-cb-text"
                 )}
               >
                 {joining ? (

@@ -99,10 +99,10 @@ export default function TryPositionPage({
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black flex items-center justify-center pt-16 md:pt-24">
+        <div className="min-h-screen bg-cb-bg flex items-center justify-center pt-16 md:pt-24">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-            <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-sm tracking-wide">
+            <div className="w-12 h-12 border-2 border-cb-border-strong border-t-cb-text rounded-full animate-spin" />
+            <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm tracking-wide">
               Loading position...
             </p>
           </div>
@@ -115,24 +115,24 @@ export default function TryPositionPage({
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-black flex items-center justify-center pt-16 md:pt-24 p-4 relative">
+        <div className="min-h-screen bg-cb-bg flex items-center justify-center pt-16 md:pt-24 p-4 relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="border border-white/10 p-8 max-w-md text-center"
+            className="border border-cb-border p-8 max-w-md text-center"
           >
             <h2
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-2xl text-white mb-3"
+              className="text-2xl text-cb-text mb-3"
             >
               Position Not Found
             </h2>
-            <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 mb-8">
+            <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted mb-8">
               {error || "This position is not available for demo play."}
             </p>
             <button
               onClick={() => router.push("/try")}
-              className="w-full py-4 bg-white text-black transition-all duration-300"
+              className="w-full py-4 bg-cb-accent text-cb-accent-fg transition-all duration-300"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               Browse Positions
@@ -154,16 +154,16 @@ export default function TryPositionPage({
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black flex flex-col lg:flex-row pt-16 sm:pt-18 md:pt-24 relative overflow-hidden">
+      <div className="min-h-screen bg-cb-bg flex flex-col lg:flex-row pt-16 sm:pt-18 md:pt-24 relative overflow-hidden">
         {/* Diagonal gradient */}
         <div
           className="absolute inset-0 opacity-60"
           style={{
             background: `linear-gradient(135deg,
-              rgba(255,255,255,0.03) 0%,
+              var(--cb-hover) 0%,
               transparent 40%,
               transparent 60%,
-              rgba(255,255,255,0.02) 100%
+              var(--cb-hover) 100%
             )`,
           }}
         />
@@ -183,14 +183,14 @@ export default function TryPositionPage({
               transition={{ delay: 0.2 }}
               className="flex items-center gap-3 mb-4 lg:mb-6"
             >
-              <div className="h-px flex-1 bg-gradient-to-r from-white/30 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-r from-cb-text-muted to-transparent" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-secondary text-[10px] tracking-[0.4em] uppercase"
               >
                 Demo — No Sign-up Required
               </span>
-              <div className="h-px flex-1 bg-gradient-to-l from-white/30 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-l from-cb-text-muted to-transparent" />
             </motion.div>
 
             {/* Position metadata */}
@@ -202,12 +202,12 @@ export default function TryPositionPage({
             >
               <h1
                 style={{ fontFamily: "'Instrument Serif', serif" }}
-                className="text-3xl sm:text-4xl text-white mb-2"
+                className="text-3xl sm:text-4xl text-cb-text mb-2"
               >
                 {position.whitePlayerName && position.blackPlayerName ? (
                   <>
                     {position.whitePlayerName}
-                    <span className="text-white/30 mx-2 text-2xl">vs</span>
+                    <span className="text-cb-text-muted mx-2 text-2xl">vs</span>
                     {position.blackPlayerName}
                   </>
                 ) : (
@@ -216,14 +216,14 @@ export default function TryPositionPage({
               </h1>
               {position.tournamentName && position.whitePlayerName && (
                 <div className="flex items-center gap-3 mt-3">
-                  <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/30" />
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent to-cb-text-muted" />
                   <span
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+                    className="text-cb-text-secondary text-[10px] tracking-[0.4em] uppercase"
                   >
                     {position.tournamentName}
                   </span>
-                  <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/30" />
+                  <div className="h-px flex-1 bg-gradient-to-l from-transparent to-cb-text-muted" />
                 </div>
               )}
             </motion.div>
@@ -264,14 +264,14 @@ export default function TryPositionPage({
                 />
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/50 text-xs tracking-wider uppercase"
+                  className="text-cb-text-secondary text-xs tracking-wider uppercase"
                 >
                   {boardOrientation === "w" ? "White" : "Black"} to move
                 </span>
               </div>
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/30 text-xs tracking-wider uppercase"
+                className="text-cb-text-muted text-xs tracking-wider uppercase"
               >
                 5+3 Blitz
               </span>
@@ -289,15 +289,15 @@ export default function TryPositionPage({
                 disabled={creating}
                 className={cn(
                   "group relative w-full flex items-center justify-center gap-2 px-5 py-3.5",
-                  "bg-white text-black",
+                  "bg-cb-accent text-cb-accent-fg",
                   "transition-all duration-300 overflow-hidden",
                   "disabled:opacity-50 disabled:cursor-not-allowed"
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
-                <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                <Bot className="relative z-10 w-4 h-4 group-hover:text-white transition-colors flex-shrink-0" strokeWidth={1.5} />
-                <span className="relative z-10 text-sm font-medium group-hover:text-white transition-colors duration-300">
+                <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                <Bot className="relative z-10 w-4 h-4 group-hover:text-cb-text transition-colors flex-shrink-0" strokeWidth={1.5} />
+                <span className="relative z-10 text-sm font-medium group-hover:text-cb-text transition-colors duration-300">
                   {creating ? "Starting..." : "Play vs Bot"}
                 </span>
               </button>
@@ -316,14 +316,14 @@ export default function TryPositionPage({
                     disabled
                     onMouseEnter={() => setHoveredLockedButton(mode.id)}
                     onMouseLeave={() => setHoveredLockedButton(null)}
-                    className="w-full flex items-center justify-between px-5 py-3.5 border border-white/10 text-white/30 cursor-not-allowed transition-colors duration-200 hover:border-white/20"
+                    className="w-full flex items-center justify-between px-5 py-3.5 border border-cb-border text-cb-text-muted cursor-not-allowed transition-colors duration-200 hover:border-cb-border-strong"
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >
                     <div className="flex items-center gap-2">
                       <mode.icon className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} />
                       <div className="text-left">
                         <span className="text-sm font-medium block">{mode.title}</span>
-                        <span className="text-[11px] text-white/20 block">{mode.subtitle}</span>
+                        <span className="text-[11px] text-cb-text-faint block">{mode.subtitle}</span>
                       </div>
                     </div>
                     <Lock className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} />
@@ -343,19 +343,19 @@ export default function TryPositionPage({
                     onMouseEnter={() => setHoveredLockedButton(hoveredLockedButton)}
                     onMouseLeave={() => setHoveredLockedButton(null)}
                   >
-                    <div className="bg-zinc-950 border border-white/10 p-4">
+                    <div className="bg-cb-surface border border-cb-border p-4">
                       <p
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-white/80 text-sm font-medium mb-1"
+                        className="text-cb-text-secondary text-sm font-medium mb-1"
                       >
                         Create a free account
                       </p>
                       <p
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-white/40 text-xs mb-3"
+                        className="text-cb-text-muted text-xs mb-3"
                       >
                         Unlock{" "}
-                        <span className="text-white/60">
+                        <span className="text-cb-text-secondary">
                           {lockedModes.find((m) => m.id === hoveredLockedButton)?.title}
                         </span>
                         , multiplayer, analysis, and more
@@ -364,13 +364,13 @@ export default function TryPositionPage({
                         <button
                           className={cn(
                             "group relative w-full flex items-center justify-center gap-2 px-4 py-2.5",
-                            "bg-white text-black",
+                            "bg-cb-accent text-cb-accent-fg",
                             "transition-all duration-300 overflow-hidden"
                           )}
                           style={{ fontFamily: "'Geist', sans-serif" }}
                         >
-                          <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                          <span className="relative z-10 text-sm font-medium group-hover:text-white transition-colors duration-300">
+                          <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                          <span className="relative z-10 text-sm font-medium group-hover:text-cb-text transition-colors duration-300">
                             Sign Up Free
                           </span>
                         </button>
@@ -382,25 +382,25 @@ export default function TryPositionPage({
             </div>
 
             {/* Platform value props — 2x2 grid */}
-            <div className="grid grid-cols-2 gap-px bg-white/[0.06] mb-6">
+            <div className="grid grid-cols-2 gap-px bg-cb-border mb-6">
               {platformFeatures.map((feature, i) => (
                 <motion.div
                   key={feature.title}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.9 + i * 0.08 }}
-                  className="bg-black p-4 hover:bg-white/[0.03] transition-colors duration-300"
+                  className="bg-cb-bg p-4 hover:bg-cb-hover transition-colors duration-300"
                 >
-                  <feature.icon className="w-4 h-4 text-white/40 mb-2" strokeWidth={1.5} />
+                  <feature.icon className="w-4 h-4 text-cb-text-muted mb-2" strokeWidth={1.5} />
                   <h3
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/80 text-xs font-medium mb-1"
+                    className="text-cb-text-secondary text-xs font-medium mb-1"
                   >
                     {feature.title}
                   </h3>
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-white/30 text-[11px] leading-relaxed"
+                    className="text-cb-text-muted text-[11px] leading-relaxed"
                   >
                     {feature.description}
                   </p>
@@ -418,7 +418,7 @@ export default function TryPositionPage({
               <SignInButton forceRedirectUrl="/play">
                 <button
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/40 text-xs tracking-wide hover:text-white/70 transition-colors duration-300 underline underline-offset-4 decoration-white/20 hover:decoration-white/40"
+                  className="text-cb-text-muted text-xs tracking-wide hover:text-cb-text-secondary transition-colors duration-300 underline underline-offset-4 decoration-cb-border-strong hover:decoration-cb-text-muted"
                 >
                   Create a free account — Unlock everything
                 </button>
@@ -426,7 +426,7 @@ export default function TryPositionPage({
             </motion.div>
 
             {/* Mobile sticky bar — Play vs Bot only */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06] lg:hidden">
+            <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-cb-backdrop backdrop-blur-sm border-t border-cb-border lg:hidden">
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -437,15 +437,15 @@ export default function TryPositionPage({
                   disabled={creating}
                   className={cn(
                     "group relative w-full flex items-center justify-center gap-2 px-5 py-3.5",
-                    "bg-white text-black",
+                    "bg-cb-accent text-cb-accent-fg",
                     "transition-all duration-300 overflow-hidden",
                     "disabled:opacity-50 disabled:cursor-not-allowed"
                   )}
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
-                  <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                  <Bot className="relative z-10 w-4 h-4 group-hover:text-white transition-colors flex-shrink-0" strokeWidth={1.5} />
-                  <span className="relative z-10 text-sm font-medium group-hover:text-white transition-colors duration-300">
+                  <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                  <Bot className="relative z-10 w-4 h-4 group-hover:text-cb-text transition-colors flex-shrink-0" strokeWidth={1.5} />
+                  <span className="relative z-10 text-sm font-medium group-hover:text-cb-text transition-colors duration-300">
                     {creating ? "Starting..." : "Play vs Bot"}
                   </span>
                 </button>
@@ -456,7 +456,7 @@ export default function TryPositionPage({
 
         {/* Right Side — Chess Board (desktop only) */}
         <div className="hidden lg:flex flex-1 items-center justify-center p-8 relative">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-cb-hover rounded-full blur-3xl" />
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -475,8 +475,8 @@ export default function TryPositionPage({
         </div>
 
         {/* Decorative corner elements */}
-        <div className="absolute top-20 left-6 w-16 h-16 border-l border-t border-white/10" />
-        <div className="absolute bottom-6 right-6 w-16 h-16 border-r border-b border-white/10" />
+        <div className="absolute top-20 left-6 w-16 h-16 border-l border-t border-cb-border" />
+        <div className="absolute bottom-6 right-6 w-16 h-16 border-r border-b border-cb-border" />
       </div>
     </>
   );

@@ -34,13 +34,13 @@ export function PWAUpdateBanner({
           <div
             className={cn(
               "relative",
-              "bg-neutral-900 border border-white/10",
+              "bg-cb-surface border border-cb-border",
               "p-4",
               "flex items-center gap-4"
             )}
           >
             {/* Animated refresh icon */}
-            <div className="relative flex-shrink-0 w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10">
+            <div className="relative flex-shrink-0 w-10 h-10 flex items-center justify-center bg-cb-hover border border-cb-border">
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{
@@ -49,11 +49,11 @@ export function PWAUpdateBanner({
                   ease: "linear",
                 }}
               >
-                <RefreshCw className="w-4 h-4 text-white/50" strokeWidth={1.5} />
+                <RefreshCw className="w-4 h-4 text-cb-text-secondary" strokeWidth={1.5} />
               </motion.div>
               {/* Subtle pulse indicator */}
               <motion.div
-                className="absolute top-0 right-0 w-2 h-2 bg-white"
+                className="absolute top-0 right-0 w-2 h-2 bg-cb-accent"
                 animate={{
                   opacity: [1, 0.4, 1],
                 }}
@@ -69,13 +69,13 @@ export function PWAUpdateBanner({
             <div className="flex-1 min-w-0">
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-sm text-white font-medium tracking-tight"
+                className="text-sm text-cb-text font-medium tracking-tight"
               >
                 Update Available
               </p>
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-xs text-white/40 mt-0.5"
+                className="text-xs text-cb-text-muted mt-0.5"
               >
                 A new version is ready
               </p>
@@ -89,9 +89,9 @@ export function PWAUpdateBanner({
               className={cn(
                 "flex-shrink-0",
                 "h-9 px-4",
-                "bg-white text-black",
+                "bg-cb-accent text-cb-accent-fg",
                 "text-xs font-semibold uppercase tracking-wider",
-                "hover:bg-white/90",
+                "hover:bg-cb-accent/90",
                 "transition-colors duration-200"
               )}
               style={{ fontFamily: "'Geist', sans-serif" }}
@@ -105,7 +105,7 @@ export function PWAUpdateBanner({
               className={cn(
                 "flex-shrink-0",
                 "p-1.5",
-                "text-white/30 hover:text-white/70",
+                "text-cb-text-muted hover:text-cb-text-secondary",
                 "transition-colors duration-200"
               )}
               aria-label="Dismiss update notification"
@@ -115,7 +115,7 @@ export function PWAUpdateBanner({
 
             {/* Subtle top accent line */}
             <motion.div
-              className="absolute top-0 left-0 h-px bg-white/20"
+              className="absolute top-0 left-0 h-px bg-cb-border-strong"
               initial={{ width: 0 }}
               animate={{ width: "100%" }}
               transition={{

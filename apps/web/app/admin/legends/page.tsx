@@ -215,12 +215,12 @@ export default function LegendsAdmin() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black pt-20 md:pt-28 relative">
+      <div className="min-h-screen bg-cb-bg pt-20 md:pt-28 relative">
         {/* Subtle grid background */}
         <div
           className="fixed inset-0 opacity-[0.015] pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: '60px 60px',
           }}
         />
@@ -229,22 +229,22 @@ export default function LegendsAdmin() {
           {/* Header */}
           <div className="mb-12">
             <div className="flex items-center gap-3 mb-4">
-              <div className="h-px flex-1 bg-gradient-to-r from-white/30 to-transparent" />
-              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/50 text-[10px] tracking-[0.4em] uppercase">
+              <div className="h-px flex-1 bg-gradient-to-r from-cb-text-muted to-transparent" />
+              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-[10px] tracking-[0.4em] uppercase">
                 Admin Panel
               </span>
-              <div className="h-px flex-1 bg-gradient-to-l from-white/30 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-l from-cb-text-muted to-transparent" />
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h1
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-4xl sm:text-5xl text-white mb-2"
+                  className="text-4xl sm:text-5xl text-cb-text mb-2"
                 >
                   Manage Legends
                 </h1>
-                <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-sm">
+                <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm">
                   Add and edit chess legends for the platform
                 </p>
               </div>
@@ -252,7 +252,7 @@ export default function LegendsAdmin() {
               {!showForm && (
                 <button
                   onClick={handleCreateNew}
-                  className="group relative overflow-hidden bg-white text-black px-6 py-3 transition-all duration-300 hover:bg-white/90"
+                  className="group relative overflow-hidden bg-cb-accent text-cb-accent-fg px-6 py-3 transition-all duration-300 hover:opacity-90"
                 >
                   <span className="flex items-center gap-2">
                     <Plus className="w-4 h-4" strokeWidth={1.5} />
@@ -268,7 +268,7 @@ export default function LegendsAdmin() {
           {/* Back Navigation */}
           <Link
             href="/admin"
-            className="inline-flex items-center gap-2 text-white/40 hover:text-white/60 transition-colors mb-8 group"
+            className="inline-flex items-center gap-2 text-cb-text-muted hover:text-cb-text-secondary transition-colors mb-8 group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" strokeWidth={1.5} />
             <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-sm">
@@ -277,33 +277,33 @@ export default function LegendsAdmin() {
           </Link>
 
           {/* Separator */}
-          <div className="border-t border-white/10 mb-8" />
+          <div className="border-t border-cb-border mb-8" />
 
           {/* Form */}
           {showForm && (
-            <div className="mb-12 border border-white/10 p-6 sm:p-8">
+            <div className="mb-12 border border-cb-border p-6 sm:p-8">
                 <div className="flex items-center justify-between mb-8">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 border border-white/20 flex items-center justify-center">
-                      <Crown className="w-5 h-5 text-white/60" strokeWidth={1.5} />
+                    <div className="w-12 h-12 border border-cb-border-strong flex items-center justify-center">
+                      <Crown className="w-5 h-5 text-cb-text-secondary" strokeWidth={1.5} />
                     </div>
                     <div>
                       <h2
                         style={{ fontFamily: "'Instrument Serif', serif" }}
-                        className="text-2xl text-white"
+                        className="text-2xl text-cb-text"
                       >
                         {editingId ? "Edit Legend" : "Create New Legend"}
                       </h2>
-                      <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-sm">
+                      <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm">
                         Fill in the details below
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={handleCancel}
-                    className="w-10 h-10 border border-white/10 flex items-center justify-center hover:border-white/30 hover:bg-white/5 transition-all"
+                    className="w-10 h-10 border border-cb-border flex items-center justify-center hover:border-cb-text-muted hover:bg-cb-hover transition-all"
                   >
-                    <X className="w-4 h-4 text-white/60" strokeWidth={1.5} />
+                    <X className="w-4 h-4 text-cb-text-secondary" strokeWidth={1.5} />
                   </button>
                 </div>
 
@@ -311,7 +311,7 @@ export default function LegendsAdmin() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Name */}
                     <div>
-                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2">
+                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2">
                         Name *
                       </label>
                       <input
@@ -320,9 +320,9 @@ export default function LegendsAdmin() {
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         className={cn(
-                          "w-full px-4 py-3 bg-transparent border border-white/10",
-                          "text-white placeholder-white/20",
-                          "focus:outline-none focus:border-white/30 transition-colors"
+                          "w-full px-4 py-3 bg-transparent border border-cb-border",
+                          "text-cb-text placeholder-cb-text-faint",
+                          "focus:outline-none focus:border-cb-text-muted transition-colors"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                         placeholder="Magnus Carlsen"
@@ -331,7 +331,7 @@ export default function LegendsAdmin() {
 
                     {/* Era */}
                     <div>
-                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2">
+                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2">
                         Era *
                       </label>
                       <input
@@ -340,9 +340,9 @@ export default function LegendsAdmin() {
                         value={formData.era}
                         onChange={(e) => setFormData({ ...formData, era: e.target.value })}
                         className={cn(
-                          "w-full px-4 py-3 bg-transparent border border-white/10",
-                          "text-white placeholder-white/20",
-                          "focus:outline-none focus:border-white/30 transition-colors"
+                          "w-full px-4 py-3 bg-transparent border border-cb-border",
+                          "text-cb-text placeholder-cb-text-faint",
+                          "focus:outline-none focus:border-cb-text-muted transition-colors"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                         placeholder="Modern Era"
@@ -351,7 +351,7 @@ export default function LegendsAdmin() {
 
                     {/* Profile Photo URL */}
                     <div>
-                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2">
+                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2">
                         Profile Photo URL
                       </label>
                       <input
@@ -359,9 +359,9 @@ export default function LegendsAdmin() {
                         value={formData.profilePhotoUrl}
                         onChange={(e) => setFormData({ ...formData, profilePhotoUrl: e.target.value })}
                         className={cn(
-                          "w-full px-4 py-3 bg-transparent border border-white/10",
-                          "text-white placeholder-white/20",
-                          "focus:outline-none focus:border-white/30 transition-colors"
+                          "w-full px-4 py-3 bg-transparent border border-cb-border",
+                          "text-cb-text placeholder-cb-text-faint",
+                          "focus:outline-none focus:border-cb-text-muted transition-colors"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                         placeholder="https://example.com/photo.jpg"
@@ -370,7 +370,7 @@ export default function LegendsAdmin() {
 
                     {/* Peak Rating */}
                     <div>
-                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2">
+                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2">
                         Peak Rating
                       </label>
                       <input
@@ -378,9 +378,9 @@ export default function LegendsAdmin() {
                         value={formData.peakRating}
                         onChange={(e) => setFormData({ ...formData, peakRating: e.target.value })}
                         className={cn(
-                          "w-full px-4 py-3 bg-transparent border border-white/10",
-                          "text-white placeholder-white/20",
-                          "focus:outline-none focus:border-white/30 transition-colors"
+                          "w-full px-4 py-3 bg-transparent border border-cb-border",
+                          "text-cb-text placeholder-cb-text-faint",
+                          "focus:outline-none focus:border-cb-text-muted transition-colors"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                         placeholder="2882"
@@ -389,7 +389,7 @@ export default function LegendsAdmin() {
 
                     {/* Nationality */}
                     <div>
-                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2">
+                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2">
                         Nationality
                       </label>
                       <input
@@ -397,9 +397,9 @@ export default function LegendsAdmin() {
                         value={formData.nationality}
                         onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
                         className={cn(
-                          "w-full px-4 py-3 bg-transparent border border-white/10",
-                          "text-white placeholder-white/20",
-                          "focus:outline-none focus:border-white/30 transition-colors"
+                          "w-full px-4 py-3 bg-transparent border border-cb-border",
+                          "text-cb-text placeholder-cb-text-faint",
+                          "focus:outline-none focus:border-cb-text-muted transition-colors"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                         placeholder="NOR"
@@ -408,7 +408,7 @@ export default function LegendsAdmin() {
 
                     {/* Birth Year */}
                     <div>
-                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2">
+                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2">
                         Birth Year
                       </label>
                       <input
@@ -416,9 +416,9 @@ export default function LegendsAdmin() {
                         value={formData.birthYear}
                         onChange={(e) => setFormData({ ...formData, birthYear: e.target.value })}
                         className={cn(
-                          "w-full px-4 py-3 bg-transparent border border-white/10",
-                          "text-white placeholder-white/20",
-                          "focus:outline-none focus:border-white/30 transition-colors"
+                          "w-full px-4 py-3 bg-transparent border border-cb-border",
+                          "text-cb-text placeholder-cb-text-faint",
+                          "focus:outline-none focus:border-cb-text-muted transition-colors"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                         placeholder="1990"
@@ -427,7 +427,7 @@ export default function LegendsAdmin() {
 
                     {/* Death Year */}
                     <div>
-                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2">
+                      <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2">
                         Death Year
                       </label>
                       <input
@@ -435,9 +435,9 @@ export default function LegendsAdmin() {
                         value={formData.deathYear}
                         onChange={(e) => setFormData({ ...formData, deathYear: e.target.value })}
                         className={cn(
-                          "w-full px-4 py-3 bg-transparent border border-white/10",
-                          "text-white placeholder-white/20",
-                          "focus:outline-none focus:border-white/30 transition-colors"
+                          "w-full px-4 py-3 bg-transparent border border-cb-border",
+                          "text-cb-text placeholder-cb-text-faint",
+                          "focus:outline-none focus:border-cb-text-muted transition-colors"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                         placeholder="Leave empty if alive"
@@ -454,18 +454,18 @@ export default function LegendsAdmin() {
                       >
                         <div className={cn(
                           "w-12 h-6 border relative transition-colors duration-300",
-                          formData.isActive ? "border-white bg-white" : "border-white/30"
+                          formData.isActive ? "border-cb-accent bg-cb-accent" : "border-cb-text-muted"
                         )}>
                           <motion.div
                             animate={{ x: formData.isActive ? 24 : 0 }}
                             transition={{ type: "spring", stiffness: 500, damping: 30 }}
                             className={cn(
                               "absolute top-0 left-0 w-6 h-full transition-colors duration-300",
-                              formData.isActive ? "bg-black" : "bg-white/50"
+                              formData.isActive ? "bg-cb-accent-fg" : "bg-cb-text-secondary"
                             )}
                           />
                         </div>
-                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-sm text-white/60 group-hover:text-white/80 transition-colors">
+                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-sm text-cb-text-secondary group-hover:text-cb-text transition-colors">
                           Active
                         </span>
                       </button>
@@ -478,18 +478,18 @@ export default function LegendsAdmin() {
                       >
                         <div className={cn(
                           "w-12 h-6 border relative transition-colors duration-300",
-                          formData.isVisible ? "border-white bg-white" : "border-white/30"
+                          formData.isVisible ? "border-cb-accent bg-cb-accent" : "border-cb-text-muted"
                         )}>
                           <motion.div
                             animate={{ x: formData.isVisible ? 24 : 0 }}
                             transition={{ type: "spring", stiffness: 500, damping: 30 }}
                             className={cn(
                               "absolute top-0 left-0 w-6 h-full transition-colors duration-300",
-                              formData.isVisible ? "bg-black" : "bg-white/50"
+                              formData.isVisible ? "bg-cb-accent-fg" : "bg-cb-text-secondary"
                             )}
                           />
                         </div>
-                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-sm text-white/60 group-hover:text-white/80 transition-colors">
+                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-sm text-cb-text-secondary group-hover:text-cb-text transition-colors">
                           Visible on UI
                         </span>
                       </button>
@@ -498,7 +498,7 @@ export default function LegendsAdmin() {
 
                   {/* Short Description */}
                   <div>
-                    <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2">
+                    <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2">
                       Short Description * (max 500 chars)
                     </label>
                     <textarea
@@ -508,9 +508,9 @@ export default function LegendsAdmin() {
                       maxLength={500}
                       rows={3}
                       className={cn(
-                        "w-full px-4 py-3 bg-transparent border border-white/10",
-                        "text-white placeholder-white/20 resize-none",
-                        "focus:outline-none focus:border-white/30 transition-colors"
+                        "w-full px-4 py-3 bg-transparent border border-cb-border",
+                        "text-cb-text placeholder-cb-text-faint resize-none",
+                        "focus:outline-none focus:border-cb-text-muted transition-colors"
                       )}
                       style={{ fontFamily: "'Geist', sans-serif" }}
                       placeholder="Greatest player of all time with exceptional endgame technique"
@@ -519,7 +519,7 @@ export default function LegendsAdmin() {
 
                   {/* Playing Style */}
                   <div>
-                    <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2">
+                    <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2">
                       Playing Style
                     </label>
                     <textarea
@@ -527,9 +527,9 @@ export default function LegendsAdmin() {
                       onChange={(e) => setFormData({ ...formData, playingStyle: e.target.value })}
                       rows={2}
                       className={cn(
-                        "w-full px-4 py-3 bg-transparent border border-white/10",
-                        "text-white placeholder-white/20 resize-none",
-                        "focus:outline-none focus:border-white/30 transition-colors"
+                        "w-full px-4 py-3 bg-transparent border border-cb-border",
+                        "text-cb-text placeholder-cb-text-faint resize-none",
+                        "focus:outline-none focus:border-cb-text-muted transition-colors"
                       )}
                       style={{ fontFamily: "'Geist', sans-serif" }}
                       placeholder="Positional mastery with exceptional endgame technique"
@@ -538,7 +538,7 @@ export default function LegendsAdmin() {
 
                   {/* Achievements */}
                   <div>
-                    <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2">
+                    <label style={{ fontFamily: "'Geist', sans-serif" }} className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2">
                       Achievements (comma-separated)
                     </label>
                     <textarea
@@ -546,9 +546,9 @@ export default function LegendsAdmin() {
                       onChange={(e) => setFormData({ ...formData, achievements: e.target.value })}
                       rows={2}
                       className={cn(
-                        "w-full px-4 py-3 bg-transparent border border-white/10",
-                        "text-white placeholder-white/20 resize-none",
-                        "focus:outline-none focus:border-white/30 transition-colors"
+                        "w-full px-4 py-3 bg-transparent border border-cb-border",
+                        "text-cb-text placeholder-cb-text-faint resize-none",
+                        "focus:outline-none focus:border-cb-text-muted transition-colors"
                       )}
                       style={{ fontFamily: "'Geist', sans-serif" }}
                       placeholder="5-time World Champion, Longest #1 ranking in history"
@@ -561,17 +561,17 @@ export default function LegendsAdmin() {
                       type="submit"
                       disabled={isSaving}
                       className={cn(
-                        "group relative overflow-hidden bg-white text-black px-8 py-3 transition-all duration-300",
+                        "group relative overflow-hidden bg-cb-accent text-cb-accent-fg px-8 py-3 transition-all duration-300",
                         "disabled:opacity-50 disabled:cursor-not-allowed"
                       )}
                     >
                       <motion.div
-                        className="absolute inset-0 bg-black origin-left"
+                        className="absolute inset-0 bg-cb-bg origin-left"
                         initial={{ scaleX: 0 }}
                         whileHover={{ scaleX: isSaving ? 0 : 1 }}
                         transition={{ duration: 0.3 }}
                       />
-                      <span className="relative flex items-center gap-2 group-hover:text-white transition-colors">
+                      <span className="relative flex items-center gap-2 group-hover:text-cb-text transition-colors">
                         <Save className="w-4 h-4" strokeWidth={1.5} />
                         <span style={{ fontFamily: "'Geist', sans-serif" }} className="font-medium text-sm">
                           {isSaving ? "Saving..." : editingId ? "Update Legend" : "Create Legend"}
@@ -582,7 +582,7 @@ export default function LegendsAdmin() {
                     <button
                       type="button"
                       onClick={handleCancel}
-                      className="px-6 py-3 border border-white/10 text-white/60 hover:text-white hover:border-white/30 transition-all"
+                      className="px-6 py-3 border border-cb-border text-cb-text-secondary hover:text-cb-text hover:border-cb-text-muted transition-all"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
                       Cancel
@@ -596,29 +596,29 @@ export default function LegendsAdmin() {
           {isLoading ? (
             <div className="flex items-center justify-center py-24">
               <div className="flex flex-col items-center gap-4">
-                <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-sm">
+                <div className="w-10 h-10 border-2 border-cb-border-strong border-t-cb-text rounded-full animate-spin" />
+                <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm">
                   Loading legends...
                 </p>
               </div>
             </div>
           ) : legends.length === 0 ? (
-            <div className="border border-white/10 p-12 text-center">
-              <div className="w-16 h-16 border border-white/20 flex items-center justify-center mx-auto mb-6">
-                <Crown className="w-6 h-6 text-white/30" strokeWidth={1.5} />
+            <div className="border border-cb-border p-12 text-center">
+              <div className="w-16 h-16 border border-cb-border-strong flex items-center justify-center mx-auto mb-6">
+                <Crown className="w-6 h-6 text-cb-text-muted" strokeWidth={1.5} />
               </div>
               <h3
                 style={{ fontFamily: "'Instrument Serif', serif" }}
-                className="text-xl text-white mb-2"
+                className="text-xl text-cb-text mb-2"
               >
                 No legends yet
               </h3>
-              <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-sm mb-6">
+              <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm mb-6">
                 Create your first legend to get started
               </p>
               <button
                 onClick={handleCreateNew}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-white text-black hover:bg-white/90 transition-colors"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-cb-accent text-cb-accent-fg hover:opacity-90 transition-colors"
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
                 <Plus className="w-4 h-4" strokeWidth={1.5} />
@@ -630,7 +630,7 @@ export default function LegendsAdmin() {
               {legends.map((legend) => (
                 <div
                   key={legend.id}
-                  className="group border border-white/10 hover:border-white/20 transition-all duration-300"
+                  className="group border border-cb-border hover:border-cb-border-strong transition-all duration-300"
                 >
                   <div className="p-5">
                     <div className="flex items-start gap-4 mb-4">
@@ -644,10 +644,10 @@ export default function LegendsAdmin() {
                           className="w-12 h-12 object-cover grayscale group-hover:grayscale-0 transition-all"
                         />
                       ) : (
-                        <div className="w-12 h-12 border border-white/20 flex items-center justify-center bg-white/5">
+                        <div className="w-12 h-12 border border-cb-border-strong flex items-center justify-center bg-cb-hover">
                           <span
                             style={{ fontFamily: "'Geist', sans-serif" }}
-                            className="text-sm font-medium text-white/60"
+                            className="text-sm font-medium text-cb-text-secondary"
                           >
                             {legend.name.split(' ').map(n => n[0]).join('')}
                           </span>
@@ -658,11 +658,11 @@ export default function LegendsAdmin() {
                       <div className="flex-1 min-w-0">
                         <h3
                           style={{ fontFamily: "'Instrument Serif', serif" }}
-                          className="text-lg text-white truncate"
+                          className="text-lg text-cb-text truncate"
                         >
                           {legend.name}
                         </h3>
-                        <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-white/40">
+                        <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-cb-text-muted">
                           {legend.era}
                         </p>
                       </div>
@@ -671,17 +671,17 @@ export default function LegendsAdmin() {
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => handleEdit(legend)}
-                          className="w-8 h-8 border border-white/10 flex items-center justify-center hover:border-white/30 hover:bg-white/5 active:bg-white/10 transition-all"
+                          className="w-8 h-8 border border-cb-border flex items-center justify-center hover:border-cb-text-muted hover:bg-cb-hover active:bg-cb-surface-elevated transition-all"
                           title="Edit legend"
                         >
-                          <Edit2 className="w-3.5 h-3.5 text-white/60" strokeWidth={1.5} />
+                          <Edit2 className="w-3.5 h-3.5 text-cb-text-secondary" strokeWidth={1.5} />
                         </button>
                         <button
                           onClick={() => handleDelete(legend.id, legend.name)}
-                          className="w-8 h-8 border border-white/10 flex items-center justify-center hover:border-red-500/50 hover:bg-red-500/10 active:bg-red-500/20 transition-all"
+                          className="w-8 h-8 border border-cb-border flex items-center justify-center hover:border-red-500/50 hover:bg-red-500/10 active:bg-red-500/20 transition-all"
                           title="Delete legend"
                         >
-                          <Trash2 className="w-3.5 h-3.5 text-white/60" strokeWidth={1.5} />
+                          <Trash2 className="w-3.5 h-3.5 text-cb-text-secondary" strokeWidth={1.5} />
                         </button>
                       </div>
                     </div>
@@ -689,7 +689,7 @@ export default function LegendsAdmin() {
                     {/* Description */}
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-sm text-white/50 line-clamp-2 mb-4"
+                      className="text-sm text-cb-text-secondary line-clamp-2 mb-4"
                     >
                       {legend.shortDescription}
                     </p>
@@ -698,12 +698,12 @@ export default function LegendsAdmin() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {legend.peakRating && (
-                          <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-[10px] text-white/30 tracking-wide">
+                          <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-[10px] text-cb-text-muted tracking-wide">
                             Rating: {legend.peakRating}
                           </span>
                         )}
                         {legend.nationality && (
-                          <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-[10px] text-white/30 tracking-wide">
+                          <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-[10px] text-cb-text-muted tracking-wide">
                             {legend.nationality}
                           </span>
                         )}
@@ -713,16 +713,16 @@ export default function LegendsAdmin() {
                         <span className={cn(
                           "px-2 py-1 text-[10px] tracking-wide border",
                           legend.isActive
-                            ? "border-white/20 text-white/60"
-                            : "border-white/10 text-white/30"
+                            ? "border-cb-border-strong text-cb-text-secondary"
+                            : "border-cb-border text-cb-text-muted"
                         )} style={{ fontFamily: "'Geist', sans-serif" }}>
                           {legend.isActive ? "Active" : "Inactive"}
                         </span>
                         <span className={cn(
                           "px-2 py-1 text-[10px] tracking-wide border",
                           legend.isVisible
-                            ? "border-white bg-white text-black"
-                            : "border-white/10 text-white/30"
+                            ? "border-cb-accent bg-cb-accent text-cb-accent-fg"
+                            : "border-cb-border text-cb-text-muted"
                         )} style={{ fontFamily: "'Geist', sans-serif" }}>
                           {legend.isVisible ? "Visible" : "Hidden"}
                         </span>
@@ -736,8 +736,8 @@ export default function LegendsAdmin() {
         </div>
 
         {/* Decorative corner elements */}
-        <div className="fixed top-20 left-6 w-12 h-12 border-l border-t border-white/10 pointer-events-none" />
-        <div className="fixed bottom-6 right-6 w-12 h-12 border-r border-b border-white/10 pointer-events-none" />
+        <div className="fixed top-20 left-6 w-12 h-12 border-l border-t border-cb-border pointer-events-none" />
+        <div className="fixed bottom-6 right-6 w-12 h-12 border-r border-b border-cb-border pointer-events-none" />
       </div>
     </>
   );

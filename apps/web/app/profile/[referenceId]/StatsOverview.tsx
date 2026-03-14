@@ -37,18 +37,18 @@ export function StatsOverview({ stats }: StatsOverviewProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="border border-white/10 p-8 sm:p-10 text-center"
+        className="border border-cb-border p-8 sm:p-10 text-center"
       >
-        <span className="text-white/20 text-4xl block mb-4">♟</span>
+        <span className="text-cb-text-faint text-4xl block mb-4">♟</span>
         <p
           style={{ fontFamily: "'Instrument Serif', serif" }}
-          className="text-white/30 text-lg mb-2"
+          className="text-cb-text-muted text-lg mb-2"
         >
           No games played yet
         </p>
         <p
           style={{ fontFamily: "'Geist', sans-serif" }}
-          className="text-white/15 text-sm"
+          className="text-cb-text-faint text-sm"
         >
           Stats will appear after the first game
         </p>
@@ -63,19 +63,19 @@ export function StatsOverview({ stats }: StatsOverviewProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="border border-white/10"
+      className="border border-cb-border"
     >
       {/* Section header */}
       <div className="px-6 sm:px-8 pt-6 sm:pt-8 pb-4">
         <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-gradient-to-r from-white/20 to-transparent" />
+          <div className="h-px flex-1 bg-gradient-to-r from-cb-border-strong to-transparent" />
           <span
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/40 text-[10px] tracking-[0.3em] uppercase"
+            className="text-cb-text-muted text-[10px] tracking-[0.3em] uppercase"
           >
             Stats
           </span>
-          <div className="h-px flex-1 bg-gradient-to-l from-white/20 to-transparent" />
+          <div className="h-px flex-1 bg-gradient-to-l from-cb-border-strong to-transparent" />
         </div>
       </div>
 
@@ -89,7 +89,7 @@ export function StatsOverview({ stats }: StatsOverviewProps) {
                 cy="60"
                 r={RADIUS}
                 fill="none"
-                stroke="rgba(255,255,255,0.06)"
+                stroke="var(--cb-border)"
                 strokeWidth="5"
               />
               <circle
@@ -97,7 +97,7 @@ export function StatsOverview({ stats }: StatsOverviewProps) {
                 cy="60"
                 r={RADIUS}
                 fill="none"
-                stroke="#ffffff"
+                stroke="var(--cb-text)"
                 strokeWidth="5"
                 strokeDasharray={CIRCUMFERENCE}
                 strokeDashoffset={offset}
@@ -108,13 +108,13 @@ export function StatsOverview({ stats }: StatsOverviewProps) {
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span
                 style={{ fontFamily: "'Geist Mono', monospace" }}
-                className="text-white text-2xl font-medium"
+                className="text-cb-text text-2xl font-medium"
               >
                 {stats.winRate.toFixed(0)}%
               </span>
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/25 text-[9px] tracking-[0.2em] uppercase mt-0.5"
+                className="text-cb-text-faint text-[9px] tracking-[0.2em] uppercase mt-0.5"
               >
                 Win Rate
               </span>
@@ -122,10 +122,10 @@ export function StatsOverview({ stats }: StatsOverviewProps) {
           </div>
 
           {/* Stats Grid */}
-          <div className="flex-1 w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-px bg-white/[0.04]">
+          <div className="flex-1 w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-px bg-cb-hover">
             <StatCell label="Won" value={stats.gamesWon} accent="text-green-400/80" />
             <StatCell label="Lost" value={stats.gamesLost} accent="text-red-400/80" />
-            <StatCell label="Drawn" value={stats.gamesDrawn} accent="text-white/50" />
+            <StatCell label="Drawn" value={stats.gamesDrawn} accent="text-cb-text-secondary" />
             <StatCell label="Total" value={stats.totalGamesPlayed} />
             <StatCell label="Current Streak" value={stats.currentWinStreak} />
             <StatCell label="Best Streak" value={stats.longestWinStreak} />
@@ -151,16 +151,16 @@ function StatCell({
   accent?: string;
 }) {
   return (
-    <div className="bg-black p-4 sm:p-5">
+    <div className="bg-cb-bg p-4 sm:p-5">
       <p
         style={{ fontFamily: "'Geist Mono', monospace" }}
-        className={cn("text-xl sm:text-2xl font-medium mb-1", accent || "text-white")}
+        className={cn("text-xl sm:text-2xl font-medium mb-1", accent || "text-cb-text")}
       >
         {value}
       </p>
       <p
         style={{ fontFamily: "'Geist', sans-serif" }}
-        className="text-white/25 text-[10px] tracking-[0.15em] uppercase"
+        className="text-cb-text-faint text-[10px] tracking-[0.15em] uppercase"
       >
         {label}
       </p>

@@ -138,7 +138,7 @@ export function ChessComConnectModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-cb-backdrop backdrop-blur-sm"
             onClick={handleClose}
           />
 
@@ -153,7 +153,7 @@ export function ChessComConnectModal({
             {/* Close button */}
             <button
               onClick={handleClose}
-              className="absolute -top-12 right-0 p-2 text-white/30 hover:text-white/60 transition-colors"
+              className="absolute -top-12 right-0 p-2 text-cb-text-muted hover:text-cb-text-secondary transition-colors"
             >
               <X className="w-5 h-5" strokeWidth={1.5} />
             </button>
@@ -166,19 +166,19 @@ export function ChessComConnectModal({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                  className="border border-white/10 bg-black p-8"
+                  className="border border-cb-border bg-cb-bg p-8"
                 >
                   {/* Header */}
                   <div className="mb-8">
                     <h2
                       style={{ fontFamily: "'Instrument Serif', serif" }}
-                      className="text-2xl text-white mb-2"
+                      className="text-2xl text-cb-text mb-2"
                     >
                       Connect Chess.com
                     </h2>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white/40 text-sm"
+                      className="text-cb-text-muted text-sm"
                     >
                       Link your account to display ratings on your profile
                     </p>
@@ -189,7 +189,7 @@ export function ChessComConnectModal({
                       <label
                         htmlFor="modalChessComHandle"
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="block text-xs text-white/40 uppercase tracking-widest mb-3"
+                        className="block text-xs text-cb-text-muted uppercase tracking-widest mb-3"
                       >
                         Chess.com Username
                       </label>
@@ -200,9 +200,9 @@ export function ChessComConnectModal({
                         onChange={(e) => setHandle(e.target.value)}
                         placeholder="e.g., hikaru"
                         className={cn(
-                          "w-full px-4 py-3 bg-transparent border border-white/10",
-                          "text-white placeholder-white/20",
-                          "focus:outline-none focus:border-white/40 transition-colors duration-300"
+                          "w-full px-4 py-3 bg-transparent border border-cb-border",
+                          "text-cb-text placeholder-cb-text-faint",
+                          "focus:outline-none focus:border-cb-border-strong transition-colors duration-300"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                         disabled={loading}
@@ -214,11 +214,11 @@ export function ChessComConnectModal({
                       <motion.div
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="border border-white/20 p-3"
+                        className="border border-cb-border-strong p-3"
                       >
                         <p
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-white/60 text-sm"
+                          className="text-cb-text-secondary text-sm"
                         >
                           {error}
                         </p>
@@ -230,19 +230,19 @@ export function ChessComConnectModal({
                       disabled={loading}
                       className={cn(
                         "group relative w-full flex items-center justify-center gap-2 px-8 py-4",
-                        "bg-white text-black",
+                        "bg-cb-accent text-cb-accent-fg",
                         "transition-all duration-300 overflow-hidden",
                         "disabled:opacity-50 disabled:cursor-not-allowed"
                       )}
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
-                      <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                      <span className="relative z-10 font-medium group-hover:text-white transition-colors duration-300">
+                      <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                      <span className="relative z-10 font-medium group-hover:text-cb-text transition-colors duration-300">
                         {loading ? "Looking up..." : "Look Up Profile"}
                       </span>
                       {!loading && (
                         <Search
-                          className="w-4 h-4 relative z-10 group-hover:text-white transition-colors duration-300"
+                          className="w-4 h-4 relative z-10 group-hover:text-cb-text transition-colors duration-300"
                           strokeWidth={1.5}
                         />
                       )}
@@ -255,7 +255,7 @@ export function ChessComConnectModal({
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="inline-flex items-center gap-1 text-xs text-white/30 hover:text-white/60 transition-colors"
+                        className="inline-flex items-center gap-1 text-xs text-cb-text-muted hover:text-cb-text-secondary transition-colors"
                       >
                         Don&apos;t have an account? Create one
                         <ExternalLink className="w-3 h-3" strokeWidth={1.5} />
@@ -285,11 +285,11 @@ export function ChessComConnectModal({
                     <motion.div
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="border border-white/20 p-3 mt-3"
+                      className="border border-cb-border-strong p-3 mt-3"
                     >
                       <p
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-white/60 text-sm"
+                        className="text-cb-text-secondary text-sm"
                       >
                         {error}
                       </p>

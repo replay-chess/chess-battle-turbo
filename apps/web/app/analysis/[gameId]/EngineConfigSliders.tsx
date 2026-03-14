@@ -38,7 +38,7 @@ function formatMultiPv(count: number): string {
 }
 
 const SLIDER_CLASS =
-  "w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer touch-action-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:shadow-[0_0_6px_rgba(251,191,36,0.4)] [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-amber-400 [&::-moz-range-thumb]:border-0";
+  "w-full h-1 bg-cb-surface-elevated rounded-full appearance-none cursor-pointer touch-action-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:shadow-[0_0_6px_rgba(251,191,36,0.4)] [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-amber-400 [&::-moz-range-thumb]:border-0";
 
 export default function EngineConfigSliders({
   skillLevel,
@@ -58,7 +58,7 @@ export default function EngineConfigSliders({
         <div className="flex items-center justify-between mb-1">
           <label
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-[10px] tracking-[0.2em] uppercase text-white/40"
+            className="text-[10px] tracking-[0.2em] uppercase text-cb-text-muted"
           >
             Skill Level
           </label>
@@ -84,13 +84,13 @@ export default function EngineConfigSliders({
         <div className="flex items-center justify-between mb-1">
           <label
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-[10px] tracking-[0.2em] uppercase text-white/40"
+            className="text-[10px] tracking-[0.2em] uppercase text-cb-text-muted"
           >
             Search Depth
           </label>
           <span
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-[10px] text-white/50 font-mono"
+            className="text-[10px] text-cb-text-secondary font-mono"
           >
             {depth} {depth === 1 ? "move" : "moves"} ahead
           </span>
@@ -118,13 +118,13 @@ export default function EngineConfigSliders({
         <div className="flex items-center justify-between mb-1">
           <label
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-[10px] tracking-[0.2em] uppercase text-white/40"
+            className="text-[10px] tracking-[0.2em] uppercase text-cb-text-muted"
           >
             Search Time
           </label>
           <span
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-[10px] text-white/50 font-mono"
+            className="text-[10px] text-cb-text-secondary font-mono"
           >
             {formatSearchTime(searchTimeSec)}
           </span>
@@ -145,7 +145,7 @@ export default function EngineConfigSliders({
           <div className="flex items-center justify-between mb-1">
             <label
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-[10px] tracking-[0.2em] uppercase text-white/40"
+              className="text-[10px] tracking-[0.2em] uppercase text-cb-text-muted"
             >
               Engine Lines
             </label>

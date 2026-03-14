@@ -22,14 +22,14 @@ export default async function OpeningDetailPage({ params }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
       {/* Grid background */}
       <div
         className="fixed inset-0 opacity-[0.015] pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -39,7 +39,7 @@ export default async function OpeningDetailPage({ params }: Props) {
         <Link
           href="/openings"
           style={{ fontFamily: "'Geist', sans-serif" }}
-          className="inline-flex items-center gap-2 text-xs text-white/30 hover:text-white/60 transition-colors uppercase tracking-widest mb-8"
+          className="inline-flex items-center gap-2 text-xs text-cb-text-muted hover:text-cb-text-secondary transition-colors uppercase tracking-widest mb-8"
         >
           ← All Openings
         </Link>
@@ -52,20 +52,20 @@ export default async function OpeningDetailPage({ params }: Props) {
               <div className="flex items-center justify-center lg:justify-start gap-3 mb-4">
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-xs px-2 py-1 border border-white/15 text-white/50 font-medium"
+                  className="text-xs px-2 py-1 border border-cb-border text-cb-text-secondary font-medium"
                 >
                   {opening.eco}
                 </span>
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] text-white/25 uppercase tracking-wider"
+                  className="text-[10px] text-cb-text-faint uppercase tracking-wider"
                 >
                   {opening.moveCount} plies · {opening.sideToMove} to move
                 </span>
               </div>
               <h1
                 style={{ fontFamily: "'Instrument Serif', serif" }}
-                className="text-4xl sm:text-5xl text-white mb-4"
+                className="text-4xl sm:text-5xl text-cb-text mb-4"
               >
                 {opening.name}
               </h1>
@@ -74,14 +74,14 @@ export default async function OpeningDetailPage({ params }: Props) {
             {/* Mobile: board + play button only */}
             <div className="lg:hidden flex flex-col items-center">
               <OpeningBoardPreview fen={opening.fen} pgn={opening.pgn} />
-              <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06] sm:static sm:bg-transparent sm:p-0 sm:border-0 sm:backdrop-blur-none sm:mt-8 sm:mb-4">
+              <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-cb-backdrop backdrop-blur-sm border-t border-cb-border sm:static sm:bg-transparent sm:p-0 sm:border-0 sm:backdrop-blur-none sm:mt-8 sm:mb-4">
                 <Link
                   href={`/play?opening=${opening.referenceId}`}
-                  className="group relative overflow-hidden px-8 py-3 bg-white text-black transition-all duration-300 block text-center"
+                  className="group relative overflow-hidden px-8 py-3 bg-cb-accent text-cb-accent-fg transition-all duration-300 block text-center"
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
-                  <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                  <span className="relative text-sm font-medium text-black group-hover:text-white transition-colors duration-300">
+                  <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                  <span className="relative text-sm font-medium text-cb-accent-fg group-hover:text-cb-text transition-colors duration-300">
                     Play from this position
                   </span>
                 </Link>
@@ -90,20 +90,20 @@ export default async function OpeningDetailPage({ params }: Props) {
 
             {/* Desktop: full details */}
             <div className="hidden lg:block">
-              <div className="h-px w-full bg-white/[0.06] mb-12" />
+              <div className="h-px w-full bg-cb-hover mb-12" />
 
               {/* Moves */}
               <section className="mb-12">
                 <h2
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-xs font-medium uppercase tracking-[0.2em] text-white/50 mb-4"
+                  className="text-xs font-medium uppercase tracking-[0.2em] text-cb-text-secondary mb-4"
                 >
                   Moves
                 </h2>
-                <div className="border border-white/[0.06] p-6 bg-white/[0.01]">
+                <div className="border border-cb-border p-6 bg-cb-hover">
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-lg text-white/70 font-mono tracking-wide"
+                    className="text-lg text-cb-text-secondary font-mono tracking-wide"
                   >
                     {opening.pgn}
                   </p>
@@ -114,13 +114,13 @@ export default async function OpeningDetailPage({ params }: Props) {
               <section className="mb-12">
                 <h2
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-xs font-medium uppercase tracking-[0.2em] text-white/50 mb-4"
+                  className="text-xs font-medium uppercase tracking-[0.2em] text-cb-text-secondary mb-4"
                 >
                   Resulting Position (FEN)
                 </h2>
-                <div className="border border-white/[0.06] p-4 bg-white/[0.01]">
+                <div className="border border-cb-border p-4 bg-cb-hover">
                   <code
-                    className="text-xs text-white/40 break-all"
+                    className="text-xs text-cb-text-muted break-all"
                     style={{ fontFamily: "'Geist Mono', monospace" }}
                   >
                     {opening.fen}
@@ -132,11 +132,11 @@ export default async function OpeningDetailPage({ params }: Props) {
               <div className="flex gap-4">
                 <Link
                   href={`/play?opening=${opening.referenceId}`}
-                  className="group relative overflow-hidden px-8 py-3 bg-white text-black transition-all duration-300"
+                  className="group relative overflow-hidden px-8 py-3 bg-cb-accent text-cb-accent-fg transition-all duration-300"
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
-                  <span className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                  <span className="relative text-sm font-medium text-black group-hover:text-white transition-colors duration-300">
+                  <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                  <span className="relative text-sm font-medium text-cb-accent-fg group-hover:text-cb-text transition-colors duration-300">
                     Play from this position
                   </span>
                 </Link>

@@ -29,7 +29,7 @@ export function MatchFound({
       >
         {/* Success ring */}
         <motion.div
-          className="absolute inset-0 border border-white/30"
+          className="absolute inset-0 border border-cb-border-strong"
           initial={{ scale: 1, opacity: 1 }}
           animate={{ scale: 1.5, opacity: 0 }}
           transition={{ duration: 1, repeat: 2 }}
@@ -37,12 +37,12 @@ export function MatchFound({
         />
 
         {/* Center icon */}
-        <div className="relative w-[100px] h-[100px] bg-white flex items-center justify-center">
+        <div className="relative w-[100px] h-[100px] bg-cb-accent flex items-center justify-center">
           <motion.div
             animate={{ rotate: [0, 10, -10, 0] }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <Swords className="w-10 h-10 text-black" strokeWidth={1.5} />
+            <Swords className="w-10 h-10 text-cb-accent-fg" strokeWidth={1.5} />
           </motion.div>
         </div>
       </motion.div>
@@ -56,11 +56,11 @@ export function MatchFound({
       >
         <h2
           style={{ fontFamily: "'Instrument Serif', serif" }}
-          className="text-3xl text-white"
+          className="text-3xl text-cb-text"
         >
           Match Found
         </h2>
-        <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40">
+        <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted">
           Get ready to play
         </p>
       </motion.div>
@@ -70,7 +70,7 @@ export function MatchFound({
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="flex items-center gap-4 p-5 border border-white/10"
+        className="flex items-center gap-4 p-5 border border-cb-border"
       >
         {/* Opponent avatar */}
         {opponentProfilePictureUrl ? (
@@ -80,10 +80,10 @@ export function MatchFound({
             className="w-12 h-12 object-cover grayscale"
           />
         ) : (
-          <div className="w-12 h-12 bg-white flex items-center justify-center">
+          <div className="w-12 h-12 bg-cb-accent flex items-center justify-center">
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-sm font-bold text-black"
+              className="text-sm font-bold text-cb-accent-fg"
             >
               {getInitials(opponentName)}
             </span>
@@ -91,10 +91,10 @@ export function MatchFound({
         )}
 
         <div>
-          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-white/40 uppercase tracking-widest">
+          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-xs text-cb-text-muted uppercase tracking-widest">
             Your opponent
           </p>
-          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-lg font-medium text-white">
+          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-lg font-medium text-cb-text">
             {opponentName}
           </p>
         </div>
@@ -105,9 +105,9 @@ export function MatchFound({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.6 }}
-        className="flex items-center gap-2 text-white/40"
+        className="flex items-center gap-2 text-cb-text-muted"
       >
-        <div className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" />
+        <div className="w-4 h-4 border border-cb-border-strong border-t-cb-text rounded-full animate-spin" />
         <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-sm">
           Starting game...
         </span>

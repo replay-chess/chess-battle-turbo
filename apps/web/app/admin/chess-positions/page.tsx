@@ -190,13 +190,13 @@ function LegendSearchDropdown({
     <div ref={dropdownRef} className="relative">
       <label
         style={{ fontFamily: "'Geist', sans-serif" }}
-        className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+        className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
       >
         {label}
       </label>
 
       {selectedLegend ? (
-        <div className="flex items-center gap-3 px-4 py-3 border border-white/20 bg-white/5">
+        <div className="flex items-center gap-3 px-4 py-3 border border-cb-border-strong bg-cb-hover">
           {selectedLegend.profilePhotoUrl ? (
             <Image
               src={selectedLegend.profilePhotoUrl}
@@ -206,8 +206,8 @@ function LegendSearchDropdown({
               className="w-8 h-8 object-cover"
             />
           ) : (
-            <div className="w-8 h-8 border border-white/20 flex items-center justify-center bg-white/5">
-              <span className="text-xs text-white/60">
+            <div className="w-8 h-8 border border-cb-border-strong flex items-center justify-center bg-cb-hover">
+              <span className="text-xs text-cb-text-secondary">
                 {selectedLegend.name
                   .split(" ")
                   .map((n) => n[0])
@@ -218,13 +218,13 @@ function LegendSearchDropdown({
           <div className="flex-1 min-w-0">
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-sm text-white truncate"
+              className="text-sm text-cb-text truncate"
             >
               {selectedLegend.name}
             </p>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-xs text-white/40"
+              className="text-xs text-cb-text-muted"
             >
               {selectedLegend.era}
             </p>
@@ -232,9 +232,9 @@ function LegendSearchDropdown({
           <button
             type="button"
             onClick={onClear}
-            className="w-6 h-6 flex items-center justify-center hover:bg-white/10 transition-colors"
+            className="w-6 h-6 flex items-center justify-center hover:bg-cb-surface-elevated transition-colors"
           >
-            <X className="w-4 h-4 text-white/60" strokeWidth={1.5} />
+            <X className="w-4 h-4 text-cb-text-secondary" strokeWidth={1.5} />
           </button>
         </div>
       ) : (
@@ -243,23 +243,23 @@ function LegendSearchDropdown({
             onClick={() => setIsOpen(true)}
             className={cn(
               "w-full px-4 py-3 border cursor-pointer flex items-center gap-2",
-              isOpen ? "border-white/30" : "border-white/10",
-              "hover:border-white/20 transition-colors"
+              isOpen ? "border-cb-text-muted" : "border-cb-border",
+              "hover:border-cb-border-strong transition-colors"
             )}
           >
-            <Search className="w-4 h-4 text-white/30" strokeWidth={1.5} />
+            <Search className="w-4 h-4 text-cb-text-muted" strokeWidth={1.5} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setIsOpen(true)}
               placeholder="Search legends..."
-              className="flex-1 bg-transparent text-white placeholder-white/30 focus:outline-none"
+              className="flex-1 bg-transparent text-cb-text placeholder-cb-text-muted focus:outline-none"
               style={{ fontFamily: "'Geist', sans-serif" }}
             />
             <ChevronDown
               className={cn(
-                "w-4 h-4 text-white/30 transition-transform",
+                "w-4 h-4 text-cb-text-muted transition-transform",
                 isOpen && "rotate-180"
               )}
               strokeWidth={1.5}
@@ -267,10 +267,10 @@ function LegendSearchDropdown({
           </div>
 
           {isOpen && (
-            <div className="absolute z-50 w-full mt-1 border border-white/10 bg-black max-h-60 overflow-y-auto">
+            <div className="absolute z-50 w-full mt-1 border border-cb-border bg-cb-bg max-h-60 overflow-y-auto">
               {isSearching ? (
                 <div className="px-4 py-6 text-center">
-                  <div className="w-6 h-6 border border-white/20 border-t-white rounded-full animate-spin mx-auto" />
+                  <div className="w-6 h-6 border border-cb-border-strong border-t-cb-text rounded-full animate-spin mx-auto" />
                 </div>
               ) : searchResults.length > 0 ? (
                 searchResults.map((legend) => (
@@ -283,7 +283,7 @@ function LegendSearchDropdown({
                       setSearchQuery("");
                       setSearchResults([]);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-cb-hover transition-colors text-left"
                   >
                     {legend.profilePhotoUrl ? (
                       <Image
@@ -294,8 +294,8 @@ function LegendSearchDropdown({
                         className="w-8 h-8 object-cover"
                       />
                     ) : (
-                      <div className="w-8 h-8 border border-white/20 flex items-center justify-center bg-white/5">
-                        <span className="text-xs text-white/60">
+                      <div className="w-8 h-8 border border-cb-border-strong flex items-center justify-center bg-cb-hover">
+                        <span className="text-xs text-cb-text-secondary">
                           {legend.name
                             .split(" ")
                             .map((n) => n[0])
@@ -306,13 +306,13 @@ function LegendSearchDropdown({
                     <div className="flex-1 min-w-0">
                       <p
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-sm text-white truncate"
+                        className="text-sm text-cb-text truncate"
                       >
                         {legend.name}
                       </p>
                       <p
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-xs text-white/40"
+                        className="text-xs text-cb-text-muted"
                       >
                         {legend.era}
                       </p>
@@ -323,7 +323,7 @@ function LegendSearchDropdown({
                 <div className="px-4 py-6 text-center">
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-sm text-white/40"
+                    className="text-sm text-cb-text-muted"
                   >
                     No legends found
                   </p>
@@ -332,7 +332,7 @@ function LegendSearchDropdown({
                 <div className="px-4 py-6 text-center">
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-sm text-white/40"
+                    className="text-sm text-cb-text-muted"
                   >
                     Type to search legends
                   </p>
@@ -360,8 +360,8 @@ function SideToMoveDropdown({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const options = [
-    { value: "white" as const, label: "White", icon: <div className="w-3 h-3 rounded-full bg-white border border-white/30" /> },
-    { value: "black" as const, label: "Black", icon: <div className="w-3 h-3 rounded-full bg-black border border-white/30" /> },
+    { value: "white" as const, label: "White", icon: <div className="w-3 h-3 rounded-full bg-white border border-cb-text-muted" /> },
+    { value: "black" as const, label: "Black", icon: <div className="w-3 h-3 rounded-full bg-black border border-cb-text-muted" /> },
   ];
 
   const selectedOption = options.find((opt) => opt.value === value);
@@ -381,7 +381,7 @@ function SideToMoveDropdown({
     <div ref={dropdownRef} className="relative">
       <label
         style={{ fontFamily: "'Geist', sans-serif" }}
-        className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+        className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
       >
         Side to Move *
       </label>
@@ -391,8 +391,8 @@ function SideToMoveDropdown({
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "w-full px-4 py-3 border flex items-center justify-between transition-colors",
-          error ? "border-red-500/50" : isOpen ? "border-white/30" : "border-white/10",
-          "hover:border-white/20"
+          error ? "border-red-500/50" : isOpen ? "border-cb-text-muted" : "border-cb-border",
+          "hover:border-cb-border-strong"
         )}
       >
         <div className="flex items-center gap-3">
@@ -401,7 +401,7 @@ function SideToMoveDropdown({
               {selectedOption.icon}
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white"
+                className="text-cb-text"
               >
                 {selectedOption.label}
               </span>
@@ -409,7 +409,7 @@ function SideToMoveDropdown({
           ) : (
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/30"
+              className="text-cb-text-muted"
             >
               Select side...
             </span>
@@ -417,7 +417,7 @@ function SideToMoveDropdown({
         </div>
         <ChevronDown
           className={cn(
-            "w-4 h-4 text-white/40 transition-transform",
+            "w-4 h-4 text-cb-text-muted transition-transform",
             isOpen && "rotate-180"
           )}
           strokeWidth={1.5}
@@ -425,7 +425,7 @@ function SideToMoveDropdown({
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 border border-white/10 bg-black">
+        <div className="absolute z-50 w-full mt-1 border border-cb-border bg-cb-bg">
           {options.map((option) => (
             <button
               key={option.value}
@@ -437,14 +437,14 @@ function SideToMoveDropdown({
               className={cn(
                 "w-full px-4 py-3 flex items-center gap-3 transition-colors text-left",
                 value === option.value
-                  ? "bg-white/10"
-                  : "hover:bg-white/5"
+                  ? "bg-cb-surface-elevated"
+                  : "hover:bg-cb-hover"
               )}
             >
               {option.icon}
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white"
+                className="text-cb-text"
               >
                 {option.label}
               </span>
@@ -790,12 +790,12 @@ export default function ChessPositionsAdmin() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black pt-20 md:pt-28 relative">
+      <div className="min-h-screen bg-cb-bg pt-20 md:pt-28 relative">
         {/* Subtle grid background */}
         <div
           className="fixed inset-0 opacity-[0.015] pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
           }}
         />
@@ -804,27 +804,27 @@ export default function ChessPositionsAdmin() {
           {/* Header */}
           <div className="mb-12">
             <div className="flex items-center gap-3 mb-4">
-              <div className="h-px flex-1 bg-gradient-to-r from-white/30 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-r from-cb-text-muted to-transparent" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-secondary text-[10px] tracking-[0.4em] uppercase"
               >
                 Admin Panel
               </span>
-              <div className="h-px flex-1 bg-gradient-to-l from-white/30 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-l from-cb-text-muted to-transparent" />
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h1
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-4xl sm:text-5xl text-white mb-2"
+                  className="text-4xl sm:text-5xl text-cb-text mb-2"
                 >
                   Chess Positions
                 </h1>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/40 text-sm"
+                  className="text-cb-text-muted text-sm"
                 >
                   Create and manage chess positions for the platform
                 </p>
@@ -833,7 +833,7 @@ export default function ChessPositionsAdmin() {
               {!showForm && (
                 <button
                   onClick={handleCreateNew}
-                  className="group relative overflow-hidden bg-white text-black px-6 py-3 transition-all duration-300 hover:bg-white/90"
+                  className="group relative overflow-hidden bg-cb-accent text-cb-accent-fg px-6 py-3 transition-all duration-300 hover:opacity-90"
                 >
                   <span className="flex items-center gap-2">
                     <Plus className="w-4 h-4" strokeWidth={1.5} />
@@ -852,7 +852,7 @@ export default function ChessPositionsAdmin() {
           {/* Back Navigation */}
           <Link
             href="/admin"
-            className="inline-flex items-center gap-2 text-white/40 hover:text-white/60 transition-colors mb-8 group"
+            className="inline-flex items-center gap-2 text-cb-text-muted hover:text-cb-text-secondary transition-colors mb-8 group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" strokeWidth={1.5} />
             <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-sm">
@@ -861,29 +861,29 @@ export default function ChessPositionsAdmin() {
           </Link>
 
           {/* Separator */}
-          <div className="border-t border-white/10 mb-8" />
+          <div className="border-t border-cb-border mb-8" />
 
           {/* Form */}
           {showForm && (
-            <div className="mb-12 border border-white/10 p-6 sm:p-8">
+            <div className="mb-12 border border-cb-border p-6 sm:p-8">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 border border-white/20 flex items-center justify-center">
+                  <div className="w-12 h-12 border border-cb-border-strong flex items-center justify-center">
                     <Crown
-                      className="w-5 h-5 text-white/60"
+                      className="w-5 h-5 text-cb-text-secondary"
                       strokeWidth={1.5}
                     />
                   </div>
                   <div>
                     <h2
                       style={{ fontFamily: "'Instrument Serif', serif" }}
-                      className="text-2xl text-white"
+                      className="text-2xl text-cb-text"
                     >
                       {editingId ? "Edit Position" : "Create New Position"}
                     </h2>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-white/40 text-sm"
+                      className="text-cb-text-muted text-sm"
                     >
                       Fill in the details below
                     </p>
@@ -891,9 +891,9 @@ export default function ChessPositionsAdmin() {
                 </div>
                 <button
                   onClick={handleCancel}
-                  className="w-10 h-10 border border-white/10 flex items-center justify-center hover:border-white/30 hover:bg-white/5 transition-all"
+                  className="w-10 h-10 border border-cb-border flex items-center justify-center hover:border-cb-text-muted hover:bg-cb-hover transition-all"
                 >
-                  <X className="w-4 h-4 text-white/60" strokeWidth={1.5} />
+                  <X className="w-4 h-4 text-cb-text-secondary" strokeWidth={1.5} />
                 </button>
               </div>
 
@@ -912,7 +912,7 @@ export default function ChessPositionsAdmin() {
                 <div>
                   <h3
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs tracking-[0.3em] uppercase text-white/60 mb-4"
+                    className="text-xs tracking-[0.3em] uppercase text-cb-text-secondary mb-4"
                   >
                     Core Position
                   </h3>
@@ -922,7 +922,7 @@ export default function ChessPositionsAdmin() {
                       <div>
                         <label
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                          className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                         >
                           FEN *
                         </label>
@@ -941,8 +941,8 @@ export default function ChessPositionsAdmin() {
                               ? "border-red-500/50 focus:border-red-500/70"
                               : fenValid
                                 ? "border-green-500/50 focus:border-green-500/70"
-                                : "border-white/10 focus:border-white/30",
-                            "text-white placeholder-white/20",
+                                : "border-cb-border focus:border-cb-text-muted",
+                            "text-cb-text placeholder-cb-text-faint",
                             "focus:outline-none transition-colors"
                           )}
                           style={{ fontFamily: "'Geist', sans-serif" }}
@@ -972,7 +972,7 @@ export default function ChessPositionsAdmin() {
                         <div>
                           <label
                             style={{ fontFamily: "'Geist', sans-serif" }}
-                            className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                            className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                           >
                             Move Number
                           </label>
@@ -991,9 +991,9 @@ export default function ChessPositionsAdmin() {
                               "w-full px-4 py-3 bg-transparent border",
                               errors.moveNumber
                                 ? "border-red-500/50"
-                                : "border-white/10",
-                              "text-white placeholder-white/20",
-                              "focus:outline-none focus:border-white/30 transition-colors"
+                                : "border-cb-border",
+                              "text-cb-text placeholder-cb-text-faint",
+                              "focus:outline-none focus:border-cb-text-muted transition-colors"
                             )}
                             style={{ fontFamily: "'Geist', sans-serif" }}
                             placeholder="1"
@@ -1011,7 +1011,7 @@ export default function ChessPositionsAdmin() {
                         <div>
                           <label
                             style={{ fontFamily: "'Geist', sans-serif" }}
-                            className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                            className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                           >
                             Position Type
                           </label>
@@ -1025,9 +1025,9 @@ export default function ChessPositionsAdmin() {
                               })
                             }
                             className={cn(
-                              "w-full px-4 py-3 bg-transparent border border-white/10",
-                              "text-white placeholder-white/20",
-                              "focus:outline-none focus:border-white/30 transition-colors"
+                              "w-full px-4 py-3 bg-transparent border border-cb-border",
+                              "text-cb-text placeholder-cb-text-faint",
+                              "focus:outline-none focus:border-cb-text-muted transition-colors"
                             )}
                             style={{ fontFamily: "'Geist', sans-serif" }}
                             placeholder="opening, middlegame, endgame"
@@ -1039,7 +1039,7 @@ export default function ChessPositionsAdmin() {
                       <div>
                         <label
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                          className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                         >
                           PGN
                         </label>
@@ -1050,9 +1050,9 @@ export default function ChessPositionsAdmin() {
                           }
                           rows={3}
                           className={cn(
-                            "w-full px-4 py-3 bg-transparent border border-white/10",
-                            "text-white placeholder-white/20 resize-none",
-                            "focus:outline-none focus:border-white/30 transition-colors"
+                            "w-full px-4 py-3 bg-transparent border border-cb-border",
+                            "text-cb-text placeholder-cb-text-faint resize-none",
+                            "focus:outline-none focus:border-cb-text-muted transition-colors"
                           )}
                           style={{ fontFamily: "'Geist', sans-serif" }}
                           placeholder="1. e4 e5 2. Nf3 Nc6..."
@@ -1064,11 +1064,11 @@ export default function ChessPositionsAdmin() {
                     <div>
                       <label
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                        className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                       >
                         Board Preview
                       </label>
-                      <div className="border border-white/10 p-4 flex items-center justify-center min-h-[300px]">
+                      <div className="border border-cb-border p-4 flex items-center justify-center min-h-[300px]">
                         {previewBoard ? (
                           <ChessBoard
                             board={previewBoard}
@@ -1080,7 +1080,7 @@ export default function ChessPositionsAdmin() {
                           <div className="text-center">
                             <p
                               style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-sm text-white/30"
+                              className="text-sm text-cb-text-muted"
                             >
                               {formData.fen.trim()
                                 ? "Invalid FEN - Cannot preview"
@@ -1097,7 +1097,7 @@ export default function ChessPositionsAdmin() {
                 <div>
                   <h3
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs tracking-[0.3em] uppercase text-white/60 mb-4"
+                    className="text-xs tracking-[0.3em] uppercase text-cb-text-secondary mb-4"
                   >
                     Player Information
                   </h3>
@@ -1105,10 +1105,10 @@ export default function ChessPositionsAdmin() {
                     {/* White Player */}
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="w-3 h-3 rounded-full bg-white border border-white/30" />
+                        <div className="w-3 h-3 rounded-full bg-white border border-cb-text-muted" />
                         <span
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-xs text-white/60"
+                          className="text-xs text-cb-text-secondary"
                         >
                           White Player
                         </span>
@@ -1124,7 +1124,7 @@ export default function ChessPositionsAdmin() {
                       <div>
                         <label
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                          className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                         >
                           White Player Name
                         </label>
@@ -1138,9 +1138,9 @@ export default function ChessPositionsAdmin() {
                             })
                           }
                           className={cn(
-                            "w-full px-4 py-3 bg-transparent border border-white/10",
-                            "text-white placeholder-white/20",
-                            "focus:outline-none focus:border-white/30 transition-colors"
+                            "w-full px-4 py-3 bg-transparent border border-cb-border",
+                            "text-cb-text placeholder-cb-text-faint",
+                            "focus:outline-none focus:border-cb-text-muted transition-colors"
                           )}
                           style={{ fontFamily: "'Geist', sans-serif" }}
                           placeholder="Player name (if not a legend)"
@@ -1150,7 +1150,7 @@ export default function ChessPositionsAdmin() {
                       <div>
                         <label
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                          className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                         >
                           White Player Metadata (JSON)
                         </label>
@@ -1172,9 +1172,9 @@ export default function ChessPositionsAdmin() {
                             "w-full px-4 py-3 bg-transparent border",
                             errors.whitePlayerMetadata
                               ? "border-red-500/50"
-                              : "border-white/10",
-                            "text-white placeholder-white/20 resize-none font-mono text-xs",
-                            "focus:outline-none focus:border-white/30 transition-colors"
+                              : "border-cb-border",
+                            "text-cb-text placeholder-cb-text-faint resize-none font-mono text-xs",
+                            "focus:outline-none focus:border-cb-text-muted transition-colors"
                           )}
                           placeholder='{"rating": 2800}'
                         />
@@ -1190,10 +1190,10 @@ export default function ChessPositionsAdmin() {
                     {/* Black Player */}
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="w-3 h-3 rounded-full bg-black border border-white/30" />
+                        <div className="w-3 h-3 rounded-full bg-black border border-cb-text-muted" />
                         <span
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-xs text-white/60"
+                          className="text-xs text-cb-text-secondary"
                         >
                           Black Player
                         </span>
@@ -1209,7 +1209,7 @@ export default function ChessPositionsAdmin() {
                       <div>
                         <label
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                          className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                         >
                           Black Player Name
                         </label>
@@ -1223,9 +1223,9 @@ export default function ChessPositionsAdmin() {
                             })
                           }
                           className={cn(
-                            "w-full px-4 py-3 bg-transparent border border-white/10",
-                            "text-white placeholder-white/20",
-                            "focus:outline-none focus:border-white/30 transition-colors"
+                            "w-full px-4 py-3 bg-transparent border border-cb-border",
+                            "text-cb-text placeholder-cb-text-faint",
+                            "focus:outline-none focus:border-cb-text-muted transition-colors"
                           )}
                           style={{ fontFamily: "'Geist', sans-serif" }}
                           placeholder="Player name (if not a legend)"
@@ -1235,7 +1235,7 @@ export default function ChessPositionsAdmin() {
                       <div>
                         <label
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                          className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                         >
                           Black Player Metadata (JSON)
                         </label>
@@ -1257,9 +1257,9 @@ export default function ChessPositionsAdmin() {
                             "w-full px-4 py-3 bg-transparent border",
                             errors.blackPlayerMetadata
                               ? "border-red-500/50"
-                              : "border-white/10",
-                            "text-white placeholder-white/20 resize-none font-mono text-xs",
-                            "focus:outline-none focus:border-white/30 transition-colors"
+                              : "border-cb-border",
+                            "text-cb-text placeholder-cb-text-faint resize-none font-mono text-xs",
+                            "focus:outline-none focus:border-cb-text-muted transition-colors"
                           )}
                           placeholder='{"rating": 2750}'
                         />
@@ -1278,7 +1278,7 @@ export default function ChessPositionsAdmin() {
                 <div>
                   <h3
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs tracking-[0.3em] uppercase text-white/60 mb-4"
+                    className="text-xs tracking-[0.3em] uppercase text-cb-text-secondary mb-4"
                   >
                     Game Information
                   </h3>
@@ -1286,7 +1286,7 @@ export default function ChessPositionsAdmin() {
                     <div>
                       <label
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                        className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                       >
                         Tournament Name
                       </label>
@@ -1300,9 +1300,9 @@ export default function ChessPositionsAdmin() {
                           })
                         }
                         className={cn(
-                          "w-full px-4 py-3 bg-transparent border border-white/10",
-                          "text-white placeholder-white/20",
-                          "focus:outline-none focus:border-white/30 transition-colors"
+                          "w-full px-4 py-3 bg-transparent border border-cb-border",
+                          "text-cb-text placeholder-cb-text-faint",
+                          "focus:outline-none focus:border-cb-text-muted transition-colors"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                         placeholder="World Chess Championship 2024"
@@ -1312,7 +1312,7 @@ export default function ChessPositionsAdmin() {
                     <div>
                       <label
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                        className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                       >
                         Event Date
                       </label>
@@ -1331,9 +1331,9 @@ export default function ChessPositionsAdmin() {
                           "w-full px-4 py-3 bg-transparent border",
                           errors.eventDate
                             ? "border-red-500/50"
-                            : "border-white/10",
-                          "text-white",
-                          "focus:outline-none focus:border-white/30 transition-colors"
+                            : "border-cb-border",
+                          "text-cb-text",
+                          "focus:outline-none focus:border-cb-text-muted transition-colors"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                       />
@@ -1348,7 +1348,7 @@ export default function ChessPositionsAdmin() {
                     <div className="md:col-span-2">
                       <label
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                        className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                       >
                         Game Metadata (JSON)
                       </label>
@@ -1367,9 +1367,9 @@ export default function ChessPositionsAdmin() {
                           "w-full px-4 py-3 bg-transparent border",
                           errors.gameMetadata
                             ? "border-red-500/50"
-                            : "border-white/10",
-                          "text-white placeholder-white/20 resize-none font-mono text-xs",
-                          "focus:outline-none focus:border-white/30 transition-colors"
+                            : "border-cb-border",
+                          "text-cb-text placeholder-cb-text-faint resize-none font-mono text-xs",
+                          "focus:outline-none focus:border-cb-text-muted transition-colors"
                         )}
                         placeholder='{"round": 5, "result": "1-0"}'
                       />
@@ -1384,7 +1384,7 @@ export default function ChessPositionsAdmin() {
                     <div className="md:col-span-2">
                       <label
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                        className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                       >
                         Position Context (JSON)
                       </label>
@@ -1406,9 +1406,9 @@ export default function ChessPositionsAdmin() {
                           "w-full px-4 py-3 bg-transparent border",
                           errors.positionContext
                             ? "border-red-500/50"
-                            : "border-white/10",
-                          "text-white placeholder-white/20 resize-none font-mono text-xs",
-                          "focus:outline-none focus:border-white/30 transition-colors"
+                            : "border-cb-border",
+                          "text-cb-text placeholder-cb-text-faint resize-none font-mono text-xs",
+                          "focus:outline-none focus:border-cb-text-muted transition-colors"
                         )}
                         placeholder='{"theme": "sacrifice", "difficulty": "hard"}'
                       />
@@ -1426,7 +1426,7 @@ export default function ChessPositionsAdmin() {
                 <div>
                   <h3
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs tracking-[0.3em] uppercase text-white/60 mb-4"
+                    className="text-xs tracking-[0.3em] uppercase text-cb-text-secondary mb-4"
                   >
                     Source
                   </h3>
@@ -1434,7 +1434,7 @@ export default function ChessPositionsAdmin() {
                     <div>
                       <label
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                        className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                       >
                         Source Type
                       </label>
@@ -1448,9 +1448,9 @@ export default function ChessPositionsAdmin() {
                           })
                         }
                         className={cn(
-                          "w-full px-4 py-3 bg-transparent border border-white/10",
-                          "text-white placeholder-white/20",
-                          "focus:outline-none focus:border-white/30 transition-colors"
+                          "w-full px-4 py-3 bg-transparent border border-cb-border",
+                          "text-cb-text placeholder-cb-text-faint",
+                          "focus:outline-none focus:border-cb-text-muted transition-colors"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                         placeholder="admin"
@@ -1460,7 +1460,7 @@ export default function ChessPositionsAdmin() {
                     <div>
                       <label
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="block text-[10px] tracking-[0.3em] uppercase text-white/40 mb-2"
+                        className="block text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
                       >
                         Source Metadata (JSON)
                       </label>
@@ -1479,9 +1479,9 @@ export default function ChessPositionsAdmin() {
                           "w-full px-4 py-3 bg-transparent border",
                           errors.sourceMetadata
                             ? "border-red-500/50"
-                            : "border-white/10",
-                          "text-white placeholder-white/20 resize-none font-mono text-xs",
-                          "focus:outline-none focus:border-white/30 transition-colors"
+                            : "border-cb-border",
+                          "text-cb-text placeholder-cb-text-faint resize-none font-mono text-xs",
+                          "focus:outline-none focus:border-cb-text-muted transition-colors"
                         )}
                         placeholder='{"importedFrom": "lichess"}'
                       />
@@ -1499,7 +1499,7 @@ export default function ChessPositionsAdmin() {
                 <div>
                   <h3
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs tracking-[0.3em] uppercase text-white/60 mb-4"
+                    className="text-xs tracking-[0.3em] uppercase text-cb-text-secondary mb-4"
                   >
                     System
                   </h3>
@@ -1512,12 +1512,12 @@ export default function ChessPositionsAdmin() {
                     >
                       <div className={cn(
                         "w-10 h-5 border relative overflow-hidden transition-colors duration-300 flex-shrink-0",
-                        formData.featured ? "border-white bg-white" : "border-white/30"
+                        formData.featured ? "border-cb-accent bg-cb-accent" : "border-cb-text-muted"
                       )}>
                         <motion.div
                           className={cn(
                             "absolute top-0 w-1/2 h-full transition-colors duration-300",
-                            formData.featured ? "bg-black" : "bg-white/50"
+                            formData.featured ? "bg-cb-accent-fg" : "bg-cb-text-secondary"
                           )}
                           animate={{ left: formData.featured ? "50%" : "0%" }}
                           transition={{ type: "spring", stiffness: 500, damping: 30 }}
@@ -1525,7 +1525,7 @@ export default function ChessPositionsAdmin() {
                       </div>
                       <span
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-sm text-white/60 group-hover:text-white/80 transition-colors"
+                        className="text-sm text-cb-text-secondary group-hover:text-cb-text transition-colors"
                       >
                         Featured
                       </span>
@@ -1539,12 +1539,12 @@ export default function ChessPositionsAdmin() {
                     >
                       <div className={cn(
                         "w-10 h-5 border relative overflow-hidden transition-colors duration-300 flex-shrink-0",
-                        formData.isActive ? "border-white bg-white" : "border-white/30"
+                        formData.isActive ? "border-cb-accent bg-cb-accent" : "border-cb-text-muted"
                       )}>
                         <motion.div
                           className={cn(
                             "absolute top-0 w-1/2 h-full transition-colors duration-300",
-                            formData.isActive ? "bg-black" : "bg-white/50"
+                            formData.isActive ? "bg-cb-accent-fg" : "bg-cb-text-secondary"
                           )}
                           animate={{ left: formData.isActive ? "50%" : "0%" }}
                           transition={{ type: "spring", stiffness: 500, damping: 30 }}
@@ -1552,7 +1552,7 @@ export default function ChessPositionsAdmin() {
                       </div>
                       <span
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-sm text-white/60 group-hover:text-white/80 transition-colors"
+                        className="text-sm text-cb-text-secondary group-hover:text-cb-text transition-colors"
                       >
                         Active
                       </span>
@@ -1566,17 +1566,17 @@ export default function ChessPositionsAdmin() {
                     type="submit"
                     disabled={isSaving}
                     className={cn(
-                      "group relative overflow-hidden bg-white text-black px-8 py-3 transition-all duration-300",
+                      "group relative overflow-hidden bg-cb-accent text-cb-accent-fg px-8 py-3 transition-all duration-300",
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
                   >
                     <motion.div
-                      className="absolute inset-0 bg-black origin-left"
+                      className="absolute inset-0 bg-cb-bg origin-left"
                       initial={{ scaleX: 0 }}
                       whileHover={{ scaleX: isSaving ? 0 : 1 }}
                       transition={{ duration: 0.3 }}
                     />
-                    <span className="relative flex items-center gap-2 group-hover:text-white transition-colors">
+                    <span className="relative flex items-center gap-2 group-hover:text-cb-text transition-colors">
                       <Save className="w-4 h-4" strokeWidth={1.5} />
                       <span
                         style={{ fontFamily: "'Geist', sans-serif" }}
@@ -1594,7 +1594,7 @@ export default function ChessPositionsAdmin() {
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="px-6 py-3 border border-white/10 text-white/60 hover:text-white hover:border-white/30 transition-all"
+                    className="px-6 py-3 border border-cb-border text-cb-text-secondary hover:text-cb-text hover:border-cb-text-muted transition-all"
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >
                     Cancel
@@ -1608,35 +1608,35 @@ export default function ChessPositionsAdmin() {
           {isLoading ? (
             <div className="flex items-center justify-center py-24">
               <div className="flex flex-col items-center gap-4">
-                <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                <div className="w-10 h-10 border-2 border-cb-border-strong border-t-cb-text rounded-full animate-spin" />
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/40 text-sm"
+                  className="text-cb-text-muted text-sm"
                 >
                   Loading positions...
                 </p>
               </div>
             </div>
           ) : positions.length === 0 ? (
-            <div className="border border-white/10 p-12 text-center">
-              <div className="w-16 h-16 border border-white/20 flex items-center justify-center mx-auto mb-6">
-                <Crown className="w-6 h-6 text-white/30" strokeWidth={1.5} />
+            <div className="border border-cb-border p-12 text-center">
+              <div className="w-16 h-16 border border-cb-border-strong flex items-center justify-center mx-auto mb-6">
+                <Crown className="w-6 h-6 text-cb-text-muted" strokeWidth={1.5} />
               </div>
               <h3
                 style={{ fontFamily: "'Instrument Serif', serif" }}
-                className="text-xl text-white mb-2"
+                className="text-xl text-cb-text mb-2"
               >
                 No positions yet
               </h3>
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/40 text-sm mb-6"
+                className="text-cb-text-muted text-sm mb-6"
               >
                 Create your first chess position to get started
               </p>
               <button
                 onClick={handleCreateNew}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-white text-black hover:bg-white/90 transition-colors"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-cb-accent text-cb-accent-fg hover:opacity-90 transition-colors"
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
                 <Plus className="w-4 h-4" strokeWidth={1.5} />
@@ -1659,7 +1659,7 @@ export default function ChessPositionsAdmin() {
                 return (
                   <div
                     key={position.id}
-                    className="group border border-white/10 hover:border-white/20 transition-all duration-300"
+                    className="group border border-cb-border hover:border-cb-border-strong transition-all duration-300"
                   >
                     <div className="p-4">
                       {/* Board Preview */}
@@ -1674,8 +1674,8 @@ export default function ChessPositionsAdmin() {
                             />
                           </div>
                         ) : (
-                          <div className="w-[200px] h-[200px] border border-white/10 flex items-center justify-center">
-                            <p className="text-xs text-white/30">
+                          <div className="w-[200px] h-[200px] border border-cb-border flex items-center justify-center">
+                            <p className="text-xs text-cb-text-muted">
                               Invalid FEN
                             </p>
                           </div>
@@ -1696,25 +1696,25 @@ export default function ChessPositionsAdmin() {
                                 className="w-6 h-6 object-cover"
                               />
                             ) : (
-                              <div className="w-6 h-6 rounded-full bg-white border border-white/30" />
+                              <div className="w-6 h-6 rounded-full bg-white border border-cb-text-muted" />
                             )}
                             <span
                               style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-xs text-white/80 truncate max-w-[80px]"
+                              className="text-xs text-cb-text truncate max-w-[80px]"
                             >
                               {displayName}
                             </span>
                           </div>
                           <span
                             style={{ fontFamily: "'Geist', sans-serif" }}
-                            className="text-xs text-white/40"
+                            className="text-xs text-cb-text-muted"
                           >
                             vs
                           </span>
                           <div className="flex items-center gap-2">
                             <span
                               style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-xs text-white/80 truncate max-w-[80px]"
+                              className="text-xs text-cb-text truncate max-w-[80px]"
                             >
                               {opponentName}
                             </span>
@@ -1727,7 +1727,7 @@ export default function ChessPositionsAdmin() {
                                 className="w-6 h-6 object-cover"
                               />
                             ) : (
-                              <div className="w-6 h-6 rounded-full bg-black border border-white/30" />
+                              <div className="w-6 h-6 rounded-full bg-black border border-cb-text-muted" />
                             )}
                           </div>
                         </div>
@@ -1735,7 +1735,7 @@ export default function ChessPositionsAdmin() {
                         {/* FEN (truncated) */}
                         <p
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-[10px] text-white/30 truncate font-mono"
+                          className="text-[10px] text-cb-text-muted truncate font-mono"
                         >
                           {position.fen}
                         </p>
@@ -1744,7 +1744,7 @@ export default function ChessPositionsAdmin() {
                         {position.tournamentName && (
                           <p
                             style={{ fontFamily: "'Geist', sans-serif" }}
-                            className="text-xs text-white/50 truncate"
+                            className="text-xs text-cb-text-secondary truncate"
                           >
                             {position.tournamentName}
                           </p>
@@ -1758,13 +1758,13 @@ export default function ChessPositionsAdmin() {
                               className={cn(
                                 "w-3 h-3 rounded-full border",
                                 position.sideToMove === "white"
-                                  ? "bg-white border-white/30"
-                                  : "bg-black border-white/30"
+                                  ? "bg-white border-cb-text-muted"
+                                  : "bg-black border-cb-text-muted"
                               )}
                             />
                             <span
                               style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-[10px] text-white/40"
+                              className="text-[10px] text-cb-text-muted"
                             >
                               {position.sideToMove} to move
                             </span>
@@ -1784,8 +1784,8 @@ export default function ChessPositionsAdmin() {
                               className={cn(
                                 "px-1.5 py-0.5 text-[9px] border",
                                 position.isActive
-                                  ? "border-white/20 text-white/60"
-                                  : "border-white/10 text-white/30"
+                                  ? "border-cb-border-strong text-cb-text-secondary"
+                                  : "border-cb-border text-cb-text-muted"
                               )}
                               style={{ fontFamily: "'Geist', sans-serif" }}
                             >
@@ -1798,15 +1798,15 @@ export default function ChessPositionsAdmin() {
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity pt-2">
                           <button
                             onClick={() => handleEdit(position)}
-                            className="flex-1 h-8 border border-white/10 flex items-center justify-center gap-2 hover:border-white/30 hover:bg-white/5 transition-all"
+                            className="flex-1 h-8 border border-cb-border flex items-center justify-center gap-2 hover:border-cb-text-muted hover:bg-cb-hover transition-all"
                           >
                             <Edit2
-                              className="w-3 h-3 text-white/60"
+                              className="w-3 h-3 text-cb-text-secondary"
                               strokeWidth={1.5}
                             />
                             <span
                               style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-xs text-white/60"
+                              className="text-xs text-cb-text-secondary"
                             >
                               Edit
                             </span>
@@ -1815,10 +1815,10 @@ export default function ChessPositionsAdmin() {
                             onClick={() =>
                               handleDelete(position.referenceId, position.fen)
                             }
-                            className="w-8 h-8 border border-white/10 flex items-center justify-center hover:border-red-500/50 hover:bg-red-500/10 transition-all"
+                            className="w-8 h-8 border border-cb-border flex items-center justify-center hover:border-red-500/50 hover:bg-red-500/10 transition-all"
                           >
                             <Trash2
-                              className="w-3 h-3 text-white/60"
+                              className="w-3 h-3 text-cb-text-secondary"
                               strokeWidth={1.5}
                             />
                           </button>
@@ -1833,8 +1833,8 @@ export default function ChessPositionsAdmin() {
         </div>
 
         {/* Decorative corner elements */}
-        <div className="fixed top-20 left-6 w-12 h-12 border-l border-t border-white/10 pointer-events-none" />
-        <div className="fixed bottom-6 right-6 w-12 h-12 border-r border-b border-white/10 pointer-events-none" />
+        <div className="fixed top-20 left-6 w-12 h-12 border-l border-t border-cb-border pointer-events-none" />
+        <div className="fixed bottom-6 right-6 w-12 h-12 border-r border-b border-cb-border pointer-events-none" />
       </div>
     </>
   );

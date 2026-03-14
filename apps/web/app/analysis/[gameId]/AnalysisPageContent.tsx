@@ -237,12 +237,12 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-cb-bg flex items-center justify-center">
         <div className="flex flex-col items-center">
-          <div className="w-10 h-10 border border-white/20 border-t-white/60 rounded-full animate-spin mb-6" />
+          <div className="w-10 h-10 border border-cb-border-strong border-t-cb-text-secondary rounded-full animate-spin mb-6" />
           <p
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/40 text-xs tracking-[0.2em] uppercase"
+            className="text-cb-text-muted text-xs tracking-[0.2em] uppercase"
           >
             Loading Analysis
           </p>
@@ -253,17 +253,17 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-cb-bg flex items-center justify-center">
         <div className="text-center">
           <p
             style={{ fontFamily: "'Instrument Serif', serif" }}
-            className="text-white text-xl mb-4"
+            className="text-cb-text text-xl mb-4"
           >
             {error || "Analysis data not found"}
           </p>
           <button
             onClick={() => router.push(backPath)}
-            className="px-6 py-2 border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-colors"
+            className="px-6 py-2 border border-cb-border-strong text-cb-text-secondary hover:border-cb-text-muted hover:text-cb-text transition-colors"
             style={{ fontFamily: "'Geist', sans-serif" }}
           >
             Back to Play
@@ -285,14 +285,14 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
             {data.openingEco && (
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-[10px] tracking-wider text-white/50 bg-white/10 px-1.5 py-0.5 uppercase"
+                className="text-[10px] tracking-wider text-cb-text-secondary bg-cb-surface-elevated px-1.5 py-0.5 uppercase"
               >
                 {data.openingEco}
               </span>
             )}
             <span
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-white/50 text-sm md:text-base italic"
+              className="text-cb-text-secondary text-sm md:text-base italic"
             >
               {data.openingName}
             </span>
@@ -303,12 +303,12 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
               <>
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/25 text-[10px] lg:text-xs"
+                  className="text-cb-text-faint text-[10px] lg:text-xs"
                 >
                   {data.tournamentName}
                 </span>
                 {(data.whitePlayerName || data.blackPlayerName) && (
-                  <span className="text-white/20">&middot;</span>
+                  <span className="text-cb-text-faint">&middot;</span>
                 )}
               </>
             )}
@@ -331,7 +331,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                   </span>
                 )}
                 {!data.legendGameResult && (
-                  <span className="text-white/20 text-xs">vs</span>
+                  <span className="text-cb-text-faint text-xs">vs</span>
                 )}
                 <span
                   style={{ fontFamily: "'Instrument Serif', serif" }}
@@ -351,7 +351,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
           <div className="flex items-center gap-1.5">
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-[10px] lg:text-xs uppercase tracking-wider"
+              className="text-cb-text-muted text-[10px] lg:text-xs uppercase tracking-wider"
             >
               You
             </span>
@@ -360,8 +360,8 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
               className={cn(
                 "text-xs lg:text-sm font-medium px-1.5 py-0.5",
                 data.userGameOutcome === "win" && "text-amber-400 bg-amber-400/10",
-                data.userGameOutcome === "loss" && "text-white/50 bg-white/5",
-                data.userGameOutcome === "draw" && "text-white/50 bg-white/5"
+                data.userGameOutcome === "loss" && "text-cb-text-secondary bg-cb-hover",
+                data.userGameOutcome === "draw" && "text-cb-text-secondary bg-cb-hover"
               )}
             >
               {data.userGameOutcome === "win" && "Won"}
@@ -370,19 +370,19 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
             </span>
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/30 text-[10px] lg:text-xs"
+              className="text-cb-text-muted text-[10px] lg:text-xs"
             >
               as {data.userColor === "w" ? "White" : "Black"}
             </span>
           </div>
         )}
         {data.userGameOutcome && !isOpeningGame && (
-          <span className="text-white/15">&middot;</span>
+          <span className="text-cb-text-faint">&middot;</span>
         )}
         {!isOpeningGame && (
           <span
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/30 text-[10px] lg:text-xs"
+            className="text-cb-text-muted text-[10px] lg:text-xs"
           >
             from move {data.moveNumberStart}
           </span>
@@ -392,7 +392,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
   );
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-auto">
+    <div className="min-h-screen bg-cb-bg text-cb-text overflow-auto">
       {/* Navbar */}
       <Navbar />
 
@@ -400,7 +400,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
       <div
         className="fixed inset-0 opacity-[0.015] pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
       />
@@ -414,7 +414,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
               "px-3 md:px-5 py-2 md:py-2.5 text-xs md:text-sm tracking-wide border transition-colors",
               activeTab === "explanation"
                 ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
-                : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+                : "border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong"
             )}
             style={{ fontFamily: "'Geist', sans-serif" }}
           >
@@ -427,7 +427,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                 "px-3 md:px-5 py-2 md:py-2.5 text-xs md:text-sm tracking-wide border transition-colors",
                 activeTab === "legend-moves"
                   ? "border-sky-500/40 text-sky-400 bg-sky-500/10"
-                  : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+                  : "border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong"
               )}
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
@@ -439,8 +439,8 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
             className={cn(
               "px-3 md:px-5 py-2 md:py-2.5 text-xs md:text-sm tracking-wide border transition-colors",
               activeTab === "your-moves"
-                ? "border-white/40 text-white bg-white/10"
-                : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+                ? "border-cb-border-strong text-cb-text bg-cb-surface-elevated"
+                : "border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong"
             )}
             style={{ fontFamily: "'Geist', sans-serif" }}
           >
@@ -452,7 +452,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
               "px-3 md:px-5 py-2 md:py-2.5 text-xs md:text-sm tracking-wide border transition-colors",
               activeTab === "practice"
                 ? "border-amber-500/40 text-amber-400 bg-amber-500/10"
-                : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+                : "border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong"
             )}
             style={{ fontFamily: "'Geist', sans-serif" }}
           >
@@ -496,12 +496,12 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
               <div className="lg:col-span-3 order-2 lg:order-1 hidden lg:flex lg:flex-col">
                 <div className={cn(
                   "border flex flex-col max-h-[70vh] overflow-hidden",
-                  activeTab === "explanation" ? "border-emerald-500/20" : "border-white/10"
+                  activeTab === "explanation" ? "border-emerald-500/20" : "border-cb-border"
                 )}>
                   {activeTab === "explanation" ? (
                     hasExplanation ? (
                       <>
-                        <div className="p-3 border-b border-white/10">
+                        <div className="p-3 border-b border-cb-border">
                           <p
                             style={{ fontFamily: "'Geist', sans-serif" }}
                             className="text-[10px] tracking-[0.3em] uppercase text-emerald-400/60"
@@ -519,7 +519,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       <div className="flex-1 flex items-center justify-center p-4">
                         <p
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-white/30 text-sm text-center"
+                          className="text-cb-text-muted text-sm text-center"
                         >
                           No explanation available
                         </p>
@@ -527,10 +527,10 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                     )
                   ) : (
                     <>
-                      <div className="p-4 border-b border-white/10">
+                      <div className="p-4 border-b border-cb-border">
                         <p
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-[10px] tracking-[0.3em] uppercase text-white/40"
+                          className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted"
                         >
                           {isOpeningGame
                             ? "Your Moves"
@@ -554,7 +554,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                         <div className="flex-1 flex items-center justify-center p-4">
                           <p
                             style={{ fontFamily: "'Geist', sans-serif" }}
-                            className="text-white/30 text-sm text-center"
+                            className="text-cb-text-muted text-sm text-center"
                           >
                             {isOpeningGame
                               ? "Review your moves from this opening"
@@ -581,7 +581,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
 
                 {/* Board */}
                 <div className="mx-1 sm:p-5 md:p-5 lg:p-0 lg:mt-1 lg:mb-4 lg:mx-0">
-                  <p className="text-[10px] text-white/50 uppercase tracking-wider text-center mb-0.5">
+                  <p className="text-[10px] text-cb-text-secondary uppercase tracking-wider text-center mb-0.5">
                     {(activeTab === "explanation" ? data?.userColor === "b" : isFlipped) ? "White" : "Black"}
                   </p>
                   {activeTab === "explanation" ? (
@@ -608,7 +608,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                     />
                   )}
                   {activeTab !== "explanation" && (
-                    <p className="text-[10px] text-white/50 uppercase tracking-wider text-center mt-0.5">
+                    <p className="text-[10px] text-cb-text-secondary uppercase tracking-wider text-center mt-0.5">
                       {isFlipped ? "Black" : "White"}
                     </p>
                   )}
@@ -625,12 +625,12 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       className={cn(
                         "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
                         isAtStart
-                          ? "opacity-30 cursor-not-allowed border-white/10"
-                          : "border-white/20 bg-white/5 hover:bg-white/15 active:bg-white/20"
+                          ? "opacity-30 cursor-not-allowed border-cb-border"
+                          : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
                       )}
                       title="First (Home)"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/70 md:scale-110 lg:scale-100">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary md:scale-110 lg:scale-100">
                         <polyline points="11 17 6 12 11 7" />
                         <polyline points="18 17 13 12 18 7" />
                       </svg>
@@ -641,12 +641,12 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       className={cn(
                         "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
                         isAtStart
-                          ? "opacity-30 cursor-not-allowed border-white/10"
-                          : "border-white/20 bg-white/5 hover:bg-white/15 active:bg-white/20"
+                          ? "opacity-30 cursor-not-allowed border-cb-border"
+                          : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
                       )}
                       title="Back (Left Arrow)"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/70 md:scale-110 lg:scale-100">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary md:scale-110 lg:scale-100">
                         <polyline points="15 18 9 12 15 6" />
                       </svg>
                     </button>
@@ -656,12 +656,12 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       className={cn(
                         "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
                         isAtEnd
-                          ? "opacity-30 cursor-not-allowed border-white/10"
-                          : "border-white/20 bg-white/5 hover:bg-white/15 active:bg-white/20"
+                          ? "opacity-30 cursor-not-allowed border-cb-border"
+                          : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
                       )}
                       title="Forward (Right Arrow)"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/70 md:scale-110 lg:scale-100">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary md:scale-110 lg:scale-100">
                         <polyline points="9 18 15 12 9 6" />
                       </svg>
                     </button>
@@ -671,12 +671,12 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       className={cn(
                         "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
                         isAtEnd
-                          ? "opacity-30 cursor-not-allowed border-white/10"
-                          : "border-white/20 bg-white/5 hover:bg-white/15 active:bg-white/20"
+                          ? "opacity-30 cursor-not-allowed border-cb-border"
+                          : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
                       )}
                       title="Last (End)"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/70 md:scale-110 lg:scale-100">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary md:scale-110 lg:scale-100">
                         <polyline points="13 17 18 12 13 7" />
                         <polyline points="6 17 11 12 6 7" />
                       </svg>
@@ -684,27 +684,27 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                   </div>
 
                   {/* Separator */}
-                  <div className="w-px h-7 md:h-8 lg:h-6 bg-white/10 mx-1 md:mx-2" />
+                  <div className="w-px h-7 md:h-8 lg:h-6 bg-cb-border mx-1 md:mx-2" />
 
                   {/* Action Buttons */}
                   <div className="flex items-center gap-1 md:gap-2 lg:gap-1">
                     <button
                       onClick={() => setShareModalOpen(true)}
-                      className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
+                      className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-cb-border-strong text-cb-text-secondary bg-cb-hover hover:bg-cb-surface-elevated hover:text-cb-text transition-colors"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
                       Share
                     </button>
                     <button
                       onClick={toggleFlip}
-                      className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
+                      className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-cb-border-strong text-cb-text-secondary bg-cb-hover hover:bg-cb-surface-elevated hover:text-cb-text transition-colors"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
                       Flip
                     </button>
                     <button
                       onClick={() => router.push(backPath)}
-                      className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
+                      className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-cb-border-strong text-cb-text-secondary bg-cb-hover hover:bg-cb-surface-elevated hover:text-cb-text transition-colors"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
                       Back
@@ -715,15 +715,15 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
 
                 {/* Legend Key (Mobile) */}
                 <div className="lg:hidden mt-2 md:mt-3 px-4 md:px-8">
-                  <div className="flex items-center justify-center gap-6 md:gap-10 py-2 md:py-3 border-t border-white/10">
+                  <div className="flex items-center justify-center gap-6 md:gap-10 py-2 md:py-3 border-t border-cb-border">
                     {activeTab === "your-moves" && (
                       <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 bg-white/90 border border-white/40 flex items-center justify-center">
+                        <div className="w-5 h-5 bg-cb-text/90 border border-cb-text-muted flex items-center justify-center">
                           <span className="text-xs">&#9823;</span>
                         </div>
                         <span
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-white/60 text-xs"
+                          className="text-cb-text-secondary text-xs"
                         >
                           Your Move
                         </span>
@@ -732,14 +732,14 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                     {activeTab === "legend-moves" && (
                       <div className="flex items-center gap-2">
                         <div
-                          className="w-5 h-5 bg-white/30 border border-white/20 flex items-center justify-center"
+                          className="w-5 h-5 bg-cb-text-muted border border-cb-border-strong flex items-center justify-center"
                           style={{ opacity: 0.8 }}
                         >
                           <span className="text-xs">&#9823;</span>
                         </div>
                         <span
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-white/60 text-xs"
+                          className="text-cb-text-secondary text-xs"
                         >
                           Legend&apos;s Moves
                         </span>
@@ -752,10 +752,10 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
               {/* Right - Legend Key & Info (hidden on mobile) */}
               <div className="lg:col-span-3 order-3 hidden lg:flex lg:flex-col space-y-4">
                 {/* View Mode Tabs - Desktop */}
-                <div className="border border-white/10 p-4">
+                <div className="border border-cb-border p-4">
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-3"
+                    className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-3"
                   >
                     View Mode
                   </p>
@@ -766,7 +766,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                         "w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left",
                         activeTab === "explanation"
                           ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
-                          : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+                          : "border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong"
                       )}
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
@@ -779,7 +779,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                           "w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left",
                           activeTab === "legend-moves"
                             ? "border-sky-500/40 text-sky-400 bg-sky-500/10"
-                            : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+                            : "border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
                       >
@@ -791,8 +791,8 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       className={cn(
                         "w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left",
                         activeTab === "your-moves"
-                          ? "border-white/40 text-white bg-white/10"
-                          : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+                          ? "border-cb-border-strong text-cb-text bg-cb-surface-elevated"
+                          : "border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong"
                       )}
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
@@ -802,7 +802,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       onClick={handlePracticeTabClick}
                       className={cn(
                         "w-full px-4 py-2.5 text-xs tracking-wide border transition-colors text-left",
-                        "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
+                        "border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong"
                       )}
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
@@ -822,21 +822,21 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                     </p>
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-8 h-8 bg-white/5 border border-white/20 flex items-center justify-center"
+                        className="w-8 h-8 bg-cb-hover border border-cb-border-strong flex items-center justify-center"
                         style={{ opacity: 0.8 }}
                       >
-                        <span className="text-white text-lg">&#9823;</span>
+                        <span className="text-cb-text text-lg">&#9823;</span>
                       </div>
                       <div>
                         <p
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-white/60 text-sm"
+                          className="text-cb-text-secondary text-sm"
                         >
                           Legend&apos;s Pieces
                         </p>
                         <p
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-white/40 text-xs"
+                          className="text-cb-text-muted text-xs"
                         >
                           Subtle fade
                         </p>
@@ -856,15 +856,15 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                     </p>
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/60 text-sm">
+                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-sm">
                           Segments
                         </span>
-                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white text-sm font-mono">
+                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text text-sm font-mono">
                           {explanationPlayer.totalSegments}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/60 text-sm">
+                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-sm">
                           Mode
                         </span>
                         <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-emerald-400 text-sm">
@@ -872,10 +872,10 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/60 text-sm">
+                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-sm">
                           Current
                         </span>
-                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-white text-sm font-mono">
+                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text text-sm font-mono">
                           {explanationPlayer.currentSegmentIndex + 1} / {explanationPlayer.totalSegments}
                         </span>
                       </div>
@@ -885,7 +885,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
 
                 {/* Narration — desktop only (mobile narration lives inside ExplanationView) */}
                 {activeTab === "explanation" && hasExplanation && (
-                  <div className="border border-white/10 bg-white/[0.02] max-h-[30vh] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/25">
+                  <div className="border border-cb-border bg-cb-hover/50 max-h-[30vh] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-cb-text-faint [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-cb-text-faint">
                     <NarrationDisplay
                       explanation={data.explanation as ExplanationData}
                       currentSegmentIndex={explanationPlayer.currentSegmentIndex}
@@ -898,10 +898,10 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
 
                 {/* Divergence Info */}
                 {hasLegendMoves && activeTab !== "explanation" && (
-                  <div className="border border-white/10 p-5">
+                  <div className="border border-cb-border p-5">
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-3"
+                      className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-3"
                     >
                       Statistics
                     </p>
@@ -909,13 +909,13 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       <div className="flex justify-between">
                         <span
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-white/60 text-sm"
+                          className="text-cb-text-secondary text-sm"
                         >
                           {activeTab === "legend-moves" ? "Legend Game Moves" : "Total Moves"}
                         </span>
                         <span
                           style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-white text-sm font-mono"
+                          className="text-cb-text text-sm font-mono"
                         >
                           {activeTab === "legend-moves" ? fullLegendMoves.length : maxPly}
                         </span>
@@ -925,7 +925,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                           <div className="flex justify-between">
                             <span
                               style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-white/60 text-sm"
+                              className="text-cb-text-secondary text-sm"
                             >
                               Divergent Moves
                             </span>
@@ -939,7 +939,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                           <div className="flex justify-between">
                             <span
                               style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-white/60 text-sm"
+                              className="text-cb-text-secondary text-sm"
                             >
                               Match Rate
                             </span>

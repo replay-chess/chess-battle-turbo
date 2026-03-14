@@ -138,11 +138,11 @@ export default function CreateTournamentPage() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black pt-20 md:pt-28 relative">
+      <div className="min-h-screen bg-cb-bg pt-20 md:pt-28 relative">
         <div
           className="fixed inset-0 opacity-[0.015] pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
           }}
         />
@@ -152,15 +152,15 @@ export default function CreateTournamentPage() {
           <div className="flex items-center gap-4 mb-8">
             <Link
               href="/admin/tournaments"
-              className="p-2 border border-white/10 hover:border-white/30 transition-colors"
+              className="p-2 border border-cb-border hover:border-cb-text-muted transition-colors"
             >
-              <ArrowLeft className="w-4 h-4 text-white/60" />
+              <ArrowLeft className="w-4 h-4 text-cb-text-secondary" />
             </Link>
             <div>
-              <h1 style={serifFont} className="text-3xl text-white">
+              <h1 style={serifFont} className="text-3xl text-cb-text">
                 Create Tournament
               </h1>
-              <p style={geistFont} className="text-white/40 text-sm">
+              <p style={geistFont} className="text-cb-text-muted text-sm">
                 Configure a new time-boxed tournament
               </p>
             </div>
@@ -169,7 +169,7 @@ export default function CreateTournamentPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Tournament Name */}
             <div>
-              <label style={geistFont} className="block text-white/60 text-xs tracking-wider uppercase mb-2">
+              <label style={geistFont} className="block text-cb-text-secondary text-xs tracking-wider uppercase mb-2">
                 Tournament Name
               </label>
               <input
@@ -178,14 +178,14 @@ export default function CreateTournamentPage() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Friday Night Blitz"
                 style={geistFont}
-                className="w-full bg-transparent border border-white/10 text-white text-sm px-4 py-3 outline-none focus:border-white/30 placeholder:text-white/20 transition-colors"
+                className="w-full bg-transparent border border-cb-border text-cb-text text-sm px-4 py-3 outline-none focus:border-cb-text-muted placeholder:text-cb-text-faint transition-colors"
                 required
               />
             </div>
 
             {/* Description */}
             <div>
-              <label style={geistFont} className="block text-white/60 text-xs tracking-wider uppercase mb-2">
+              <label style={geistFont} className="block text-cb-text-secondary text-xs tracking-wider uppercase mb-2">
                 Description
               </label>
               <input
@@ -195,17 +195,17 @@ export default function CreateTournamentPage() {
                 placeholder="e.g. Casual blitz for all skill levels"
                 maxLength={50}
                 style={geistFont}
-                className="w-full bg-transparent border border-white/10 text-white text-sm px-4 py-3 outline-none focus:border-white/30 placeholder:text-white/20 transition-colors"
+                className="w-full bg-transparent border border-cb-border text-cb-text text-sm px-4 py-3 outline-none focus:border-cb-text-muted placeholder:text-cb-text-faint transition-colors"
                 required
               />
-              <p style={geistFont} className="text-white/20 text-xs mt-1 text-right">
+              <p style={geistFont} className="text-cb-text-faint text-xs mt-1 text-right">
                 {description.length}/50
               </p>
             </div>
 
             {/* Duration */}
             <div>
-              <label style={geistFont} className="block text-white/60 text-xs tracking-wider uppercase mb-2">
+              <label style={geistFont} className="block text-cb-text-secondary text-xs tracking-wider uppercase mb-2">
                 Tournament Duration
               </label>
               <div className="flex gap-2">
@@ -213,7 +213,7 @@ export default function CreateTournamentPage() {
                   preset.value === -1 && isCustomDuration ? (
                     <div
                       key={preset.value}
-                      className="flex-1 flex items-center border border-white bg-white/10 overflow-hidden"
+                      className="flex-1 flex items-center border border-cb-accent bg-cb-surface-elevated overflow-hidden"
                     >
                       <input
                         type="number"
@@ -223,10 +223,10 @@ export default function CreateTournamentPage() {
                         min="5"
                         max="480"
                         autoFocus
-                        className="w-full bg-transparent text-white text-sm font-medium px-2 py-2.5 outline-none text-center tabular-nums placeholder:text-white/30"
+                        className="w-full bg-transparent text-cb-text text-sm font-medium px-2 py-2.5 outline-none text-center tabular-nums placeholder:text-cb-text-muted"
                         style={geistFont}
                       />
-                      <span style={geistFont} className="text-white/40 text-xs pr-2.5 shrink-0">
+                      <span style={geistFont} className="text-cb-text-muted text-xs pr-2.5 shrink-0">
                         min
                       </span>
                     </div>
@@ -241,8 +241,8 @@ export default function CreateTournamentPage() {
                       className={cn(
                         "flex-1 px-3 py-2.5 text-sm font-medium transition-all duration-200 border",
                         durationMinutes === preset.value
-                          ? "bg-white text-black border-white"
-                          : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border-white/10"
+                          ? "bg-cb-accent text-cb-accent-fg border-cb-accent"
+                          : "bg-cb-hover text-cb-text-secondary hover:bg-cb-surface-elevated hover:text-cb-text border-cb-border"
                       )}
                       style={geistFont}
                     >
@@ -255,7 +255,7 @@ export default function CreateTournamentPage() {
 
             {/* Game Mode */}
             <div>
-              <label style={geistFont} className="block text-white/60 text-xs tracking-wider uppercase mb-2">
+              <label style={geistFont} className="block text-cb-text-secondary text-xs tracking-wider uppercase mb-2">
                 Game Mode
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -267,14 +267,14 @@ export default function CreateTournamentPage() {
                     className={cn(
                       "p-3 border text-left transition-all duration-200",
                       mode === opt.value
-                        ? "border-white/40 bg-white/10"
-                        : "border-white/10 hover:border-white/20 bg-transparent"
+                        ? "border-cb-text-muted bg-cb-surface-elevated"
+                        : "border-cb-border hover:border-cb-border-strong bg-transparent"
                     )}
                   >
-                    <span style={geistFont} className="block text-sm text-white font-medium">
+                    <span style={geistFont} className="block text-sm text-cb-text font-medium">
                       {opt.label}
                     </span>
-                    <span style={geistFont} className="block text-xs text-white/40 mt-0.5">
+                    <span style={geistFont} className="block text-xs text-cb-text-muted mt-0.5">
                       {opt.description}
                     </span>
                   </button>
@@ -285,7 +285,7 @@ export default function CreateTournamentPage() {
             {/* Mode-specific selectors */}
             {mode === "OPENING" && (
               <div>
-                <label style={geistFont} className="block text-white/60 text-xs tracking-wider uppercase mb-2">
+                <label style={geistFont} className="block text-cb-text-secondary text-xs tracking-wider uppercase mb-2">
                   Select Opening
                 </label>
                 <SearchableDropdown
@@ -303,7 +303,7 @@ export default function CreateTournamentPage() {
 
             {mode === "LEGEND" && (
               <div>
-                <label style={geistFont} className="block text-white/60 text-xs tracking-wider uppercase mb-2">
+                <label style={geistFont} className="block text-cb-text-secondary text-xs tracking-wider uppercase mb-2">
                   Select Legend
                 </label>
                 <SearchableDropdown
@@ -321,7 +321,7 @@ export default function CreateTournamentPage() {
 
             {/* Time Control */}
             <div>
-              <label style={geistFont} className="block text-white/60 text-xs tracking-wider uppercase mb-2">
+              <label style={geistFont} className="block text-cb-text-secondary text-xs tracking-wider uppercase mb-2">
                 Time Control (per game)
               </label>
               <TimeControlSelector value={timeControl} onChange={setTimeControl} />
@@ -329,7 +329,7 @@ export default function CreateTournamentPage() {
 
             {/* Scheduled Start Time */}
             <div>
-              <label style={geistFont} className="block text-white/60 text-xs tracking-wider uppercase mb-2">
+              <label style={geistFont} className="block text-cb-text-secondary text-xs tracking-wider uppercase mb-2">
                 Scheduled Start Time
               </label>
               <input
@@ -338,13 +338,13 @@ export default function CreateTournamentPage() {
                 onChange={(e) => setScheduledStartAt(e.target.value)}
                 required
                 style={geistFont}
-                className="w-full bg-transparent border border-white/10 text-white text-sm px-4 py-3 outline-none focus:border-white/30 transition-colors [color-scheme:dark]"
+                className="w-full bg-transparent border border-cb-border text-cb-text text-sm px-4 py-3 outline-none focus:border-cb-text-muted transition-colors [color-scheme:dark]"
               />
             </div>
 
             {/* Max Participants */}
             <div>
-              <label style={geistFont} className="block text-white/60 text-xs tracking-wider uppercase mb-2">
+              <label style={geistFont} className="block text-cb-text-secondary text-xs tracking-wider uppercase mb-2">
                 Max Participants (optional)
               </label>
               <input
@@ -355,7 +355,7 @@ export default function CreateTournamentPage() {
                 min="2"
                 max="256"
                 style={geistFont}
-                className="w-full bg-transparent border border-white/10 text-white text-sm px-4 py-3 outline-none focus:border-white/30 placeholder:text-white/20 transition-colors"
+                className="w-full bg-transparent border border-cb-border text-cb-text text-sm px-4 py-3 outline-none focus:border-cb-text-muted placeholder:text-cb-text-faint transition-colors"
               />
             </div>
 
@@ -366,8 +366,8 @@ export default function CreateTournamentPage() {
               className={cn(
                 "w-full py-3 text-sm font-medium tracking-wide transition-all duration-300",
                 isSubmitting || !name.trim() || !description.trim() || !scheduledStartAt
-                  ? "bg-white/10 text-white/30 cursor-not-allowed"
-                  : "bg-white text-black hover:bg-white/90"
+                  ? "bg-cb-surface-elevated text-cb-text-muted cursor-not-allowed"
+                  : "bg-cb-accent text-cb-accent-fg hover:opacity-90"
               )}
               style={geistFont}
             >

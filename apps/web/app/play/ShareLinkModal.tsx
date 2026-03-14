@@ -75,7 +75,7 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-cb-backdrop backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -87,7 +87,7 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
           }}
         >
           <motion.div
-            className="bg-neutral-900 border border-white/10 p-6 w-[90%] max-w-sm max-h-[90vh] overflow-y-auto"
+            className="bg-cb-surface border border-cb-border p-6 w-[90%] max-w-sm max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -102,14 +102,14 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
               transition={{ delay: 0.1 }}
             >
               <div className="flex items-center gap-3 flex-1">
-                <div className="h-px flex-1 bg-gradient-to-r from-white/30 to-transparent" />
+                <div className="h-px flex-1 bg-gradient-to-r from-cb-border-strong to-transparent" />
                 <span
                   style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+                  className="text-cb-text-secondary text-[10px] tracking-[0.4em] uppercase"
                 >
                   Share Invitation
                 </span>
-                <div className="h-px flex-1 bg-gradient-to-l from-white/30 to-transparent" />
+                <div className="h-px flex-1 bg-gradient-to-l from-cb-border-strong to-transparent" />
               </div>
               <button
                 onClick={async () => {
@@ -117,7 +117,7 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
                   setCancelling(true);
                   await onCancel();
                 }}
-                className="ml-3 text-white/30 hover:text-white/60 transition-colors"
+                className="ml-3 text-cb-text-muted hover:text-cb-text-secondary transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -132,7 +132,7 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
             >
               <h2
                 style={{ fontFamily: "'Instrument Serif', serif" }}
-                className="text-xl text-white"
+                className="text-xl text-cb-text"
               >
                 Share this link
                 <br />
@@ -143,7 +143,7 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
             {/* Subtitle */}
             <motion.p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-sm mb-5"
+              className="text-cb-text-muted text-sm mb-5"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, ease: modalEasing }}
@@ -153,20 +153,20 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
 
             {/* Link box with corner ornaments */}
             <motion.div
-              className="bg-white/5 border border-white/10 p-4 relative mb-4"
+              className="bg-cb-hover border border-cb-border p-4 relative mb-4"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, ease: modalEasing }}
             >
               {/* Corner ornaments */}
-              <div className="absolute top-0 left-0 w-1.5 h-1.5 border-l border-t border-white/30" />
-              <div className="absolute top-0 right-0 w-1.5 h-1.5 border-r border-t border-white/30" />
-              <div className="absolute bottom-0 left-0 w-1.5 h-1.5 border-l border-b border-white/30" />
-              <div className="absolute bottom-0 right-0 w-1.5 h-1.5 border-r border-b border-white/30" />
+              <div className="absolute top-0 left-0 w-1.5 h-1.5 border-l border-t border-cb-border-strong" />
+              <div className="absolute top-0 right-0 w-1.5 h-1.5 border-r border-t border-cb-border-strong" />
+              <div className="absolute bottom-0 left-0 w-1.5 h-1.5 border-l border-b border-cb-border-strong" />
+              <div className="absolute bottom-0 right-0 w-1.5 h-1.5 border-r border-b border-cb-border-strong" />
 
               <p
                 style={{ fontFamily: "'Geist Mono', monospace" }}
-                className="text-white/60 text-sm truncate"
+                className="text-cb-text-secondary text-sm truncate"
               >
                 {inviteLink}
               </p>
@@ -175,7 +175,7 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
             {/* Copy button */}
             <motion.button
               onClick={handleCopy}
-              className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/70 hover:text-white h-10 flex items-center justify-center gap-2 transition-all duration-200 mb-3"
+              className="w-full bg-cb-hover hover:bg-cb-surface-elevated border border-cb-border hover:border-cb-border-strong text-cb-text-secondary hover:text-cb-text h-10 flex items-center justify-center gap-2 transition-all duration-200 mb-3"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, ease: modalEasing }}
@@ -229,7 +229,7 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
               {hasNativeShare() && (
                 <button
                   onClick={handleNativeShare}
-                  className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/70 hover:text-white h-10 flex items-center justify-center gap-2 transition-all duration-200"
+                  className="flex-1 bg-cb-hover hover:bg-cb-surface-elevated border border-cb-border hover:border-cb-border-strong text-cb-text-secondary hover:text-cb-text h-10 flex items-center justify-center gap-2 transition-all duration-200"
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >
                   <Share2 className="w-3.5 h-3.5" />
@@ -240,7 +240,7 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
                 href={`https://wa.me/?text=${shareText}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/70 hover:text-white h-10 flex items-center justify-center gap-2 transition-all duration-200"
+                className="flex-1 bg-cb-hover hover:bg-cb-surface-elevated border border-cb-border hover:border-cb-border-strong text-cb-text-secondary hover:text-cb-text h-10 flex items-center justify-center gap-2 transition-all duration-200"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
                 <span
@@ -254,7 +254,7 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
                 href={`https://t.me/share/url?url=${shareUrl}&text=${encodeURIComponent("I challenge you to a chess battle!")}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/70 hover:text-white h-10 flex items-center justify-center gap-2 transition-all duration-200"
+                className="flex-1 bg-cb-hover hover:bg-cb-surface-elevated border border-cb-border hover:border-cb-border-strong text-cb-text-secondary hover:text-cb-text h-10 flex items-center justify-center gap-2 transition-all duration-200"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span
@@ -283,12 +283,12 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
               data-testid="go-to-game-button"
               onClick={cancelling ? undefined : onGoToGame}
               disabled={cancelling}
-              className="w-full group relative overflow-hidden bg-white text-black h-10 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full group relative overflow-hidden bg-cb-accent text-cb-accent-fg h-10 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.65, ease: modalEasing }}
             >
-              <div className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
+              <div className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
               <div className="relative z-10 flex items-center justify-center gap-2">
                 <AnimatePresence mode="wait">
                   {cancelling ? (
@@ -301,7 +301,7 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
                       transition={{ duration: 0.15 }}
                     >
                       <motion.div
-                        className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full"
+                        className="w-3.5 h-3.5 border-2 border-cb-accent-fg/30 border-t-cb-accent-fg rounded-full"
                         animate={{ rotate: 360 }}
                         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                       />
@@ -323,11 +323,11 @@ export function ShareLinkModal({ isOpen, inviteLink, onGoToGame, onCancel }: Sha
                     >
                       <span
                         style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-xs tracking-[0.1em] font-semibold group-hover:text-white transition-colors"
+                        className="text-xs tracking-[0.1em] font-semibold group-hover:text-cb-text transition-colors"
                       >
                         GO TO GAME
                       </span>
-                      <ArrowRight className="w-3.5 h-3.5 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:text-cb-text group-hover:translate-x-1 transition-all" />
                     </motion.div>
                   )}
                 </AnimatePresence>

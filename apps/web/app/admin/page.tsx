@@ -58,22 +58,22 @@ function FeatureCard({
     <Link href={href}>
       <motion.div
         className={cn(
-          "group relative border border-white/10 p-8",
-          "hover:border-white/20 transition-all duration-300",
+          "group relative border border-cb-border p-8",
+          "hover:border-cb-border-strong transition-all duration-300",
           "cursor-pointer"
         )}
         whileHover={{ y: -4 }}
         transition={{ type: "spring", stiffness: 400, damping: 25 }}
       >
         {/* Icon container */}
-        <div className="w-14 h-14 border border-white/20 flex items-center justify-center mb-6">
+        <div className="w-14 h-14 border border-cb-border-strong flex items-center justify-center mb-6">
           {icon}
         </div>
 
         {/* Title */}
         <h2
           style={{ fontFamily: "'Instrument Serif', serif" }}
-          className="text-2xl text-white mb-2"
+          className="text-2xl text-cb-text mb-2"
         >
           {title}
         </h2>
@@ -81,7 +81,7 @@ function FeatureCard({
         {/* Description */}
         <p
           style={{ fontFamily: "'Geist', sans-serif" }}
-          className="text-white/40 text-sm mb-6"
+          className="text-cb-text-muted text-sm mb-6"
         >
           {description}
         </p>
@@ -91,22 +91,22 @@ function FeatureCard({
           {isLoading ? (
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/30 text-xs tracking-wide"
+              className="text-cb-text-muted text-xs tracking-wide"
             >
               Loading...
             </span>
           ) : (
             <span
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/30 text-xs tracking-wide"
+              className="text-cb-text-muted text-xs tracking-wide"
             >
               {count} {countLabel}
             </span>
           )}
           <ArrowRight
             className={cn(
-              "w-5 h-5 text-white/30",
-              "group-hover:text-white group-hover:translate-x-1",
+              "w-5 h-5 text-cb-text-muted",
+              "group-hover:text-cb-text group-hover:translate-x-1",
               "transition-all duration-300"
             )}
             strokeWidth={1.5}
@@ -117,7 +117,7 @@ function FeatureCard({
         <div
           className={cn(
             "absolute inset-0 opacity-0 group-hover:opacity-100",
-            "bg-gradient-to-br from-white/5 to-transparent",
+            "bg-gradient-to-br from-cb-hover to-transparent",
             "transition-opacity duration-300 pointer-events-none"
           )}
         />
@@ -160,12 +160,12 @@ export default function AdminDashboard() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-black pt-20 md:pt-28 relative">
+      <div className="min-h-screen bg-cb-bg pt-20 md:pt-28 relative">
         {/* Subtle grid background */}
         <div
           className="fixed inset-0 opacity-[0.015] pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(90deg, white 1px, transparent 1px), linear-gradient(white 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
           }}
         />
@@ -174,39 +174,39 @@ export default function AdminDashboard() {
           {/* Header */}
           <div className="mb-12">
             <div className="flex items-center gap-3 mb-4">
-              <div className="h-px flex-1 bg-gradient-to-r from-white/30 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-r from-cb-text-muted to-transparent" />
               <span
                 style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-white/50 text-[10px] tracking-[0.4em] uppercase"
+                className="text-cb-text-secondary text-[10px] tracking-[0.4em] uppercase"
               >
                 Admin Panel
               </span>
-              <div className="h-px flex-1 bg-gradient-to-l from-white/30 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-l from-cb-text-muted to-transparent" />
             </div>
 
             <h1
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-4xl sm:text-5xl text-white mb-2 text-center"
+              className="text-4xl sm:text-5xl text-cb-text mb-2 text-center"
             >
               Dashboard
             </h1>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-white/40 text-sm text-center"
+              className="text-cb-text-muted text-sm text-center"
             >
               Manage your chess platform
             </p>
           </div>
 
           {/* Separator */}
-          <div className="border-t border-white/10 mb-8" />
+          <div className="border-t border-cb-border mb-8" />
 
           {/* Feature Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Legends Card */}
             <FeatureCard
               href="/admin/legends"
-              icon={<Crown className="w-6 h-6 text-white/60" strokeWidth={1.5} />}
+              icon={<Crown className="w-6 h-6 text-cb-text-secondary" strokeWidth={1.5} />}
               title="Manage Legends"
               description="Create and edit chess legends for the platform"
               count={stats.legends}
@@ -217,7 +217,7 @@ export default function AdminDashboard() {
             {/* Positions Card */}
             <FeatureCard
               href="/admin/chess-positions"
-              icon={<ChessPieceIcon className="w-6 h-6 text-white/60" />}
+              icon={<ChessPieceIcon className="w-6 h-6 text-cb-text-secondary" />}
               title="Chess Positions"
               description="Add and manage chess positions for battles"
               count={stats.positions}
@@ -228,7 +228,7 @@ export default function AdminDashboard() {
             {/* Tournaments Card */}
             <FeatureCard
               href="/admin/tournaments"
-              icon={<Trophy className="w-6 h-6 text-white/60" strokeWidth={1.5} />}
+              icon={<Trophy className="w-6 h-6 text-cb-text-secondary" strokeWidth={1.5} />}
               title="Tournaments"
               description="Create and manage time-boxed tournaments"
               count={stats.tournaments}
@@ -239,8 +239,8 @@ export default function AdminDashboard() {
         </div>
 
         {/* Decorative corner elements */}
-        <div className="fixed top-20 left-6 w-12 h-12 border-l border-t border-white/10 pointer-events-none" />
-        <div className="fixed bottom-6 right-6 w-12 h-12 border-r border-b border-white/10 pointer-events-none" />
+        <div className="fixed top-20 left-6 w-12 h-12 border-l border-t border-cb-border pointer-events-none" />
+        <div className="fixed bottom-6 right-6 w-12 h-12 border-r border-b border-cb-border pointer-events-none" />
       </div>
     </>
   );

@@ -108,14 +108,14 @@ export default function NarrationDisplay({
         <p
           ref={textRef}
           style={containerStyle}
-          className="text-white/80 text-sm leading-relaxed"
+          className="text-cb-text/80 text-sm leading-relaxed"
         >
           {segment.narration}
         </p>
         {!hideShowMore && overflows && !isDesktop && (
           <button
             onClick={() => setIsExpanded((v) => !v)}
-            className="mt-1.5 text-[10px] text-white/30 hover:text-white/50 transition-colors tracking-wider uppercase"
+            className="mt-1.5 text-[10px] text-cb-text-muted hover:text-cb-text-secondary transition-colors tracking-wider uppercase"
             style={{ fontFamily: "'Geist', sans-serif" }}
           >
             {isExpanded ? "Show less" : "Show more"}
@@ -159,9 +159,9 @@ export default function NarrationDisplay({
               ref={isActive ? activeWordRef : undefined}
               className={cn(
                 "transition-colors duration-150",
-                time >= w.end && "text-white/90",
+                time >= w.end && "text-cb-text/90",
                 isActive && "text-emerald-400",
-                time < w.start && "text-white/25"
+                time < w.start && "text-cb-text-faint"
               )}
               style={
                 isActive
@@ -177,7 +177,7 @@ export default function NarrationDisplay({
       {!hideShowMore && overflows && !isDesktop && (
         <button
           onClick={() => setIsExpanded((v) => !v)}
-          className="mt-1.5 text-[10px] text-white/30 hover:text-white/50 transition-colors tracking-wider uppercase"
+          className="mt-1.5 text-[10px] text-cb-text-muted hover:text-cb-text-secondary transition-colors tracking-wider uppercase"
           style={{ fontFamily: "'Geist', sans-serif" }}
         >
           {isExpanded ? "Show less" : "Show more"}
