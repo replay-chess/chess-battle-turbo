@@ -25,10 +25,10 @@ export default function DemoGamePage({
 
   if (!demoUserRef) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-cb-bg flex items-center justify-center">
         <div className="flex flex-col items-center">
-          <div className="w-10 h-10 border border-white/20 border-t-white/60 rounded-full animate-spin mb-6" />
-          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white/40 text-xs tracking-[0.2em] uppercase">
+          <div className="w-10 h-10 border border-cb-border-strong border-t-cb-text-secondary rounded-full animate-spin mb-6" />
+          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-xs tracking-[0.2em] uppercase">
             Loading
           </p>
         </div>
