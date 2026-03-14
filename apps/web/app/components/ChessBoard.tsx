@@ -146,7 +146,6 @@ const ChessBoard = ({
     sourceSquare: Square;
     pointerId: number;
   } | null>(null);
-  const suppressClickRef = useRef(false);
   const [boardPixelSize, setBoardPixelSize] = useState(0);
   const [dragState, setDragState] = useState<{
     piece: { type: PieceSymbol; color: Color };
@@ -207,6 +206,9 @@ const ChessBoard = ({
   ) => {
     if (!isInteractive || !onSquareClick || e.button !== 0) return;
     if (dragInfoRef.current) return; // prevent multi-touch conflicts
+    // Prevent compatibility mouse events (mousedown/mouseup/click) so the
+    // square div's onClick doesn't double-fire — we handle it in pointerup.
+    e.preventDefault();
     dragInfoRef.current = {
       startClientX: e.clientX,
       startClientY: e.clientY,
@@ -232,7 +234,6 @@ const ChessBoard = ({
       if (dx * dx + dy * dy < DRAG_THRESHOLD * DRAG_THRESHOLD) return;
       // Start drag: select the source square
       onSquareClick?.(info.sourceSquare);
-      suppressClickRef.current = true;
       setDragState({
         piece: info.piece,
         sourceSquare: info.sourceSquare,
@@ -286,7 +287,6 @@ const ChessBoard = ({
       // setPointerCapture redirected pointerup here, suppressing the
       // normal click event on the square div, so fire it manually.
       onSquareClick?.(info.sourceSquare);
-      suppressClickRef.current = true;
     }
 
     // Clean up
@@ -439,13 +439,7 @@ const ChessBoard = ({
                   <div
                     key={columnIndex}
                     data-square={squareNotation}
-                    onClick={() => {
-                      if (suppressClickRef.current) {
-                        suppressClickRef.current = false;
-                        return;
-                      }
-                      isInteractive && onSquareClick?.(squareNotation);
-                    }}
+                    onClick={() => isInteractive && onSquareClick?.(squareNotation)}
                     className={cn(
                       sizeConfig[squareSize],
                       "relative flex items-center justify-center",
