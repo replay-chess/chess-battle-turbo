@@ -52,8 +52,8 @@ export default function ExplanationView({
         {playerColor === "b" ? "Black" : "White"}
       </p>
 
-      {/* Audio/navigation controls — lg:mt-7 clears the board's decorative frame on desktop */}
-      <div className="w-full mt-2 lg:mt-7">
+      {/* Audio/navigation controls — lg:mt-3 keeps timer + share close to board */}
+      <div className="w-full mt-2 lg:mt-3">
         <AudioControls
           isPlaying={player.isPlaying}
           isManualMode={player.isManualMode}
@@ -75,12 +75,12 @@ export default function ExplanationView({
           extraControls={onShare ? (
             <button
               onClick={onShare}
-              className="group relative overflow-hidden h-10 px-6 bg-cb-accent text-cb-accent-fg transition-all duration-300"
+              className="group relative overflow-hidden h-10 lg:h-12 px-6 lg:px-10 bg-cb-accent text-cb-accent-fg transition-all duration-300"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
-              <span className="relative z-10 flex items-center gap-2 text-xs font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
+              <span className="relative z-10 flex items-center gap-2 text-xs lg:text-sm font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors lg:w-4 lg:h-4">
                   <circle cx="18" cy="5" r="3" />
                   <circle cx="6" cy="12" r="3" />
                   <circle cx="18" cy="19" r="3" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
+import type { RefObject } from "react";
 import { cn } from "@/lib/utils";
 
 interface AudioControlsProps {
@@ -26,20 +26,10 @@ interface AudioControlsProps {
 
 
 const RATES = [0.5, 1, 1.5, 2];
-const DISPLAY_UPDATE_MS = 250; // ~4Hz — plenty for a progress bar with CSS transitions
-
-function formatAudioTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
 
 export default function AudioControls({
   isPlaying,
-  isManualMode,
   hasAudio,
-  currentTimeRef,
-  duration,
   isMuted,
   playbackRate,
   currentSegmentIndex,
@@ -53,58 +43,17 @@ export default function AudioControls({
   onSkipForward,
   extraControls,
 }: AudioControlsProps) {
-  const [displayTime, setDisplayTime] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>(null);
-
-  // Sync displayTime from ref at ~4Hz when playing, or immediately on pause/seek
-  useEffect(() => {
-    setDisplayTime(currentTimeRef.current);
-    if (!isPlaying) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      return;
-    }
-    intervalRef.current = setInterval(() => {
-      setDisplayTime(currentTimeRef.current);
-    }, DISPLAY_UPDATE_MS);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isPlaying, currentTimeRef, currentSegmentIndex]);
-
-  const progress = duration > 0 ? (displayTime / duration) * 100 : 0;
-
   return (
     <div className="space-y-2">
-      {/* Audio progress bar */}
-      {hasAudio && (
-        <div className="hidden lg:block px-4">
-          <div className="w-full h-1 bg-cb-surface-elevated rounded-full overflow-hidden">
-            <div
-              className="h-full bg-emerald-400/60 transition-[width] duration-100"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <div className="flex justify-between mt-1">
-            <span
-              style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-[10px] text-cb-text-muted font-mono"
-            >
-              {formatAudioTime(displayTime)}
-            </span>
-            <span
-              style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-[10px] text-cb-text-muted font-mono"
-            >
-              {formatAudioTime(duration)}
-            </span>
-          </div>
+      {/* Desktop-only: bigger share button */}
+      {extraControls && (
+        <div className="hidden lg:flex justify-center px-4">
+          {extraControls}
         </div>
       )}
 
-      {/* Row 1: Navigation + Share (mobile & desktop) */}
-      {/* On desktop: single row with nav | share | speed+mute */}
-      {/* On mobile: row 1 = nav + share, row 2 = speed + mute */}
-      <div className="flex flex-wrap items-center justify-center gap-2 px-4 lg:justify-between">
+      {/* Mobile/tablet: nav + share row */}
+      <div className="flex flex-wrap md:flex-nowrap items-center justify-center gap-2 px-4 lg:hidden">
         {/* Navigation buttons */}
         <div className="flex items-center gap-2">
           <button
@@ -184,12 +133,12 @@ export default function AudioControls({
           </button>
         </div>
 
-        {/* Share button — sits next to nav on mobile, centered on desktop */}
+        {/* Share button — mobile/tablet only (desktop has it above) */}
         {extraControls}
 
-        {/* Speed + Mute — hidden on mobile (shown in row 2), visible on desktop */}
+        {/* Speed + Mute — tablet only (mobile has row 2, desktop has right column) */}
         {hasAudio && (
-          <div className="hidden lg:flex items-center gap-2">
+          <div className="hidden md:flex lg:hidden items-center gap-2">
             <div className="flex items-center gap-1">
               {RATES.map((rate) => (
                 <button
@@ -231,7 +180,7 @@ export default function AudioControls({
 
       {/* Row 2: Speed + Mute — mobile only */}
       {hasAudio && (
-        <div className="flex items-center justify-center gap-2 px-4 lg:hidden">
+        <div className="flex items-center justify-center gap-2 px-4 md:hidden">
           <div className="flex items-center gap-1">
             {RATES.map((rate) => (
               <button

@@ -83,8 +83,8 @@ const sizeConfig = {
   md: "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14",
   lg: "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16",
   // Responsive: fills container width on phones (<640px), fixed on sm+
-  "responsive-lg": "flex-1 aspect-square sm:flex-none sm:aspect-auto sm:w-12 sm:h-12 md:w-16 md:h-16 lg:w-16 lg:h-16",
-  "responsive-md": "flex-1 aspect-square sm:flex-none sm:aspect-auto sm:w-12 sm:h-12 md:w-16 md:h-16",
+  "responsive-lg": "flex-1 aspect-square sm:flex-none sm:aspect-auto sm:w-12 sm:h-12 md:w-20 md:h-20 lg:w-16 lg:h-16",
+  "responsive-md": "flex-1 aspect-square sm:flex-none sm:aspect-auto sm:w-12 sm:h-12 md:w-18 md:h-18",
 } as const;
 
 // Static arrays for square notation conversion
@@ -433,7 +433,7 @@ const ChessBoard = ({
           onPointerUp={handleBoardPointerUp}
           onLostPointerCapture={handleLostPointerCapture}
           className={cn(
-            "relative border border-white/20 shadow-2xl shadow-black/80",
+            "relative border border-white/20 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]",
             gameEndState === "defeat" && "transition-all duration-1000"
           )}
           style={isInteractive ? { touchAction: "none" } : undefined}
