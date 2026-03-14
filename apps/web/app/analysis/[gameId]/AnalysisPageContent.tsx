@@ -147,7 +147,6 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
 
   const {
     plyIndex,
-    maxPly,
     userBoard,
     legendBoard,
     goToFirst,
@@ -157,7 +156,6 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
     goToPly,
     isAtStart,
     isAtEnd,
-    divergences,
     userLastMove,
     legendLastMove,
     isFlipped,
@@ -211,13 +209,24 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
   }, [activeTab, explanationPlayer.hasAudio, explanationPlayer.skipBack, explanationPlayer.skipForward, explanationPlayer.togglePlayPause]);
 
   // Pause explanation audio when leaving the tab, resume when returning
+  // Autoplay audio after 2s delay on first visit to the explanation tab
   const wasPlayingRef = useRef(false);
+  const hasAutoplayedRef = useRef(false);
   useEffect(() => {
     if (activeTab === "explanation") {
       // Returning to explanation tab — resume if it was playing before
       if (wasPlayingRef.current) {
         explanationPlayer.play();
         wasPlayingRef.current = false;
+        return;
+      }
+      // Autoplay on first visit after a 2s delay
+      if (!hasAutoplayedRef.current && explanationPlayer.hasAudio) {
+        hasAutoplayedRef.current = true;
+        const timer = setTimeout(() => {
+          explanationPlayer.play();
+        }, 2000);
+        return () => clearTimeout(timer);
       }
     } else {
       // Leaving explanation tab — pause if playing and remember state
@@ -1097,74 +1106,6 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                         </svg>
                       )}
                     </button>
-                  </div>
-                )}
-
-                {/* Divergence Info */}
-                {hasLegendMoves && activeTab !== "explanation" && (
-                  <div className="border border-cb-border p-5">
-                    <p
-                      style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-3"
-                    >
-                      Statistics
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span
-                          style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-cb-text-secondary text-sm"
-                        >
-                          {activeTab === "legend-moves" ? "Legend Game Moves" : "Total Moves"}
-                        </span>
-                        <span
-                          style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-cb-text text-sm font-mono"
-                        >
-                          {activeTab === "legend-moves" ? fullLegendMoves.length : maxPly}
-                        </span>
-                      </div>
-                      {activeTab !== "legend-moves" && (
-                        <>
-                          <div className="flex justify-between">
-                            <span
-                              style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-cb-text-secondary text-sm"
-                            >
-                              Divergent Moves
-                            </span>
-                            <span
-                              style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-amber-400 text-sm font-mono"
-                            >
-                              {divergences.filter((d) => d.isDivergent).length}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span
-                              style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-cb-text-secondary text-sm"
-                            >
-                              Match Rate
-                            </span>
-                            <span
-                              style={{ fontFamily: "'Geist', sans-serif" }}
-                              className="text-green-400 text-sm font-mono"
-                            >
-                              {maxPly > 0
-                                ? Math.round(
-                                    ((maxPly -
-                                      divergences.filter((d) => d.isDivergent).length) /
-                                      maxPly) *
-                                      100
-                                  )
-                                : 0}
-                              %
-                            </span>
-                          </div>
-                        </>
-                      )}
-                    </div>
                   </div>
                 )}
 
