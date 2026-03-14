@@ -19,7 +19,6 @@ interface PracticeViewProps {
   resetKey: number;
   onBackToAnalysis: () => void;
   onShare: () => void;
-  onGoBack: () => void;
   onTabChange: (tab: AnalysisTab) => void;
   onPracticeTabClick: () => void;
   hasLegendMoves: boolean;
@@ -31,7 +30,6 @@ export default function PracticeView({
   resetKey,
   onBackToAnalysis,
   onShare,
-  onGoBack,
   onTabChange,
   onPracticeTabClick,
   hasLegendMoves,
@@ -80,6 +78,37 @@ export default function PracticeView({
             skillLevel={skillLevel}
             depth={depth}
           />
+        </div>
+
+        {/* Action Buttons — desktop only (below move list) */}
+        <div className="flex items-center justify-center gap-2 mt-3">
+          <button
+            onClick={onShare}
+            className="group relative overflow-hidden h-10 px-5 bg-cb-accent text-cb-accent-fg transition-all duration-300"
+            style={{ fontFamily: "'Geist', sans-serif" }}
+          >
+            <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
+            <span className="relative z-10 flex items-center gap-2 text-xs font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
+                <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+              SHARE
+            </span>
+          </button>
+          <button
+            onClick={practiceGame.toggleFlip}
+            className="group relative overflow-hidden h-10 px-5 border border-cb-border-strong bg-cb-hover text-cb-text-secondary hover:bg-cb-surface-elevated hover:text-cb-text transition-all duration-300"
+            style={{ fontFamily: "'Geist', sans-serif" }}
+          >
+                        <span className="relative z-10 flex items-center gap-2 text-xs font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
+                <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+              </svg>
+              FLIP
+            </span>
+          </button>
         </div>
       </div>
 
@@ -143,28 +172,34 @@ export default function PracticeView({
             </button>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-1 md:gap-2 lg:gap-1">
+          {/* Action Buttons — mobile/tablet only (desktop has them in left column) */}
+          <div className="flex items-center gap-2 lg:hidden">
             <button
               onClick={onShare}
-              className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-cb-border-strong text-cb-text-secondary bg-cb-hover hover:bg-cb-surface-elevated hover:text-cb-text transition-colors"
+              className="group relative overflow-hidden h-9 md:h-11 px-4 md:px-6 bg-cb-accent text-cb-accent-fg transition-all duration-300"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
-              Share
+              <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
+              <span className="relative z-10 flex items-center gap-2 text-xs md:text-sm font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
+                  <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+                SHARE
+              </span>
             </button>
             <button
               onClick={practiceGame.toggleFlip}
-              className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-cb-border-strong text-cb-text-secondary bg-cb-hover hover:bg-cb-surface-elevated hover:text-cb-text transition-colors"
+              className="group relative overflow-hidden h-9 md:h-11 px-4 md:px-6 border border-cb-border-strong bg-cb-hover text-cb-text-secondary hover:bg-cb-surface-elevated hover:text-cb-text transition-all duration-300"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
-              Flip
-            </button>
-            <button
-              onClick={onGoBack}
-              className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-cb-border-strong text-cb-text-secondary bg-cb-hover hover:bg-cb-surface-elevated hover:text-cb-text transition-colors"
-              style={{ fontFamily: "'Geist', sans-serif" }}
-            >
-              Back
+                            <span className="relative z-10 flex items-center gap-2 text-xs md:text-sm font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
+                  <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                  <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                </svg>
+                FLIP
+              </span>
             </button>
           </div>
         </div>

@@ -86,7 +86,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" className="light" suppressHydrationWarning>
       <head>
         {/* Fonts loaded via next/font/google (self-hosted at build time) — no preconnect needed */}
         <link rel="dns-prefetch" href="https://img.clerk.com" />

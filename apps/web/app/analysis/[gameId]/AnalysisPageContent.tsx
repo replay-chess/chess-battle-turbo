@@ -485,7 +485,6 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
               resetKey={practiceKey}
               onBackToAnalysis={handleBackToAnalysis}
               onShare={() => setShareModalOpen(true)}
-              onGoBack={() => router.push(backPath)}
               onTabChange={(tab) => setActiveTab(tab)}
               onPracticeTabClick={handlePracticeTabClick}
               hasLegendMoves={hasLegendMoves}
@@ -565,6 +564,74 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                     </>
                   )}
                 </div>
+
+                {/* Move Nav Controls — desktop only (below move list, non-explanation tabs) */}
+                {activeTab !== "explanation" && (
+                  <div className="flex items-center justify-center gap-1 mt-3 p-3 border border-cb-border">
+                    <button
+                      onClick={goToFirst}
+                      disabled={isAtStart}
+                      className={cn(
+                        "w-9 h-9 flex items-center justify-center border transition-colors",
+                        isAtStart
+                          ? "opacity-30 cursor-not-allowed border-cb-border"
+                          : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
+                      )}
+                      title="First (Home)"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary">
+                        <polyline points="11 17 6 12 11 7" />
+                        <polyline points="18 17 13 12 18 7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={goBack}
+                      disabled={isAtStart}
+                      className={cn(
+                        "w-9 h-9 flex items-center justify-center border transition-colors",
+                        isAtStart
+                          ? "opacity-30 cursor-not-allowed border-cb-border"
+                          : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
+                      )}
+                      title="Back (Left Arrow)"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary">
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={goForward}
+                      disabled={isAtEnd}
+                      className={cn(
+                        "w-9 h-9 flex items-center justify-center border transition-colors",
+                        isAtEnd
+                          ? "opacity-30 cursor-not-allowed border-cb-border"
+                          : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
+                      )}
+                      title="Forward (Right Arrow)"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={goToLast}
+                      disabled={isAtEnd}
+                      className={cn(
+                        "w-9 h-9 flex items-center justify-center border transition-colors",
+                        isAtEnd
+                          ? "opacity-30 cursor-not-allowed border-cb-border"
+                          : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
+                      )}
+                      title="Last (End)"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary">
+                        <polyline points="13 17 18 12 13 7" />
+                        <polyline points="6 17 11 12 6 7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
 
                 {/* Audio Nav Controls — desktop only (below segments) */}
                 {activeTab === "explanation" && hasExplanation && explanationPlayer.hasAudio && (
@@ -685,23 +752,23 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                   )}
                 </div>
 
-                {/* Navigation Controls — hidden during explanation (has own controls) */}
+                {/* Navigation Controls — mobile/tablet only (desktop splits into side columns) */}
                 {activeTab !== "explanation" && (
-                <div className="flex flex-row items-center gap-2 md:gap-3 mt-1 md:mt-2 lg:mt-3 px-2 lg:px-0 justify-center">
+                <div className="flex flex-row items-center gap-2 md:gap-3 mt-1 md:mt-2 px-2 justify-center lg:hidden">
                   {/* Analysis Navigation Buttons */}
-                  <div className="flex items-center gap-1 md:gap-2 lg:gap-1">
+                  <div className="flex items-center gap-1 md:gap-2">
                     <button
                       onClick={goToFirst}
                       disabled={isAtStart}
                       className={cn(
-                        "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
+                        "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 flex items-center justify-center border transition-colors",
                         isAtStart
                           ? "opacity-30 cursor-not-allowed border-cb-border"
                           : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
                       )}
                       title="First (Home)"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary md:scale-110 lg:scale-100">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary md:scale-110">
                         <polyline points="11 17 6 12 11 7" />
                         <polyline points="18 17 13 12 18 7" />
                       </svg>
@@ -710,14 +777,14 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       onClick={goBack}
                       disabled={isAtStart}
                       className={cn(
-                        "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
+                        "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 flex items-center justify-center border transition-colors",
                         isAtStart
                           ? "opacity-30 cursor-not-allowed border-cb-border"
                           : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
                       )}
                       title="Back (Left Arrow)"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary md:scale-110 lg:scale-100">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary md:scale-110">
                         <polyline points="15 18 9 12 15 6" />
                       </svg>
                     </button>
@@ -725,14 +792,14 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       onClick={goForward}
                       disabled={isAtEnd}
                       className={cn(
-                        "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
+                        "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 flex items-center justify-center border transition-colors",
                         isAtEnd
                           ? "opacity-30 cursor-not-allowed border-cb-border"
                           : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
                       )}
                       title="Forward (Right Arrow)"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary md:scale-110 lg:scale-100">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary md:scale-110">
                         <polyline points="9 18 15 12 9 6" />
                       </svg>
                     </button>
@@ -740,14 +807,14 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       onClick={goToLast}
                       disabled={isAtEnd}
                       className={cn(
-                        "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
+                        "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 flex items-center justify-center border transition-colors",
                         isAtEnd
                           ? "opacity-30 cursor-not-allowed border-cb-border"
                           : "border-cb-border-strong bg-cb-hover hover:bg-cb-surface-elevated active:bg-cb-surface-elevated"
                       )}
                       title="Last (End)"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary md:scale-110 lg:scale-100">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cb-text-secondary md:scale-110">
                         <polyline points="13 17 18 12 13 7" />
                         <polyline points="6 17 11 12 6 7" />
                       </svg>
@@ -755,30 +822,36 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                   </div>
 
                   {/* Separator */}
-                  <div className="w-px h-7 md:h-8 lg:h-6 bg-cb-border mx-1 md:mx-2" />
+                  <div className="w-px h-7 md:h-8 bg-cb-border mx-1 md:mx-2" />
 
                   {/* Action Buttons */}
-                  <div className="flex items-center gap-1 md:gap-2 lg:gap-1">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setShareModalOpen(true)}
-                      className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-cb-border-strong text-cb-text-secondary bg-cb-hover hover:bg-cb-surface-elevated hover:text-cb-text transition-colors"
+                      className="group relative overflow-hidden h-9 md:h-11 px-4 md:px-6 bg-cb-accent text-cb-accent-fg transition-all duration-300"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
-                      Share
+                      <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
+                      <span className="relative z-10 flex items-center gap-2 text-xs md:text-sm font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
+                          <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                        </svg>
+                        SHARE
+                      </span>
                     </button>
                     <button
                       onClick={toggleFlip}
-                      className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-cb-border-strong text-cb-text-secondary bg-cb-hover hover:bg-cb-surface-elevated hover:text-cb-text transition-colors"
+                      className="group relative overflow-hidden h-9 md:h-11 px-4 md:px-6 border border-cb-border-strong bg-cb-hover text-cb-text-secondary hover:bg-cb-surface-elevated hover:text-cb-text transition-all duration-300"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
-                      Flip
-                    </button>
-                    <button
-                      onClick={() => router.push(backPath)}
-                      className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-cb-border-strong text-cb-text-secondary bg-cb-hover hover:bg-cb-surface-elevated hover:text-cb-text transition-colors"
-                      style={{ fontFamily: "'Geist', sans-serif" }}
-                    >
-                      Back
+                                            <span className="relative z-10 flex items-center gap-2 text-xs md:text-sm font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
+                          <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                          <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                        </svg>
+                        FLIP
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -881,78 +954,6 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                     </button>
                   </div>
                 </div>
-
-                {/* Legend Key - Legend Moves Mode */}
-                {hasLegendMoves && activeTab === "legend-moves" && (
-                  <div className="border border-sky-500/20 p-5">
-                    <p
-                      style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-[10px] tracking-[0.3em] uppercase text-sky-400/60 mb-4"
-                    >
-                      Legend&apos;s Board
-                    </p>
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-8 h-8 bg-cb-hover border border-cb-border-strong flex items-center justify-center"
-                        style={{ opacity: 0.8 }}
-                      >
-                        <span className="text-cb-text text-lg">&#9823;</span>
-                      </div>
-                      <div>
-                        <p
-                          style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-cb-text-secondary text-sm"
-                        >
-                          Legend&apos;s Pieces
-                        </p>
-                        <p
-                          style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="text-cb-text-muted text-xs"
-                        >
-                          Subtle fade
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Explanation Info Panel */}
-                {activeTab === "explanation" && hasExplanation && (
-                  <div className="border border-emerald-500/20 p-5">
-                    <p
-                      style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-[10px] tracking-[0.3em] uppercase text-emerald-400/60 mb-3"
-                    >
-                      Explanation
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-sm">
-                          Segments
-                        </span>
-                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text text-sm font-mono">
-                          {explanationPlayer.totalSegments}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-sm">
-                          Mode
-                        </span>
-                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-emerald-400 text-sm">
-                          {explanationPlayer.isManualMode ? "Manual" : "Audio"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-sm">
-                          Current
-                        </span>
-                        <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text text-sm font-mono">
-                          {explanationPlayer.currentSegmentIndex + 1} / {explanationPlayer.totalSegments}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Narration — desktop only (mobile narration lives inside ExplanationView) */}
                 {activeTab === "explanation" && hasExplanation && (
@@ -1073,6 +1074,39 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                         </>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* Share + Flip — desktop only (non-explanation tabs) */}
+                {activeTab !== "explanation" && (
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => setShareModalOpen(true)}
+                      className="group relative overflow-hidden h-10 px-5 bg-cb-accent text-cb-accent-fg transition-all duration-300"
+                      style={{ fontFamily: "'Geist', sans-serif" }}
+                    >
+                      <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
+                      <span className="relative z-10 flex items-center gap-2 text-xs font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
+                          <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                        </svg>
+                        SHARE
+                      </span>
+                    </button>
+                    <button
+                      onClick={toggleFlip}
+                      className="group relative overflow-hidden h-10 px-5 border border-cb-border-strong bg-cb-hover text-cb-text-secondary hover:bg-cb-surface-elevated hover:text-cb-text transition-all duration-300"
+                      style={{ fontFamily: "'Geist', sans-serif" }}
+                    >
+                                            <span className="relative z-10 flex items-center gap-2 text-xs font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
+                          <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                          <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                        </svg>
+                        FLIP
+                      </span>
+                    </button>
                   </div>
                 )}
 
