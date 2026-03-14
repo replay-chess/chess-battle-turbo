@@ -281,6 +281,12 @@ const ChessBoard = ({
         // Pointer outside board — deselect by clicking source again
         onSquareClick?.(info.sourceSquare);
       }
+    } else {
+      // No drag occurred — this was a click on a piece.
+      // setPointerCapture redirected pointerup here, suppressing the
+      // normal click event on the square div, so fire it manually.
+      onSquareClick?.(info.sourceSquare);
+      suppressClickRef.current = true;
     }
 
     // Clean up

@@ -16,6 +16,7 @@ export interface UseStockfishReturn {
   isReady: boolean;
   isSearching: boolean;
   stopSearch: () => void;
+  error: string | null;
 }
 
 // Timeout for Stockfish to respond (15 seconds)
@@ -49,110 +50,138 @@ export function useStockfish(): UseStockfishReturn {
   const workerRef = useRef<Worker | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const resolveRef = useRef<((move: string) => void) | null>(null);
   const rejectRef = useRef<((error: Error) => void) | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const infoCallbackRef = useRef<((line: MultiPvLine) => void) | null>(null);
+  const retryCountRef = useRef(0);
 
   useEffect(() => {
     // Only run on client
     if (typeof window === "undefined") return;
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log("[Stockfish] Initializing Web Worker...");
-    }
+    let terminated = false;
 
-    // Stockfish 18 lite single-threaded WASM build (with NNUE)
-    const worker = new Worker("/workers/stockfish-18-lite-single.js");
-    workerRef.current = worker;
+    function initWorker() {
+      if (terminated) return;
 
-    worker.onmessage = (event) => {
-      const line = event.data as string;
-
-      // Log important messages for debugging
       if (process.env.NODE_ENV === 'development') {
-        if (line.includes("uciok") || line.includes("bestmove") || line.includes("error")) {
-          console.log("[Stockfish]", line);
-        }
+        console.log("[Stockfish] Initializing Web Worker...");
       }
 
-      // Engine ready
-      if (line === "uciok") {
+      setIsReady(false);
+      setError(null);
+
+      // Stockfish 18 lite single-threaded WASM build (with NNUE)
+      const worker = new Worker("/workers/stockfish-18-lite-single.js");
+      workerRef.current = worker;
+
+      worker.onmessage = (event) => {
+        const line = event.data as string;
+
+        // Log important messages for debugging
         if (process.env.NODE_ENV === 'development') {
-          console.log("[Stockfish] Engine ready!");
+          if (line.includes("uciok") || line.includes("bestmove") || line.includes("error")) {
+            console.log("[Stockfish]", line);
+          }
         }
-        setIsReady(true);
-      }
 
-      // Parse info lines for MultiPV analysis
-      if (line.startsWith("info") && infoCallbackRef.current) {
-        const parsed = parseInfoLine(line);
-        if (parsed) {
-          infoCallbackRef.current(parsed);
+        // Engine ready — reset retry count on successful init
+        if (line === "uciok") {
+          if (process.env.NODE_ENV === 'development') {
+            console.log("[Stockfish] Engine ready!");
+          }
+          retryCountRef.current = 0;
+          setIsReady(true);
         }
-      }
 
-      // Best move found
-      if (line.startsWith("bestmove")) {
-        const parts = line.split(" ");
-        const move = parts[1]; // "bestmove e2e4 ponder e7e5" → "e2e4"
+        // Parse info lines for MultiPV analysis
+        if (line.startsWith("info") && infoCallbackRef.current) {
+          const parsed = parseInfoLine(line);
+          if (parsed) {
+            infoCallbackRef.current(parsed);
+          }
+        }
+
+        // Best move found
+        if (line.startsWith("bestmove")) {
+          const parts = line.split(" ");
+          const move = parts[1]; // "bestmove e2e4 ponder e7e5" → "e2e4"
+          if (process.env.NODE_ENV === 'development') {
+            console.log("[Stockfish] Best move:", move);
+          }
+
+          // Clear timeout since we got a response
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+          }
+
+          // If no resolveRef, this is either an analysis completion or a stale
+          // bestmove from a stop command. Don't clear infoCallbackRef here —
+          // stopSearch and getBestMove manage it explicitly.
+          if (!resolveRef.current) {
+            setIsSearching(false);
+            return;
+          }
+
+          if (move && resolveRef.current) {
+            resolveRef.current(move);
+            resolveRef.current = null;
+            rejectRef.current = null;
+          }
+          setIsSearching(false);
+        }
+      };
+
+      worker.onerror = (err) => {
         if (process.env.NODE_ENV === 'development') {
-          console.log("[Stockfish] Best move:", move);
+          console.error("[Stockfish] Worker error:", err);
         }
 
-        // Clear timeout since we got a response
+        // Clear timeout on error
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
           timeoutRef.current = null;
         }
 
-        // If no resolveRef, this is either an analysis completion or a stale
-        // bestmove from a stop command. Don't clear infoCallbackRef here —
-        // stopSearch and getBestMove manage it explicitly.
-        if (!resolveRef.current) {
-          setIsSearching(false);
-          return;
-        }
-
-        if (move && resolveRef.current) {
-          resolveRef.current(move);
+        if (rejectRef.current) {
+          rejectRef.current(new Error("Stockfish worker error"));
           resolveRef.current = null;
           rejectRef.current = null;
         }
         setIsSearching(false);
-      }
-    };
 
-    worker.onerror = (error) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.error("[Stockfish] Worker error:", error);
-      }
+        // WASM RuntimeError recovery: retry once by re-creating the worker
+        if (retryCountRef.current === 0) {
+          retryCountRef.current = 1;
+          if (process.env.NODE_ENV === 'development') {
+            console.log("[Stockfish] WASM error detected, retrying worker init...");
+          }
+          worker.terminate();
+          workerRef.current = null;
+          initWorker();
+        } else {
+          setError("Chess engine failed to load. Please refresh the page.");
+        }
+      };
 
-      // Clear timeout on error
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
+      // Initialize UCI protocol
+      worker.postMessage("uci");
+    }
 
-      if (rejectRef.current) {
-        rejectRef.current(new Error("Stockfish worker error"));
-        resolveRef.current = null;
-        rejectRef.current = null;
-      }
-      setIsSearching(false);
-    };
-
-    // Initialize UCI protocol
-    worker.postMessage("uci");
+    initWorker();
 
     return () => {
+      terminated = true;
       if (process.env.NODE_ENV === 'development') {
         console.log("[Stockfish] Terminating worker");
       }
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      worker.terminate();
+      workerRef.current?.terminate();
     };
   }, []);
 
@@ -265,5 +294,5 @@ export function useStockfish(): UseStockfishReturn {
     [isReady]
   );
 
-  return { getBestMove, analyzePosition, isReady, isSearching, stopSearch };
+  return { getBestMove, analyzePosition, isReady, isSearching, stopSearch, error };
 }
