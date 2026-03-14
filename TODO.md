@@ -257,3 +257,13 @@ I i build chess.com competitor in 2 months.
 
 
 Add share the app option to the website at a wow moment. when user completes a tutorial or when he wins etc.
+
+
+
+
+
+
+
+So basically , we can along with fen of starting postion I can also feed in the move legend played and ai will explain the reasoning behind that move as well.
+
+Need to setup a pipeline with kimi k 2.5 and glm 5.1 and see how they perform.

@@ -83,7 +83,7 @@ const sizeConfig = {
   md: "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14",
   lg: "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16",
   // Responsive: fills container width on phones (<640px), fixed on sm+
-  "responsive-lg": "flex-1 aspect-square sm:flex-none sm:aspect-auto sm:w-12 sm:h-12 md:w-20 md:h-20 lg:w-16 lg:h-16",
+  "responsive-lg": "flex-1 aspect-square sm:flex-none sm:aspect-auto sm:w-13 sm:h-13 md:w-20 md:h-20 lg:w-17 lg:h-17 xl:w-18 xl:h-18",
   "responsive-md": "flex-1 aspect-square sm:flex-none sm:aspect-auto sm:w-12 sm:h-12 md:w-18 md:h-18",
 } as const;
 
@@ -153,25 +153,6 @@ const ChessBoard = ({
     x: number;
     y: number;
   } | null>(null);
-  // Prevents the square onClick from double-firing after pointerup already handled the click
-  const suppressClickRef = useRef(false);
-
-  // Native capture-phase click handler: intercepts spurious click events that fire
-  // after pointerup already handled the interaction. stopPropagation in capture phase
-  // prevents the event from reaching React's bubble-phase onClick on the square div.
-  useEffect(() => {
-    const board = boardContainerRef.current;
-    if (!board) return;
-    const handler = (e: MouseEvent) => {
-      if (suppressClickRef.current) {
-        e.stopPropagation();
-        suppressClickRef.current = false;
-      }
-    };
-    board.addEventListener("click", handler, true);
-    return () => board.removeEventListener("click", handler, true);
-  }, []);
-
   // Measure the board container for SVG arrows and piece animation overlay
   useEffect(() => {
     if (!boardContainerRef.current) return;
@@ -307,8 +288,6 @@ const ChessBoard = ({
       // Suppress any onClick that fires in the same event batch (browsers that
       // don't fully suppress click after e.preventDefault() on pointerdown).
       // Reset after the current frame so the next deliberate click works.
-      suppressClickRef.current = true;
-      requestAnimationFrame(() => { suppressClickRef.current = false; });
       onSquareClick?.(info.sourceSquare);
     }
 
@@ -462,7 +441,7 @@ const ChessBoard = ({
                   <div
                     key={columnIndex}
                     data-square={squareNotation}
-                    onClick={() => isInteractive && onSquareClick?.(squareNotation)}
+                    onClick={hasPiece ? undefined : () => isInteractive && onSquareClick?.(squareNotation)}
                     className={cn(
                       sizeConfig[squareSize],
                       "relative flex items-center justify-center",
