@@ -1034,7 +1034,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
             </div>
 
             {/* Center - Chess Board */}
-            <div className="lg:col-span-6 order-1 lg:order-2 flex-1 flex flex-col justify-center lg:block max-w-none sm:max-w-2xl mx-auto w-full">
+            <div className="lg:col-span-6 order-1 lg:order-2 flex-1 flex flex-col justify-center lg:block max-w-none sm:max-w-2xl md:max-w-3xl mx-auto w-full">
               {/* Spectating badge - mobile */}
               {isSpectator && (
                 <div className="flex items-center justify-center gap-2 mb-1 lg:hidden">
@@ -1154,7 +1154,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
               </div>
 
               {/* Mobile: Navigation + Actions on one row */}
-              <div className="flex items-center justify-center gap-3 mt-1.5 sm:mt-3 px-2 lg:hidden">
+              <div className="flex items-center justify-center gap-3 md:gap-4 mt-1.5 sm:mt-3 md:mt-4 px-2 lg:hidden">
                 <MoveNavigation
                   totalMoves={moveHistory.length}
                   viewingMoveIndex={viewingMoveIndex}
@@ -1167,7 +1167,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                   {isSpectator ? (
                     <button
                       onClick={() => setBoardOrientation((o) => (o === "w" ? "b" : "w"))}
-                      className="h-9 sm:h-11 px-3 text-xs border border-white/20 text-white bg-white/5 hover:bg-white/15 active:bg-white/20 transition-colors"
+                      className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm border border-white/20 text-white bg-white/5 hover:bg-white/15 active:bg-white/20 transition-colors"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
                       Flip
@@ -1178,7 +1178,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                         onClick={handleOfferDraw}
                         disabled={drawOffered}
                         className={cn(
-                          "h-9 sm:h-11 px-3 text-xs border transition-colors",
+                          "h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm border transition-colors",
                           drawOffered
                             ? "border-white/10 text-white/30 cursor-not-allowed bg-white/5"
                             : "border-white/20 text-white bg-white/5 hover:bg-white/15 active:bg-white/20"
@@ -1190,7 +1190,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                       <button
                         data-testid="resign-button"
                         onClick={handleResign}
-                        className="h-9 sm:h-11 px-3 text-xs border border-red-500/40 text-red-400 bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/25 transition-colors"
+                        className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm border border-red-500/40 text-red-400 bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/25 transition-colors"
                         style={{ fontFamily: "'Geist', sans-serif" }}
                       >
                         Resign
@@ -1201,7 +1201,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                       {positionInfo && (
                         <button
                           onClick={() => router.replace(analysisPath)}
-                          className="h-9 sm:h-11 px-3 text-xs bg-white text-black hover:bg-white/90 transition-colors"
+                          className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm bg-white text-black hover:bg-white/90 transition-colors"
                           style={{ fontFamily: "'Geist', sans-serif" }}
                         >
                           {positionInfo.openingName ? "Review" : "Compare"}
@@ -1210,7 +1210,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                       {tournamentRef && (
                         <button
                           onClick={() => router.push(`/tournament/${tournamentRef}`)}
-                          className="h-9 sm:h-11 px-3 text-xs bg-white text-black hover:bg-white/90 transition-colors"
+                          className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm bg-white text-black hover:bg-white/90 transition-colors"
                           style={{ fontFamily: "'Geist', sans-serif" }}
                         >
                           Find Match
@@ -1220,7 +1220,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                         <button
                           onClick={handleRematch}
                           disabled={rematchCreating}
-                          className="h-9 sm:h-11 px-3 text-xs bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-colors disabled:opacity-50"
+                          className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-colors disabled:opacity-50"
                           style={{ fontFamily: "'Geist', sans-serif" }}
                         >
                           {rematchCreating ? "..." : "Rematch"}
@@ -1228,7 +1228,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                       )}
                       <button
                         onClick={() => router.push(tournamentRef ? `/tournament/${tournamentRef}` : backPath)}
-                        className="h-9 sm:h-11 px-3 text-xs border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-colors"
+                        className="h-9 sm:h-11 md:h-12 px-3 md:px-4 text-xs md:text-sm border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-colors"
                         style={{ fontFamily: "'Geist', sans-serif" }}
                       >
                         {tournamentRef ? "Back to Tournament" : "Back"}

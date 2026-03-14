@@ -83,8 +83,8 @@ const sizeConfig = {
   md: "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14",
   lg: "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16",
   // Responsive: fills container width on phones (<640px), fixed on sm+
-  "responsive-lg": "flex-1 aspect-square sm:flex-none sm:aspect-auto sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16",
-  "responsive-md": "flex-1 aspect-square sm:flex-none sm:aspect-auto sm:w-12 sm:h-12 md:w-14 md:h-14",
+  "responsive-lg": "flex-1 aspect-square sm:flex-none sm:aspect-auto sm:w-12 sm:h-12 md:w-16 md:h-16 lg:w-16 lg:h-16",
+  "responsive-md": "flex-1 aspect-square sm:flex-none sm:aspect-auto sm:w-12 sm:h-12 md:w-16 md:h-16",
 } as const;
 
 // Static arrays for square notation conversion

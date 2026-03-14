@@ -567,7 +567,7 @@ function PlayContent() {
             </motion.div>
 
             {/* Start Button — sticky on mobile */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-black/90 backdrop-blur-sm border-t border-white/[0.06] lg:static lg:bg-transparent lg:p-0 lg:border-0 lg:backdrop-blur-none">
+            <div className="fixed bottom-0 left-0 right-0 z-50 p-3 md:p-5 bg-black/90 backdrop-blur-sm border-t border-white/[0.06] lg:static lg:bg-transparent lg:p-0 lg:border-0 lg:backdrop-blur-none">
             <motion.button
               data-testid="start-game-button"
               initial={{ opacity: 0, y: 20 }}
@@ -586,7 +586,7 @@ function PlayContent() {
                 className="absolute inset-0 bg-black origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out"
               />
 
-              <div className="relative z-10 py-3 px-5 flex items-center justify-center gap-3">
+              <div className="relative z-10 py-3 md:py-4 px-5 md:px-8 flex items-center justify-center gap-3">
                 {isCreatingGame ? (
                   <>
                     <motion.div
@@ -594,16 +594,16 @@ function PlayContent() {
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                     />
-                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="font-semibold text-sm tracking-wide group-hover:text-white transition-colors">
+                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="font-semibold text-sm md:text-base tracking-wide group-hover:text-white transition-colors">
                       {selectedMode === "quick" ? "FINDING OPPONENT" : "CREATING GAME"}
                     </span>
                   </>
                 ) : (
                   <>
-                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="font-semibold text-sm tracking-[0.1em] group-hover:text-white transition-colors">
+                    <span style={{ fontFamily: "'Geist', sans-serif" }} className="font-semibold text-sm md:text-base tracking-[0.1em] group-hover:text-white transition-colors">
                       {selectedMode === "quick" ? "FIND MATCH" : "START GAME"}
                     </span>
-                    <ArrowRight className="w-4 h-4 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                    <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:text-white group-hover:translate-x-1 transition-all" />
                   </>
                 )}
               </div>

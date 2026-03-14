@@ -81,14 +81,14 @@ export function PlayerInfoCard({
   return (
     <div className={cn(
       "flex items-center justify-between px-2",
-      isOpponent ? "mb-1.5 sm:mb-3 lg:mb-5" : "mt-1.5 sm:mt-3 lg:mt-5"
+      isOpponent ? "mb-1.5 sm:mb-3 md:mb-4 lg:mb-5" : "mt-1.5 sm:mt-3 md:mt-4 lg:mt-5"
     )}>
       <div className="flex items-center gap-3">
-        <div className={cn("w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center", squareBg)}>
+        <div className={cn("w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 flex items-center justify-center", squareBg)}>
           <span className={pieceTextColor}>{displayPiece}</span>
         </div>
         <div>
-          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white font-medium text-xs sm:text-sm">
+          <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white font-medium text-xs sm:text-sm md:text-base">
             {playerName}
             {isOpponent && isAIGame && botColor && myColor !== botColor && (
               <span className="text-white/40"> (Bot)</span>
@@ -97,13 +97,13 @@ export function PlayerInfoCard({
           </p>
           <p
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-white/40 text-[10px] sm:text-xs leading-tight"
+            className="text-white/40 text-[10px] sm:text-xs md:text-sm leading-tight"
           >
             {pieceColor === "w" ? "White" : "Black"}
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
         {positionInfo && !positionInfo.openingName && (
           <div className="flex items-center gap-2">
             <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-white font-medium text-sm">
@@ -131,7 +131,7 @@ export function PlayerInfoCard({
           </div>
         )}
         <div className={cn(
-          "px-2.5 py-1 sm:px-4 sm:py-2 font-mono text-base sm:text-xl",
+          "px-2.5 py-1 sm:px-4 sm:py-2 md:px-5 md:py-2.5 font-mono text-base sm:text-xl md:text-2xl",
           isActive ? "bg-white text-black" : "bg-white/10 text-white"
         )}>
           {formatTime(time)}

@@ -124,19 +124,19 @@ export default function PracticeView({
         />
 
         {/* Controls */}
-        <div className="flex flex-row items-center gap-2 md:gap-2 mt-2 md:mt-3 lg:mt-6 px-2 lg:px-0 justify-center">
+        <div className="flex flex-row items-center gap-2 md:gap-3 mt-2 md:mt-4 lg:mt-6 px-2 lg:px-0 justify-center">
           {/* Practice controls — mobile */}
           <div className="flex items-center gap-1 md:gap-2 lg:gap-1 lg:hidden">
             <button
               onClick={practiceGame.resetGame}
-              className="h-9 md:h-10 px-3 md:px-4 text-sm md:text-sm border border-amber-500/30 text-amber-400/80 bg-amber-500/5 hover:bg-amber-500/10 transition-colors"
+              className="h-9 md:h-11 px-3 md:px-5 text-sm md:text-base border border-amber-500/30 text-amber-400/80 bg-amber-500/5 hover:bg-amber-500/10 transition-colors"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               Reset
             </button>
             <button
               onClick={onBackToAnalysis}
-              className="h-9 md:h-10 px-3 md:px-4 text-sm md:text-sm border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 transition-colors"
+              className="h-9 md:h-11 px-3 md:px-5 text-sm md:text-base border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 transition-colors"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               Back to Analysis
@@ -147,21 +147,21 @@ export default function PracticeView({
           <div className="flex items-center gap-1 md:gap-2 lg:gap-1">
             <button
               onClick={onShare}
-              className="h-9 md:h-10 lg:h-9 px-3 md:px-4 lg:px-3 text-sm md:text-sm lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
+              className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               Share
             </button>
             <button
               onClick={practiceGame.toggleFlip}
-              className="h-9 md:h-10 lg:h-9 px-3 md:px-4 lg:px-3 text-sm md:text-sm lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
+              className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               Flip
             </button>
             <button
               onClick={onGoBack}
-              className="h-9 md:h-10 lg:h-9 px-3 md:px-4 lg:px-3 text-sm md:text-sm lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
+              className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
               Back

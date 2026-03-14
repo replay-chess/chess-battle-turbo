@@ -292,7 +292,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
             )}
             <span
               style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-white/50 text-sm lg:text-base italic"
+              className="text-white/50 text-sm md:text-base italic"
             >
               {data.openingName}
             </span>
@@ -316,7 +316,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
               <div className="flex items-center gap-1.5 lg:gap-2">
                 <span
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-sky-300/60 text-sm lg:text-base"
+                  className="text-sky-300/60 text-sm md:text-base"
                 >
                   {data.whitePlayerName || "White"}
                 </span>
@@ -335,7 +335,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                 )}
                 <span
                   style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-sky-300/60 text-sm lg:text-base"
+                  className="text-sky-300/60 text-sm md:text-base"
                 >
                   {data.blackPlayerName || "Black"}
                 </span>
@@ -411,7 +411,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
           <button
             onClick={() => setActiveTab("explanation")}
             className={cn(
-              "px-3 md:px-4 py-2 md:py-2 text-xs md:text-sm tracking-wide border transition-colors",
+              "px-3 md:px-5 py-2 md:py-2.5 text-xs md:text-sm tracking-wide border transition-colors",
               activeTab === "explanation"
                 ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
                 : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
@@ -424,7 +424,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
             <button
               onClick={() => setActiveTab("legend-moves")}
               className={cn(
-                "px-3 md:px-4 py-2 md:py-2 text-xs md:text-sm tracking-wide border transition-colors",
+                "px-3 md:px-5 py-2 md:py-2.5 text-xs md:text-sm tracking-wide border transition-colors",
                 activeTab === "legend-moves"
                   ? "border-sky-500/40 text-sky-400 bg-sky-500/10"
                   : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
@@ -437,7 +437,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
           <button
             onClick={() => setActiveTab("your-moves")}
             className={cn(
-              "px-3 md:px-4 py-2 md:py-2 text-xs md:text-sm tracking-wide border transition-colors",
+              "px-3 md:px-5 py-2 md:py-2.5 text-xs md:text-sm tracking-wide border transition-colors",
               activeTab === "your-moves"
                 ? "border-white/40 text-white bg-white/10"
                 : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
@@ -449,7 +449,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
           <button
             onClick={handlePracticeTabClick}
             className={cn(
-              "px-3 md:px-4 py-2 md:py-2 text-xs md:text-sm tracking-wide border transition-colors",
+              "px-3 md:px-5 py-2 md:py-2.5 text-xs md:text-sm tracking-wide border transition-colors",
               activeTab === "practice"
                 ? "border-amber-500/40 text-amber-400 bg-amber-500/10"
                 : "border-white/10 text-white/40 hover:text-white/60 hover:border-white/20"
@@ -616,14 +616,14 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
 
                 {/* Navigation Controls — hidden during explanation (has own controls) */}
                 {activeTab !== "explanation" && (
-                <div className="flex flex-row items-center gap-2 md:gap-2 mt-2 md:mt-3 lg:mt-6 px-2 lg:px-0 justify-center">
+                <div className="flex flex-row items-center gap-2 md:gap-3 mt-2 md:mt-4 lg:mt-6 px-2 lg:px-0 justify-center">
                   {/* Analysis Navigation Buttons */}
                   <div className="flex items-center gap-1 md:gap-2 lg:gap-1">
                     <button
                       onClick={goToFirst}
                       disabled={isAtStart}
                       className={cn(
-                        "w-9 h-9 sm:w-11 sm:h-11 md:w-11 md:h-11 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
+                        "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
                         isAtStart
                           ? "opacity-30 cursor-not-allowed border-white/10"
                           : "border-white/20 bg-white/5 hover:bg-white/15 active:bg-white/20"
@@ -639,7 +639,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       onClick={goBack}
                       disabled={isAtStart}
                       className={cn(
-                        "w-9 h-9 sm:w-11 sm:h-11 md:w-11 md:h-11 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
+                        "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
                         isAtStart
                           ? "opacity-30 cursor-not-allowed border-white/10"
                           : "border-white/20 bg-white/5 hover:bg-white/15 active:bg-white/20"
@@ -654,7 +654,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       onClick={goForward}
                       disabled={isAtEnd}
                       className={cn(
-                        "w-9 h-9 sm:w-11 sm:h-11 md:w-11 md:h-11 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
+                        "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
                         isAtEnd
                           ? "opacity-30 cursor-not-allowed border-white/10"
                           : "border-white/20 bg-white/5 hover:bg-white/15 active:bg-white/20"
@@ -669,7 +669,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                       onClick={goToLast}
                       disabled={isAtEnd}
                       className={cn(
-                        "w-9 h-9 sm:w-11 sm:h-11 md:w-11 md:h-11 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
+                        "w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-9 lg:h-9 flex items-center justify-center border transition-colors",
                         isAtEnd
                           ? "opacity-30 cursor-not-allowed border-white/10"
                           : "border-white/20 bg-white/5 hover:bg-white/15 active:bg-white/20"
@@ -690,21 +690,21 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
                   <div className="flex items-center gap-1 md:gap-2 lg:gap-1">
                     <button
                       onClick={() => setShareModalOpen(true)}
-                      className="h-9 md:h-10 lg:h-9 px-3 md:px-4 lg:px-3 text-sm md:text-sm lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
+                      className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
                       Share
                     </button>
                     <button
                       onClick={toggleFlip}
-                      className="h-9 md:h-10 lg:h-9 px-3 md:px-4 lg:px-3 text-sm md:text-sm lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
+                      className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
                       Flip
                     </button>
                     <button
                       onClick={() => router.push(backPath)}
-                      className="h-9 md:h-10 lg:h-9 px-3 md:px-4 lg:px-3 text-sm md:text-sm lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
+                      className="h-9 md:h-11 lg:h-9 px-3 md:px-5 lg:px-3 text-sm md:text-base lg:text-xs border border-white/20 text-white/60 bg-white/5 hover:bg-white/15 hover:text-white transition-colors"
                       style={{ fontFamily: "'Geist', sans-serif" }}
                     >
                       Back
