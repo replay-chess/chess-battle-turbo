@@ -62,9 +62,9 @@ export default function PracticeView({
 
   return (
     <>
-      {/* Left column - desktop PracticeMoveList */}
-      <div className="lg:col-span-3 order-2 lg:order-1 hidden lg:flex lg:flex-col">
-        <div className="border border-amber-500/20 flex flex-col max-h-[70vh] overflow-hidden">
+      {/* Left column - desktop PracticeMoveList + Practice Info Panel */}
+      <div className="lg:col-span-3 order-2 lg:order-1 hidden lg:flex lg:flex-col space-y-4">
+        <div className="border border-amber-500/20 flex flex-col max-h-[50vh] overflow-hidden">
           <PracticeMoveList
             moveHistory={practiceGame.moveHistory}
             isBotThinking={practiceGame.isBotThinking}
@@ -80,35 +80,97 @@ export default function PracticeView({
           />
         </div>
 
-        {/* Action Buttons — desktop only (below move list) */}
-        <div className="flex items-center justify-center gap-2 mt-3">
-          <button
-            onClick={onShare}
-            className="group relative overflow-hidden h-10 px-5 bg-cb-accent text-cb-accent-fg transition-all duration-300"
+        {/* Practice Info Panel */}
+        <div className="border border-amber-500/20 p-5">
+          <p
             style={{ fontFamily: "'Geist', sans-serif" }}
+            className="text-[10px] tracking-[0.3em] uppercase text-amber-400/60 mb-4"
           >
-            <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
-            <span className="relative z-10 flex items-center gap-2 text-xs font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
-                <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-              </svg>
-              SHARE
-            </span>
-          </button>
-          <button
-            onClick={practiceGame.toggleFlip}
-            className="group relative overflow-hidden h-10 px-5 border border-cb-border-strong bg-cb-hover text-cb-text-secondary hover:bg-cb-surface-elevated hover:text-cb-text transition-all duration-300"
-            style={{ fontFamily: "'Geist', sans-serif" }}
-          >
-                        <span className="relative z-10 flex items-center gap-2 text-xs font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
-                <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
-                <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
-              </svg>
-              FLIP
-            </span>
-          </button>
+            Practice Mode
+          </p>
+          <div className="space-y-3">
+            {/* Engine info */}
+            <div className="flex items-center gap-2">
+              <div className={cn(
+                "w-2 h-2 rounded-full",
+                practiceGame.isEngineReady ? "bg-amber-400" : "bg-cb-text-muted animate-pulse"
+              )} />
+              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-sm">
+                {practiceGame.isEngineReady ? `Stockfish (~${600 + skillLevel * 80} ELO)` : "Loading engine..."}
+              </span>
+            </div>
+
+            {/* Turn indicator */}
+            <div className="flex items-center gap-2">
+              {practiceGame.isBotThinking ? (
+                <>
+                  <div className="flex gap-0.5">
+                    <div className="w-1.5 h-1.5 bg-amber-400/60 rounded-full animate-pulse" />
+                    <div className="w-1.5 h-1.5 bg-amber-400/60 rounded-full animate-pulse" style={{ animationDelay: "0.2s" }} />
+                    <div className="w-1.5 h-1.5 bg-amber-400/60 rounded-full animate-pulse" style={{ animationDelay: "0.4s" }} />
+                  </div>
+                  <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-amber-400/60 text-sm">
+                    Engine thinking...
+                  </span>
+                </>
+              ) : practiceGame.gameOver ? (
+                <span
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className={cn(
+                    "text-sm",
+                    practiceGame.gameResult === "win" && "text-amber-400",
+                    practiceGame.gameResult === "loss" && "text-cb-text-secondary",
+                    practiceGame.gameResult === "draw" && "text-cb-text-secondary"
+                  )}
+                >
+                  {practiceGame.gameOverReason}
+                </span>
+              ) : practiceGame.isPlayerTurn ? (
+                <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-sm">
+                  Your turn
+                </span>
+              ) : (
+                <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm">
+                  Waiting...
+                </span>
+              )}
+            </div>
+
+            {/* Moves played */}
+            <div className="flex justify-between">
+              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm">
+                Moves played
+              </span>
+              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text text-sm font-mono">
+                {practiceGame.moveHistory.length}
+              </span>
+            </div>
+
+            {/* Engine config sliders */}
+            <div className="pt-2 border-t border-cb-border">
+              <EngineConfigSliders
+                skillLevel={skillLevel}
+                depth={depth}
+                searchTimeSec={searchTimeSec}
+                onSkillLevelChange={setSkillLevel}
+                onDepthChange={setDepth}
+                onSearchTimeChange={setSearchTimeSec}
+                multiPvCount={multiPvCount}
+                onMultiPvCountChange={setMultiPvCount}
+              />
+            </div>
+
+            {/* MultiPV evaluation display */}
+            {multiPvCount > 0 && multiPvAnalysis.lines.length > 0 && (
+              <div className="pt-2 border-t border-cb-border">
+                <MultiPvDisplay
+                  lines={multiPvAnalysis.lines}
+                  currentDepth={multiPvAnalysis.currentDepth}
+                  playerColor={playerColor}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -307,97 +369,35 @@ export default function PracticeView({
           </div>
         </div>
 
-        {/* Practice Info Panel */}
-        <div className="border border-amber-500/20 p-5">
-          <p
+        {/* Share + Flip buttons */}
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={onShare}
+            className="group relative overflow-hidden h-10 px-5 bg-cb-accent text-cb-accent-fg transition-all duration-300"
             style={{ fontFamily: "'Geist', sans-serif" }}
-            className="text-[10px] tracking-[0.3em] uppercase text-amber-400/60 mb-4"
           >
-            Practice Mode
-          </p>
-          <div className="space-y-3">
-            {/* Engine info */}
-            <div className="flex items-center gap-2">
-              <div className={cn(
-                "w-2 h-2 rounded-full",
-                practiceGame.isEngineReady ? "bg-amber-400" : "bg-cb-text-muted animate-pulse"
-              )} />
-              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-sm">
-                {practiceGame.isEngineReady ? `Stockfish (~${600 + skillLevel * 80} ELO)` : "Loading engine..."}
-              </span>
-            </div>
-
-            {/* Turn indicator */}
-            <div className="flex items-center gap-2">
-              {practiceGame.isBotThinking ? (
-                <>
-                  <div className="flex gap-0.5">
-                    <div className="w-1.5 h-1.5 bg-amber-400/60 rounded-full animate-pulse" />
-                    <div className="w-1.5 h-1.5 bg-amber-400/60 rounded-full animate-pulse" style={{ animationDelay: "0.2s" }} />
-                    <div className="w-1.5 h-1.5 bg-amber-400/60 rounded-full animate-pulse" style={{ animationDelay: "0.4s" }} />
-                  </div>
-                  <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-amber-400/60 text-sm">
-                    Engine thinking...
-                  </span>
-                </>
-              ) : practiceGame.gameOver ? (
-                <span
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                  className={cn(
-                    "text-sm",
-                    practiceGame.gameResult === "win" && "text-amber-400",
-                    practiceGame.gameResult === "loss" && "text-cb-text-secondary",
-                    practiceGame.gameResult === "draw" && "text-cb-text-secondary"
-                  )}
-                >
-                  {practiceGame.gameOverReason}
-                </span>
-              ) : practiceGame.isPlayerTurn ? (
-                <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-secondary text-sm">
-                  Your turn
-                </span>
-              ) : (
-                <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm">
-                  Waiting...
-                </span>
-              )}
-            </div>
-
-            {/* Moves played */}
-            <div className="flex justify-between">
-              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-muted text-sm">
-                Moves played
-              </span>
-              <span style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text text-sm font-mono">
-                {practiceGame.moveHistory.length}
-              </span>
-            </div>
-
-            {/* Engine config sliders */}
-            <div className="pt-2 border-t border-cb-border">
-              <EngineConfigSliders
-                skillLevel={skillLevel}
-                depth={depth}
-                searchTimeSec={searchTimeSec}
-                onSkillLevelChange={setSkillLevel}
-                onDepthChange={setDepth}
-                onSearchTimeChange={setSearchTimeSec}
-                multiPvCount={multiPvCount}
-                onMultiPvCountChange={setMultiPvCount}
-              />
-            </div>
-
-            {/* MultiPV evaluation display */}
-            {multiPvCount > 0 && multiPvAnalysis.lines.length > 0 && (
-              <div className="pt-2 border-t border-cb-border">
-                <MultiPvDisplay
-                  lines={multiPvAnalysis.lines}
-                  currentDepth={multiPvAnalysis.currentDepth}
-                  playerColor={playerColor}
-                />
-              </div>
-            )}
-          </div>
+            <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
+            <span className="relative z-10 flex items-center gap-2 text-xs font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
+                <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+              SHARE
+            </span>
+          </button>
+          <button
+            onClick={practiceGame.toggleFlip}
+            className="group relative overflow-hidden h-10 px-5 border border-cb-border-strong bg-cb-hover text-cb-text-secondary hover:bg-cb-surface-elevated hover:text-cb-text transition-all duration-300"
+            style={{ fontFamily: "'Geist', sans-serif" }}
+          >
+            <span className="relative z-10 flex items-center gap-2 text-xs font-semibold tracking-[0.1em] group-hover:text-cb-text transition-colors duration-300">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-cb-text transition-colors">
+                <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+              </svg>
+              FLIP
+            </span>
+          </button>
         </div>
       </div>
     </>
