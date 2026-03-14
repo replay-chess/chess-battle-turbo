@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "../../../../lib/prisma";
 import { Chess, Move } from "chess.js";
 import { logger } from "@/lib/logger";
@@ -166,6 +167,18 @@ export async function GET(
         { success: false, error: "Game not found" },
         { status: 404 }
       );
+    }
+
+    // 1b. Auth gate: unauthenticated users can only access demo games
+    const { userId } = await auth();
+    if (!userId) {
+      const gd = game.gameData as { isDemo?: boolean } | null;
+      if (!gd?.isDemo) {
+        return NextResponse.json(
+          { success: false, error: "Authentication required" },
+          { status: 403 }
+        );
+      }
     }
 
     // 2. Extract user moves from gameData
