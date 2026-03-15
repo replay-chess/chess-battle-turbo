@@ -54,6 +54,16 @@ export default async function LegendDetailPage({ params }: Props) {
   const famousGames = (legend.famousGames as Array<{ title?: string; fen?: string; year?: number }> | null) ?? [];
   const allPositions = [...legend.gamesAsWhite, ...legend.gamesAsBlack];
 
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://www.playchess.tech" },
+      { "@type": "ListItem", position: 2, name: "Chess Legends", item: "https://www.playchess.tech/legends" },
+      { "@type": "ListItem", position: 3, name: legend.name, item: `https://www.playchess.tech/legends/${referenceId}` },
+    ],
+  };
+
   const personJsonLd = {
     "@context": "https://schema.org",
     "@type": "Person",
@@ -64,12 +74,27 @@ export default async function LegendDetailPage({ params }: Props) {
     ...(legend.birthYear && { birthDate: `${legend.birthYear}` }),
     ...(legend.deathYear && { deathDate: `${legend.deathYear}` }),
     description: legend.shortDescription,
+    jobTitle: "Chess Grandmaster",
+    knowsAbout: ["Chess", "Chess Strategy", "Chess Openings"],
+    ...(legend.peakRating && { award: `Peak Rating: ${legend.peakRating}` }),
+    ...(achievements.length > 0 && {
+      hasCredential: achievements.map((a) => ({
+        "@type": "EducationalOccupationalCredential",
+        credentialCategory: "Chess Achievement",
+        name: a,
+      })),
+    }),
+    sameAs: `https://www.playchess.tech/legends/${referenceId}`,
   };
 
   return (
     <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(personJsonLd) }}
@@ -293,6 +318,69 @@ export default async function LegendDetailPage({ params }: Props) {
             </div>
           </section>
         )}
+
+        {/* Explore More — internal linking */}
+        <div className="pt-12 border-t border-cb-hover">
+          <h2
+            style={{ fontFamily: "'Geist', sans-serif" }}
+            className="text-xs font-medium uppercase tracking-[0.2em] text-cb-text-secondary mb-6"
+          >
+            Explore More
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-cb-hover">
+            <Link
+              href="/legends"
+              className="group bg-cb-bg p-5 hover:bg-cb-hover transition-colors"
+            >
+              <p
+                style={{ fontFamily: "'Geist', sans-serif" }}
+                className="text-sm text-cb-text group-hover:text-cb-text-secondary transition-colors"
+              >
+                All Chess Legends
+              </p>
+              <p
+                style={{ fontFamily: "'Geist', sans-serif" }}
+                className="text-[11px] text-cb-text-faint mt-1"
+              >
+                Explore 50+ legends across 6 chess eras
+              </p>
+            </Link>
+            <Link
+              href="/openings"
+              className="group bg-cb-bg p-5 hover:bg-cb-hover transition-colors"
+            >
+              <p
+                style={{ fontFamily: "'Geist', sans-serif" }}
+                className="text-sm text-cb-text group-hover:text-cb-text-secondary transition-colors"
+              >
+                Chess Openings
+              </p>
+              <p
+                style={{ fontFamily: "'Geist', sans-serif" }}
+                className="text-[11px] text-cb-text-faint mt-1"
+              >
+                Browse 3,600+ openings by ECO code
+              </p>
+            </Link>
+            <Link
+              href={`/play?legend=${legend.referenceId}`}
+              className="group bg-cb-bg p-5 hover:bg-cb-hover transition-colors"
+            >
+              <p
+                style={{ fontFamily: "'Geist', sans-serif" }}
+                className="text-sm text-cb-text group-hover:text-cb-text-secondary transition-colors"
+              >
+                Play as {legend.name}
+              </p>
+              <p
+                style={{ fontFamily: "'Geist', sans-serif" }}
+                className="text-[11px] text-cb-text-faint mt-1"
+              >
+                Replay famous positions against a bot
+              </p>
+            </Link>
+          </div>
+        </div>
       </div>
 
       <Footer />

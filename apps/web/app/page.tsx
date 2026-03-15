@@ -43,6 +43,53 @@ const videoJsonLd = [
   },
 ];
 
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "What is ReplayChess?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "ReplayChess is a free web application that lets you replay iconic chess positions from history's greatest games. Study grandmaster moves from over 50 chess legends spanning 6 eras, practice 3,600+ openings organized by ECO code, and challenge friends to play from famous positions.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "How do I replay a famous chess game on ReplayChess?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Browse the Legends page to find a chess legend like Bobby Fischer or Garry Kasparov. Select a famous position from their profile, then click 'Play from this position' to replay the game against a bot or challenge a friend. You can also browse openings by ECO code and play from any opening position.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Is ReplayChess free to use?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes, ReplayChess is free to play. You can browse all chess legends, study openings, and play games at no cost. Premium features for serious players and creators are available with a subscription starting at $8/month.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "What chess openings are available on ReplayChess?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "ReplayChess features over 3,600 chess openings organized by ECO code (A through E), covering Flank Openings, Semi-Open Games, Open Games & French Defense, Closed & Semi-Closed Games, and Indian Defences. Each opening shows the move sequence, resulting position, and lets you play from that position.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Can I play chess with friends on ReplayChess?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes, ReplayChess supports multiplayer play. You can challenge a friend to play from any famous chess position or opening. Simply share a game link and your friend can join to play the position together in real-time.",
+      },
+    },
+  ],
+};
+
 const webAppJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
@@ -85,6 +132,10 @@ export default function Home() {
           dangerouslySetInnerHTML={{ __html: safeJsonLd(video) }}
         />
       ))}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(webAppJsonLd) }}

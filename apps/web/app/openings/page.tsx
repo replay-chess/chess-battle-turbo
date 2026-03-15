@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Prisma } from "@/app/generated/prisma";
 import { prisma } from "@/lib/prisma";
+import { safeJsonLd } from "@/lib/seo";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 
@@ -53,9 +54,41 @@ export default async function OpeningsPage({ searchParams }: Props) {
 
   const sortedLetters = [...grouped.keys()].sort();
 
+  const itemListJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Chess Openings Encyclopedia",
+    description: "Browse chess openings organized by ECO code — Flank Openings, Semi-Open Games, Open Games, Closed Games, and Indian Defences.",
+    numberOfItems: openings.length,
+    itemListElement: openings.slice(0, 100).map((opening, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: `${opening.name} (${opening.eco})`,
+      url: `https://www.playchess.tech/openings/${opening.referenceId}`,
+    })),
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://www.playchess.tech" },
+      { "@type": "ListItem", position: 2, name: "Chess Openings", item: "https://www.playchess.tech/openings" },
+    ],
+  };
+
   return (
     <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(itemListJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
+      />
 
       {/* Grid background */}
       <div
