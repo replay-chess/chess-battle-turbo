@@ -113,7 +113,7 @@ export default function FindMatchButton({
           onClick={findMatch}
           className={cn(
             "w-full py-3 text-sm font-medium tracking-wide transition-all duration-300",
-            "bg-white text-black hover:bg-white/90"
+            "bg-cb-accent text-cb-accent-fg hover:opacity-90"
           )}
           style={geistFont}
         >
@@ -128,7 +128,7 @@ export default function FindMatchButton({
         <div className="space-y-2">
           <div
             data-testid="find-match-searching"
-            className="w-full py-3 text-center text-sm font-medium tracking-wide bg-white/10 text-white"
+            className="w-full py-3 text-center text-sm font-medium tracking-wide bg-cb-surface-elevated text-cb-text"
             style={geistFont}
           >
             <span className="flex items-center justify-center gap-2">
@@ -140,8 +140,8 @@ export default function FindMatchButton({
             data-testid="find-match-cancel"
             onClick={cancelSearch}
             className={cn(
-              "w-full py-2 text-sm tracking-wide border border-white/10 text-white/50",
-              "hover:border-white/30 hover:text-white transition-all duration-300"
+              "w-full py-2 text-sm tracking-wide border border-cb-border text-cb-text-secondary",
+              "hover:border-cb-border-strong hover:text-cb-text transition-all duration-300"
             )}
             style={geistFont}
           >

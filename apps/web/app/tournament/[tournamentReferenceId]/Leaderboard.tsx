@@ -29,10 +29,10 @@ function RankBadge({ rank }: { rank: number }) {
         rank === 1
           ? "text-amber-400 font-medium"
           : rank === 2
-            ? "text-gray-300"
+            ? "text-cb-text-secondary"
             : rank === 3
               ? "text-amber-700"
-              : "text-white/30"
+              : "text-cb-text-muted"
       )}
     >
       {rank}
@@ -55,7 +55,7 @@ function ParticipantRow({
       {/* Desktop row */}
       <div
         className={cn(
-          "hidden sm:grid grid-cols-[2rem_1fr_4rem_3rem_3rem_3rem_3rem] gap-2 px-4 py-2.5 items-center border-b border-white/5 last:border-b-0",
+          "hidden sm:grid grid-cols-[2rem_1fr_4rem_3rem_3rem_3rem_3rem] gap-2 px-4 py-2.5 items-center border-b border-cb-border last:border-b-0",
           isWinner && "bg-amber-400/5"
         )}
         data-testid="leaderboard-row"
@@ -71,38 +71,38 @@ function ParticipantRow({
               className="w-6 h-6 rounded-full shrink-0"
             />
           ) : (
-            <div className="w-6 h-6 bg-white/10 rounded-full shrink-0" />
+            <div className="w-6 h-6 bg-cb-surface-elevated rounded-full shrink-0" />
           )}
           <span
             style={geistFont}
             className={cn(
               "text-sm truncate",
-              isWinner ? "text-amber-400 font-medium" : "text-white"
+              isWinner ? "text-amber-400 font-medium" : "text-cb-text"
             )}
           >
             {p.user.name}
           </span>
         </Link>
-        <span style={geistFont} className="text-sm text-white font-medium text-right tabular-nums">
+        <span style={geistFont} className="text-sm text-cb-text font-medium text-right tabular-nums">
           {p.points}
         </span>
         <span style={geistFont} className="text-sm text-emerald-400/70 text-right tabular-nums">
           {p.wins}
         </span>
-        <span style={geistFont} className="text-sm text-white/40 text-right tabular-nums">
+        <span style={geistFont} className="text-sm text-cb-text-muted text-right tabular-nums">
           {p.draws}
         </span>
         <span style={geistFont} className="text-sm text-red-400/70 text-right tabular-nums">
           {p.losses}
         </span>
-        <span style={geistFont} className="text-sm text-white/30 text-right tabular-nums">
+        <span style={geistFont} className="text-sm text-cb-text-muted text-right tabular-nums">
           {p.gamesPlayed}
         </span>
       </div>
 
       {/* Mobile row */}
       <div
-        className={cn("sm:hidden px-4 py-3 border-b border-white/5 last:border-b-0", isWinner && "bg-amber-400/5")}
+        className={cn("sm:hidden px-4 py-3 border-b border-cb-border last:border-b-0", isWinner && "bg-amber-400/5")}
         data-testid="leaderboard-row"
       >
         <div className="flex items-center gap-3 mb-2">
@@ -117,27 +117,27 @@ function ParticipantRow({
                 className="w-7 h-7 rounded-full shrink-0"
               />
             ) : (
-              <div className="w-7 h-7 bg-white/10 rounded-full shrink-0" />
+              <div className="w-7 h-7 bg-cb-surface-elevated rounded-full shrink-0" />
             )}
             <span
               style={geistFont}
               className={cn(
                 "text-sm truncate",
-                isWinner ? "text-amber-400 font-medium" : "text-white"
+                isWinner ? "text-amber-400 font-medium" : "text-cb-text"
               )}
             >
               {p.user.name}
             </span>
           </Link>
-          <span style={geistFont} className="ml-auto text-sm text-white font-medium tabular-nums">
+          <span style={geistFont} className="ml-auto text-sm text-cb-text font-medium tabular-nums">
             {p.points} pts
           </span>
         </div>
         <div className="flex gap-4 pl-9 text-xs tabular-nums" style={geistFont}>
           <span className="text-emerald-400/70">{p.wins}W</span>
-          <span className="text-white/40">{p.draws}D</span>
+          <span className="text-cb-text-muted">{p.draws}D</span>
           <span className="text-red-400/70">{p.losses}L</span>
-          <span className="text-white/30">{p.gamesPlayed} played</span>
+          <span className="text-cb-text-muted">{p.gamesPlayed} played</span>
         </div>
       </div>
     </>
@@ -206,34 +206,34 @@ export default function Leaderboard({
       )}
 
       {/* Main leaderboard */}
-      <div className="border border-white/10">
-        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-          <h2 style={geistFont} className="text-sm font-medium text-white/60 tracking-wider uppercase">
+      <div className="border border-cb-border">
+        <div className="px-4 py-3 border-b border-cb-border flex items-center justify-between">
+          <h2 style={geistFont} className="text-sm font-medium text-cb-text-secondary tracking-wider uppercase">
             {searchQuery && searchResults ? "Search Results" : "Leaderboard"}
           </h2>
           {!searchQuery && (
-            <span style={geistFont} className="text-xs text-white/30">
+            <span style={geistFont} className="text-xs text-cb-text-muted">
               {participantCount.toLocaleString()} players
             </span>
           )}
         </div>
 
         {/* Search */}
-        <div className="px-4 py-3 border-b border-white/5">
+        <div className="px-4 py-3 border-b border-cb-border">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cb-text-muted" />
             <input
               type="text"
               placeholder="Search players..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent border border-white/10 text-white text-sm pl-9 pr-9 py-2 outline-none placeholder:text-white/30 focus:border-white/20 transition-colors"
+              className="w-full bg-transparent border border-cb-border text-cb-text text-sm pl-9 pr-9 py-2 outline-none placeholder:text-cb-text-muted focus:border-cb-border-strong transition-colors"
               style={geistFont}
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-cb-text-muted hover:text-cb-text-secondary transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -243,17 +243,17 @@ export default function Leaderboard({
 
         {isSearchingState ? (
           <div className="px-4 py-8 text-center">
-            <p style={geistFont} className="text-white/30 text-sm">Searching...</p>
+            <p style={geistFont} className="text-cb-text-muted text-sm">Searching...</p>
           </div>
         ) : searchResults !== null ? (
           searchResults.length === 0 ? (
             <div className="px-4 py-8 text-center">
-              <p style={geistFont} className="text-white/30 text-sm">No players found</p>
+              <p style={geistFont} className="text-cb-text-muted text-sm">No players found</p>
             </div>
           ) : (
             <>
               {/* Desktop header */}
-              <div className="hidden sm:grid grid-cols-[2rem_1fr_4rem_3rem_3rem_3rem_3rem] gap-2 px-4 py-2 border-b border-white/5 text-[10px] text-white/30 tracking-wider uppercase" style={geistFont}>
+              <div className="hidden sm:grid grid-cols-[2rem_1fr_4rem_3rem_3rem_3rem_3rem] gap-2 px-4 py-2 border-b border-cb-border text-[10px] text-cb-text-muted tracking-wider uppercase" style={geistFont}>
                 <span>#</span>
                 <span>Player</span>
                 <span className="text-right">Points</span>
@@ -274,14 +274,14 @@ export default function Leaderboard({
           )
         ) : participants.length === 0 ? (
           <div className="px-4 py-8 text-center">
-            <p style={geistFont} className="text-white/30 text-sm">
+            <p style={geistFont} className="text-cb-text-muted text-sm">
               No participants yet
             </p>
           </div>
         ) : (
           <>
             {/* Desktop header */}
-            <div className="hidden sm:grid grid-cols-[2rem_1fr_4rem_3rem_3rem_3rem_3rem] gap-2 px-4 py-2 border-b border-white/5 text-[10px] text-white/30 tracking-wider uppercase" style={geistFont}>
+            <div className="hidden sm:grid grid-cols-[2rem_1fr_4rem_3rem_3rem_3rem_3rem] gap-2 px-4 py-2 border-b border-cb-border text-[10px] text-cb-text-muted tracking-wider uppercase" style={geistFont}>
               <span>#</span>
               <span>Player</span>
               <span className="text-right">Points</span>

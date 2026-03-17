@@ -23,12 +23,12 @@ export default function ActiveGames({ games, tournamentStatus }: ActiveGamesProp
   const isFinishing = tournamentStatus === "COMPLETED";
 
   return (
-    <div className={cn("border", isFinishing ? "border-amber-500/20" : "border-white/10")}>
+    <div className={cn("border", isFinishing ? "border-amber-500/20" : "border-cb-border")}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "w-full px-4 py-3 flex items-center justify-between",
-          isFinishing ? "border-amber-500/20" : "border-white/10",
+          isFinishing ? "border-amber-500/20" : "border-cb-border",
           isOpen && "border-b",
         )}
       >
@@ -38,7 +38,7 @@ export default function ActiveGames({ games, tournamentStatus }: ActiveGamesProp
           ) : null}
           <h2 style={geistFont} className={cn(
             "text-sm font-medium tracking-wider uppercase",
-            isFinishing ? "text-amber-400/60" : "text-white/60"
+            isFinishing ? "text-amber-400/60" : "text-cb-text-secondary"
           )}>
             {isFinishing ? "Finishing Games" : "Live Games"} ({games.length})
           </h2>
@@ -46,7 +46,7 @@ export default function ActiveGames({ games, tournamentStatus }: ActiveGamesProp
         <ChevronDown
           className={cn(
             "w-4 h-4 transition-transform duration-200",
-            isFinishing ? "text-amber-400/40" : "text-white/30",
+            isFinishing ? "text-amber-400/40" : "text-cb-text-muted",
             isOpen && "rotate-180"
           )}
         />
@@ -69,18 +69,18 @@ export default function ActiveGames({ games, tournamentStatus }: ActiveGamesProp
                 key={g.referenceId}
                 href={`/game/${g.referenceId}`}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-3 hover:bg-white/5 transition-colors",
-                  "border-b border-r border-white/5 last:border-b-0",
+                  "flex items-center gap-2 px-4 py-3 hover:bg-cb-hover transition-colors",
+                  "border-b border-r border-cb-border last:border-b-0",
                 )}
               >
-                <Swords className={cn("w-3.5 h-3.5 shrink-0", isFinishing ? "text-amber-400/30" : "text-white/30")} />
-                <span style={geistFont} className="text-sm text-white truncate">
+                <Swords className={cn("w-3.5 h-3.5 shrink-0", isFinishing ? "text-amber-400/30" : "text-cb-text-muted")} />
+                <span style={geistFont} className="text-sm text-cb-text truncate">
                   {g.creator.name}
                 </span>
-                <span style={geistFont} className="text-[10px] text-white/30">
+                <span style={geistFont} className="text-[10px] text-cb-text-muted">
                   vs
                 </span>
-                <span style={geistFont} className="text-sm text-white truncate">
+                <span style={geistFont} className="text-sm text-cb-text truncate">
                   {g.opponent?.name || "..."}
                 </span>
               </Link>

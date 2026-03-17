@@ -11,7 +11,7 @@ const serifFont = { fontFamily: "'Instrument Serif', serif" } as const;
 const statusColors: Record<string, string> = {
   LOBBY: "text-amber-400 bg-amber-400/10 border-amber-400/20",
   ACTIVE: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
-  COMPLETED: "text-white/40 bg-white/5 border-white/10",
+  COMPLETED: "text-cb-text-muted bg-cb-hover border-cb-border",
   CANCELLED: "text-red-400 bg-red-400/10 border-red-400/20",
 };
 
@@ -70,20 +70,20 @@ export default function TournamentHeader({
   isEnding,
 }: TournamentHeaderProps) {
   return (
-    <div className="border border-white/10 p-6">
+    <div className="border border-cb-border p-6">
       <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <Trophy className="w-5 h-5 text-white/40" strokeWidth={1.5} />
-            <h1 style={serifFont} className="text-2xl sm:text-3xl text-white">
+            <Trophy className="w-5 h-5 text-cb-text-muted" strokeWidth={1.5} />
+            <h1 style={serifFont} className="text-2xl sm:text-3xl text-cb-text">
               {tournament.name}
             </h1>
           </div>
-          <p style={geistFont} className="text-white/40 text-sm">
+          <p style={geistFont} className="text-cb-text-muted text-sm">
             Created by {tournament.createdBy.name}
           </p>
           {tournament.description && (
-            <p style={geistFont} className="text-white/50 text-sm mt-1">
+            <p style={geistFont} className="text-cb-text-secondary text-sm mt-1">
               {tournament.description}
             </p>
           )}
@@ -102,7 +102,7 @@ export default function TournamentHeader({
             style={geistFont}
             className={cn(
               "text-[10px] tracking-wider uppercase px-2.5 py-1 border",
-              statusColors[tournament.status] || "text-white/40"
+              statusColors[tournament.status] || "text-cb-text-muted"
             )}
           >
             {tournament.status}
@@ -111,7 +111,7 @@ export default function TournamentHeader({
       </div>
 
       {/* Info row */}
-      <div className="flex flex-wrap items-center gap-4 text-white/50 text-sm mb-4" style={geistFont}>
+      <div className="flex flex-wrap items-center gap-4 text-cb-text-secondary text-sm mb-4" style={geistFont}>
         <span className="flex items-center gap-1.5">
           <Gamepad2 className="w-4 h-4" />
           {tournament.mode}
@@ -133,7 +133,7 @@ export default function TournamentHeader({
       {/* Scheduled start countdown */}
       {tournament.status === "LOBBY" && tournament.scheduledStartAt && (
         <div className="flex items-center gap-2 mb-4" style={geistFont}>
-          <span className="text-white/40 text-sm">Starts in:</span>
+          <span className="text-cb-text-muted text-sm">Starts in:</span>
           <CountdownTimer endsAt={tournament.scheduledStartAt} />
         </div>
       )}
@@ -141,7 +141,7 @@ export default function TournamentHeader({
       {/* Active countdown */}
       {tournament.status === "ACTIVE" && tournament.endsAt && (
         <div className="flex items-center gap-2 mb-4" style={geistFont}>
-          <span className="text-white/40 text-sm">Time remaining:</span>
+          <span className="text-cb-text-muted text-sm">Time remaining:</span>
           <CountdownTimer endsAt={tournament.endsAt} />
         </div>
       )}
@@ -157,8 +157,8 @@ export default function TournamentHeader({
               className={cn(
                 "px-5 py-2 text-sm font-medium tracking-wide transition-all duration-300",
                 isStarting
-                  ? "bg-white/10 text-white/30 cursor-not-allowed"
-                  : "bg-white text-black hover:bg-white/90"
+                  ? "bg-cb-surface-elevated text-cb-text-muted cursor-not-allowed"
+                  : "bg-cb-accent text-cb-accent-fg hover:opacity-90"
               )}
               style={geistFont}
             >
@@ -173,8 +173,8 @@ export default function TournamentHeader({
               className={cn(
                 "px-5 py-2 text-sm font-medium tracking-wide border transition-all duration-300",
                 isEnding
-                  ? "border-white/10 text-white/30 cursor-not-allowed"
-                  : "border-white/20 text-white/60 hover:border-white/40 hover:text-white"
+                  ? "border-cb-border text-cb-text-muted cursor-not-allowed"
+                  : "border-cb-border-strong text-cb-text-secondary hover:border-cb-border-strong hover:text-cb-text"
               )}
               style={geistFont}
             >

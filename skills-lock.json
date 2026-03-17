@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "ai-seo": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "5f7ce5ccdb2b0dce5e1ea7f3ed8bf17070b790865e91725ca8908e6ec829e164"
+    },
     "billing-sdk": {
       "source": "dodopayments/skills",
       "sourceType": "github",
@@ -11,20 +16,85 @@
       "sourceType": "github",
       "computedHash": "8cf6940ab614a7d1ea3b400edc43c910f7bec9d8cba207facad2d75e2ab9de40"
     },
+    "churn-prevention": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "ce389baf7e32cc942143503ecba7068784ca2c790460824c1e5a306d83d1283f"
+    },
+    "cold-email": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "6b2c73ca8ee9f2104958476078f50f92ac61ab1b63880762b52816c968a6fea6"
+    },
+    "competitor-alternatives": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "bbaf0d378114c7f1581ec63218c9061da983afc1e30887af69ba6ce7ce9cd4c1"
+    },
+    "content-strategy": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "be124f3733b037fb8d859f275454ecd1c590759ef9ab184bea35ba1a0a38e14c"
+    },
     "dodo-best-practices": {
       "source": "dodopayments/skills",
       "sourceType": "github",
       "computedHash": "ddee4d91bf5f04b60b2ecf6b32a5b535d93868f5cc24b856ba11199b69b243f9"
+    },
+    "launch-strategy": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "5d74a25820c4f36d58dd90bafa2f3bfe0350806b699d6a16d2afad53ec7a02fe"
+    },
+    "lead-magnets": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "b71ffc7be2d96e4887ccedf457d02c395f78e68723dab59bd8d6a2a9959ec6c4"
     },
     "license-keys": {
       "source": "dodopayments/skills",
       "sourceType": "github",
       "computedHash": "99481ad83e2827b715189d189adff615e9b65ddc38da74373509b72c1823a169"
     },
+    "marketing-ideas": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "6463f11419704994d58248c398b99c6b097eac24f72f4c86bea1565e435e222e"
+    },
+    "marketing-psychology": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "ddec844d01d102687f89749e1d3a9f7a9019010dce1039a7d442189f39726ad4"
+    },
+    "programmatic-seo": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "40b8fe29a6c9cb0606e6fa77aff227cf275e3808adf66e5ef69e02dcf60a7303"
+    },
+    "referral-program": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "b04bb503500f180280fea269ccdf6f512862413ffa1c872605104cdb5d15bf9e"
+    },
     "remotion-best-practices": {
       "source": "remotion-dev/skills",
       "sourceType": "github",
       "computedHash": "9851afb52e1b892c43b2af973bda1776ce01fedfdfe704e0cfd70069a3a9c300"
+    },
+    "seo-audit": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "ec3109d213dde1747614ad1112ef0e498e04b24e464538968e156dfbfadb2121"
+    },
+    "site-architecture": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "4cdfd1ba49925184462a7524586a5ec0b127668498e7bf2972ef0d4c112e9585"
+    },
+    "social-content": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "85ffbc05cf88939ba3ff643a315928185af16181470349dfbaad2880047c9900"
     },
     "subscription-integration": {
       "source": "dodopayments/skills",
