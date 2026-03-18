@@ -5,11 +5,9 @@ import { cn } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
-import { useTheme } from "next-themes";
 
 export default function Hero() {
   const { isSignedIn } = useAuth();
-  const { resolvedTheme } = useTheme();
 
   return (
     <section aria-label="Hero" className="relative h-full w-full flex items-center justify-center overflow-hidden bg-cb-bg">
@@ -140,26 +138,6 @@ export default function Hero() {
           )}
         </motion.div>
 
-        {/* Product Hunt Badge */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9 }}
-          className="flex justify-center mt-8"
-        >
-          <a
-            href="https://www.producthunt.com/products/replaychess?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-replaychess"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <img
-              alt="ReplayChess - Replay famous chess positions. Feel why they're legendary. | Product Hunt"
-              width="250"
-              height="54"
-              src={`https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1100417&theme=${resolvedTheme === "light" ? "light" : "dark"}&t=1773720600057`}
-            />
-          </a>
-        </motion.div>
 
       </motion.div>
 

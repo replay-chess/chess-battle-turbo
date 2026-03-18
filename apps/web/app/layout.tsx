@@ -113,6 +113,16 @@ export default function RootLayout({
               src="https://unpkg.com/react-grab/dist/index.global.js"
               crossOrigin="anonymous"
             />
+            <script
+              src="file:///Users/rohitpandit/WebstormProjects/pingchat/packages/widget/dist/index.js"
+              data-site="chess-battle-turbo"
+              data-owner="@rohit"
+              data-convex-url="https://admired-yak-82.convex.cloud"
+              data-position="bottom-right"
+              data-color="#4ECDC4"
+              data-greeting="Chat with other players!"
+              defer
+            ></script>
           </>
         )}
       </head>
