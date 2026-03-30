@@ -114,7 +114,7 @@ export default function RootLayout({
               crossOrigin="anonymous"
             />
             <script
-              src="file:///Users/rohitpandit/WebstormProjects/pingchat/packages/widget/dist/index.js"
+              src="/pingchat-widget.js"
               data-site="chess-battle-turbo"
               data-owner="@rohit"
               data-convex-url="https://admired-yak-82.convex.cloud"

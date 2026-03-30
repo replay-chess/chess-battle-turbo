@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { safeJsonLd } from "@/lib/seo";
 import { Navbar } from "../../components/Navbar";
 import { Footer } from "../../components/Footer";
 
@@ -34,45 +33,9 @@ export default async function OpeningDetailPage({ params }: Props) {
   const ecoCategory = ecoCategories[ecoLetter];
   const fullMoveCount = Math.ceil(opening.moveCount / 2);
 
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "https://www.playchess.tech" },
-      { "@type": "ListItem", position: 2, name: "Chess Openings", item: "https://www.playchess.tech/openings" },
-      { "@type": "ListItem", position: 3, name: opening.name, item: `https://www.playchess.tech/openings/${referenceId}` },
-    ],
-  };
-
-  const openingJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    name: `${opening.name} (${opening.eco})`,
-    headline: `${opening.name} — Chess Opening ${opening.eco}`,
-    description: `The ${opening.name} is a chess opening classified under ECO code ${opening.eco} (${ecoCategory?.name ?? "Chess Openings"}), reached after the moves ${opening.pgn}.`,
-    url: `https://www.playchess.tech/openings/${referenceId}`,
-    mainEntityOfPage: `https://www.playchess.tech/openings/${referenceId}`,
-    author: { "@type": "Organization", name: "ReplayChess", url: "https://www.playchess.tech" },
-    publisher: { "@type": "Organization", name: "ReplayChess", url: "https://www.playchess.tech" },
-    about: {
-      "@type": "Thing",
-      name: opening.name,
-      description: `Chess opening ${opening.eco} — ${opening.name}`,
-    },
-  };
-
   return (
     <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
-
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: safeJsonLd(openingJsonLd) }}
-      />
 
       {/* Grid background */}
       <div

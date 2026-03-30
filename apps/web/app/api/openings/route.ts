@@ -1,9 +1,28 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { createRateLimiter } from "@/lib/rate-limit";
+
+const rateLimiter = createRateLimiter({ limit: 30, windowMs: 60 * 1000 });
 
 export async function GET() {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    if (rateLimiter.isLimited(userId)) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
+
     const openings = await prisma.opening.findMany({
       where: { isActive: true },
       select: {

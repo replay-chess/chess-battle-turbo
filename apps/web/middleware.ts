@@ -4,10 +4,15 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 const isScraperRoute = createRouteMatcher(['/api/scraper(.*)'])
 // Dodo webhooks use HMAC signature verification, not Clerk
 const isDodoWebhookRoute = createRouteMatcher(['/api/webhook/dodo-payments(.*)'])
+// Openings pages require authentication (anti-scraping)
+const isProtectedRoute = createRouteMatcher(['/openings(.*)'])
 
 export default clerkMiddleware(async (auth, req) => {
   if (isScraperRoute(req) || isDodoWebhookRoute(req)) {
     return
+  }
+  if (isProtectedRoute(req)) {
+    await auth.protect()
   }
 })
 
