@@ -107,6 +107,7 @@ export async function GET(
       },
     });
   } catch (error) {
+    logger.error("GET /api/tournament/[ref] failed", error);
     return NextResponse.json(
       { error: "Failed to fetch tournament" },
       { status: 500 }
