@@ -17,6 +17,7 @@ export default function robots(): MetadataRoute.Robots {
           '/analysis/',
           '/join/',
           '/openings/',
+          '/legends/',
         ],
       },
       // Explicitly allow AI search engine bots to crawl public content
@@ -32,13 +33,12 @@ export default function robots(): MetadataRoute.Robots {
         ],
         allow: [
           '/',
-          '/legends/',
           '/blog/',
           '/pricing',
           '/about',
           '/help',
         ],
-        disallow: ['/api/', '/admin/', '/game/', '/analysis/', '/join/', '/openings/'],
+        disallow: ['/api/', '/admin/', '/game/', '/analysis/', '/join/', '/openings/', '/legends/'],
       },
     ],
     sitemap: 'https://www.playchess.tech/sitemap.xml',
