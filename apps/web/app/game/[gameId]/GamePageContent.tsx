@@ -90,6 +90,13 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
 
   // Move navigation state
   const [viewingMoveIndex, setViewingMoveIndex] = useState<number | null>(null);
+  // Mirrors viewingMoveIndex so the move_made socket handler (registered once
+  // with a stale closure) can tell whether the user is currently reviewing
+  // history without snapping their view back to live on every opponent move.
+  const viewingMoveIndexRef = useRef<number | null>(null);
+  useEffect(() => {
+    viewingMoveIndexRef.current = viewingMoveIndex;
+  }, [viewingMoveIndex]);
   const [startingFen, setStartingFen] = useState<string>(DEFAULT_STARTING_FEN);
 
   // Game actions state
@@ -449,7 +456,12 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
       setCurrentTurn(payload.turn);
       setWhiteTime(payload.whiteTime);
       setBlackTime(payload.blackTime);
-      setViewingMoveIndex(null);
+      // Only snap to live if the user was already live, or it's their own
+      // move landing (handleSquareClick already snapped to live optimistically).
+      // Otherwise leave them at the position they're reviewing.
+      if (wasOurMove || viewingMoveIndexRef.current === null) {
+        setViewingMoveIndex(null);
+      }
 
       if (wasOurMove) {
         // Board already updated optimistically — replace last history entry with server-confirmed version
