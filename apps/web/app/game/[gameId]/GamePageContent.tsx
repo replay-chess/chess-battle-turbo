@@ -90,13 +90,6 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
 
   // Move navigation state
   const [viewingMoveIndex, setViewingMoveIndex] = useState<number | null>(null);
-  // Mirrors viewingMoveIndex so the move_made socket handler (registered once
-  // with a stale closure) can tell whether the user is currently reviewing
-  // history without snapping their view back to live on every opponent move.
-  const viewingMoveIndexRef = useRef<number | null>(null);
-  useEffect(() => {
-    viewingMoveIndexRef.current = viewingMoveIndex;
-  }, [viewingMoveIndex]);
   const [startingFen, setStartingFen] = useState<string>(DEFAULT_STARTING_FEN);
 
   // Game actions state
@@ -346,6 +339,45 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
     setLegalMoves([]);
   }, []);
 
+  // Hydrate startingFen and moveHistory from the DB. The WebSocket server
+  // doesn't include these in player-facing payloads (only in spectator state),
+  // so without this the page can't replay history correctly after a refresh
+  // or reconnect — see analysis page for the same pattern.
+  const hydrateFromDb = useCallback(async () => {
+    if (!gameId) return;
+    try {
+      const res = await fetch(`/api/chess/game-by-ref/${gameId}`);
+      const json = await res.json();
+      if (!json?.success || !json?.data) return;
+      const g = json.data as {
+        startingFen?: string;
+        gameData?: {
+          moveHistory?: Array<{ from: string; to: string; san: string; promotion?: string }>;
+        };
+      };
+      if (g.startingFen) {
+        setStartingFen(g.startingFen);
+      }
+      const persistedHistory = g.gameData?.moveHistory;
+      if (Array.isArray(persistedHistory) && persistedHistory.length > 0) {
+        setMoveHistory(
+          persistedHistory.map((m) => ({
+            from: m.from as Square,
+            to: m.to as Square,
+            san: m.san,
+            promotion: m.promotion,
+          })) as Move[],
+        );
+      }
+    } catch (err) {
+      logger.error("Failed to hydrate game state from DB", err);
+    }
+  }, [gameId]);
+
+  useEffect(() => {
+    hydrateFromDb();
+  }, [hydrateFromDb]);
+
   useEffect(() => {
     if (!gameId || !userReferenceId) return;
     if (socketRef.current?.connected) return;
@@ -364,6 +396,12 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
         gameReferenceId: gameId,
         userReferenceId,
       });
+    });
+
+    // Re-hydrate moveHistory from DB after auto-reconnects so any moves
+    // played while the client was offline are backfilled.
+    socketRef.current.io.on("reconnect", () => {
+      hydrateFromDb();
     });
 
     // Analysis phase handlers
@@ -385,7 +423,9 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
         const newGame = new Chess(payload.fen);
         setGame(newGame);
         setCurrentTurn(newGame.turn());
-        setStartingFen(payload.fen);
+        // Don't overwrite startingFen here — the socket's `fen` is the
+        // current position (mid-game on reconnect), not the game's original
+        // starting FEN. startingFen is hydrated once from the DB.
       }
 
       if (payload.positionInfo) {
@@ -438,8 +478,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
         const newGame = new Chess(payload.fen);
         setGame(newGame);
         setCurrentTurn(newGame.turn());
-        // Save starting FEN for move navigation
-        setStartingFen(payload.fen);
+        // Don't overwrite startingFen — see note in analysis_phase_started.
       }
 
       // Play game start sound
@@ -456,12 +495,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
       setCurrentTurn(payload.turn);
       setWhiteTime(payload.whiteTime);
       setBlackTime(payload.blackTime);
-      // Only snap to live if the user was already live, or it's their own
-      // move landing (handleSquareClick already snapped to live optimistically).
-      // Otherwise leave them at the position they're reviewing.
-      if (wasOurMove || viewingMoveIndexRef.current === null) {
-        setViewingMoveIndex(null);
-      }
+      setViewingMoveIndex(null);
 
       if (wasOurMove) {
         // Board already updated optimistically — replace last history entry with server-confirmed version
@@ -676,7 +710,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
     return () => {
       socketRef.current?.disconnect();
     };
-  }, [gameId, userReferenceId]);
+  }, [gameId, userReferenceId, hydrateFromDb]);
 
   // Clear pending promotion if game ends
   useEffect(() => {
