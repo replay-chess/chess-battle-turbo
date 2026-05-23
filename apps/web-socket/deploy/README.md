@@ -59,6 +59,8 @@ git clone https://github.com/replay-chess/chess-battle-turbo.git
 bash /var/www/chess-websocket/chess-battle-turbo/apps/web-socket/deploy/setup-server.sh
 ```
 
+> **Required**: Edit `/var/www/chess-websocket/chess-battle-turbo/apps/web-socket/.env` and set `INTERNAL_API_SECRET` to the same value as Vercel's `INTERNAL_API_SECRET` (production). Without this, every `/api/chess/*` call returns 401, moves never persist, and games stay stuck in `IN_PROGRESS`.
+
 ### Step 5: Deploy Application
 
 ```bash
@@ -141,11 +143,14 @@ sudo systemctl restart chess-websocket
 
 ## Environment Variables
 
-| Variable     | Description                        | Example                           |
-|--------------|------------------------------------|-----------------------------------|
-| `PORT`       | Server port                        | `3002`                            |
-| `NODE_ENV`   | Environment                        | `production`                      |
-| `WEB_APP_URL`| Your Next.js app URL (for API calls)| `https://playchess.tech`          |
+| Variable              | Description                                                                 | Example                           |
+|-----------------------|-----------------------------------------------------------------------------|-----------------------------------|
+| `PORT`                | Server port                                                                 | `3002`                            |
+| `NODE_ENV`            | Environment                                                                 | `production`                      |
+| `WEB_APP_URL`         | Your Next.js app URL (for API calls)                                        | `https://playchess.tech`          |
+| `INTERNAL_API_SECRET` | Shared secret for server-to-server auth with the Next.js app. **MUST** match Vercel's `INTERNAL_API_SECRET` (production). Generate with `openssl rand -hex 32`. | `<64-char hex>`                   |
+
+> ⚠️ **If `INTERNAL_API_SECRET` is missing or doesn't match Vercel**, every `/api/chess/*` call from the WebSocket server returns `401 Unauthorized`. Moves won't persist and games get stuck in `IN_PROGRESS` (won't show up in user history).
 
 ---
 

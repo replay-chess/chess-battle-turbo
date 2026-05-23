@@ -93,8 +93,13 @@ NODE_ENV=production
 
 # Your Next.js app URL (for API calls)
 WEB_APP_URL=https://playchess.tech
+
+# REQUIRED: must match INTERNAL_API_SECRET on Vercel (production).
+# Without this, all /api/chess/* calls return 401 and games don't persist.
+INTERNAL_API_SECRET=
 EOF
     print_status "Environment file created at $APP_DIR/.env"
+    print_warning "Set INTERNAL_API_SECRET in $APP_DIR/.env (must match Vercel) before starting the service"
 else
     print_warning "Environment file already exists, skipping..."
 fi

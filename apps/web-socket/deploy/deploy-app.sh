@@ -45,6 +45,7 @@ if [ ! -f ".env" ]; then
     echo "  PORT=3002"
     echo "  NODE_ENV=production"
     echo "  WEB_APP_URL=https://playchess.tech"
+    echo "  INTERNAL_API_SECRET=<must match Vercel production — required, or moves won't persist>"
     exit 1
 fi
 
