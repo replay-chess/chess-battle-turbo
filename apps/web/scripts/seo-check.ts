@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 const baseUrl =
   process.argv.slice(2).find((argument) => argument.startsWith("http")) ??
   "http://localhost:3000";
-const publishedSlugs = ["morphy-anderssen-kings-gambit-rook-invasion"];
+const publishedSlugs = [
+  "morphy-anderssen-kings-gambit-rook-invasion",
+  "kasparov-karpov-valencia-2009-nf6-sacrifice",
+];
 const draftSlugs: string[] = [];
 
 function match(html: string, expression: RegExp, message: string) {
@@ -128,7 +131,6 @@ for (const slug of draftSlugs) {
 for (const category of [
   "strategy-improvement",
   "openings",
-  "famous-games-players",
   "replaychess-news",
 ]) {
   const thinCategory = await fetchPage(`/blog/category/${category}`);
@@ -138,6 +140,15 @@ for (const category of [
     /<meta name="robots" content="noindex, follow"\/>/,
   );
 }
+
+const populatedCategory = await fetchPage(
+  "/blog/category/famous-games-players",
+);
+assert.equal(populatedCategory.response.status, 200);
+assert.match(
+  populatedCategory.body,
+  /<meta name="robots" content="index, follow"\/>/,
+);
 
 const rss = await fetchPage("/blog/rss.xml");
 assert.equal(rss.response.status, 200);

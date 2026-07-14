@@ -28,6 +28,8 @@ export interface InteractiveAnalysisBoardProps {
   fen: string;
   moves: string[];
   title?: string;
+  whitePlayer?: string;
+  blackPlayer?: string;
   orientation?: "auto" | "white" | "black";
   moveIntervalMs?: number;
   loopDelayMs?: number;
@@ -222,6 +224,8 @@ export function InteractiveAnalysisBoard({
   fen,
   moves,
   title = "Interactive chess analysis",
+  whitePlayer,
+  blackPlayer,
   orientation = "auto",
   moveIntervalMs = 900,
   loopDelayMs = 1500,
@@ -556,6 +560,18 @@ export function InteractiveAnalysisBoard({
           <h3 className="mt-1 font-serif text-xl text-cb-text sm:text-2xl">
             {title}
           </h3>
+          {(whitePlayer || blackPlayer) && (
+            <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-sans text-xs text-cb-text-secondary">
+              <div className="flex items-center gap-1.5">
+                <dt className="font-semibold text-cb-text">White</dt>
+                <dd>{whitePlayer ?? "—"}</dd>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <dt className="font-semibold text-cb-text">Black</dt>
+                <dd>{blackPlayer ?? "—"}</dd>
+              </div>
+            </dl>
+          )}
         </div>
       </header>
 
