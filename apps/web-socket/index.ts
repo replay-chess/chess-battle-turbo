@@ -20,6 +20,7 @@ import {
 import { withGameTrace } from "./utils/traceContext";
 import { logger } from "./utils/logger";
 import { trackSocketEvent, trackActiveConnections } from "./utils/sentry";
+import { watchForSpotInterruption } from "./spotInterruption";
 
 let activeConnectionCount = 0;
 
@@ -82,6 +83,12 @@ let tournamentManager: TournamentManager;
 
 // Initialize TournamentManager with io instance
 tournamentManager = new TournamentManager(io);
+
+// On a Spot interruption notice, flush live game state to the DB and tell clients
+// to reconnect before the box is reclaimed (no-ops when not on EC2 Spot).
+watchForSpotInterruption(async () => {
+  await gameManager.flushAllGames();
+});
 
 // Socket.IO connection handler
 io.on("connection", (socket) => {

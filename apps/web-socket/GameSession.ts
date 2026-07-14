@@ -15,7 +15,7 @@ import {
   SpectatorStatePayload,
   SpectatorCountPayload,
 } from "./types";
-import { persistMove, completeGame } from "./utils/apiClient";
+import { persistMove, completeGame, updateGameState } from "./utils/apiClient";
 import { logger } from "./utils/logger";
 import { trackGameDuration } from "./utils/sentry";
 
@@ -682,6 +682,30 @@ export class GameSession {
     this.disconnectTimers.clear();
     this.spectators.clear();
     logger.info("GameSession destroyed", { game: this.gameData.referenceId });
+  }
+
+  /**
+   * Persist the current (ticking) clocks to the DB so a server restart doesn't
+   * roll the game back to the last move's clock values. Used on Spot interruption.
+   */
+  public async flushStateToDb(): Promise<void> {
+    if (!this.gameStarted || this.gameEnded) return;
+    await updateGameState({
+      gameReferenceId: this.gameData.referenceId,
+      whiteTime: this.clockManager.getTimeInSeconds("w"),
+      blackTime: this.clockManager.getTimeInSeconds("b"),
+      lastMoveAt: new Date(),
+    });
+  }
+
+  /**
+   * Tell players and spectators that the server is restarting so clients can
+   * show a "reconnecting" state; socket.io then auto-reconnects to the new box.
+   */
+  public notifyServerRestart(): void {
+    const payload = { gameReferenceId: this.gameData.referenceId };
+    this.broadcast("server_restarting", payload);
+    this.broadcastToSpectators("server_restarting", payload);
   }
 
   /**

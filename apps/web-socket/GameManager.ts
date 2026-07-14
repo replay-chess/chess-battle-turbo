@@ -320,6 +320,21 @@ export class GameManager {
   }
 
   /**
+   * Flush all live games' clock state to the DB and notify clients of an imminent
+   * restart. Called on a Spot interruption notice before graceful shutdown.
+   */
+  public async flushAllGames(): Promise<void> {
+    const sessions = Array.from(this.games.values());
+    logger.info(`Flushing ${sessions.length} active game(s) before shutdown`);
+    await Promise.allSettled(
+      sessions.map((session) => {
+        session.notifyServerRestart();
+        return session.flushStateToDb();
+      })
+    );
+  }
+
+  /**
    * Clean up all games (for server shutdown)
    */
   public destroy(): void {
