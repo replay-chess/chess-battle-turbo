@@ -1,266 +1,138 @@
-"use client";
-
-import { useState } from "react";
-import { motion } from "motion/react";
-import { cn } from "@/lib/utils";
-import {
-  Search,
-  BookOpen,
-  Gamepad2,
-  CreditCard,
-  Wrench,
-  Link2,
-  HelpCircle,
-  ChevronRight,
-  ArrowRight,
-} from "lucide-react";
 import Link from "next/link";
+import { ArrowRight, Mail } from "lucide-react";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
+import { safeJsonLd } from "@/lib/seo";
 
-const helpCategories = [
-  { icon: BookOpen, title: "Getting Started", count: 12, description: "Account setup, first game, interface tour" },
-  { icon: Gamepad2, title: "Game Modes", count: 8, description: "Quick match, legendary positions, practice" },
-  { icon: CreditCard, title: "Account & Billing", count: 6, description: "Subscriptions, payments, account settings" },
-  { icon: Wrench, title: "Technical Issues", count: 10, description: "Connectivity, browser support, performance" },
-  { icon: Link2, title: "Chess.com Integration", count: 5, description: "Importing games, syncing accounts" },
-  { icon: HelpCircle, title: "General", count: 7, description: "Fair play, community guidelines, feedback" },
+const helpItems = [
+  {
+    question: "Can I try ReplayChess without creating an account?",
+    answer:
+      "Yes. Open the free position challenges, choose a featured position, and play against the engine. An account is only required for protected multiplayer and library features.",
+    href: "/try",
+    linkLabel: "Open free challenges",
+  },
+  {
+    question:
+      "Why am I asked to sign in for legends, openings, or multiplayer?",
+    answer:
+      "The complete interactive libraries and multiplayer tools are account features. Public learning guides and the journal remain available without signing in.",
+    href: "/learn/legends",
+    linkLabel: "Read the public learning guides",
+  },
+  {
+    question: "Where can I manage or cancel a subscription?",
+    answer:
+      "Signed-in subscribers can open the account menu and choose Manage Billing. Access continues according to the billing terms shown when the subscription was purchased.",
+    href: "/pricing",
+    linkLabel: "Review plans and billing FAQs",
+  },
+  {
+    question: "How do I report an incorrect chess position or article detail?",
+    answer:
+      "Email the ReplayChess team with the page URL, the detail that appears incorrect, and a reliable source when possible. Corrections are reviewed before publication.",
+    href: "mailto:hello@playchess.tech?subject=ReplayChess%20content%20correction",
+    linkLabel: "Email a correction",
+  },
+  {
+    question: "What should I include when reporting a technical issue?",
+    answer:
+      "Include the page URL, device and browser, what you expected to happen, what happened instead, and a screenshot if it does not contain private information.",
+    href: "mailto:hello@playchess.tech?subject=ReplayChess%20technical%20issue",
+    linkLabel: "Email technical support",
+  },
 ];
 
-const popularArticles = [
-  { question: "How do I start my first game?", category: "Getting Started" },
-  { question: "What are Legendary Positions?", category: "Game Modes" },
-  { question: "How do I import my Chess.com games?", category: "Chess.com Integration" },
-  { question: "Why is my game lagging or disconnecting?", category: "Technical Issues" },
-  { question: "How does the rating system work?", category: "Getting Started" },
-  { question: "How do I cancel or change my subscription?", category: "Account & Billing" },
-  { question: "What browsers are supported?", category: "Technical Issues" },
-  { question: "How do I report a player for cheating?", category: "General" },
-];
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: helpItems.map((item) => ({
+    "@type": "Question",
+    name: item.question,
+    acceptedAnswer: { "@type": "Answer", text: item.answer },
+  })),
+};
 
 export default function HelpPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-
   return (
     <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
-
-      {/* Grid background */}
-      <div
-        className="fixed inset-0 opacity-[0.015] pointer-events-none"
-        style={{
-          backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
-          backgroundSize: "60px 60px",
-        }}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }}
       />
+      <main>
+        <header className="border-b border-cb-border px-6 pb-16 pt-32 text-center sm:pt-40">
+          <p className="font-sans text-[10px] uppercase tracking-[0.35em] text-cb-text-muted">
+            ReplayChess help
+          </p>
+          <h1 className="mt-5 font-serif text-5xl sm:text-6xl md:text-7xl">
+            Games, accounts and billing help
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl font-sans text-base leading-7 text-cb-text-muted sm:text-lg">
+            Straight answers for the most common ReplayChess questions, plus a
+            direct way to reach the team when something needs attention.
+          </p>
+        </header>
 
-      {/* Hero */}
-      <section className="relative pt-32 pb-12 sm:pt-40 sm:pb-16 px-6">
-        <div className="max-w-3xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <h1
-              style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-5xl sm:text-6xl md:text-7xl text-cb-text mb-8"
-            >
-              How Can We Help?
-            </h1>
-
-            {/* Search Input */}
-            <div className="relative max-w-xl mx-auto">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-cb-text-muted" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for articles..."
-                className={cn(
-                  "w-full bg-cb-hover border border-cb-border",
-                  "pl-12 pr-4 py-4 text-sm text-cb-text",
-                  "placeholder:text-cb-text-faint",
-                  "focus:outline-none focus:border-cb-border-strong focus:bg-cb-hover",
-                  "transition-all duration-300"
-                )}
-                style={{ fontFamily: "'Geist', sans-serif" }}
-              />
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      <div className="h-px w-full bg-gradient-to-r from-transparent via-cb-border to-transparent" />
-
-      {/* Categories */}
-      <section className="relative py-16 sm:py-24 px-6">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="h-px w-16 bg-cb-border-strong" />
-              <span
-                style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
-              >
-                Browse Topics
-              </span>
-              <div className="h-px w-16 bg-cb-border-strong" />
-            </div>
-          </motion.div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-cb-surface-elevated">
-            {helpCategories.map((category, index) => (
-              <motion.div
-                key={category.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.08 }}
-                className={cn(
-                  "group relative bg-cb-bg p-8 cursor-pointer",
-                  "hover:bg-cb-accent transition-colors duration-500"
-                )}
-              >
-                <category.icon
-                  className="w-5 h-5 text-cb-text-muted group-hover:text-cb-accent-fg/40 transition-colors duration-500 mb-4"
-                  strokeWidth={1.5}
-                />
-                <h3
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-lg font-semibold text-cb-text group-hover:text-cb-accent-fg transition-colors duration-500 mb-1"
-                >
-                  {category.title}
-                </h3>
-                <p
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-sm text-cb-text-muted group-hover:text-cb-accent-fg/40 transition-colors duration-500 mb-3"
-                >
-                  {category.description}
-                </p>
-                <p
-                  style={{ fontFamily: "'Geist Mono', monospace" }}
-                  className="text-xs text-cb-text-faint group-hover:text-cb-accent-fg/30 transition-colors duration-500"
-                >
-                  {category.count} articles
-                </p>
-
-                <div className={cn(
-                  "absolute top-4 right-4 w-8 h-8",
-                  "border-t border-r",
-                  "border-cb-border group-hover:border-cb-accent-fg/10",
-                  "transition-colors duration-500"
-                )} />
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Popular Articles */}
-      <section className="relative py-16 sm:py-24 px-6">
-        <div
-          className="absolute inset-0 opacity-[0.015]"
-          style={{
-            backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
-            backgroundSize: "60px 60px",
-          }}
-        />
-        <div className="max-w-4xl mx-auto relative">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="mb-12"
-          >
-            <div className="flex items-center gap-4 mb-6">
-              <div className="h-px w-12 bg-cb-border-strong" />
-              <span
-                style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-cb-text-muted text-[10px] tracking-[0.4em] uppercase"
-              >
-                Popular Articles
-              </span>
-              <div className="h-px w-12 bg-cb-border-strong" />
-            </div>
-          </motion.div>
-
-          <div className="space-y-1">
-            {popularArticles.map((article, index) => (
-              <motion.div
-                key={article.question}
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.05 }}
-                className="group flex items-center gap-4 p-4 hover:bg-cb-hover transition-colors cursor-pointer border-b border-cb-border"
-              >
-                <ChevronRight className="w-4 h-4 text-cb-text-faint group-hover:text-cb-text-secondary group-hover:translate-x-1 transition-all flex-shrink-0" />
-                <p
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-sm text-cb-text-secondary group-hover:text-cb-text transition-colors flex-1"
-                >
-                  {article.question}
-                </p>
-                <span
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-[10px] px-2 py-0.5 border border-cb-border text-cb-text-muted uppercase tracking-wider hidden sm:inline-block"
-                >
-                  {article.category}
-                </span>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="relative py-20 px-6">
-        <div className="max-w-3xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2
-              style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-3xl sm:text-4xl text-cb-text mb-4"
-            >
-              Still Need Help?
+        <section className="px-6 py-16 sm:py-24" aria-labelledby="help-answers">
+          <div className="mx-auto max-w-4xl">
+            <h2 id="help-answers" className="sr-only">
+              Help answers
             </h2>
-            <p
-              style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-cb-text-muted text-base mb-8"
-            >
-              Our support team is ready to assist you with any questions.
-            </p>
-            <Link href="/contact">
-              <button
-                className={cn(
-                  "group relative overflow-hidden",
-                  "bg-cb-accent text-cb-accent-fg",
-                  "px-8 py-3",
-                  "text-sm font-medium tracking-[0.1em] uppercase",
-                  "transition-all duration-300"
-                )}
-                style={{ fontFamily: "'Geist', sans-serif" }}
-              >
-                <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                <span className="relative flex items-center gap-2 group-hover:text-cb-text transition-colors duration-300">
-                  Contact Us
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </span>
-              </button>
-            </Link>
-          </motion.div>
-        </div>
-      </section>
+            <div className="divide-y divide-cb-border border-y border-cb-border">
+              {helpItems.map((item) => (
+                <article
+                  key={item.question}
+                  className="py-8 sm:grid sm:grid-cols-12 sm:gap-8"
+                >
+                  <h3 className="font-serif text-2xl leading-tight sm:col-span-5">
+                    {item.question}
+                  </h3>
+                  <div className="mt-4 sm:col-span-7 sm:mt-0">
+                    <p className="font-sans text-sm leading-7 text-cb-text-muted">
+                      {item.answer}
+                    </p>
+                    {item.href.startsWith("mailto:") ? (
+                      <a
+                        href={item.href}
+                        className="mt-4 inline-flex items-center gap-2 font-sans text-xs uppercase tracking-[0.12em] text-cb-text-secondary underline decoration-cb-border-strong underline-offset-4"
+                      >
+                        {item.linkLabel} <ArrowRight className="h-3.5 w-3.5" />
+                      </a>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        className="mt-4 inline-flex items-center gap-2 font-sans text-xs uppercase tracking-[0.12em] text-cb-text-secondary underline decoration-cb-border-strong underline-offset-4"
+                      >
+                        {item.linkLabel} <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
 
+        <section className="border-t border-cb-border px-6 py-16 text-center">
+          <Mail
+            className="mx-auto h-5 w-5 text-cb-text-muted"
+            aria-hidden="true"
+          />
+          <h2 className="mt-5 font-serif text-3xl">Still need help?</h2>
+          <p className="mx-auto mt-3 max-w-xl font-sans text-sm leading-6 text-cb-text-muted">
+            Email the team directly. ReplayChess does not use an automated
+            support form that pretends a message was sent.
+          </p>
+          <a
+            href="mailto:hello@playchess.tech"
+            className="mt-6 inline-flex border border-cb-border-strong bg-cb-accent px-6 py-3 font-sans text-xs uppercase tracking-[0.12em] text-cb-accent-fg"
+          >
+            hello@playchess.tech
+          </a>
+        </section>
+      </main>
       <Footer />
     </div>
   );

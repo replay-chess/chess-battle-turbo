@@ -1,49 +1,9 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 
 export const AgadmatorFeature = () => {
-  const [isMuted, setIsMuted] = useState(true);
-  const [userPreferredMute, setUserPreferredMute] = useState(true);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  const toggleMute = () => {
-    if (videoRef.current) {
-      const newMuteState = !isMuted;
-      videoRef.current.muted = newMuteState;
-      setIsMuted(newMuteState);
-      setUserPreferredMute(newMuteState);
-    }
-  };
-
-  useEffect(() => {
-    const videoElement = videoRef.current;
-    if (!videoElement) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) {
-            videoElement.muted = true;
-            setIsMuted(true);
-          } else {
-            videoElement.muted = userPreferredMute;
-            setIsMuted(userPreferredMute);
-          }
-        });
-      },
-      { threshold: 0.5 }
-    );
-
-    observer.observe(videoElement);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [userPreferredMute]);
-
   return (
     <section className="w-full py-12 sm:py-24 px-6 bg-cb-bg relative overflow-hidden">
       {/* Subtle diagonal line pattern */}
@@ -84,14 +44,14 @@ export const AgadmatorFeature = () => {
             style={{ fontFamily: "'Instrument Serif', serif" }}
             className="text-4xl sm:text-5xl md:text-6xl text-cb-text mb-4"
           >
-            Challenge Yourself with Agadmator's Legendary Chess Puzzles
+            Turn Chess Videos into Positions You Can Play
           </h2>
 
           <p
             style={{ fontFamily: "'Geist', sans-serif" }}
             className="text-cb-text-muted text-lg max-w-2xl mx-auto"
           >
-            Play iconic moments from Agadmator's legendary chess channel
+            Practice the moments that make you pause, calculate, and look again.
           </p>
         </motion.div>
 
@@ -112,13 +72,10 @@ export const AgadmatorFeature = () => {
               {/* Video Preview */}
               <div className="aspect-video relative overflow-hidden group">
                 <video
-                  ref={videoRef}
-                  autoPlay
-                  loop
-                  muted
                   playsInline
                   preload="none"
                   poster="/og-image.jpg"
+                  controls
                   className="absolute inset-0 w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
                 >
                   <source src="/video_clip.webm" type="video/webm" />
@@ -128,13 +85,13 @@ export const AgadmatorFeature = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-cb-gradient-from via-transparent to-transparent" />
 
                 {/* Text Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 z-10 flex items-end justify-between">
+                <div className="pointer-events-none absolute bottom-10 left-0 right-0 z-10 flex items-end justify-between p-4">
                   <div>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
                       className="text-cb-text text-sm font-medium"
                     >
-                      Agadmator's Chess Channel
+                      Agadmator’s Chess Channel
                     </p>
                     <p
                       style={{ fontFamily: "'Geist', sans-serif" }}
@@ -143,62 +100,21 @@ export const AgadmatorFeature = () => {
                       #pause-the-video
                     </p>
                   </div>
-
-                  {/* Audio Toggle */}
-                  <button
-                    onClick={toggleMute}
-                    className={cn(
-                      "w-10 h-10 flex items-center justify-center",
-                      "border transition-all duration-300",
-                      isMuted
-                        ? "border-cb-border-strong hover:border-cb-border-strong"
-                        : "border-cb-accent bg-cb-accent"
-                    )}
-                    aria-label={isMuted ? "Unmute video" : "Mute video"}
-                  >
-                    {isMuted ? (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        className="w-4 h-4 text-cb-text"
-                      >
-                        <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                        <line x1="23" y1="9" x2="17" y2="15" />
-                        <line x1="17" y1="9" x2="23" y2="15" />
-                      </svg>
-                    ) : (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        className="w-4 h-4 text-cb-accent-fg"
-                      >
-                        <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                      </svg>
-                    )}
-                  </button>
                 </div>
               </div>
 
               {/* Stats Bar */}
               <div className="grid grid-cols-3 border-t border-cb-border">
                 {[
-                  { label: "Videos", value: "4000+" },
-                  { label: "Positions", value: "6000+" },
-                  { label: "Players", value: "1M+" },
+                  { label: "Watch", value: "01" },
+                  { label: "Pause", value: "02" },
+                  { label: "Play", value: "03" },
                 ].map((stat, index) => (
                   <div
                     key={index}
                     className={cn(
                       "text-center py-4",
-                      index !== 2 && "border-r border-cb-border"
+                      index !== 2 && "border-r border-cb-border",
                     )}
                   >
                     <p
@@ -233,7 +149,7 @@ export const AgadmatorFeature = () => {
                 style={{ fontFamily: "'Instrument Serif', serif" }}
                 className="text-2xl sm:text-3xl text-cb-text leading-relaxed italic"
               >
-                "Pause the video and try to find the best move"
+                “Pause the video and try to find the best move.”
               </p>
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
@@ -248,18 +164,17 @@ export const AgadmatorFeature = () => {
               style={{ fontFamily: "'Geist', sans-serif" }}
               className="text-cb-text-secondary leading-relaxed"
             >
-              Love Agadmator's legendary chess content? Now you can play all the
-              iconic "pause the video" moments from his channel with your
-              friends. Test your tactical vision against the same positions that
-              challenge millions of chess fans.
+              ReplayChess is built for the moment when a chess video makes you
+              stop and calculate. Choose a featured position, inspect the board,
+              and test your idea in a playable game with a friend.
             </p>
 
             {/* Features */}
             <div className="space-y-4">
               {[
-                "Access every pause the video moment",
-                "Challenge friends to solve the position",
-                "Learn from the best tactical puzzles",
+                "Inspect a curated featured position",
+                "Challenge a friend from the same board",
+                "Review the game after you finish",
               ].map((feature, index) => (
                 <motion.div
                   key={index}
@@ -303,7 +218,7 @@ export const AgadmatorFeature = () => {
                   style={{ fontFamily: "'Geist', sans-serif" }}
                   className="text-sm text-cb-text-muted"
                 >
-                  World's Most Popular Chess Channel
+                  Inspiration for pause-the-video chess puzzles
                 </p>
               </div>
             </div>

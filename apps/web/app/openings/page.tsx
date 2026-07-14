@@ -6,6 +6,8 @@ import { Footer } from "../components/Footer";
 
 import { OpeningsSearch } from "./OpeningsSearch";
 
+export const dynamic = "force-dynamic";
+
 interface Props {
   searchParams: Promise<{ q?: string }>;
 }
@@ -89,7 +91,8 @@ export default async function OpeningsPage({ searchParams }: Props) {
             style={{ fontFamily: "'Geist', sans-serif" }}
             className="text-lg text-cb-text-muted max-w-xl mx-auto"
           >
-            Browse openings by ECO code. Study the moves, then play from the position.
+            Browse openings by ECO code. Study the moves, then play from the
+            position.
           </p>
           <OpeningsSearch />
         </div>

@@ -146,6 +146,10 @@ button,
   --cb-backdrop: rgba(250,249,246,0.85);
   --cb-grid-line: rgba(0,0,0,0.03);
   --cb-gradient-from: #FAF9F6;
+  --article-board-light: #e9e2d4;
+  --article-board-dark: #8f7865;
+  --article-board-last: rgba(225, 184, 74, 0.42);
+  --article-board-selected: rgba(76, 118, 151, 0.42);
   /* Game end effects */
   --cb-overlay-scrim: rgba(61, 50, 41, 0.55);
   --cb-defeat-wash-start: rgba(245, 243, 240, 0.55);
@@ -222,6 +226,10 @@ button,
   --cb-backdrop: rgba(0,0,0,0.85);
   --cb-grid-line: rgba(255,255,255,0.015);
   --cb-gradient-from: #000000;
+  --article-board-light: #d8cfbf;
+  --article-board-dark: #68574a;
+  --article-board-last: rgba(230, 188, 70, 0.42);
+  --article-board-selected: rgba(94, 144, 181, 0.45);
   /* Game end effects */
   --cb-overlay-scrim: rgba(0, 0, 0, 0.7);
   --cb-defeat-wash-start: rgba(0, 0, 0, 0.6);
@@ -316,4 +324,3 @@ button,
     transition-duration: 0.01ms !important;
   }
 }
-

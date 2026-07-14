@@ -2,12 +2,18 @@ import { createMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = createMetadata({
-  title: "Careers",
+  title: "Future Careers at ReplayChess",
   description:
-    "Join the team building the future of interactive chess at ReplayChess.",
+    "Learn how ReplayChess is being built and where to send a note if you would like to hear about future roles when the team begins to grow.",
   path: "/careers",
+  noIndex: true,
+  noFollow: false,
 });
 
-export default function CareersLayout({ children }: { children: React.ReactNode }) {
+export default function CareersLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return children;
 }

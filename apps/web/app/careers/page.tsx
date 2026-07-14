@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { ArrowRight, Mail } from "lucide-react";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
+import Image from "next/image";
 
 export default function CareersPage() {
   const [email, setEmail] = useState("");
@@ -25,15 +26,15 @@ export default function CareersPage() {
 
       {/* Hero */}
       <section className="relative h-[70vh] min-h-[500px] w-full overflow-hidden">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 min-w-full min-h-full w-auto h-auto opacity-15 object-cover grayscale"
-        >
-          <source src="/Kings_Gambit_Chess_Board_Animation.mp4" type="video/mp4" />
-        </video>
+        <Image
+          src="/og-image.jpg"
+          alt=""
+          aria-hidden="true"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover opacity-15 grayscale"
+        />
 
         <div className="absolute inset-0 bg-gradient-to-b from-cb-gradient-from via-transparent to-cb-gradient-from" />
         <div className="absolute inset-0 bg-gradient-to-r from-cb-backdrop via-transparent to-cb-backdrop" />
@@ -125,7 +126,9 @@ export default function CareersPage() {
             >
               A company of one,
               <br />
-              <span className="text-cb-text-muted">building for thousands.</span>
+              <span className="text-cb-text-muted">
+                building for thousands.
+              </span>
             </h2>
 
             <div className="space-y-6">
@@ -133,18 +136,19 @@ export default function CareersPage() {
                 style={{ fontFamily: "'Geist', sans-serif" }}
                 className="text-base sm:text-lg text-cb-text-muted leading-[1.8]"
               >
-                ReplayChess is a solo venture right now — every line of code, every
-                pixel, every decision passes through a single pair of hands. That&apos;s
-                intentional. Before we grow the team, we&apos;re focused on getting the
-                foundation exactly right.
+                ReplayChess is a solo venture right now — every line of code,
+                every pixel, every decision passes through a single pair of
+                hands. That&apos;s intentional. Before we grow the team,
+                we&apos;re focused on getting the foundation exactly right.
               </p>
               <p
                 style={{ fontFamily: "'Geist', sans-serif" }}
                 className="text-base sm:text-lg text-cb-text-muted leading-[1.8]"
               >
-                The best chess games are won by players who take their time in the
-                opening. We&apos;re still in that phase — setting up the pieces,
-                preparing for the middle game where things get interesting.
+                The best chess games are won by players who take their time in
+                the opening. We&apos;re still in that phase — setting up the
+                pieces, preparing for the middle game where things get
+                interesting.
               </p>
             </div>
           </motion.div>
@@ -178,17 +182,20 @@ export default function CareersPage() {
             >
               When we scale,
               <br />
-              <span className="text-cb-text-muted">we&apos;ll need brilliant people.</span>
+              <span className="text-cb-text-muted">
+                we&apos;ll need brilliant people.
+              </span>
             </h2>
 
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
               className="text-base sm:text-lg text-cb-text-muted leading-[1.8]"
             >
-              As ReplayChess expands into new markets and the platform grows beyond
-              what one person can carry, we&apos;ll be looking for people who care
-              deeply about craft — engineers, designers, community builders, and chess
-              minds who want to shape the future of how the world experiences this game.
+              As ReplayChess expands into new markets and the platform grows
+              beyond what one person can carry, we&apos;ll be looking for people
+              who care deeply about craft — engineers, designers, community
+              builders, and chess minds who want to shape the future of how the
+              world experiences this game.
             </p>
 
             {/* Timeline hint */}
@@ -197,7 +204,8 @@ export default function CareersPage() {
                 {
                   number: "01",
                   title: "Product–Market Fit",
-                  description: "Nail the core experience for our first players.",
+                  description:
+                    "Nail the core experience for our first players.",
                 },
                 {
                   number: "02",
@@ -207,7 +215,8 @@ export default function CareersPage() {
                 {
                   number: "03",
                   title: "Grow the Team",
-                  description: "Hire exceptional people to accelerate the vision.",
+                  description:
+                    "Hire exceptional people to accelerate the vision.",
                 },
               ].map((step, index) => (
                 <motion.div
@@ -286,8 +295,8 @@ export default function CareersPage() {
               style={{ fontFamily: "'Geist', sans-serif" }}
               className="text-base text-cb-text-muted leading-relaxed max-w-lg mx-auto"
             >
-              Drop your email below and we&apos;ll reach out when we start hiring.
-              No spam, no newsletters — just a heads-up when roles open.
+              Drop your email below and we&apos;ll reach out when we start
+              hiring. No spam, no newsletters — just a heads-up when roles open.
             </p>
 
             {/* Email form */}
@@ -306,7 +315,7 @@ export default function CareersPage() {
                   className={cn(
                     "flex-1 bg-cb-hover border border-cb-border px-4 py-3",
                     "text-sm text-cb-text placeholder:text-cb-text-faint",
-                    "outline-none focus:border-cb-border-strong transition-colors duration-300"
+                    "outline-none focus:border-cb-border-strong transition-colors duration-300",
                   )}
                 />
                 <button
@@ -315,7 +324,7 @@ export default function CareersPage() {
                     "group relative overflow-hidden",
                     "px-6 py-3 bg-cb-accent text-cb-accent-fg",
                     "text-sm font-medium",
-                    "transition-all duration-300 flex items-center justify-center gap-2"
+                    "transition-all duration-300 flex items-center justify-center gap-2",
                   )}
                   style={{ fontFamily: "'Geist', sans-serif" }}
                 >

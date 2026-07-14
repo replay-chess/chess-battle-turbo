@@ -1,5 +1,14 @@
 import withPWAInit from "@ducanh2912/next-pwa";
+import createMDX from "@next/mdx";
 import { withSentryConfig } from "@sentry/nextjs";
+import remarkGfm from "remark-gfm";
+
+const withMDX = createMDX({
+  extension: /\.mdx?$/,
+  options: {
+    remarkPlugins: [remarkGfm],
+  },
+});
 
 const withPWA = withPWAInit({
   dest: "public",
@@ -15,94 +24,105 @@ const withPWA = withPWAInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   // Only use standalone output for Docker builds
   // Amplify uses standard Next.js output
-  ...(process.env.USE_STANDALONE === 'true' && { output: 'standalone' }),
+  ...(process.env.USE_STANDALONE === "true" && { output: "standalone" }),
   experimental: {
     reactCompiler: true,
   },
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: '**',
+        protocol: "https",
+        hostname: "**",
       },
     ],
+  },
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "playchess.tech" }],
+        destination: "https://www.playchess.tech/:path*",
+        permanent: true,
+      },
+    ];
   },
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: "/(.*)",
         headers: [
           {
-            key: 'X-Frame-Options',
-            value: 'DENY',
+            key: "X-Frame-Options",
+            value: "DENY",
           },
           {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
+            key: "X-Content-Type-Options",
+            value: "nosniff",
           },
           {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
           },
           {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
           },
           {
-            key: 'Strict-Transport-Security',
-            value: 'max-age=63072000; includeSubDomains; preload',
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
           },
         ],
       },
       // Images — cache 1 month
       {
-        source: '/:path*.(ico|jpg|jpeg|png|gif|svg|webp)',
+        source: "/:path*.(ico|jpg|jpeg|png|gif|svg|webp)",
         headers: [
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=2592000, stale-while-revalidate=86400',
+            key: "Cache-Control",
+            value: "public, max-age=2592000, stale-while-revalidate=86400",
           },
         ],
       },
       // Fonts — cache 1 month
       {
-        source: '/:path*.(woff|woff2|ttf|otf|eot)',
+        source: "/:path*.(woff|woff2|ttf|otf|eot)",
         headers: [
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=2592000, stale-while-revalidate=86400',
+            key: "Cache-Control",
+            value: "public, max-age=2592000, stale-while-revalidate=86400",
           },
         ],
       },
       // Videos/media — cache 1 month
       {
-        source: '/:path*.(mp4|webm)',
+        source: "/:path*.(mp4|webm)",
         headers: [
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=2592000, stale-while-revalidate=86400',
+            key: "Cache-Control",
+            value: "public, max-age=2592000, stale-while-revalidate=86400",
           },
         ],
       },
       // Workers (Stockfish WASM + JS) — no cache (prevent stale WASM/JS mismatch)
       {
-        source: '/workers/:path*',
+        source: "/workers/:path*",
         headers: [
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=0, must-revalidate',
+            key: "Cache-Control",
+            value: "public, max-age=0, must-revalidate",
           },
         ],
       },
       // Service worker + manifest — no cache (need immediate updates)
       {
-        source: '/(sw.js|manifest.json)',
+        source: "/(sw.js|manifest.json)",
         headers: [
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=0, must-revalidate',
+            key: "Cache-Control",
+            value: "public, max-age=0, must-revalidate",
           },
         ],
       },
@@ -110,7 +130,7 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(withPWA(nextConfig), {
+export default withSentryConfig(withMDX(withPWA(nextConfig)), {
   org: "replay-chess",
   project: "replay-chess",
   silent: !process.env.CI,

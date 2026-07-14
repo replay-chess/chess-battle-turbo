@@ -9,17 +9,34 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 
 const stats = [
-  { value: "10,000+", label: "Positions" },
-  { value: "50+", label: "Legends" },
-  { value: "100+", label: "Games Played" },
+  { value: "Curated", label: "Positions" },
+  { value: "Historic", label: "Games" },
+  { value: "Playable", label: "Lessons" },
 ];
 
 const milestones = [
-  { year: "2026", title: "The First Move", description: "Founded to solve a specific problem: allowing you to play legendary chess positions against a real opponent. What started as a personal frustration became a platform.", upcoming: false },
-  { year: "", title: "The Next Chapter", description: "Expanding the position library, refining multiplayer matchmaking, and building tools that make chess history more accessible than ever.", upcoming: true },
-  { year: "", title: "Building the Community", description: "Tournaments, rankings, and a space for players who share a love for the beauty of chess — coming soon.", upcoming: true },
+  {
+    year: "2026",
+    title: "The First Move",
+    description:
+      "Founded to solve a specific problem: allowing you to play legendary chess positions against a real opponent. What started as a personal frustration became a platform.",
+    upcoming: false,
+  },
+  {
+    year: "",
+    title: "The Next Chapter",
+    description:
+      "Expanding the position library, refining multiplayer matchmaking, and building tools that make chess history more accessible than ever.",
+    upcoming: true,
+  },
+  {
+    year: "",
+    title: "Building the Community",
+    description:
+      "Tournaments, rankings, and a space for players who share a love for the beauty of chess — coming soon.",
+    upcoming: true,
+  },
 ];
-
 
 export default function AboutPage() {
   return (
@@ -28,15 +45,15 @@ export default function AboutPage() {
 
       {/* Hero Section */}
       <section className="relative h-[70vh] min-h-[500px] w-full overflow-hidden">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 min-w-full min-h-full w-auto h-auto opacity-20 object-cover grayscale"
-        >
-          <source src="/Kings_Gambit_Chess_Board_Animation.mp4" type="video/mp4" />
-        </video>
+        <Image
+          src="/og-image.jpg"
+          alt=""
+          aria-hidden="true"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover opacity-20 grayscale"
+        />
 
         <div className="absolute inset-0 bg-gradient-to-b from-cb-gradient-from via-transparent to-cb-gradient-from" />
         <div className="absolute inset-0 bg-gradient-to-r from-cb-backdrop via-transparent to-cb-backdrop" />
@@ -77,9 +94,11 @@ export default function AboutPage() {
             style={{ fontFamily: "'Instrument Serif', serif" }}
             className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl mb-6 text-cb-text leading-[0.95]"
           >
-            Where Legends
+            About ReplayChess:
             <br />
-            <span className="text-cb-text-muted">Meet the Board</span>
+            <span className="text-cb-text-muted">
+              Where Legends Meet the Board
+            </span>
           </motion.h1>
 
           <motion.p
@@ -89,7 +108,8 @@ export default function AboutPage() {
             style={{ fontFamily: "'Geist', sans-serif" }}
             className="text-lg sm:text-xl text-cb-text-muted max-w-2xl"
           >
-            We&apos;re on a mission to make chess history interactive, immersive, and unforgettable.
+            We&apos;re on a mission to make chess history interactive,
+            immersive, and unforgettable.
           </motion.p>
         </div>
       </section>
@@ -114,7 +134,8 @@ export default function AboutPage() {
               style={{ fontFamily: "'Instrument Serif', serif" }}
               className="text-3xl sm:text-4xl lg:text-5xl text-cb-text-secondary italic leading-snug"
             >
-              &ldquo;Every great chess game tells a story. We built a platform where you can live those stories.&rdquo;
+              &ldquo;Every great chess game tells a story. We built a platform
+              where you can live those stories.&rdquo;
             </p>
           </motion.div>
           <motion.div
@@ -127,16 +148,20 @@ export default function AboutPage() {
               style={{ fontFamily: "'Geist', sans-serif" }}
               className="text-cb-text-muted text-base leading-relaxed mb-6"
             >
-              ReplayChess was born from a simple idea: the greatest moments in chess history shouldn&apos;t just be
-              studied — they should be experienced. We believe that stepping into the shoes of Kasparov, Fischer, or
-              Carlsen at the critical moment of a legendary game is the most powerful way to learn and appreciate chess.
+              ReplayChess was born from a simple idea: the greatest moments in
+              chess history shouldn&apos;t just be studied — they should be
+              experienced. We believe that stepping into the shoes of Kasparov,
+              Fischer, or Carlsen at the critical moment of a legendary game is
+              the most powerful way to learn and appreciate chess.
             </p>
             <p
               style={{ fontFamily: "'Geist', sans-serif" }}
               className="text-cb-text-muted text-base leading-relaxed"
             >
-              Our platform combines real-time multiplayer gaming with a curated library of historic positions,
-              AI-powered analysis, and a community of passionate players who share our love for the royal game.
+              Our platform combines real-time multiplayer gaming with a curated
+              library of historic positions, AI-powered analysis, and a
+              community of passionate players who share our love for the royal
+              game.
             </p>
           </motion.div>
         </div>
@@ -214,14 +239,18 @@ export default function AboutPage() {
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                   className={cn(
                     "relative pl-16 sm:pl-24",
-                    milestone.upcoming && "opacity-40"
+                    milestone.upcoming && "opacity-40",
                   )}
                 >
                   {/* Dot */}
-                  <div className={cn(
-                    "absolute left-[13px] sm:left-[29px] top-1 w-2 h-2",
-                    milestone.upcoming ? "border border-dashed border-cb-text-muted" : "bg-cb-text"
-                  )} />
+                  <div
+                    className={cn(
+                      "absolute left-[13px] sm:left-[29px] top-1 w-2 h-2",
+                      milestone.upcoming
+                        ? "border border-dashed border-cb-text-muted"
+                        : "bg-cb-text",
+                    )}
+                  />
 
                   {milestone.year && (
                     <p
@@ -243,7 +272,9 @@ export default function AboutPage() {
                     style={{ fontFamily: "'Instrument Serif', serif" }}
                     className={cn(
                       "text-xl sm:text-2xl mb-2",
-                      milestone.upcoming ? "text-cb-text-secondary" : "text-cb-text"
+                      milestone.upcoming
+                        ? "text-cb-text-secondary"
+                        : "text-cb-text",
                     )}
                   >
                     {milestone.title}
@@ -305,8 +336,8 @@ export default function AboutPage() {
             <div className="group relative bg-cb-bg border border-cb-border p-8 text-center">
               <div className="relative w-28 h-28 mx-auto mb-6 overflow-hidden">
                 <Image
-                  src="/rohit-pandit.jpeg"
-                  alt="Rohit Pandit"
+                  src="/images/authors/rohit-pandit.webp"
+                  alt="Rohit Pandit, founder of ReplayChess"
                   fill
                   className="object-cover"
                 />
@@ -327,7 +358,8 @@ export default function AboutPage() {
                 style={{ fontFamily: "'Instrument Serif', serif" }}
                 className="text-lg text-cb-text-secondary italic leading-relaxed"
               >
-                &ldquo;I like to solve the problems I&apos;ve faced in my life — for everyone else.&rdquo;
+                &ldquo;I like to solve the problems I&apos;ve faced in my life —
+                for everyone else.&rdquo;
               </p>
 
               {/* Corner accents */}
@@ -360,7 +392,8 @@ export default function AboutPage() {
               style={{ fontFamily: "'Geist', sans-serif" }}
               className="text-cb-text-muted text-lg mb-8 max-w-xl mx-auto"
             >
-              We&apos;re always looking for passionate people who love chess and building great products.
+              We&apos;re always looking for passionate people who love chess and
+              building great products.
             </p>
             <Link href="/careers">
               <button
@@ -369,7 +402,7 @@ export default function AboutPage() {
                   "bg-cb-accent text-cb-accent-fg",
                   "px-10 py-4",
                   "text-sm font-semibold tracking-[0.1em] uppercase",
-                  "transition-all duration-300"
+                  "transition-all duration-300",
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >

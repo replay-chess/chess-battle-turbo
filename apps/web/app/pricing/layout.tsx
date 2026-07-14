@@ -2,9 +2,9 @@ import { createMetadata, safeJsonLd } from "@/lib/seo";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = createMetadata({
-  title: "Pricing",
+  title: "Chess Training Plans and Pricing",
   description:
-    "Choose your ReplayChess plan — free to play with premium options for serious players and creators.",
+    "Compare ReplayChess plans for playing legendary positions, recording games, exporting video, and using chess analysis tools. Start with a free challenge.",
   path: "/pricing",
 });
 
@@ -17,31 +17,31 @@ const faqJsonLd = {
       name: "Do you offer refunds?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Yes, we offer a 30-day money-back guarantee for all new subscriptions. If you're not satisfied with ReplayChess, you can request a full refund within the first 30 days of your subscription. Refunds are subject to a 5% processing fee and usage fees.",
+        text: "New subscriptions have a 30-day money-back guarantee under the ReplayChess Terms of Service. Contact hello@playchess.tech to request a refund.",
       },
     },
     {
       "@type": "Question",
-      name: "What does early access include?",
+      name: "What does the Player plan include?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Early access gives you a 30% discount + an extra 20% off (yearly plan only) priority access to new features before they're released to the general public. You'll also be invited to our private Slack channel to help shape the product roadmap.",
+        text: "The Player plan includes unlimited positions, game recording and export, 1080p output, basic AI analysis, and priority access to supported product features.",
       },
     },
     {
       "@type": "Question",
-      name: "Can I use my own API keys?",
+      name: "Can I try ReplayChess before subscribing?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Not at the moment, but we're thinking about it. We're waiting to see if there is significant demand for it. For now, we provide high-performance cloud engines bundled with your subscription.",
+        text: "Yes. The public position challenges are free and do not require an account. Open the Try page to play a featured position against the engine.",
       },
     },
     {
       "@type": "Question",
-      name: "What payment methods do you accept?",
+      name: "How do I manage or cancel a subscription?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "We accept all major credit cards (Visa, MasterCard, American Express, Discover). For yearly subscriptions for teams or clubs, we also offer wire transfer options.",
+        text: "Signed-in subscribers can open the account menu and choose Manage Billing. Cancellation takes effect according to the billing terms shown in the customer portal.",
       },
     },
   ],
@@ -54,18 +54,21 @@ const softwareAppJsonLd = {
   applicationCategory: "GameApplication",
   operatingSystem: "Web",
   offers: [
-    { "@type": "Offer", name: "Player", price: "8", priceCurrency: "USD", availability: "https://schema.org/InStock" },
+    {
+      "@type": "Offer",
+      name: "Player",
+      price: "8",
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+    },
   ],
-  aggregateRating: {
-    "@type": "AggregateRating",
-    ratingValue: "4.8",
-    ratingCount: "124",
-    bestRating: "5",
-    worstRating: "1",
-  },
 };
 
-export default function PricingLayout({ children }: { children: React.ReactNode }) {
+export default function PricingLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <>
       <script

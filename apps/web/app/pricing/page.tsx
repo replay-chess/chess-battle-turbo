@@ -1,134 +1,156 @@
-"use client"
+"use client";
 
-import React, { Suspense, useState, useEffect } from 'react'
-import { Footer } from '../components/Footer'
-import { Navbar } from '../components/Navbar'
-import { Bot, ChevronDown, Video, Loader2, Check, CreditCard, LifeBuoy, ArrowRight } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
-import { useSearchParams } from 'next/navigation'
-import { useUserStore } from '@/lib/stores'
+import React, { Suspense, useState } from "react";
+import { Footer } from "../components/Footer";
+import { Navbar } from "../components/Navbar";
+import {
+  Bot,
+  ChevronDown,
+  Video,
+  Loader2,
+  Check,
+  CreditCard,
+  LifeBuoy,
+  ArrowRight,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useSearchParams } from "next/navigation";
+import { useUserStore } from "@/lib/stores";
+import Image from "next/image";
 
-const PLAYER_PRODUCT_ID = process.env.NEXT_PUBLIC_DODO_PLAYER_PRODUCT_ID!
+const PLAYER_PRODUCT_ID = process.env.NEXT_PUBLIC_DODO_PLAYER_PRODUCT_ID!;
 
-const EASE = [0.22, 1, 0.36, 1] as const
+const EASE = [0.22, 1, 0.36, 1] as const;
 
 const PLAN_FEATURES = [
-  'Unlimited Positions',
-  'Record & Export',
-  '1080p Quality',
-  'Basic AI Analysis',
-  'Priority Features',
-]
+  "Unlimited Positions",
+  "Record & Export",
+  "1080p Quality",
+  "Basic AI Analysis",
+  "Priority Features",
+];
 
 const SUBSCRIBER_FAQS = [
   {
-    question: 'How do I cancel my subscription?',
-    answer: 'You can cancel anytime from the Manage Billing page. Your access continues until the end of your current billing period. No questions asked.',
+    question: "How do I cancel my subscription?",
+    answer:
+      "You can cancel anytime from the Manage Billing page. Your access continues until the end of your current billing period. No questions asked.",
   },
   {
-    question: 'When am I billed each month?',
-    answer: 'You are billed on the same date each month as your original subscription date. If you subscribed on the 15th, you will be billed on the 15th of each subsequent month.',
+    question: "When am I billed each month?",
+    answer:
+      "You are billed on the same date each month as your original subscription date. If you subscribed on the 15th, you will be billed on the 15th of each subsequent month.",
   },
   {
-    question: 'Can I get a refund?',
-    answer: 'Yes, we offer a 30-day money-back guarantee. If you are not satisfied, contact us at hello@playchess.tech within 30 days of subscribing for a full refund, subject to a 5% processing fee.',
+    question: "Can I get a refund?",
+    answer:
+      "New subscriptions have a 30-day money-back guarantee under the ReplayChess Terms of Service. Contact hello@playchess.tech to request a refund.",
   },
   {
-    question: 'How do I update my payment method?',
-    answer: 'Click "Manage Billing" above to access the customer portal. From there you can update your credit card, view invoices, and manage all billing details.',
+    question: "How do I update my payment method?",
+    answer:
+      'Click "Manage Billing" above to access the customer portal. From there you can update your credit card, view invoices, and manage all billing details.',
   },
-]
+];
 
 function formatBillingDate(isoDate: string): string {
-  const date = new Date(isoDate)
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const date = new Date(isoDate);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 const SALES_FAQS = [
   {
     question: "Do you offer refunds?",
-    answer: "Yes, we offer a 30-day money-back guarantee for all new subscriptions. If you're not satisfied with ReplayChess, you can request a full refund within the first 30 days of your subscription. Refunds are subject to a 5% processing fee and usage fees."
+    answer:
+      "New subscriptions have a 30-day money-back guarantee under the ReplayChess Terms of Service. Contact hello@playchess.tech to request a refund.",
   },
   {
-    question: "What does early access include?",
-    answer: "Early access gives you a 30% discount + an extra 20% off (yearly plan only) priority access to new features before they're released to the general public. You'll also be invited to our private Slack channel to help shape the product roadmap."
+    question: "What does the Player plan include?",
+    answer:
+      "The Player plan includes unlimited positions, game recording and export, 1080p output, basic AI analysis, and priority access to supported product features.",
   },
   {
-    question: "Can I use my own API keys?",
-    answer: "Not at the moment, but we're thinking about it. We're waiting to see if there is significant demand for it. For now, we provide high-performance cloud engines bundled with your subscription."
+    question: "Can I try ReplayChess before subscribing?",
+    answer:
+      "Yes. The public position challenges are free and do not require an account. Open the Try page to play a featured position against the engine.",
   },
   {
-    question: "What payment methods do you accept?",
-    answer: "We accept all major credit cards (Visa, MasterCard, American Express, Discover). For yearly subscriptions for teams or clubs, we also offer wire transfer options."
-  }
-]
+    question: "How do I manage or cancel a subscription?",
+    answer:
+      "Signed-in subscribers can open the account menu and choose Manage Billing. Cancellation takes effect according to the billing terms shown in the customer portal.",
+  },
+];
 
 type SubscriptionInfo = {
-  plan: string | null
-  customerId?: string
+  plan: string | null;
+  customerId?: string;
   subscription?: {
-    id: string
-    status: string
-    productId: string
-    nextBillingDate: string
-  }
-}
+    id: string;
+    status: string;
+    productId: string;
+    nextBillingDate: string;
+  };
+};
 
 export default function PricingPage() {
   return (
     <Suspense>
       <PricingContent />
     </Suspense>
-  )
+  );
 }
 
 function PricingContent() {
-  const [openFaq, setOpenFaq] = useState<number | null>(null)
-  const [checkoutLoading, setCheckoutLoading] = useState(false)
-  const searchParams = useSearchParams()
-  const checkoutSuccess = searchParams.get('checkout') === 'success'
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const checkoutSuccess = searchParams.get("checkout") === "success";
 
   // Read user + subscription from Zustand store
-  const storeUser = useUserStore((s) => s.user)
-  const subscription = useUserStore((s) => s.subscription)
+  const storeUser = useUserStore((s) => s.user);
+  const subscription = useUserStore((s) => s.subscription);
   const subInfo: SubscriptionInfo | null = subscription
     ? {
         plan: subscription.plan,
         customerId: subscription.customerId,
         subscription: subscription.subscription,
       }
-    : null
+    : null;
 
   async function handleCheckout() {
     if (!storeUser) {
-      window.location.href = '/sign-in'
-      return
+      window.location.href = "/sign-in";
+      return;
     }
-    setCheckoutLoading(true)
+    setCheckoutLoading(true);
     try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId: PLAYER_PRODUCT_ID,
           email: storeUser.email,
           name: storeUser.name,
           metadata: { clerkUserId: storeUser.clerkUserId },
         }),
-      })
-      if (!res.ok) throw new Error(res.statusText)
-      const data = await res.json()
+      });
+      if (!res.ok) throw new Error(res.statusText);
+      const data = await res.json();
       if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl
+        window.location.href = data.checkoutUrl;
       }
     } catch {
       // checkout failed — button re-enables via finally
     } finally {
-      setCheckoutLoading(false)
+      setCheckoutLoading(false);
     }
   }
 
-  const isSubscribed = subInfo?.plan === 'player'
+  const isSubscribed = subInfo?.plan === "player";
 
   if (isSubscribed) {
     return (
@@ -141,7 +163,7 @@ function PricingContent() {
             className="absolute inset-0 opacity-[0.015]"
             style={{
               backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
-              backgroundSize: '80px 80px',
+              backgroundSize: "80px 80px",
             }}
           />
           <div className="relative z-10 max-w-3xl mx-auto px-4 text-center">
@@ -161,7 +183,9 @@ function PricingContent() {
               style={{ fontFamily: "'Instrument Serif', serif" }}
               className="text-5xl sm:text-6xl md:text-7xl mb-4 text-cb-text"
             >
-              {storeUser?.name ? `Welcome back, ${storeUser.name.split(' ')[0]}` : 'Your Membership'}
+              {storeUser?.name
+                ? `Welcome back, ${storeUser.name.split(" ")[0]}`
+                : "Your Membership"}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 10 }}
@@ -177,7 +201,6 @@ function PricingContent() {
 
         <div className="relative">
           <main className="max-w-3xl mx-auto px-4 sm:px-6 pb-20">
-
             {/* Checkout success banner */}
             {checkoutSuccess && (
               <motion.div
@@ -245,7 +268,7 @@ function PricingContent() {
                   >
                     {subInfo?.subscription?.nextBillingDate
                       ? formatBillingDate(subInfo.subscription.nextBillingDate)
-                      : '—'}
+                      : "—"}
                   </p>
                 </div>
                 <div className="bg-cb-bg p-5">
@@ -260,8 +283,9 @@ function PricingContent() {
                     className="text-sm text-amber-400"
                   >
                     {subInfo?.subscription?.status
-                      ? subInfo.subscription.status.charAt(0).toUpperCase() + subInfo.subscription.status.slice(1)
-                      : 'Active'}
+                      ? subInfo.subscription.status.charAt(0).toUpperCase() +
+                        subInfo.subscription.status.slice(1)
+                      : "Active"}
                   </p>
                 </div>
               </div>
@@ -290,7 +314,11 @@ function PricingContent() {
                     key={feature}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.4 + index * 0.06, ease: EASE }}
+                    transition={{
+                      duration: 0.5,
+                      delay: 0.4 + index * 0.06,
+                      ease: EASE,
+                    }}
                     className="bg-cb-bg p-5"
                   >
                     <div className="flex items-center justify-center w-8 h-8 border border-amber-500/20 bg-amber-500/5 mb-3">
@@ -385,7 +413,9 @@ function PricingContent() {
                     className="border border-cb-border overflow-hidden"
                   >
                     <button
-                      onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                      onClick={() =>
+                        setOpenFaq(openFaq === index ? null : index)
+                      }
                       className="w-full p-5 text-left flex justify-between items-center bg-cb-hover hover:bg-cb-hover transition-colors"
                     >
                       <span
@@ -394,13 +424,15 @@ function PricingContent() {
                       >
                         {faq.question}
                       </span>
-                      <ChevronDown className={`w-4 h-4 text-cb-text-muted transition-transform duration-300 ${openFaq === index ? 'rotate-180' : ''}`} />
+                      <ChevronDown
+                        className={`w-4 h-4 text-cb-text-muted transition-transform duration-300 ${openFaq === index ? "rotate-180" : ""}`}
+                      />
                     </button>
                     <AnimatePresence>
                       {openFaq === index && (
                         <motion.div
                           initial={{ height: 0 }}
-                          animate={{ height: 'auto' }}
+                          animate={{ height: "auto" }}
                           exit={{ height: 0 }}
                           className="overflow-hidden"
                         >
@@ -422,7 +454,7 @@ function PricingContent() {
           <Footer />
         </div>
       </div>
-    )
+    );
   }
 
   // Non-subscriber sales page (unchanged)
@@ -430,20 +462,17 @@ function PricingContent() {
     <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
 
-      {/* Hero Section with Video Background */}
+      {/* Hero Section */}
       <section className="relative h-[60vh] min-h-[500px] w-full overflow-hidden">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 min-w-full min-h-full w-auto h-auto opacity-20 object-cover grayscale"
-        >
-          <source
-            src="/Kings_Gambit_Chess_Board_Animation.mp4"
-            type="video/mp4"
-          />
-        </video>
+        <Image
+          src="/og-image.jpg"
+          alt=""
+          aria-hidden="true"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover opacity-20 grayscale"
+        />
 
         {/* Gradient overlays */}
         <div className="absolute inset-0 bg-gradient-to-b from-cb-gradient-from via-transparent to-cb-gradient-from" />
@@ -454,7 +483,7 @@ function PricingContent() {
           className="absolute inset-0 opacity-[0.02]"
           style={{
             backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
-            backgroundSize: '80px 80px',
+            backgroundSize: "80px 80px",
           }}
         />
 
@@ -466,7 +495,7 @@ function PricingContent() {
             style={{ fontFamily: "'Instrument Serif', serif" }}
             className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl mb-6 text-cb-text"
           >
-            Pricing
+            Chess Training Plans and Pricing
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -492,7 +521,8 @@ function PricingContent() {
                 style={{ fontFamily: "'Geist', sans-serif" }}
                 className="text-md text-cb-text-muted mb-8 mx-auto"
               >
-                Game Recorder, Position Editor, AI Assistant, Voice Coach, Analysis Generator - all in one powerful package.
+                Game Recorder, Position Editor, AI Assistant, Voice Coach,
+                Analysis Generator - all in one powerful package.
               </motion.p>
             </div>
 
@@ -542,7 +572,10 @@ function PricingContent() {
                 >
                   For casual players and learners
                 </p>
-                <ul className="space-y-3 text-sm text-cb-text-muted mb-8" style={{ fontFamily: "'Geist', sans-serif" }}>
+                <ul
+                  className="space-y-3 text-sm text-cb-text-muted mb-8"
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                >
                   <li className="flex items-center gap-2">
                     <Check className="w-3.5 h-3.5 text-cb-text-muted" />
                     Unlimited positions
@@ -571,9 +604,9 @@ function PricingContent() {
                   {checkoutLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : !storeUser ? (
-                    'Sign in to subscribe'
+                    "Sign in to subscribe"
                   ) : (
-                    'Subscribe'
+                    "Subscribe"
                   )}
                 </button>
               </div>
@@ -583,31 +616,11 @@ function PricingContent() {
               style={{ fontFamily: "'Geist', sans-serif" }}
               className="text-sm text-cb-text-muted text-center mt-8 mb-8 max-w-xl mx-auto p-4"
             >
-              Join our community of chess creators and masters. Get priority access to new features and shape the future of chess training.
+              Review the included features and billing FAQs before subscribing.
+              Questions can be sent to hello@playchess.tech.
             </p>
           </section>
         </main>
-
-        {/* Creator Logos */}
-        <div className="mt-20">
-          <div className="w-full max-w-3xl mx-auto">
-            <p
-              style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-center text-cb-text-muted mb-4 text-xs uppercase tracking-widest"
-            >
-              Supported by grandmasters at
-            </p>
-            <div className="relative overflow-hidden" style={{ maskImage: 'linear-gradient(to right, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0) 6%, rgb(0, 0, 0) 12%, rgb(0, 0, 0) 88%, rgba(0, 0, 0, 0) 94%, rgba(0, 0, 0, 0) 100%)' }}>
-              <div className="flex animate-scroll whitespace-nowrap py-4">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="flex-shrink-0 mx-8">
-                    <div className="h-8 w-24 bg-cb-hover border border-cb-border" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Features Table */}
         <section className="py-20">
@@ -679,9 +692,7 @@ function PricingContent() {
                       AI Features <Bot className="w-3 h-3" />
                     </td>
                   </tr>
-                  {[
-                    { label: "AI Analysis", value: "Basic" },
-                  ].map((row) => (
+                  {[{ label: "AI Analysis", value: "Basic" }].map((row) => (
                     <tr key={row.label} className="border-t border-cb-border">
                       <td
                         style={{ fontFamily: "'Geist', sans-serif" }}
@@ -732,13 +743,15 @@ function PricingContent() {
                     >
                       {faq.question}
                     </span>
-                    <ChevronDown className={`w-4 h-4 text-cb-text-muted transition-transform duration-300 ${openFaq === index ? 'rotate-180' : ''}`} />
+                    <ChevronDown
+                      className={`w-4 h-4 text-cb-text-muted transition-transform duration-300 ${openFaq === index ? "rotate-180" : ""}`}
+                    />
                   </button>
                   <AnimatePresence>
                     {openFaq === index && (
                       <motion.div
                         initial={{ height: 0 }}
-                        animate={{ height: 'auto' }}
+                        animate={{ height: "auto" }}
                         exit={{ height: 0 }}
                         className="overflow-hidden"
                       >
@@ -761,5 +774,5 @@ function PricingContent() {
         <Footer />
       </div>
     </div>
-  )
+  );
 }

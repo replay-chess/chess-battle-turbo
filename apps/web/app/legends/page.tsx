@@ -4,6 +4,7 @@ import { safeJsonLd } from "@/lib/seo";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 
+export const dynamic = "force-dynamic";
 
 const eraOrder = [
   "Romantic Era",
@@ -41,14 +42,17 @@ export default async function LegendsPage() {
 
   // Sort eras by known order, unknown eras at end
   const sortedEras = [...grouped.keys()].sort(
-    (a, b) => (eraOrder.indexOf(a) === -1 ? 999 : eraOrder.indexOf(a)) - (eraOrder.indexOf(b) === -1 ? 999 : eraOrder.indexOf(b))
+    (a, b) =>
+      (eraOrder.indexOf(a) === -1 ? 999 : eraOrder.indexOf(a)) -
+      (eraOrder.indexOf(b) === -1 ? 999 : eraOrder.indexOf(b)),
   );
 
   const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "Chess Legends — Hall of Fame",
-    description: "Profiles of history's greatest chess players from the Romantic Era to the Contemporary Era, including world champions, grandmasters, and revolutionary strategists.",
+    description:
+      "Profiles of history's greatest chess players from the Romantic Era to the Contemporary Era, including world champions, grandmasters, and revolutionary strategists.",
     numberOfItems: legends.length,
     itemListElement: legends.map((legend, i) => ({
       "@type": "ListItem",
@@ -62,8 +66,18 @@ export default async function LegendsPage() {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "https://www.playchess.tech" },
-      { "@type": "ListItem", position: 2, name: "Chess Legends", item: "https://www.playchess.tech/legends" },
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: "https://www.playchess.tech",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Chess Legends",
+        item: "https://www.playchess.tech/legends",
+      },
     ],
   };
 

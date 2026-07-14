@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Instrument_Serif } from "next/font/google";
-import { safeJsonLd } from "@/lib/seo";
+import { BASE_URL, safeJsonLd } from "@/lib/seo";
 
 import "./globals.css";
 import { UserSync } from "./components/UserSync";
@@ -10,7 +10,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { ThemeAwareClerkProvider } from "./components/ThemeAwareClerkProvider";
 import { ThemeAwareToaster } from "./components/ThemeAwareToaster";
-import { SpeedInsights } from "@vercel/speed-insights/next"
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -30,34 +30,44 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const viewport = {
-  width: 'device-width',
+  width: "device-width",
   initialScale: 1,
-  themeColor: '#171717',
+  themeColor: "#171717",
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://www.playchess.tech'),
+  metadataBase: new URL(BASE_URL),
   title: {
     default: "ReplayChess - Master Chess Through Legendary Games",
     template: "%s | ReplayChess",
   },
-  description: "Replay iconic chess positions from history's greatest games. Study grandmaster moves, challenge friends, and master the classics.",
+  description:
+    "Replay iconic positions from famous chess games, test your calculation against the engine, and learn the strategic ideas behind memorable grandmaster moves.",
   openGraph: {
     title: "ReplayChess - Master Chess Through Legendary Games",
-    description: "Replay iconic chess positions from history's greatest games. Study grandmaster moves, challenge friends, and master the classics.",
-    url: "https://www.playchess.tech",
+    description:
+      "Replay iconic positions from famous chess games, test your calculation against the engine, and learn the strategic ideas behind memorable grandmaster moves.",
+    url: BASE_URL,
     siteName: "ReplayChess",
-    images: [{ url: "/og-image.jpg", width: 1200, height: 800, alt: "ReplayChess - Master chess through legendary games" }],
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 800,
+        alt: "ReplayChess - Master chess through legendary games",
+      },
+    ],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "ReplayChess - Master Chess Through Legendary Games",
-    description: "Replay iconic chess positions from history's greatest games. Study grandmaster moves, challenge friends, and master the classics.",
+    description:
+      "Replay iconic positions from famous chess games, test your calculation against the engine, and learn the strategic ideas behind memorable grandmaster moves.",
     images: ["/og-image.jpg"],
   },
   alternates: {
-    canonical: "https://www.playchess.tech",
+    canonical: BASE_URL,
   },
   robots: {
     index: true,
@@ -97,9 +107,16 @@ export default function RootLayout({
             __html: safeJsonLd({
               "@context": "https://schema.org",
               "@type": "Organization",
+              "@id": `${BASE_URL}/#organization`,
               name: "ReplayChess",
-              url: "https://www.playchess.tech",
-              logo: "https://www.playchess.tech/chess-logo-bnw.png",
+              url: BASE_URL,
+              logo: `${BASE_URL}/chess-logo-bnw.png`,
+              founder: {
+                "@type": "Person",
+                name: "Rohit Pandit",
+                url: `${BASE_URL}/blog/author/rohit-pandit`,
+              },
+              sameAs: ["https://x.com/anaestheticdev"],
             }),
           }}
         />

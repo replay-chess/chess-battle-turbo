@@ -2,12 +2,16 @@ import { createMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = createMetadata({
-  title: "Help Center",
+  title: "Chess Game, Account and Billing Help",
   description:
-    "Browse help articles on game modes, billing, and technical issues on ReplayChess.",
+    "Get practical help with ReplayChess position challenges, accounts, subscriptions, game links, analysis, and technical issues, with direct support when needed.",
   path: "/help",
 });
 
-export default function HelpLayout({ children }: { children: React.ReactNode }) {
+export default function HelpLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return children;
 }

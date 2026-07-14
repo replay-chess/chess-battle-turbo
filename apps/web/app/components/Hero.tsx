@@ -4,26 +4,27 @@ import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
 
 export default function Hero() {
   const { isSignedIn } = useAuth();
 
   return (
-    <section aria-label="Hero" className="relative h-full w-full flex items-center justify-center overflow-hidden bg-cb-bg">
-      {/* Video Background */}
-      <video
+    <section
+      aria-label="Hero"
+      className="relative h-full w-full flex items-center justify-center overflow-hidden bg-cb-bg"
+    >
+      {/* Lightweight hero artwork; avoids downloading an autoplay video. */}
+      <Image
+        src="/og-image.jpg"
+        alt=""
         aria-hidden="true"
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="none"
-        poster="/og-image.jpg"
-        className="absolute inset-0 w-full h-full object-cover opacity-20 grayscale"
-      >
-        <source src="/Kings_Gambit_Chess_Board_Animation.mp4" type="video/mp4" />
-      </video>
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover opacity-20 grayscale"
+      />
 
       {/* Gradient overlays */}
       <div className="absolute inset-0 bg-gradient-to-b from-cb-gradient-from via-transparent to-cb-gradient-from" />
@@ -38,7 +39,7 @@ export default function Hero() {
         className="absolute inset-0 opacity-[0.02]"
         style={{
           backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
-          backgroundSize: '80px 80px',
+          backgroundSize: "80px 80px",
         }}
       />
 
@@ -105,7 +106,7 @@ export default function Hero() {
                   "bg-cb-accent text-cb-accent-fg",
                   "px-10 py-4",
                   "text-sm font-semibold tracking-[0.1em] uppercase",
-                  "transition-all duration-300"
+                  "transition-all duration-300",
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
@@ -124,7 +125,7 @@ export default function Hero() {
                   "bg-cb-accent text-cb-accent-fg",
                   "px-10 py-4",
                   "text-sm font-semibold tracking-[0.1em] uppercase",
-                  "transition-all duration-300"
+                  "transition-all duration-300",
                 )}
                 style={{ fontFamily: "'Geist', sans-serif" }}
               >
@@ -137,8 +138,6 @@ export default function Hero() {
             </Link>
           )}
         </motion.div>
-
-
       </motion.div>
 
       {/* Bottom gradient fade */}
@@ -154,7 +153,7 @@ export default function Hero() {
                 "bg-cb-accent text-cb-accent-fg",
                 "px-3 py-3",
                 "text-sm font-semibold tracking-wide uppercase",
-                "transition-all duration-300"
+                "transition-all duration-300",
               )}
               style={{ fontFamily: "'Geist', sans-serif" }}
             >
@@ -173,7 +172,7 @@ export default function Hero() {
                 "bg-cb-accent text-cb-accent-fg",
                 "px-3 py-3",
                 "text-sm font-semibold tracking-wide uppercase",
-                "transition-all duration-300"
+                "transition-all duration-300",
               )}
               style={{ fontFamily: "'Geist', sans-serif" }}
             >

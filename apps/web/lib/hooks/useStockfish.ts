@@ -4,25 +4,36 @@ import { useEffect, useRef, useCallback, useState } from "react";
 
 export interface MultiPvLine {
   depth: number;
-  multipv: number;        // 1-indexed line number
+  multipv: number; // 1-indexed line number
   scoreCp: number | null; // centipawns (null if mate)
   scoreMate: number | null;
-  pv: string[];           // UCI moves, e.g. ["e2e4", "e7e5"]
+  pv: string[]; // UCI moves, e.g. ["e2e4", "e7e5"]
 }
 
 export interface UseStockfishReturn {
-  getBestMove: (fen: string, depth: number, skillLevel?: number, searchTimeMs?: number) => Promise<string>;
-  analyzePosition: (fen: string, depth: number, multiPvCount: number, onLine: (line: MultiPvLine) => void) => void;
+  getBestMove: (
+    fen: string,
+    depth: number,
+    skillLevel?: number,
+    searchTimeMs?: number,
+  ) => Promise<string>;
+  analyzePosition: (
+    fen: string,
+    depth: number,
+    multiPvCount: number,
+    onLine: (line: MultiPvLine) => void,
+  ) => void;
   isReady: boolean;
   isSearching: boolean;
   stopSearch: () => void;
+  restartEngine: () => void;
   error: string | null;
 }
 
 // Timeout for Stockfish to respond (15 seconds)
 const STOCKFISH_TIMEOUT_MS = 15000;
 
-function parseInfoLine(line: string): MultiPvLine | null {
+export function parseStockfishInfoLine(line: string): MultiPvLine | null {
   if (!line.startsWith("info") || !line.includes(" multipv ")) return null;
 
   const depthMatch = line.match(/\bdepth (\d+)/);
@@ -46,11 +57,12 @@ function parseInfoLine(line: string): MultiPvLine | null {
  * Hook for using Stockfish 18 chess engine via Web Worker.
  * Uses lite single-threaded WASM build with NNUE for strong play without COOP/COEP headers.
  */
-export function useStockfish(): UseStockfishReturn {
+export function useStockfish(enabled = true): UseStockfishReturn {
   const workerRef = useRef<Worker | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [restartKey, setRestartKey] = useState(0);
   const resolveRef = useRef<((move: string) => void) | null>(null);
   const rejectRef = useRef<((error: Error) => void) | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -59,14 +71,27 @@ export function useStockfish(): UseStockfishReturn {
 
   useEffect(() => {
     // Only run on client
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !enabled) {
+      setIsReady(false);
+      setIsSearching(false);
+      return;
+    }
 
     let terminated = false;
+    let retryTimer: number | null = null;
+    retryCountRef.current = 0;
+
+    function disposeWorker(worker: Worker) {
+      worker.onmessage = null;
+      worker.onerror = null;
+      worker.terminate();
+      if (workerRef.current === worker) workerRef.current = null;
+    }
 
     function initWorker() {
       if (terminated) return;
 
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         console.log("[Stockfish] Initializing Web Worker...");
       }
 
@@ -78,18 +103,23 @@ export function useStockfish(): UseStockfishReturn {
       workerRef.current = worker;
 
       worker.onmessage = (event) => {
+        if (terminated || workerRef.current !== worker) return;
         const line = event.data as string;
 
         // Log important messages for debugging
-        if (process.env.NODE_ENV === 'development') {
-          if (line.includes("uciok") || line.includes("bestmove") || line.includes("error")) {
+        if (process.env.NODE_ENV === "development") {
+          if (
+            line.includes("uciok") ||
+            line.includes("bestmove") ||
+            line.includes("error")
+          ) {
             console.log("[Stockfish]", line);
           }
         }
 
         // Engine ready — reset retry count on successful init
         if (line === "uciok") {
-          if (process.env.NODE_ENV === 'development') {
+          if (process.env.NODE_ENV === "development") {
             console.log("[Stockfish] Engine ready!");
           }
           retryCountRef.current = 0;
@@ -98,7 +128,7 @@ export function useStockfish(): UseStockfishReturn {
 
         // Parse info lines for MultiPV analysis
         if (line.startsWith("info") && infoCallbackRef.current) {
-          const parsed = parseInfoLine(line);
+          const parsed = parseStockfishInfoLine(line);
           if (parsed) {
             infoCallbackRef.current(parsed);
           }
@@ -108,7 +138,7 @@ export function useStockfish(): UseStockfishReturn {
         if (line.startsWith("bestmove")) {
           const parts = line.split(" ");
           const move = parts[1]; // "bestmove e2e4 ponder e7e5" → "e2e4"
-          if (process.env.NODE_ENV === 'development') {
+          if (process.env.NODE_ENV === "development") {
             console.log("[Stockfish] Best move:", move);
           }
 
@@ -135,10 +165,11 @@ export function useStockfish(): UseStockfishReturn {
         }
       };
 
-      worker.onerror = (err) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.error("[Stockfish] Worker error:", err);
-        }
+      worker.onerror = (event) => {
+        event.preventDefault();
+        if (terminated || workerRef.current !== worker) return true;
+
+        const message = event.message || "Unknown Web Worker error";
 
         // Clear timeout on error
         if (timeoutRef.current) {
@@ -152,19 +183,28 @@ export function useStockfish(): UseStockfishReturn {
           rejectRef.current = null;
         }
         setIsSearching(false);
+        disposeWorker(worker);
 
         // WASM RuntimeError recovery: retry once by re-creating the worker
         if (retryCountRef.current === 0) {
           retryCountRef.current = 1;
-          if (process.env.NODE_ENV === 'development') {
-            console.log("[Stockfish] WASM error detected, retrying worker init...");
+          if (process.env.NODE_ENV === "development") {
+            console.warn(
+              `[Stockfish] Worker initialization failed; retrying once: ${message}`,
+            );
           }
-          worker.terminate();
-          workerRef.current = null;
-          initWorker();
+          retryTimer = window.setTimeout(() => {
+            retryTimer = null;
+            initWorker();
+          }, 100);
         } else {
+          if (process.env.NODE_ENV === "development") {
+            console.warn(`[Stockfish] Worker failed after retry: ${message}`);
+          }
           setError("Chess engine failed to load. Please refresh the page.");
         }
+
+        return true;
       };
 
       // Initialize UCI protocol
@@ -175,21 +215,28 @@ export function useStockfish(): UseStockfishReturn {
 
     return () => {
       terminated = true;
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         console.log("[Stockfish] Terminating worker");
       }
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      workerRef.current?.terminate();
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+      const worker = workerRef.current;
+      if (worker) disposeWorker(worker);
     };
-  }, []);
+  }, [enabled, restartKey]);
 
   const getBestMove = useCallback(
-    (fen: string, depth: number, skillLevel?: number, searchTimeMs?: number): Promise<string> => {
+    (
+      fen: string,
+      depth: number,
+      skillLevel?: number,
+      searchTimeMs?: number,
+    ): Promise<string> => {
       return new Promise((resolve, reject) => {
         if (!workerRef.current) {
-          if (process.env.NODE_ENV === 'development') {
+          if (process.env.NODE_ENV === "development") {
             console.error("[Stockfish] Worker not initialized");
           }
           reject(new Error("Stockfish worker not initialized"));
@@ -197,7 +244,7 @@ export function useStockfish(): UseStockfishReturn {
         }
 
         if (!isReady) {
-          if (process.env.NODE_ENV === 'development') {
+          if (process.env.NODE_ENV === "development") {
             console.warn("[Stockfish] Engine not ready yet, rejecting request");
           }
           reject(new Error("Stockfish not ready"));
@@ -218,8 +265,12 @@ export function useStockfish(): UseStockfishReturn {
 
         // Set timeout to prevent hanging
         timeoutRef.current = setTimeout(() => {
-          if (process.env.NODE_ENV === 'development') {
-            console.error("[Stockfish] Timeout - no response in", STOCKFISH_TIMEOUT_MS, "ms");
+          if (process.env.NODE_ENV === "development") {
+            console.error(
+              "[Stockfish] Timeout - no response in",
+              STOCKFISH_TIMEOUT_MS,
+              "ms",
+            );
           }
           if (rejectRef.current) {
             rejectRef.current(new Error("Stockfish timeout"));
@@ -233,8 +284,10 @@ export function useStockfish(): UseStockfishReturn {
         }, STOCKFISH_TIMEOUT_MS);
 
         const worker = workerRef.current;
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[Stockfish] Searching: depth=${depth}, skillLevel=${skillLevel}, searchTimeMs=${searchTimeMs}`);
+        if (process.env.NODE_ENV === "development") {
+          console.log(
+            `[Stockfish] Searching: depth=${depth}, skillLevel=${skillLevel}, searchTimeMs=${searchTimeMs}`,
+          );
           console.log(`[Stockfish] FEN: ${fen}`);
         }
 
@@ -253,11 +306,11 @@ export function useStockfish(): UseStockfishReturn {
         worker.postMessage(goCmd);
       });
     },
-    [isReady]
+    [isReady],
   );
 
   const stopSearch = useCallback(() => {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       console.log("[Stockfish] Stopping search");
     }
     if (timeoutRef.current) {
@@ -272,7 +325,12 @@ export function useStockfish(): UseStockfishReturn {
   }, []);
 
   const analyzePosition = useCallback(
-    (fen: string, depth: number, multiPvCount: number, onLine: (line: MultiPvLine) => void) => {
+    (
+      fen: string,
+      depth: number,
+      multiPvCount: number,
+      onLine: (line: MultiPvLine) => void,
+    ) => {
       if (!workerRef.current || !isReady) return;
 
       // Stop any ongoing search
@@ -291,8 +349,24 @@ export function useStockfish(): UseStockfishReturn {
       worker.postMessage(`position fen ${fen}`);
       worker.postMessage(`go depth ${depth}`);
     },
-    [isReady]
+    [isReady],
   );
 
-  return { getBestMove, analyzePosition, isReady, isSearching, stopSearch, error };
+  const restartEngine = useCallback(() => {
+    retryCountRef.current = 0;
+    setError(null);
+    setIsReady(false);
+    setIsSearching(false);
+    setRestartKey((value) => value + 1);
+  }, []);
+
+  return {
+    getBestMove,
+    analyzePosition,
+    isReady,
+    isSearching,
+    stopSearch,
+    restartEngine,
+    error,
+  };
 }

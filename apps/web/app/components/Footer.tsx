@@ -1,25 +1,26 @@
 "use client";
 
-import { Mail, Twitter, Github, Youtube, ArrowUpRight } from 'lucide-react';
-import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import { Mail, Twitter, ArrowUpRight } from "lucide-react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 const footerLinks = {
   product: [
-    { name: "Play", href: "/play" },
-    { name: "Legends", href: "/legends" },
-    { name: "Openings", href: "/openings" },
+    { name: "Try Free", href: "/try" },
+    { name: "Chess Legends", href: "/learn/legends" },
+    { name: "Opening Guide", href: "/learn/openings" },
     { name: "Pricing", href: "/pricing" },
   ],
   company: [
     { name: "About Us", href: "/about" },
     { name: "Blog", href: "/blog" },
-    { name: "Careers", href: "/careers", badge: "Hiring" },
+    { name: "Careers", href: "/careers" },
     { name: "Contact", href: "/contact" },
   ],
   resources: [
     { name: "Help Center", href: "/help" },
     { name: "Community", href: "/community" },
+    { name: "Editorial Policy", href: "/blog/editorial-policy" },
     { name: "API Docs", href: "/docs/api" },
   ],
   legal: [
@@ -30,10 +31,16 @@ const footerLinks = {
 };
 
 const socialLinks = [
-  { icon: Twitter, href: "#", label: "Twitter" },
-  { icon: Github, href: "#", label: "GitHub" },
-  { icon: Youtube, href: "#", label: "YouTube" },
-  { icon: Mail, href: "#", label: "Email" },
+  {
+    icon: Twitter,
+    href: "https://x.com/anaestheticdev",
+    label: "Rohit Pandit on X",
+  },
+  {
+    icon: Mail,
+    href: "mailto:hello@playchess.tech",
+    label: "Email ReplayChess",
+  },
 ];
 
 export function Footer() {
@@ -47,14 +54,13 @@ export function Footer() {
         className="absolute inset-0 opacity-[0.015]"
         style={{
           backgroundImage: `linear-gradient(90deg, var(--cb-grid-line) 1px, transparent 1px), linear-gradient(var(--cb-grid-line) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px',
+          backgroundSize: "60px 60px",
         }}
       />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-10 sm:py-16 lg:py-20">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8">
-
           {/* Brand Section */}
           <div className="lg:col-span-4 space-y-6">
             <Link href="/" className="flex items-center gap-3 group">
@@ -85,57 +91,26 @@ export function Footer() {
               and master the game with our immersive battle experience.
             </p>
 
-            {/* Newsletter */}
-            <div className="pt-2">
-              <p
-                style={{ fontFamily: "'Geist', sans-serif" }}
-                className="text-xs text-cb-text-secondary uppercase tracking-widest mb-3"
-              >
-                Stay Updated
-              </p>
-              <form className="flex group">
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  className={cn(
-                    "flex-1 bg-cb-hover border border-cb-border",
-                    "px-4 py-3 text-sm text-cb-text",
-                    "placeholder:text-cb-text-faint",
-                    "focus:outline-none focus:border-cb-border-strong focus:bg-cb-hover",
-                    "transition-all duration-300"
-                  )}
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                />
-                <button
-                  type="submit"
-                  className={cn(
-                    "group/btn relative overflow-hidden",
-                    "px-6 py-3 bg-cb-accent text-cb-accent-fg",
-                    "text-sm font-medium",
-                    "transition-all duration-300"
-                  )}
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                >
-                  <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300" />
-                  <span className="relative group-hover/btn:text-cb-text transition-colors duration-300">
-                    Subscribe
-                  </span>
-                </button>
-              </form>
-            </div>
-
             {/* Social Links */}
             <div className="flex items-center gap-2 pt-4">
               {socialLinks.map((social) => (
                 <a
                   key={social.label}
                   href={social.href}
+                  rel={
+                    social.href.startsWith("https://")
+                      ? "me noopener noreferrer"
+                      : undefined
+                  }
+                  target={
+                    social.href.startsWith("https://") ? "_blank" : undefined
+                  }
                   aria-label={social.label}
                   className={cn(
                     "w-10 h-10 border border-cb-border",
                     "flex items-center justify-center",
                     "hover:border-cb-border-strong hover:bg-cb-accent hover:text-cb-accent-fg",
-                    "text-cb-text-muted transition-all duration-300"
+                    "text-cb-text-muted transition-all duration-300",
                   )}
                 >
                   <social.icon className="w-4 h-4" strokeWidth={1.5} />
@@ -187,12 +162,6 @@ export function Footer() {
                       className="group inline-flex items-center gap-2 text-sm text-cb-text-muted hover:text-cb-text transition-colors"
                     >
                       {item.name}
-                      {item.badge && (
-                        <span className="relative inline-flex items-center gap-1.5 text-[9px] px-2 py-0.5 border border-cb-border-strong text-cb-text-secondary font-medium uppercase tracking-wider group-hover:border-cb-border-strong group-hover:text-cb-text-secondary transition-all">
-                          <span className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
-                          {item.badge}
-                        </span>
-                      )}
                     </Link>
                   </li>
                 ))}
@@ -262,7 +231,7 @@ export function Footer() {
                 style={{ fontFamily: "'Geist', sans-serif" }}
                 className="text-xs text-cb-text-faint"
               >
-                Made with precision
+                Built in public
               </span>
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
@@ -270,7 +239,7 @@ export function Footer() {
                   style={{ fontFamily: "'Geist', sans-serif" }}
                   className="text-xs text-cb-text-muted"
                 >
-                  All systems operational
+                  ReplayChess is evolving
                 </span>
               </div>
             </div>

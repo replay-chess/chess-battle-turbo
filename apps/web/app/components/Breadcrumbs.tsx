@@ -7,8 +7,26 @@ import { motion } from "motion/react";
 import { cn } from "../../lib/utils";
 import { safeJsonLd } from "../../lib/seo";
 import {
-  Home, Gamepad2, Clock, Swords, Users, Shield, BookOpen, Crown, Grid3X3,
-  Trophy, BarChart3, User, HelpCircle, Mail, Heart, FileText, Cookie, Code, Info, Plus,
+  Home,
+  Gamepad2,
+  Clock,
+  Swords,
+  Users,
+  Shield,
+  BookOpen,
+  Crown,
+  Grid3X3,
+  Trophy,
+  BarChart3,
+  User,
+  HelpCircle,
+  Mail,
+  Heart,
+  FileText,
+  Cookie,
+  Code,
+  Info,
+  Plus,
 } from "lucide-react";
 
 interface BreadcrumbItem {
@@ -18,7 +36,14 @@ interface BreadcrumbItem {
 }
 
 // Routes where breadcrumbs should be hidden
-const hiddenRoutes = ["/", "/sign-in", "/onboarding", "/about", "/careers", "/pricing"];
+const hiddenRoutes = [
+  "/",
+  "/sign-in",
+  "/onboarding",
+  "/about",
+  "/careers",
+  "/pricing",
+];
 
 // Icons for breadcrumb items
 const icons = {
@@ -46,7 +71,10 @@ const icons = {
   info: <Info className="w-3 h-3" />,
 };
 
-function getBreadcrumbs(pathname: string): BreadcrumbItem[] {
+function getBreadcrumbs(
+  pathname: string,
+  currentLabel?: string,
+): BreadcrumbItem[] {
   const breadcrumbs: BreadcrumbItem[] = [
     { label: "Home", href: "/", icon: icons.home },
   ];
@@ -65,7 +93,11 @@ function getBreadcrumbs(pathname: string): BreadcrumbItem[] {
   // Analysis
   if (pathname.startsWith("/analysis/")) {
     breadcrumbs.push({ label: "Play", href: "/play", icon: icons.play });
-    breadcrumbs.push({ label: "Analysis", href: pathname, icon: icons.analysis });
+    breadcrumbs.push({
+      label: "Analysis",
+      href: pathname,
+      icon: icons.analysis,
+    });
   }
 
   // Join game
@@ -75,18 +107,34 @@ function getBreadcrumbs(pathname: string): BreadcrumbItem[] {
 
   // Tournaments (public)
   if (pathname === "/tournaments") {
-    breadcrumbs.push({ label: "Tournaments", href: "/tournaments", icon: icons.tournament });
+    breadcrumbs.push({
+      label: "Tournaments",
+      href: "/tournaments",
+      icon: icons.tournament,
+    });
   }
 
   // Tournament detail
   if (pathname.startsWith("/tournament/")) {
-    breadcrumbs.push({ label: "Tournaments", href: "/tournaments", icon: icons.tournament });
-    breadcrumbs.push({ label: "Tournament", href: pathname, icon: icons.tournament });
+    breadcrumbs.push({
+      label: "Tournaments",
+      href: "/tournaments",
+      icon: icons.tournament,
+    });
+    breadcrumbs.push({
+      label: "Tournament",
+      href: pathname,
+      icon: icons.tournament,
+    });
   }
 
   // Join tournament
   if (pathname.startsWith("/join-tournament/")) {
-    breadcrumbs.push({ label: "Tournaments", href: "/tournaments", icon: icons.tournament });
+    breadcrumbs.push({
+      label: "Tournaments",
+      href: "/tournaments",
+      icon: icons.tournament,
+    });
     breadcrumbs.push({ label: "Join", href: pathname, icon: icons.join });
   }
 
@@ -95,33 +143,76 @@ function getBreadcrumbs(pathname: string): BreadcrumbItem[] {
     breadcrumbs.push({ label: "Admin", href: "/admin", icon: icons.admin });
   } else if (pathname === "/admin/legends") {
     breadcrumbs.push({ label: "Admin", href: "/admin", icon: icons.admin });
-    breadcrumbs.push({ label: "Legends", href: "/admin/legends", icon: icons.legends });
+    breadcrumbs.push({
+      label: "Legends",
+      href: "/admin/legends",
+      icon: icons.legends,
+    });
   } else if (pathname === "/admin/chess-positions") {
     breadcrumbs.push({ label: "Admin", href: "/admin", icon: icons.admin });
-    breadcrumbs.push({ label: "Positions", href: "/admin/chess-positions", icon: icons.positions });
+    breadcrumbs.push({
+      label: "Positions",
+      href: "/admin/chess-positions",
+      icon: icons.positions,
+    });
   } else if (pathname === "/admin/tournaments") {
     breadcrumbs.push({ label: "Admin", href: "/admin", icon: icons.admin });
-    breadcrumbs.push({ label: "Tournaments", href: "/admin/tournaments", icon: icons.tournament });
+    breadcrumbs.push({
+      label: "Tournaments",
+      href: "/admin/tournaments",
+      icon: icons.tournament,
+    });
   } else if (pathname === "/admin/tournaments/create") {
     breadcrumbs.push({ label: "Admin", href: "/admin", icon: icons.admin });
-    breadcrumbs.push({ label: "Tournaments", href: "/admin/tournaments", icon: icons.tournament });
-    breadcrumbs.push({ label: "Create", href: "/admin/tournaments/create", icon: icons.create });
+    breadcrumbs.push({
+      label: "Tournaments",
+      href: "/admin/tournaments",
+      icon: icons.tournament,
+    });
+    breadcrumbs.push({
+      label: "Create",
+      href: "/admin/tournaments/create",
+      icon: icons.create,
+    });
   }
 
   // Legends (public)
   if (pathname === "/legends") {
-    breadcrumbs.push({ label: "Legends", href: "/legends", icon: icons.legends });
-  } else if (pathname.startsWith("/legends/") && !pathname.startsWith("/legends/admin")) {
-    breadcrumbs.push({ label: "Legends", href: "/legends", icon: icons.legends });
+    breadcrumbs.push({
+      label: "Legends",
+      href: "/legends",
+      icon: icons.legends,
+    });
+  } else if (
+    pathname.startsWith("/legends/") &&
+    !pathname.startsWith("/legends/admin")
+  ) {
+    breadcrumbs.push({
+      label: "Legends",
+      href: "/legends",
+      icon: icons.legends,
+    });
     breadcrumbs.push({ label: "Legend", href: pathname, icon: icons.legends });
   }
 
   // Openings
   if (pathname === "/openings") {
-    breadcrumbs.push({ label: "Openings", href: "/openings", icon: icons.openings });
+    breadcrumbs.push({
+      label: "Openings",
+      href: "/openings",
+      icon: icons.openings,
+    });
   } else if (pathname.startsWith("/openings/")) {
-    breadcrumbs.push({ label: "Openings", href: "/openings", icon: icons.openings });
-    breadcrumbs.push({ label: "Opening", href: pathname, icon: icons.openings });
+    breadcrumbs.push({
+      label: "Openings",
+      href: "/openings",
+      icon: icons.openings,
+    });
+    breadcrumbs.push({
+      label: "Opening",
+      href: pathname,
+      icon: icons.openings,
+    });
   }
 
   // Blog
@@ -129,7 +220,33 @@ function getBreadcrumbs(pathname: string): BreadcrumbItem[] {
     breadcrumbs.push({ label: "Blog", href: "/blog", icon: icons.blog });
   } else if (pathname.startsWith("/blog/")) {
     breadcrumbs.push({ label: "Blog", href: "/blog", icon: icons.blog });
-    breadcrumbs.push({ label: "Article", href: pathname, icon: icons.blog });
+    if (pathname.startsWith("/blog/category/")) {
+      breadcrumbs.push({
+        label: currentLabel ?? "Category",
+        href: pathname,
+        icon: icons.blog,
+      });
+    } else {
+      breadcrumbs.push({
+        label: currentLabel ?? "Article",
+        href: pathname,
+        icon: icons.blog,
+      });
+    }
+  }
+
+  // Public learning guides
+  if (pathname.startsWith("/learn/")) {
+    breadcrumbs.push({
+      label: "Learn",
+      href: "/learn/openings",
+      icon: icons.blog,
+    });
+    breadcrumbs.push({
+      label: currentLabel ?? "Guide",
+      href: pathname,
+      icon: icons.blog,
+    });
   }
 
   // Profile
@@ -142,10 +259,18 @@ function getBreadcrumbs(pathname: string): BreadcrumbItem[] {
     breadcrumbs.push({ label: "Help", href: "/help", icon: icons.help });
   }
   if (pathname === "/contact") {
-    breadcrumbs.push({ label: "Contact", href: "/contact", icon: icons.contact });
+    breadcrumbs.push({
+      label: "Contact",
+      href: "/contact",
+      icon: icons.contact,
+    });
   }
   if (pathname === "/community") {
-    breadcrumbs.push({ label: "Community", href: "/community", icon: icons.community });
+    breadcrumbs.push({
+      label: "Community",
+      href: "/community",
+      icon: icons.community,
+    });
   }
 
   // Docs
@@ -159,24 +284,36 @@ function getBreadcrumbs(pathname: string): BreadcrumbItem[] {
     breadcrumbs.push({ label: "Terms", href: "/terms", icon: icons.terms });
   }
   if (pathname === "/privacy") {
-    breadcrumbs.push({ label: "Privacy", href: "/privacy", icon: icons.privacy });
+    breadcrumbs.push({
+      label: "Privacy",
+      href: "/privacy",
+      icon: icons.privacy,
+    });
   }
   if (pathname === "/cookies") {
-    breadcrumbs.push({ label: "Cookies", href: "/cookies", icon: icons.cookies });
+    breadcrumbs.push({
+      label: "Cookies",
+      href: "/cookies",
+      icon: icons.cookies,
+    });
   }
 
   return breadcrumbs;
 }
 
-export const Breadcrumbs = () => {
+export const Breadcrumbs = ({ currentLabel }: { currentLabel?: string }) => {
   const pathname = usePathname();
 
   // Hide breadcrumbs on specific routes
-  if (hiddenRoutes.some((route) => pathname === route || pathname.startsWith("/sign-in"))) {
+  if (
+    hiddenRoutes.some(
+      (route) => pathname === route || pathname.startsWith("/sign-in"),
+    )
+  ) {
     return null;
   }
 
-  const breadcrumbs = getBreadcrumbs(pathname);
+  const breadcrumbs = getBreadcrumbs(pathname, currentLabel);
 
   // Don't show if only home breadcrumb
   if (breadcrumbs.length <= 1) {
@@ -209,7 +346,7 @@ export const Breadcrumbs = () => {
           "hidden md:flex items-center",
           "px-4 sm:px-6 lg:px-8 py-2",
           "bg-cb-bg backdrop-blur-md",
-          "border-b border-cb-border"
+          "border-b border-cb-border",
         )}
         style={{
           WebkitBackdropFilter: "blur(12px)",
@@ -234,7 +371,7 @@ export const Breadcrumbs = () => {
                     className={cn(
                       "flex items-center gap-1.5 whitespace-nowrap flex-shrink-0",
                       "text-[10px] sm:text-[11px] uppercase tracking-[0.12em]",
-                      "text-cb-text"
+                      "text-cb-text",
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >
@@ -248,7 +385,7 @@ export const Breadcrumbs = () => {
                       "flex items-center gap-1.5 whitespace-nowrap flex-shrink-0",
                       "text-[10px] sm:text-[11px] uppercase tracking-[0.12em]",
                       "text-cb-text hover:text-cb-text",
-                      "transition-colors duration-200"
+                      "transition-colors duration-200",
                     )}
                     style={{ fontFamily: "'Geist', sans-serif" }}
                   >

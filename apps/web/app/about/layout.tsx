@@ -2,12 +2,16 @@ import { createMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = createMetadata({
-  title: "About",
+  title: "About the ReplayChess Learning Platform",
   description:
-    "Learn how ReplayChess makes chess history interactive with legendary positions, AI analysis, and multiplayer battles.",
+    "Meet the maker behind ReplayChess and learn why the platform turns famous chess positions into interactive lessons, calculation challenges, and playable history.",
   path: "/about",
 });
 
-export default function AboutLayout({ children }: { children: React.ReactNode }) {
+export default function AboutLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return children;
 }

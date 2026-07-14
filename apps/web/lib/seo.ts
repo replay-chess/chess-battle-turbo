@@ -15,6 +15,7 @@ interface CreateMetadataOptions {
   noIndex?: boolean;
   ogType?: "legend" | "opening" | "blog" | "profile";
   ogTitle?: string;
+  noFollow?: boolean;
 }
 
 export function createMetadata({
@@ -25,11 +26,13 @@ export function createMetadata({
   noIndex = false,
   ogType,
   ogTitle,
+  noFollow = true,
 }: CreateMetadataOptions): Metadata {
   const url = `${BASE_URL}${path}`;
 
-  const resolvedOgImage = ogImage
-    ?? (ogType && ogTitle
+  const resolvedOgImage =
+    ogImage ??
+    (ogType && ogTitle
       ? `/og?title=${encodeURIComponent(ogTitle)}&type=${encodeURIComponent(ogType)}`
       : "/og-image.jpg");
 
@@ -42,7 +45,14 @@ export function createMetadata({
       description,
       url,
       siteName: "ReplayChess",
-      images: [{ url: resolvedOgImage, width: 1200, height: 630, alt: title }],
+      images: [
+        {
+          url: resolvedOgImage,
+          width: 1200,
+          height: ogImage || ogType ? 630 : 800,
+          alt: title,
+        },
+      ],
       type: "website",
     },
     twitter: {
@@ -51,6 +61,6 @@ export function createMetadata({
       description,
       images: [resolvedOgImage],
     },
-    ...(noIndex && { robots: { index: false, follow: false } }),
+    ...(noIndex && { robots: { index: false, follow: !noFollow } }),
   };
 }
