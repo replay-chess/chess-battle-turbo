@@ -1,6 +1,6 @@
 # ReplayChess game-article handbook
 
-This is the complete operating guide for producing, reviewing, previewing, and publishing a ReplayChess chess-game article like the Anand–Carlsen article.
+This is the complete operating guide for producing, reviewing, previewing, and publishing a ReplayChess chess-game article like the Morphy–Anderssen article.
 
 It covers both repositories:
 
@@ -26,6 +26,7 @@ The normal workflow is automated. Do not manually calculate FENs, invent engine 
 13. Troubleshooting
 14. Important implementation files
 15. Daily operator checklist
+16. Session case study: Chess.com game 734
 
 ## 1. Architecture
 
@@ -39,6 +40,9 @@ Fetch verified metadata, moves, PGN, and starting FEN
         |
         v
 Native Stockfish analyzes every position at MultiPV 3
+        |
+        v
+Codex deep-analyzes the selected critical moments
         |
         v
 Codex writes structured article JSON using only verified data
@@ -170,15 +174,17 @@ The command may take several minutes. Depth-20 MultiPV analysis is intentionally
 
 ### Available options
 
-| Option             | Required | Default                          | Purpose                                          |
-| ------------------ | -------- | -------------------------------- | ------------------------------------------------ |
-| --url              | Yes      | None                             | Public Chess.com master-game URL                 |
-| --output           | No       | output/game-{id}                 | Analysis artifact directory                      |
-| --depth            | No       | 20                               | Stockfish depth, integer from 1 through 20       |
-| --model            | No       | gpt-5.5                          | Codex model used for article writing             |
-| --reasoning-effort | No       | high                             | Codex reasoning effort                           |
-| --website-repo     | No       | REPLAYCHESS_REPO or sibling repo | Website repository path                          |
-| --verbose          | No       | false                            | Show Stockfish progress and Codex process output |
+| Option                      | Required | Default                          | Purpose                                          |
+| --------------------------- | -------- | -------------------------------- | ------------------------------------------------ |
+| --url                       | Yes      | None                             | Public Chess.com master-game URL                 |
+| --output                    | No       | output/game-{id}                 | Analysis artifact directory                      |
+| --depth                     | No       | 20                               | Stockfish depth, integer from 1 through 20       |
+| --critical-variations       | No       | 5                                | Candidate lines for expanded critical searches   |
+| --model                     | No       | gpt-5.5                          | Codex model used for article writing             |
+| --reasoning-effort          | No       | high                             | Codex reasoning effort                           |
+| --analysis-reasoning-effort | No       | xhigh                            | Codex effort for critical-moment analysis        |
+| --website-repo              | No       | REPLAYCHESS_REPO or sibling repo | Website repository path                          |
+| --verbose                   | No       | false                            | Show Stockfish progress and Codex process output |
 
 Example with explicit paths and verbose output:
 
@@ -186,8 +192,10 @@ Example with explicit paths and verbose output:
 pnpm article:game -- \
   --url https://www.chess.com/games/view/17139651 \
   --depth 20 \
+  --critical-variations 5 \
   --model gpt-5.5 \
   --reasoning-effort high \
+  --analysis-reasoning-effort xhigh \
   --website-repo /Users/rohitpandit/WebstormProjects/chess-battle-turbo \
   --output output/game-17139651 \
   --verbose
@@ -201,15 +209,17 @@ pnpm article:game -- \
 4. Runs Stockfish on every pre-move position with the top three variations.
 5. Runs a forced search for a played move when that move is outside the initial MultiPV results.
 6. Computes centipawn loss, played-move rank, classification, evaluation swings, and critical moments.
-7. Builds a verified catalog of actual-game and engine move sequences.
-8. Gives Codex the complete verified analysis and strict editorial instructions.
-9. Validates Codex's structured JSON output.
-10. Replaces required critical-position markers with InteractiveAnalysisBoard.
-11. Replaces verified move markers with MoveSequencePreview.
-12. Generates the editorial hero image using Nano Banana.
-13. Resizes the hero to 1600 by 900 and writes an optimized WebP at quality 88.
-14. Writes staging artifacts under chess-analysis/output.
-15. Writes the final draft MDX and hero image directly into the website repository.
+7. Gives the selected critical positions to a dedicated Codex analysis pass.
+8. Writes the critical-moment explanations to deep-analysis.json.
+9. Builds a verified catalog of actual-game and engine move sequences.
+10. Gives the article writer the verified engine analysis, deep analysis, and strict editorial instructions.
+11. Validates Codex's structured JSON output.
+12. Replaces required critical-position markers with InteractiveAnalysisBoard.
+13. Replaces verified move markers with MoveSequencePreview.
+14. Generates the editorial hero image using Nano Banana.
+15. Resizes the hero to 1600 by 900 and writes an optimized WebP at quality 88.
+16. Writes staging artifacts under chess-analysis/output.
+17. Writes the final draft MDX and hero image directly into the website repository.
 
 The publisher refuses to overwrite an existing article or hero. When the proposed slug already exists, it first tries a slug with the game ID appended. It fails rather than overwriting when both names already exist.
 
@@ -228,6 +238,7 @@ Expected artifacts:
 | game.json                 | Normalized Chess.com metadata, source URL, moves, FENs, and PGN |
 | game.pgn                  | Reconstructed portable game notation                            |
 | analysis.json             | Complete Stockfish output and per-move scoring                  |
+| deep-analysis.json        | Dedicated Codex explanations of selected critical moments       |
 | article-content.json      | Validated structured article written by Codex                   |
 | article-metadata.json     | Model, source, slug, website paths, and generation metadata     |
 | website-draft/{slug}.mdx  | Staged website MDX                                              |
@@ -263,16 +274,17 @@ A strong generated article should contain:
 1. A useful opening hook that names the players and the game's central story.
 2. The opening and the plans each side adopted.
 3. The first meaningful divergence or decision.
-4. A compact “Evaluation swing scorecard.”
-5. Every move with centipawn loss of at least 30 in that scorecard.
-6. Chronological explanation of every scorecard move.
-7. For each swing:
+4. Chronological explanation of every move with centipawn loss of at least 30.
+5. For each swing:
    - what the played move allowed;
    - the concrete response or plan;
    - the tactical target or positional motif;
    - how the best line avoids the problem.
-8. The conclusion of the game and why the result followed.
-9. Practical lessons tied directly to this game.
+6. The conclusion of the game and why the result followed.
+7. Practical lessons tied directly to this game.
+8. A compact “Evaluation Swing Scorecard” as the final H2 section, covering every move with centipawn loss of at least 30.
+
+The scorecard table must be the final content in the article. Do not put a conclusion, CTA, source note, methodology note, or any other prose after it. The chronological body explains each swing first; the final scorecard is the reader's compact reference.
 
 Variations are evidence, not filler. Prefer one short line that proves the point over a long engine dump.
 
@@ -300,7 +312,7 @@ The website validates metadata at load time:
 | updatedAt     | Optional ISO date, never earlier than publishedAt   |
 | authorId      | Must exist in apps/web/lib/blog.ts                  |
 | hero alt      | At least 8 characters                               |
-| tags          | At most 8                                           |
+| tags          | 1 to 8; unique within the article ignoring case     |
 | category      | One of the registered categories                    |
 | draft         | true during review; false or omitted when published |
 
@@ -471,7 +483,7 @@ Draft preview is intentionally available only in development when BLOG_PREVIEW_D
 
 ### Editorial review
 
-Compare the article with game.json and analysis.json.
+Compare the article with game.json, analysis.json, and deep-analysis.json.
 
 Check:
 
@@ -479,6 +491,7 @@ Check:
 - result;
 - date, event, round, ratings, opening, and time control only when present;
 - every scorecard move with centipawn loss of at least 30;
+- the scorecard is the final H2 section and its table is the final article content;
 - every claimed best move against topMoves in analysis.json;
 - every description of the played move against playedMoveLine;
 - score direction from White's perspective;
@@ -503,11 +516,12 @@ For every large analysis board:
 1. Confirm the board begins before the cited mistake or alternative.
 2. Confirm White and Black moves share one numbered row.
 3. Confirm the active move highlight follows autoplay.
-4. Confirm all controls are in the bottom toolbar.
-5. Pause and wait for three Stockfish candidates.
-6. Play a legal move and wait for five opponent replies.
-7. Test reset, undo, flip, and play.
-8. Confirm legal-move dots remain visible on light and dark squares.
+4. Confirm every piece sprite is visible during autoplay.
+5. Confirm all controls are in the bottom toolbar.
+6. Pause and wait for three Stockfish candidates.
+7. Play a legal move and wait for five opponent replies.
+8. Test reset, undo, flip, and play.
+9. Confirm legal-move dots remain visible on light and dark squares.
 
 ### Layout review
 
@@ -530,11 +544,11 @@ Example:
 cd /Users/rohitpandit/WebstormProjects/chess-analysis
 
 pnpm article:annotate -- \
-  --analysis output/game-17139651/analysis.json \
-  --article output/game-17139651/article-content.json \
-  --output output/game-17139651/article-content.annotated.json \
-  --mdx-output output/game-17139651/website-draft/anand-carlsen-french-queen-raid-perpetual-check.annotated.mdx \
-  --slug anand-carlsen-french-queen-raid-perpetual-check \
+  --analysis output/game-734/analysis.json \
+  --article output/game-734/article-content.json \
+  --output output/game-734/article-content.annotated.json \
+  --mdx-output output/game-734/website-draft/morphy-anderssen-kings-gambit-rook-invasion.annotated.mdx \
+  --slug morphy-anderssen-kings-gambit-rook-invasion \
   --published-at 2026-07-14 \
   --verbose
 ```
@@ -874,22 +888,46 @@ Check:
 
 The authored autoplay does not require browser Stockfish. Stockfish loads when a reader pauses a large analysis board.
 
+### Board squares render but the pieces are invisible
+
+Treat this as an image-delivery problem before questioning the FEN. If occupied squares, coordinates, move highlights, and move rows are correct, the chess state has probably loaded and only the sprites have failed.
+
+Check one known sprite directly while the application is running:
+
+```bash
+curl -I http://localhost:3000/chess-icons/wp.png
+```
+
+Then check:
+
+- the PNG files under apps/web/public/chess-icons;
+- the final img src in the browser, not only the React src prop;
+- service-worker and browser caches;
+- the Next.js image-optimizer response when next/image is involved;
+- autoplay pieces, promotion choices, and hover-preview pieces separately.
+
+The game-734 review exposed this failure even though the route, static asset, typecheck, unit tests, and production build succeeded. The bundled sprites are tiny static assets, so the article components now use next/image with unoptimized enabled. That preserves sizing and layout behavior while serving the stable /chess-icons/{piece}.png URL directly instead of depending on the optimizer path.
+
+A 200 route check is not a visual test. Always open the draft in a real browser and inspect at least one large board and one hover board.
+
 ## 14. Important implementation files
 
 ### chess-analysis
 
-| File                                      | Responsibility                                                    |
-| ----------------------------------------- | ----------------------------------------------------------------- |
-| src/publish-game-article.ts               | article:game CLI and pipeline orchestration                       |
-| src/game/chess-com.ts                     | Chess.com URL validation, metadata extraction, move decoding, PGN |
-| src/analysis/full-game.ts                 | complete Stockfish analysis and move scoring                      |
-| src/stockfish/engine.ts                   | native UCI Stockfish process                                      |
-| src/agent/codex-website-article-writer.ts | article prompt, JSON schema, BOARD/PREVIEW validation             |
-| src/article/move-preview.ts               | verified move catalog, FEN/UCI/SAN materialization                |
-| src/article/website-publisher.ts          | MDX rendering, Nano Banana hero, transactional website write      |
-| src/agent/codex-move-preview-annotator.ts | mechanical annotation and retry logic                             |
-| src/annotate-website-article.ts           | article:annotate CLI                                              |
-| src/article/website-publisher.test.ts     | publisher and marker pipeline tests                               |
+| File                                       | Responsibility                                                    |
+| ------------------------------------------ | ----------------------------------------------------------------- |
+| src/publish-game-article.ts                | article:game CLI and pipeline orchestration                       |
+| src/game/chess-com.ts                      | Chess.com URL validation, metadata extraction, move decoding, PGN |
+| src/analysis/full-game.ts                  | complete Stockfish analysis and move scoring                      |
+| src/analysis/critical-moments.ts           | selection and reasons for the expensive deep-analysis path        |
+| src/stockfish/engine.ts                    | native UCI Stockfish process                                      |
+| src/agent/codex-critical-moment-analyst.ts | dedicated explanation of selected critical positions              |
+| src/agent/codex-website-article-writer.ts  | article prompt, JSON schema, BOARD/PREVIEW validation             |
+| src/article/move-preview.ts                | verified move catalog, FEN/UCI/SAN materialization                |
+| src/article/website-publisher.ts           | MDX rendering, Nano Banana hero, transactional website write      |
+| src/agent/codex-move-preview-annotator.ts  | mechanical annotation and retry logic                             |
+| src/annotate-website-article.ts            | article:annotate CLI                                              |
+| src/article/website-publisher.test.ts      | publisher and marker pipeline tests                               |
 
 ### chess-battle-turbo
 
@@ -919,7 +957,9 @@ The authored autoplay does not require browser Stockfish. Stockfish loads when a
 
 - [ ] Compare player names, colors, result, and metadata with game.json.
 - [ ] Review every 30+ centipawn-loss move.
+- [ ] Confirm the Evaluation Swing Scorecard is the final H2 section with no content after its table.
 - [ ] Verify important claims against analysis.json.
+- [ ] Use deep-analysis.json to review explanations, but keep analysis.json as the source for engine facts.
 - [ ] Check that no fact, quote, event, duration, or intention was invented.
 - [ ] Review the title, description, slug, tags, and hero alt.
 - [ ] Inspect the Nano Banana hero for text, logos, artifacts, and relevance.
@@ -927,6 +967,7 @@ The authored autoplay does not require browser Stockfish. Stockfish loads when a
 - [ ] Confirm one-move hover previews stop.
 - [ ] Confirm multi-move hover previews loop slowly.
 - [ ] Test every interactive board and bottom toolbar.
+- [ ] Confirm pieces are visible on large boards, hover boards, and promotion choices.
 - [ ] Pause a board and confirm top-three Stockfish candidates.
 - [ ] Explore a move and confirm top-five replies.
 - [ ] Test desktop, narrow viewport, keyboard, and touch behavior.
@@ -951,3 +992,125 @@ The authored autoplay does not require browser Stockfish. Stockfish loads when a
 - [ ] Verify canonical metadata and BlogPosting JSON-LD.
 - [ ] Verify sitemap and RSS.
 - [ ] Commit the MDX and matching WebP together.
+
+## 16. Session case study: Chess.com game 734
+
+This session produced the draft article “Morphy Turns Anderssen's Slow Flank Move Into a King Hunt” from [Chess.com game 734](https://www.chess.com/games/view/734). It is a useful reference because it exercised the complete cross-repository workflow and also exposed a visual failure that normal code checks did not catch.
+
+### Reproducible command
+
+The defaults used by this run can be made explicit as follows:
+
+```bash
+cd /Users/rohitpandit/WebstormProjects/chess-analysis
+
+pnpm article:game -- \
+  --url https://www.chess.com/games/view/734 \
+  --depth 20 \
+  --critical-variations 5 \
+  --model gpt-5.5 \
+  --reasoning-effort high \
+  --analysis-reasoning-effort xhigh \
+  --website-repo /Users/rohitpandit/WebstormProjects/chess-battle-turbo \
+  --output output/game-734 \
+  --verbose
+```
+
+The connection between the repositories is a filesystem handoff, not an API call:
+
+1. Run the command from chess-analysis.
+2. The --website-repo flag, REPLAYCHESS_REPO, or default sibling lookup resolves chess-battle-turbo.
+3. chess-analysis keeps the complete evidence bundle under output/game-734.
+4. The deterministic publisher stages the rendered MDX and hero under output/game-734/website-draft.
+5. Only after validation and successful image generation does it copy the draft MDX and WebP into chess-battle-turbo.
+6. chess-battle-turbo renders those files but does not recompute the native analysis.
+
+For this run, the live draft files are:
+
+```text
+apps/web/content/blog/morphy-anderssen-kings-gambit-rook-invasion.mdx
+apps/web/public/images/blog/morphy-anderssen-kings-gambit-rook-invasion.webp
+```
+
+Keep the staged artifacts and website files distinct in status reports. The former are the analysis evidence and recovery copies; the latter are the product changes that will be reviewed and committed.
+
+### Evidence produced in this run
+
+The source data identified Paul Morphy as White, Adolf Anderssen as Black, and the result as 1-0. Chess.com supplied “1858-??-??” rather than a complete date and an empty round, so the article correctly used the known year without inventing a month, day, or round.
+
+The measurable pipeline output was:
+
+| Evidence                                            | Game-734 result |
+| --------------------------------------------------- | --------------: |
+| Played plies                                        |              37 |
+| Positions analyzed, including the starting position |              38 |
+| Stockfish depth                                     |              20 |
+| Normal MultiPV candidates                           |               3 |
+| Same-root searches for played moves                 |               9 |
+| Critical positions expanded                         |               9 |
+| Candidates in each expanded search                  |               5 |
+| Critical plies selected                             |              20 |
+| InteractiveAnalysisBoard components in the MDX      |              20 |
+| MoveSequencePreview components in the MDX           |              26 |
+| Scorecard moves at or above 30 centipawns lost      |              10 |
+| Hero dimensions                                     | 1600 x 900 WebP |
+
+article-metadata.json records both reasoning passes: the critical-moment analyst used gpt-5.5 with xhigh reasoning, while the article writer used gpt-5.5 with high reasoning. Preserve this provenance when reporting how an article was produced.
+
+### What made the article detailed without sacrificing accuracy
+
+The strongest pattern was to separate four responsibilities:
+
+1. game.json establishes names, colors, result, source metadata, PGN, legal moves, and exact FENs;
+2. analysis.json establishes evaluations, candidate moves, played-move lines, rankings, centipawn loss, and criticality;
+3. deep-analysis.json explains why selected positions matter and helps the writer connect variations to human chess ideas;
+4. article-content.json and the final MDX organize that evidence into a readable narrative.
+
+Never reverse that order. Prose is not evidence for a move claim, and deep analysis does not replace the numeric engine record. When reviewing a sentence such as “Black missed the urgent defense,” locate the relevant ply in analysis.json, compare the playedMoveLine with topMoves, and then use deep-analysis.json to assess whether the explanation matches the concrete difference.
+
+The game-734 draft also demonstrated these useful editorial techniques:
+
+- Turn the engine record into a story with a precise through-line: here, slow flank moves versus urgent king safety and rook activity.
+- Explain every 30+ centipawn-loss move chronologically in the body, then collect those moves in the final scorecard.
+- Explain the idea before the line. A variation should prove a claim, not substitute for an explanation.
+- Describe human logic cautiously. Phrases such as “the move suggests,” “the human point is,” or “likely valued” distinguish interpretation from verified intent.
+- Call a move “only move” only when the analyzed candidates and played-move ranking support it.
+- Say that a move is outside the top three without calling it decisive when the measured loss is small.
+- Omit unknown historical details instead of filling narrative gaps from memory.
+- Use large interactive boards for required critical positions and compact previews for concrete move text. Do not hand-author their FEN or UCI props.
+
+The high component count in this particular article was evidence-driven: 20 critical plies required 20 large boards. Do not reduce that number merely for visual neatness, and do not add boards to another article just to imitate this one. Component density should follow the verified markers for that game.
+
+### Review sequence that worked
+
+Use this order before writing a final completion report:
+
+1. Inspect game.json, game.pgn, analysis.json, deep-analysis.json, article-content.json, and article-metadata.json.
+2. Confirm article-metadata.json points to the intended website repository and exact MDX/WebP paths.
+3. Compare the scorecard threshold, best-move claims, evaluations, and chronology with analysis.json; confirm the scorecard is the final section.
+4. Inspect the hero itself and confirm it is exactly 1600 x 900.
+5. Start the website with BLOG_PREVIEW_DRAFTS=true and require HTTP 200 for the draft route.
+6. Use a browser at desktop and narrow widths; exercise hover, keyboard, touch, autoplay, pause, Stockfish, reset, undo, flip, and legal moves.
+7. Visually confirm piece sprites. The game-734 screenshot caught invisible pieces that semantic and build checks could not detect.
+8. Stop the dev server before building because dev and build share apps/web/.next.
+9. Run website typecheck, unit tests, targeted lint, production build, and git diff --check.
+10. Inspect git status and report the exact modified and untracked files. Keep draft: true until editorial and interaction review are complete.
+
+If repository-wide lint fails because --max-warnings 0 encounters known warnings in unrelated or generated files, do not describe lint as passing. Run targeted lint on the changed blog files, report that result separately, and preserve the full-lint failure as existing repository debt.
+
+The local production build may require payment environment variables even though a blog draft does not exercise payments. When validating only the build, use transient, non-secret, process-scoped placeholders if the application's environment schema permits them; never write fake values to a committed environment file and never deploy them.
+
+### Final-report standard
+
+A good completion report for an article session should state:
+
+- the draft title, slug, and source game;
+- the analysis artifact directory;
+- the MDX and hero paths written into the website;
+- the engine depth and model/reasoning provenance;
+- the factual, editorial, interaction, image, and build checks performed;
+- any check that failed because of pre-existing repository issues;
+- whether the article is still a draft;
+- whether files are uncommitted, committed, or pushed.
+
+Do not say an article is “done” merely because generation finished. It is ready to publish only after the evidence review, browser interaction review, image review, and production validation all pass.

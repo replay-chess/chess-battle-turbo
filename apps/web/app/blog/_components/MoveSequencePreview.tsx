@@ -272,6 +272,7 @@ export function MoveSequencePreview({
                         alt=""
                         width={48}
                         height={48}
+                        unoptimized
                         draggable={false}
                         className="relative z-10 h-[88%] w-[88%] select-none object-contain drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]"
                       />

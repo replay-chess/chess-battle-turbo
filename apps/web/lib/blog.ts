@@ -11,6 +11,11 @@ import {
   type BlogPostMetadata,
   type BlogPostSummary,
 } from "@/lib/blog-types";
+import {
+  filterBlogPostsByTag,
+  normalizeBlogTag,
+  summarizeBlogTags,
+} from "@/lib/blog-tags";
 
 const CONTENT_DIRECTORY = path.join(process.cwd(), "content", "blog");
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -23,6 +28,31 @@ const imageSchema = z.object({
   height: z.number().int().positive(),
 });
 
+const tagsSchema = z
+  .array(
+    z
+      .string()
+      .trim()
+      .min(1)
+      .transform((tag) => tag.replace(/\s+/g, " ")),
+  )
+  .min(1)
+  .max(8)
+  .superRefine((tags, context) => {
+    const seen = new Set<string>();
+    for (const [index, tag] of tags.entries()) {
+      const normalized = normalizeBlogTag(tag);
+      if (seen.has(normalized)) {
+        context.addIssue({
+          code: "custom",
+          message: `Duplicate tag "${tag}". Tags are case-insensitive.`,
+          path: [index],
+        });
+      }
+      seen.add(normalized);
+    }
+  });
+
 const metadataSchema = z.object({
   title: z.string().trim().min(10).max(110),
   description: z.string().trim().min(50).max(180),
@@ -33,7 +63,7 @@ const metadataSchema = z.object({
   ),
   authorId: z.string().trim().min(1),
   heroImage: imageSchema,
-  tags: z.array(z.string().trim().min(1)).max(8).optional(),
+  tags: tagsSchema,
   featured: z.boolean().optional(),
   draft: z.boolean().optional(),
 });
@@ -191,15 +221,23 @@ export async function getPostsByAuthor(authorId: string) {
   return (await getBlogPosts()).filter((post) => post.authorId === authorId);
 }
 
+export async function getPostsByTag(tag: string) {
+  return filterBlogPostsByTag(await getBlogPosts(), tag);
+}
+
+export async function getBlogTags() {
+  return summarizeBlogTags(await getBlogPosts());
+}
+
 export async function getRelatedPosts(post: BlogPostSummary, limit = 3) {
-  const tags = new Set(post.tags ?? []);
+  const tags = new Set(post.tags.map(normalizeBlogTag));
   return (await getBlogPosts())
     .filter((candidate) => candidate.slug !== post.slug)
     .map((candidate) => ({
       post: candidate,
       score:
         (candidate.category === post.category ? 10 : 0) +
-        (candidate.tags ?? []).filter((tag) => tags.has(tag)).length,
+        candidate.tags.filter((tag) => tags.has(normalizeBlogTag(tag))).length,
     }))
     .filter(({ score }) => score > 0)
     .sort(

@@ -15,6 +15,7 @@ import {
   getRelatedPosts,
 } from "@/lib/blog";
 import { BASE_URL, safeJsonLd } from "@/lib/seo";
+import { getBlogTagHref, normalizeBlogTag } from "@/lib/blog-tags";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -117,7 +118,7 @@ export default async function BlogPostPage({ params }: Props) {
       logo: { "@type": "ImageObject", url: `${BASE_URL}/chess-logo-bnw.png` },
     },
     articleSection: BLOG_CATEGORIES[post.category].label,
-    keywords: post.tags?.join(", "),
+    keywords: post.tags.join(", "),
   };
 
   return (
@@ -182,6 +183,20 @@ export default async function BlogPostPage({ params }: Props) {
                 </p>
               </div>
             </div>
+            <nav
+              aria-label="Article tags"
+              className="mt-6 flex flex-wrap gap-2"
+            >
+              {post.tags.map((tag) => (
+                <Link
+                  key={normalizeBlogTag(tag)}
+                  href={getBlogTagHref(tag)}
+                  className="border border-cb-border px-2.5 py-1 font-sans text-[11px] text-cb-text-muted transition-colors hover:border-cb-border-strong hover:text-cb-text"
+                >
+                  {tag}
+                </Link>
+              ))}
+            </nav>
           </header>
 
           <div className="relative mx-auto aspect-[16/9] max-w-6xl overflow-hidden border-y border-cb-border sm:border">

@@ -2,13 +2,39 @@ import { Navbar } from "@/app/components/Navbar";
 import { Footer } from "@/app/components/Footer";
 import { BlogCard } from "@/app/blog/_components/BlogCard";
 import { CategoryNav } from "@/app/blog/_components/CategoryNav";
-import { getBlogPosts, getFeaturedBlogPost } from "@/lib/blog";
+import { TagFilter } from "@/app/blog/_components/TagFilter";
+import {
+  getBlogPosts,
+  getBlogTags,
+  getFeaturedBlogPost,
+  getPostsByTag,
+} from "@/lib/blog";
+import { normalizeBlogTag } from "@/lib/blog-tags";
 
-export default async function BlogPage() {
-  const [posts, featured] = await Promise.all([
+interface Props {
+  searchParams: Promise<{ tag?: string | string[] }>;
+}
+
+export default async function BlogPage({ searchParams }: Props) {
+  const rawTag = (await searchParams).tag;
+  const requestedTag = Array.isArray(rawTag) ? rawTag[0] : rawTag;
+  const normalizedRequestedTag = requestedTag
+    ? normalizeBlogTag(requestedTag)
+    : "";
+  const hasTagSelection = normalizedRequestedTag.length > 0;
+
+  const [allPosts, defaultFeatured, tags] = await Promise.all([
     getBlogPosts(),
     getFeaturedBlogPost(),
+    getBlogTags(),
   ]);
+  const activeTag = tags.find((tag) => tag.value === normalizedRequestedTag);
+  const posts = activeTag
+    ? await getPostsByTag(activeTag.value)
+    : hasTagSelection
+      ? []
+      : allPosts;
+  const featured = hasTagSelection ? null : defaultFeatured;
   const articles = featured
     ? posts.filter((post) => post.slug !== featured.slug)
     : posts;
@@ -45,8 +71,17 @@ export default async function BlogPage() {
           </div>
         </header>
 
-        <section className="px-6 pb-12" aria-label="Browse by category">
-          <CategoryNav />
+        <section className="px-6 pb-12" aria-label="Browse articles">
+          <div className="mx-auto max-w-7xl">
+            <CategoryNav />
+            <div className="mt-8 border-t border-cb-border pt-8">
+              <TagFilter
+                tags={tags}
+                activeTag={activeTag?.value}
+                hasSelection={hasTagSelection}
+              />
+            </div>
+          </div>
         </section>
 
         <div className="h-px w-full bg-gradient-to-r from-transparent via-cb-border to-transparent" />
@@ -79,8 +114,19 @@ export default async function BlogPage() {
                   id="latest-articles"
                   className="mt-2 font-serif text-3xl text-cb-text sm:text-4xl"
                 >
-                  Latest articles
+                  {activeTag
+                    ? `Articles tagged “${activeTag.label}”`
+                    : hasTagSelection
+                      ? "No matching tag"
+                      : "Latest articles"}
                 </h2>
+                {hasTagSelection && (
+                  <p className="mt-2 font-sans text-sm text-cb-text-muted">
+                    {activeTag
+                      ? `${articles.length} ${articles.length === 1 ? "article" : "articles"}`
+                      : `There is no published tag named “${requestedTag}”.`}
+                  </p>
+                )}
               </div>
               <a
                 href="/blog/rss.xml"
@@ -97,7 +143,9 @@ export default async function BlogPage() {
               </div>
             ) : (
               <p className="border border-cb-border p-8 font-sans text-sm text-cb-text-muted">
-                More field notes are being prepared.
+                {hasTagSelection
+                  ? "Choose another topic or show all articles."
+                  : "More field notes are being prepared."}
               </p>
             )}
           </div>

@@ -3,18 +3,8 @@ import assert from "node:assert/strict";
 const baseUrl =
   process.argv.slice(2).find((argument) => argument.startsWith("http")) ??
   "http://localhost:3000";
-const publishedSlugs = [
-  "anand-carlsen-french-queen-raid-perpetual-check",
-  "the-immortal-game-how-anderssen-changed-chess-forever",
-  "5-opening-principles-every-player-should-know",
-  "bobby-fischers-endgame-mastery",
-  "understanding-pawn-structures",
-];
-const draftSlugs = [
-  "replaychess-v2-4-new-analysis-engine",
-  "community-tournament-recap-winter-open-2026",
-  "new-feature-voice-guided-analysis",
-];
+const publishedSlugs = ["morphy-anderssen-kings-gambit-rook-invasion"];
+const draftSlugs: string[] = [];
 
 function match(html: string, expression: RegExp, message: string) {
   const result = html.match(expression)?.[1];
@@ -65,8 +55,6 @@ await checkIndexablePage("/learn/openings");
 await checkIndexablePage("/learn/legends");
 await checkIndexablePage("/blog/author/rohit-pandit");
 await checkIndexablePage("/blog/editorial-policy");
-await checkIndexablePage("/blog/category/strategy-improvement");
-await checkIndexablePage("/blog/category/famous-games-players");
 
 const home = await fetchPage("/");
 assert.equal(home.response.status, 200);
@@ -137,12 +125,19 @@ for (const slug of draftSlugs) {
   assert.equal(response.status, 404, `Draft ${slug} must return 404`);
 }
 
-const thinCategory = await fetchPage("/blog/category/openings");
-assert.equal(thinCategory.response.status, 200);
-assert.match(
-  thinCategory.body,
-  /<meta name="robots" content="noindex, follow"\/>/,
-);
+for (const category of [
+  "strategy-improvement",
+  "openings",
+  "famous-games-players",
+  "replaychess-news",
+]) {
+  const thinCategory = await fetchPage(`/blog/category/${category}`);
+  assert.equal(thinCategory.response.status, 200);
+  assert.match(
+    thinCategory.body,
+    /<meta name="robots" content="noindex, follow"\/>/,
+  );
+}
 
 const rss = await fetchPage("/blog/rss.xml");
 assert.equal(rss.response.status, 200);

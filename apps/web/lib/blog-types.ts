@@ -38,9 +38,15 @@ export interface BlogPostMetadata {
   category: BlogCategory;
   authorId: string;
   heroImage: BlogImage;
-  tags?: string[];
+  tags: string[];
   featured?: boolean;
   draft?: boolean;
+}
+
+export interface BlogTagSummary {
+  value: string;
+  label: string;
+  count: number;
 }
 
 export interface BlogPostSummary extends BlogPostMetadata {

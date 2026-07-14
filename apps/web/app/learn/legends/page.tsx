@@ -102,25 +102,24 @@ export default function LegendsGuidePage() {
                 appear.
               </p>
               <p>
-                The Immortal Game is a useful attacking model because the final
-                sacrifices did not appear from nowhere. The earlier moves
-                explain why the combinations became forcing. Fischer’s endings
-                provide the opposite rhythm: improve the position, reduce
-                counterplay, and only then convert the advantage.
+                Morphy’s game against Anderssen is a useful attacking model
+                because the final rook invasion did not appear from nowhere. The
+                earlier pawn hooks, development choices, and missed defensive
+                tempi explain why the king hunt became forcing.
               </p>
             </div>
             <div className="mt-7 grid gap-4 sm:grid-cols-2">
               <Link
-                href="/blog/the-immortal-game-how-anderssen-changed-chess-forever"
+                href="/blog/morphy-anderssen-kings-gambit-rook-invasion"
                 className="border border-cb-border p-5 font-serif text-xl transition-colors hover:border-cb-border-strong"
               >
-                What Anderssen’s attack still teaches
+                Study Morphy’s king hunt
               </Link>
               <Link
-                href="/blog/bobby-fischers-endgame-mastery"
+                href="/blog"
                 className="border border-cb-border p-5 font-serif text-xl transition-colors hover:border-cb-border-strong"
               >
-                Four Fischer endgame habits
+                Browse detailed analyses
               </Link>
             </div>
           </section>

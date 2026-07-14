@@ -103,14 +103,15 @@ export default function OpeningsGuidePage() {
               <p>
                 When studying a line, record the usual pawn breaks, the best and
                 worst pieces, and which exchange helps each side. Those notes
-                remain useful across many move orders. Our guide to{" "}
+                remain useful across many move orders. The{" "}
                 <Link
-                  href="/blog/understanding-pawn-structures"
+                  href="/blog/morphy-anderssen-kings-gambit-rook-invasion"
                   className="text-cb-text-secondary underline decoration-cb-border-strong underline-offset-4"
                 >
-                  reading pawn structures
+                  Morphy–Anderssen King&apos;s Gambit
                 </Link>{" "}
-                provides a repeatable five-step scan.
+                shows how a kingside pawn chain can become either an attacking
+                asset or a tactical target.
               </p>
             </div>
           </section>
@@ -143,10 +144,10 @@ export default function OpeningsGuidePage() {
             </div>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
-                href="/blog/5-opening-principles-every-player-should-know"
+                href="/blog/morphy-anderssen-kings-gambit-rook-invasion"
                 className="inline-flex items-center gap-2 border border-cb-border-strong px-5 py-3 font-sans text-xs uppercase tracking-[0.12em]"
               >
-                Read the opening principles <ArrowRight className="h-4 w-4" />
+                Study the King&apos;s Gambit <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href="/try"

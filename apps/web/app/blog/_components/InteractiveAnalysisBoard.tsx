@@ -624,6 +624,7 @@ export function InteractiveAnalysisBoard({
                       alt=""
                       width={96}
                       height={96}
+                      unoptimized
                       draggable={false}
                       className="pointer-events-none relative z-10 h-[86%] w-[86%] select-none object-contain drop-shadow-[0_3px_2px_rgba(0,0,0,0.22)]"
                     />
@@ -722,6 +723,7 @@ export function InteractiveAnalysisBoard({
                         alt=""
                         width={56}
                         height={56}
+                        unoptimized
                         className="h-12 w-12 object-contain"
                       />
                     </button>
