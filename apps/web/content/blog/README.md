@@ -286,6 +286,8 @@ A strong generated article should contain:
 
 The scorecard table must be the final content in the article. Do not put a conclusion, CTA, source note, methodology note, or any other prose after it. The chronological body explains each swing first; the final scorecard is the reader's compact reference.
 
+Use the same four columns for every game article: `Moment`, `Side`, `Loss`, and `What changed`. Each row represents one move whose verified centipawn loss is at least 30, uses a one-move hover preview in `Moment`, names `White` or `Black`, shows the integer loss followed by `cp`, and summarizes the concrete consequence in one sentence.
+
 Variations are evidence, not filler. Prefer one short line that proves the point over a long engine dump.
 
 ### Writing style

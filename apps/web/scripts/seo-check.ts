@@ -7,7 +7,7 @@ const publishedSlugs = [
   "morphy-anderssen-kings-gambit-rook-invasion",
   "kasparov-karpov-valencia-2009-nf6-sacrifice",
 ];
-const draftSlugs: string[] = [];
+const draftSlugs = ["kasparov-karpov-knight-sacrifice-valencia-2009"];
 
 function match(html: string, expression: RegExp, message: string) {
   const result = html.match(expression)?.[1];

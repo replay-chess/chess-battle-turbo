@@ -1,0 +1,393 @@
+export const metadata = {
+  title: "Kasparov's Knight Sacrifice Cracks Karpov's King",
+  description: "A Stockfish-guided ReplayChess analysis of Kasparov-Karpov, Valencia 2009, where a central bind became a decisive kingside attack.",
+  publishedAt: "2026-07-15",
+  category: "famous-games-players",
+  authorId: "rohit-pandit",
+  heroImage: {
+    src: "/images/blog/kasparov-karpov-knight-sacrifice-valencia-2009.webp",
+    alt: "White knight sacrifice opens the black king for a queen and rook attack",
+    width: 1600,
+    height: 900,
+  },
+  tags: ["queen's gambit","exchange structure","knight sacrifice","king attack","evaluation swing","rapid chess"],
+  featured: false,
+  draft: true,
+};
+
+Garry Kasparov played White, and Anatoly Karpov played Black, in the [Chess.com game record](https://www.chess.com/games/view/13038980) from the 2009 Rapid Match in Valencia. The result was 1-0, but the route there was not a straight tactical crush. It began as a quiet Queen's Gambit Declined Exchange structure, became a central pressure game, and only then exploded when Black moved the wrong defensive knight.
+
+## Opening Structure
+
+The early moves set up a familiar Exchange Queen's Gambit: White fixed the d-pawn structure, Black accepted the symmetrical center, and the long-term question became simple: could White build pressure before Black solved the c8 bishop and found counterplay?
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"rnbqk1nr/ppp1bppp/4p3/3P4/3P4/2N5/PP2PPPP/R1BQKBNR b KQkq - 0 4"}
+  moves={["e6d5","c1f4","g8f6","e2e3","e8g8","f1d3"]}
+  title={"The stronger continuation before 4...exd5"}
+/>
+
+<MoveSequencePreview fen={"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"} moves={["d2d4","d7d5","c2c4","e7e6","b1c3","f8e7","c4d5","e6d5"]}>1.d4 d5 2.c4 e6 3.Nc3 Be7 4.cxd5 exd5</MoveSequencePreview>
+
+Black's recapture was forced by Stockfish. Declining it with a central or developing alternative allowed White to take on e6 and build too much space. The correct recapture kept the structure compact and left Black with the standard problem of activating the light-squared bishop.
+
+White developed the bishop actively and put the queen on c2, aiming at h7 and supporting a later e-pawn break. Here Karpov chose a very human equalizing plan.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"rnbqk1nr/pp2bppp/2p5/3p4/3P1B2/2N5/PPQ1PPPP/R3KBNR b KQkq - 1 6"}
+  moves={["g8f6","e2e3","f6h5","f4e5","e8g8","f1e2"]}
+  title={"The stronger continuation before 6...Bd6"}
+/>
+
+<MoveSequencePreview fen={"rnbqk1nr/pp2bppp/2p5/3p4/3P1B2/2N5/PP2PPPP/R2QKBNR w KQkq - 0 6"} moves={["d1c2","e7d6"]}>6.Qc2 Bd6</MoveSequencePreview>
+
+The idea is direct: challenge the active bishop before it becomes entrenched, invite an exchange, and centralize the queen. Karpov likely wanted a clean structure where the queen eyes h2 and helps support later development. Stockfish preferred keeping the bishop tension and developing the kingside knight, with the key point that Black could gain time against White's bishop instead of voluntarily trading it.
+
+<MoveSequencePreview fen={"rnbqk1nr/pp2bppp/2p5/3p4/3P1B2/2N5/PPQ1PPPP/R3KBNR b KQkq - 1 6"} moves={["g8f6","e2e3","f6h5","f4e5","e8g8","f1e2","h5f6","g1f3"]}>6...Nf6 7.e3 Nh5 8.Be5 O-O 9.Be2 Nf6 10.Nf3</MoveSequencePreview>
+
+The trade itself was coherent, not a tactical mistake. The drawback was practical: once White accepted, his development became too easy. Black no longer had the tempo-gaining knight jump against the bishop, so White could move smoothly into a central setup.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"rnbqk1nr/pp3ppp/2pB4/3p4/3P4/2N5/PPQ1PPPP/R3KBNR b KQkq - 0 7"}
+  moves={["d8d6","e2e3","g8f6","f1d3","b8d7","g1f3"]}
+  title={"The stronger continuation before 7...Qxd6"}
+/>
+
+<MoveSequencePreview fen={"rnbqk1nr/pp3ppp/2pb4/3p4/3P1B2/2N5/PPQ1PPPP/R3KBNR w KQkq - 2 7"} moves={["f4d6","d8d6"]}>7.Bxd6 Qxd6</MoveSequencePreview>
+
+This queen recapture was the only move. Other recaptures or delays left Black tactically exposed, so the queen had to come to d6 and hold the center. The price was that the queen would later need to step away from rook pressure.
+
+## Slow Coordination
+
+After White stabilized the center, Karpov had to choose how to develop. His next decision was flexible, but it did not solve Black's hardest piece problem.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"rnb1k1nr/pp3ppp/2pq4/3p4/3P4/2N1P3/PPQ2PPP/R3KBNR b KQkq - 0 8"}
+  moves={["b8d7","f1d3","g8f6","g1f3","e8g8","e1g1"]}
+  title={"The stronger continuation before 8...Ne7"}
+/>
+
+<MoveSequencePreview fen={"rnb1k1nr/pp3ppp/2pq4/3p4/3P4/2N5/PPQ1PPPP/R3KBNR w KQkq - 0 8"} moves={["e2e3","g8e7"]}>8.e3 Ne7</MoveSequencePreview>
+
+The move suggests a restrained plan: keep the f-pawn flexible, avoid committing the knight to f6, and perhaps reroute toward g6 or f5. The more exact approach was to develop the queenside knight first, keeping a compact setup while preserving smoother coordination.
+
+<MoveSequencePreview fen={"rnb1k1nr/pp3ppp/2pq4/3p4/3P4/2N1P3/PPQ2PPP/R3KBNR b KQkq - 0 8"} moves={["b8d7","f1d3","g8f6","g1f3","e8g8","e1g1","g7g6","f1e1"]}>8...Nd7 9.Bd3 Ngf6 10.Nf3 O-O 11.O-O g6 12.Rfe1</MoveSequencePreview>
+
+The issue was not tactical. It was that Black still had the c8 bishop and queenside knight waiting for jobs. White answered naturally with bishop development and later knight development, so Black's flexibility did not create an inconvenience.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"rnb1k2r/pp2nppp/2pq4/3p4/3P4/2NBP3/PPQ2PPP/R3K1NR b KQkq - 2 9"}
+  moves={["b7b6","g1f3","c8a6","e1g1","a6d3","c2d3"]}
+  title={"The stronger continuation before 9...Nd7"}
+/>
+
+<MoveSequencePreview fen={"rnb1k2r/pp2nppp/2pq4/3p4/3P4/2N1P3/PPQ2PPP/R3KBNR w KQkq - 1 9"} moves={["f1d3","b8d7"]}>9.Bd3 Nd7</MoveSequencePreview>
+
+Karpov then developed the queenside knight, supporting central squares and preparing to castle. Again the move was understandable, but Stockfish preferred starting with the queenside bishop plan.
+
+<MoveSequencePreview fen={"rnb1k2r/pp2nppp/2pq4/3p4/3P4/2NBP3/PPQ2PPP/R3K1NR b KQkq - 2 9"} moves={["b7b6","g1f3","c8a6","e1g1","a6d3","c2d3","e8g8","e3e4"]}>9...b6 10.Nf3 Ba6 11.O-O Bxd3 12.Qxd3 O-O 13.e4</MoveSequencePreview>
+
+That line shows the point: by using the b-pawn and activating the bishop, Black addresses the piece that most needs air. The game move reinforced the center but left the bishop shut in, allowing White to place the other knight and castle without being challenged.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"r1b1k2r/pp1nnppp/2pq4/3p4/3P4/2NBP3/PPQ1NPPP/R3K2R b KQkq - 4 10"}
+  moves={["a7a6","a1c1","d7f6","f2f3","e8g8","h2h3"]}
+  title={"The stronger continuation before 10...h6"}
+/>
+
+<MoveSequencePreview fen={"r1b1k2r/pp1nnppp/2pq4/3p4/3P4/2NBP3/PPQ2PPP/R3K1NR w KQkq - 3 10"} moves={["g1e2","h7h6"]}>10.Nge2 h6</MoveSequencePreview>
+
+The kingside pawn move prevented a pin and gave the king luft. It is useful chess, but the position was beginning to demand counterplay rather than comfort. Stockfish wanted queenside preparation or direct central development, because White's rooks and e-pawn were about to become relevant.
+
+<MoveSequencePreview fen={"r1b1k2r/pp1nnppp/2pq4/3p4/3P4/2NBP3/PPQ1NPPP/R3K2R b KQkq - 4 10"} moves={["a7a6","a1c1","d7f6","f2f3","e8g8","h2h3","c6c5","d4c5"]}>10...a6 11.Rc1 Nf6 12.f3 O-O 13.h3 c5 14.dxc5</MoveSequencePreview>
+
+The lesson from this phase is already visible: useful prophylaxis is only as good as its timing. Black improved king safety, but White was allowed to complete the central setup.
+
+## White Chooses Restraint
+
+With both kings castled, White had several good ways to increase pressure. The most direct was to occupy the d-file at once.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"r1b2rk1/pp1nnpp1/2pq3p/3p4/3P4/2NBP3/PPQ1NPPP/R4RK1 w - - 2 12"}
+  moves={["a1d1","f8d8","h2h3","b7b6","f1e1","d7f8"]}
+  title={"The stronger continuation before 12.a3"}
+/>
+
+<MoveSequencePreview fen={"r1b1k2r/pp1nnpp1/2pq3p/3p4/3P4/2NBP3/PPQ1NPPP/R4RK1 b kq - 1 11"} moves={["e8g8","a2a3"]}>11...O-O 12.a3</MoveSequencePreview>
+
+Kasparov chose a queenside waiting move instead. The move suggests he wanted to restrain b4-related counterplay before committing the rooks. That is strategically sensible in many Carlsbad structures, but here the central file was more urgent.
+
+<MoveSequencePreview fen={"r1b2rk1/pp1nnpp1/2pq3p/3p4/3P4/2NBP3/PPQ1NPPP/R4RK1 w - - 2 12"} moves={["a1d1","f8d8","h2h3","b7b6","f1e1","d7f8","e2g3","c8e6"]}>12.Rad1 Rd8 13.h3 b6 14.Rfe1 Nf8 15.Ng3 Be6</MoveSequencePreview>
+
+Stockfish's preferred route shows the cleaner priority: put a rook opposite Black's central setup, add h3 if useful, then bring the other rook and knight into the pressure. The played move did not spoil anything, but it gave Black a chance to answer on the flank.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"r1b2rk1/pp1nnpp1/2pq3p/3p4/3P4/P1NBP3/1PQ1NPPP/R4RK1 b - - 0 12"}
+  moves={["b7b6","e3e4","d5e4","c3e4","d6c7","d3c4"]}
+  title={"The stronger continuation before 12...a5"}
+/>
+
+<MoveSequencePreview fen={"r1b2rk1/pp1nnpp1/2pq3p/3p4/3P4/2NBP3/PPQ1NPPP/R4RK1 w - - 2 12"} moves={["a2a3","a7a5"]}>12.a3 a5</MoveSequencePreview>
+
+Karpov took that chance. The idea is to restrain b4 and make White's a-pawn move look less ambitious. The move also gives Black future queenside space. But it still does not answer the central plan; Stockfish preferred developing the bishop with the b-pawn or contesting the d-file.
+
+<MoveSequencePreview fen={"r1b2rk1/pp1nnpp1/2pq3p/3p4/3P4/P1NBP3/1PQ1NPPP/R4RK1 b - - 0 12"} moves={["b7b6","e3e4","d5e4","c3e4","d6c7","d3c4","f8d8","c2b3"]}>12...b6 13.e4 dxe4 14.Nxe4 Qc7 15.Bc4 Rd8 16.Qb3</MoveSequencePreview>
+
+That best line shows Black meeting the central break with pieces ready. In the game, White still got the break he wanted.
+
+## Center Opens
+
+Kasparov now placed the rook centrally and opened the position. Black accepted the central tension, but the queen soon had to retreat.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"r1b2rk1/3nnpp1/1ppq3p/p7/3PN3/P2B4/1PQ1NPPP/3R1RK1 b - - 0 15"}
+  moves={["d6c7","e2g3","a8a7","g3h5","f8d8","f2f4"]}
+  title={"The stronger continuation before 15...Qb8"}
+/>
+
+<MoveSequencePreview fen={"r1b2rk1/1p1nnpp1/2pq3p/p2p4/3P4/P1NBP3/1PQ1NPPP/R4RK1 w - - 0 13"} moves={["a1d1","b7b6","e3e4","d5e4","c3e4","d6b8"]}>13.Rad1 b6 14.e4 dxe4 15.Nxe4 Qb8</MoveSequencePreview>
+
+Karpov's queen retreat cleared d6 and d8 and aimed for a regroup with rook activity. The move suggests a desire for stability: step out of immediate central contact, then organize the rooks. The more active queen retreats kept pressure on the center or kingside.
+
+<MoveSequencePreview fen={"r1b2rk1/3nnpp1/1ppq3p/p7/3PN3/P2B4/1PQ1NPPP/3R1RK1 b - - 0 15"} moves={["d6c7","e2g3","a8a7","g3h5","f8d8","f2f4","f7f5","c2b3"]}>15...Qc7 16.N2g3 Ra7 17.Nh5 Rd8 18.f4 f5 19.Qb3+</MoveSequencePreview>
+
+The difference is subtle but important. On c7, the queen remains connected to central and queenside targets. On b8, it is safer but less active. White's best plan was to increase pressure immediately.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"rqb2rk1/3nnpp1/1pp4p/p7/3PN3/P2B4/1PQ1NPPP/3R1RK1 w - - 1 16"}
+  moves={["f1e1","f8d8","e2g3","a8a7","g3h5","d7f8"]}
+  title={"The stronger continuation before 16.N2c3"}
+/>
+
+<MoveSequencePreview fen={"rqb2rk1/3nnpp1/1pp4p/p7/3PN3/P2B4/1PQ1NPPP/3R1RK1 w - - 1 16"} moves={["e2c3"]}>16.N2c3</MoveSequencePreview>
+
+This was White's first real evaluation swing. Kasparov developed the knight and reinforced central squares, which looks natural: the knight joins the center and d5 becomes more credible. But the move cost 53 centipawns because the initiative was time-sensitive. Black had just put the queen on a passive square, and White's best move was to bring the last rook into the center before Black reorganized.
+
+<MoveSequencePreview fen={"rqb2rk1/3nnpp1/1pp4p/p7/3PN3/P2B4/1PQ1NPPP/3R1RK1 w - - 1 16"} moves={["f1e1","f8d8","e2g3","a8a7","g3h5","d7f8","h2h3","c8e6","c2c3","e7d5","c3c6","f8g6"]}>16.Rfe1 Rd8 17.N2g3 Ra7 18.Nh5 Nf8 19.h3 Be6 20.Qc3 Nd5 21.Qxc6 Ng6</MoveSequencePreview>
+
+That line keeps Black tied down: rooks first, knight improvement second, then pressure against c6 and d5. The game move allowed Black the concrete plan of contesting the d-file and meeting White's expansion with central knight activity.
+
+<MoveSequencePreview fen={"rqb2rk1/3nnpp1/1pp4p/p7/3PN3/P2B4/1PQ1NPPP/3R1RK1 w - - 1 16"} moves={["e2c3","f8d8","f2f4","e7d5","c2f2","d7f6","f4f5","f6g4","f2h4","b8h2","h4h2","g4h2"]}>16.N2c3 Rd8 17.f4 Nd5 18.Qf2 N7f6 19.f5 Ng4 20.Qh4 Qxh2+ 21.Qxh2 Nxh2</MoveSequencePreview>
+
+So the inaccuracy did not lose the advantage; it made it less concrete. The target White failed to press immediately was Black's passive queen-and-bishop coordination.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"rqb2rk1/3nnpp1/1pp4p/p7/3PN3/P1NB4/1PQ2PPP/3R1RK1 b - - 2 16"}
+  moves={["f8d8","f2f4","e7d5","c2e2","b6b5","c3d5"]}
+  title={"The stronger continuation before 16...Ba6"}
+/>
+
+<MoveSequencePreview fen={"rqb2rk1/3nnpp1/1pp4p/p7/3PN3/P2B4/1PQ1NPPP/3R1RK1 w - - 1 16"} moves={["e2c3","c8a6"]}>16.N2c3 Ba6</MoveSequencePreview>
+
+Karpov replied by activating the long-idle bishop. The idea is logical: exchange White's attacking bishop, then recapture with the rook and reduce White's attacking material. But this was also a 36-centipawn concession. Black solved a visible bishop problem while underestimating the central timing.
+
+<MoveSequencePreview fen={"rqb2rk1/3nnpp1/1pp4p/p7/3PN3/P1NB4/1PQ2PPP/3R1RK1 b - - 2 16"} moves={["f8d8","f2f4","e7d5","c2e2","b6b5","c3d5","c6d5","e4c5"]}>16...Rd8 17.f4 Nd5 18.Qe2 b5 19.Nxd5 cxd5 20.Nc5</MoveSequencePreview>
+
+The best line contests the d-file immediately and prepares central exchanges. In the game, the bishop trade pulled the rook away and clarified White's d-pawn break.
+
+<MoveSequencePreview fen={"rqb2rk1/3nnpp1/1pp4p/p7/3PN3/P1NB4/1PQ2PPP/3R1RK1 b - - 2 16"} moves={["c8a6","d3a6","a8a6","d4d5","e7d5","c3d5","c6d5","d1d5"]}>16...Ba6 17.Bxa6 Rxa6 18.d5 Nxd5 19.Nxd5 cxd5 20.Rxd5</MoveSequencePreview>
+
+White exchanged, Black had only one sane recapture, and the d-file became the story.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"rq3rk1/3nnpp1/Bpp4p/p7/3PN3/P1N5/1PQ2PPP/3R1RK1 b - - 0 17"}
+  moves={["a8a6","d4d5","c6d5","c3d5","e7d5","d1d5"]}
+  title={"The stronger continuation before 17...Rxa6"}
+/>
+
+<MoveSequencePreview fen={"rq3rk1/3nnpp1/bpp4p/p7/3PN3/P1NB4/1PQ2PPP/3R1RK1 w - - 3 17"} moves={["d3a6","a8a6"]}>17.Bxa6 Rxa6</MoveSequencePreview>
+
+Black had to recapture with the rook; alternatives let White invade or win too much. After that, White broke in the center and forced a series of exchanges.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"1q3rk1/3n1pp1/rpp4p/p2N4/4N3/P7/1PQ2PPP/3R1RK1 b - - 0 19"}
+  moves={["c6d5","d1d5","a6a7","c2d2","d7e5","e4g3"]}
+  title={"The stronger continuation before 19...cxd5"}
+/>
+
+<MoveSequencePreview fen={"1q3rk1/3nnpp1/rpp4p/p7/3PN3/P1N5/1PQ2PPP/3R1RK1 w - - 0 18"} moves={["d4d5","e7d5","c3d5","c6d5","d1d5"]}>18.d5 Nxd5 19.Nxd5 cxd5 20.Rxd5</MoveSequencePreview>
+
+Black's pawn recapture was again forced. If Black tried activity instead, White could take on c6 or d7 with heavy-piece pressure. The game continuation left White with a rook on d5, a centralized knight, and a queen ready to turn toward the kingside.
+
+## The Decisive Defensive Error
+
+Now the position was tense but still defensible. Black's king had weaknesses, but Stockfish still held the advantage to about half a pawn before the decisive mistake. The central question was not whether Black could find activity; it was which defensive piece could not be moved.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"1q3rk1/r2n1pp1/1p5p/p2R4/4N3/P7/1P1Q1PPP/5RK1 b - - 2 21"}
+  moves={["d7e5","h2h3","e5g6","d5d4","a7e7","f2f4"]}
+  title={"The stronger continuation before 21...Nc5"}
+/>
+
+<MoveSequencePreview fen={"1q3rk1/r2n1pp1/1p5p/p2R4/4N3/P7/1PQ2PPP/5RK1 w - - 1 21"} moves={["c2d2","d7c5"]}>21.Qd2 Nc5</MoveSequencePreview>
+
+Karpov's knight move looks active. It challenges central squares and seems to gain time against White's dominant rook setup. The move suggests he wanted counterplay after a long passive phase. But it allowed the forcing sacrifice that defines the game.
+
+<MoveSequencePreview fen={"1q3rk1/r2n1pp1/1p5p/p2R4/4N3/P7/1P1Q1PPP/5RK1 b - - 2 21"} moves={["d7c5","e4f6","g7f6","d2h6","f6f5","h6g5","g8h8","g5f6","h8g8","d5f5"]}>21...Nc5 22.Nf6+ gxf6 23.Qxh6 f5 24.Qg5+ Kh8 25.Qf6+ Kg8 26.Rxf5</MoveSequencePreview>
+
+White's target was h6 and the opened f-file. Once Black's g-pawn was forced to recapture, the queen could take the h-pawn and the rook could later enter on f5. The best defense was to centralize the knight differently, keeping control over the key entry squares and avoiding the forced pawn-capture structure.
+
+<MoveSequencePreview fen={"1q3rk1/r2n1pp1/1p5p/p2R4/4N3/P7/1P1Q1PPP/5RK1 b - - 2 21"} moves={["d7e5","h2h3","e5g6","d5d4","a7e7","f2f4","f7f5","e4g3"]}>21...Ne5 22.h3 Ng6 23.Rd4 Re7 24.f4 f5 25.Ng3</MoveSequencePreview>
+
+That is the practical problem in one sentence: when defending, do not move the piece that is preventing the opponent's forcing sacrifice. The move in the game allowed a 448-centipawn swing, from a difficult but playable defense into a winning attack for White.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"1q3rk1/r4pp1/1p5p/p1nR4/4N3/P7/1P1Q1PPP/5RK1 w - - 3 22"}
+  moves={["e4f6","g7f6","d2h6","f6f5","h6g5","g8h8"]}
+  title={"The stronger continuation before 22.Nf6+"}
+/>
+
+<MoveSequencePreview fen={"1q3rk1/r2n1pp1/1p5p/p2R4/4N3/P7/1P1Q1PPP/5RK1 b - - 2 21"} moves={["d7c5","e4f6"]}>21...Nc5 22.Nf6+</MoveSequencePreview>
+
+The sacrifice was the only move to keep the winning attack. Other captures let Black consolidate. This one removes the defender, opens lines, and forces Black's reply.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"1q3rk1/r4pp1/1p3N1p/p1nR4/8/P7/1P1Q1PPP/5RK1 b - - 4 22"}
+  moves={["g7f6","d2h6","f6f5","h6g5","g8h8","g5f6"]}
+  title={"The stronger continuation before 22...gxf6"}
+/>
+
+<MoveSequencePreview fen={"1q3rk1/r4pp1/1p5p/p1nR4/4N3/P7/1P1Q1PPP/5RK1 w - - 3 22"} moves={["e4f6","g7f6"]}>22.Nf6+ gxf6</MoveSequencePreview>
+
+Black also had only one move. Declining the capture allowed a mating line, so the pawn had to take. But now the h-pawn was loose and the king's shelter was permanently broken.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"1q3rk1/r4p2/1p3p1p/p1nR4/8/P7/1P1Q1PPP/5RK1 w - - 0 23"}
+  moves={["d2h6","f6f5","h6g5","g8h8","g5f6","h8g8"]}
+  title={"The stronger continuation before 23.Qxh6"}
+/>
+
+<MoveSequencePreview fen={"1q3rk1/r4pp1/1p3N1p/p1nR4/8/P7/1P1Q1PPP/5RK1 b - - 4 22"} moves={["g7f6","d2h6"]}>22...gxf6 23.Qxh6</MoveSequencePreview>
+
+White's queen capture was again forced and precise. The queen lands on the h-file target, and the rook on d5 is ready to swing into the attack. Black tried to blunt the queen with the f-pawn, but White had a checking route.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"1q3rk1/r4p2/1p5Q/p1nR1p2/8/P7/1P3PPP/5RK1 w - - 0 24"}
+  moves={["h6g5","g8h8","g5f6","h8g8","d5f5","c5e4"]}
+  title={"The stronger continuation before 24.Qg5+"}
+/>
+
+<MoveSequencePreview fen={"1q3rk1/r4p2/1p3p1p/p1nR4/8/P7/1P1Q1PPP/5RK1 w - - 0 23"} moves={["d2h6","f6f5","h6g5"]}>23.Qxh6 f5 24.Qg5+</MoveSequencePreview>
+
+The queen check keeps the king boxed in. Capturing on f5 immediately would allow exchanges that drain the attack; the check first preserves the initiative.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"1q3rk1/r4p2/1p6/p1nR1pQ1/8/P7/1P3PPP/5RK1 b - - 1 24"}
+  moves={["g8h8","g5f6","h8g8","d5f5","c5e4","f6h4"]}
+  title={"The stronger continuation before 24...Kh8"}
+/>
+
+<MoveSequencePreview fen={"1q3rk1/r4p2/1p5Q/p1nR1p2/8/P7/1P3PPP/5RK1 w - - 0 24"} moves={["h6g5","g8h8"]}>24.Qg5+ Kh8</MoveSequencePreview>
+
+Black's king move was forced. The other king square led to mate, so the king had to step into the corner. White continued by repeating checks and then adding the rook.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"1q3r1k/r4p2/1p3Q2/p1nR1p2/8/P7/1P3PPP/5RK1 b - - 3 25"}
+  moves={["h8g8","d5f5","c5e4","f6h4","f7f6","h4e4"]}
+  title={"The stronger continuation before 25...Kg8"}
+/>
+
+<MoveSequencePreview fen={"1q3rk1/r4p2/1p6/p1nR1pQ1/8/P7/1P3PPP/5RK1 b - - 1 24"} moves={["g8h8","g5f6","h8g8"]}>24...Kh8 25.Qf6+ Kg8</MoveSequencePreview>
+
+Again, Black had only one king move. After that, White brought the rook into the attack and Black found the only defensive knight resource.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"1q3rk1/r4p2/1p3Q2/p1n2R2/8/P7/1P3PPP/5RK1 b - - 0 26"}
+  moves={["c5e4","f6h4","f7f6","h4e4","a7f7","f1e1"]}
+  title={"The stronger continuation before 26...Ne4"}
+/>
+
+<MoveSequencePreview fen={"1q3r1k/r4p2/1p3Q2/p1nR1p2/8/P7/1P3PPP/5RK1 b - - 3 25"} moves={["h8g8","d5f5","c5e4"]}>25...Kg8 26.Rxf5 Ne4</MoveSequencePreview>
+
+This knight move attacks the queen's coordination and keeps Black alive for the moment. Other queen adventures fail tactically or even allow mate. White still had to be accurate.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"1q3rk1/r4p2/1p3Q2/p4R2/4n3/P7/1P3PPP/5RK1 w - - 1 27"}
+  moves={["f6h4","f7f6","h4e4","b8e8","e4c4","g8h8"]}
+  title={"The stronger continuation before 27.Qh4"}
+/>
+
+<MoveSequencePreview fen={"1q3rk1/r4p2/1p3Q2/p1n2R2/8/P7/1P3PPP/5RK1 b - - 0 26"} moves={["c5e4","f6h4"]}>26...Ne4 27.Qh4</MoveSequencePreview>
+
+The queen retreat was the only move to keep the attack at full force. It preserves the queen-rook battery and threatens a rook lift. The alternatives allowed Black to coordinate and reduce the attack sharply.
+
+## Final Attack
+
+The final recorded phase shows how hard defense remains even after the decisive mistake. Black still had choices, but one more active-looking move made White's attack even easier.
+
+<InteractiveAnalysisBoard
+  whitePlayer={"Garry Kasparov"}
+  blackPlayer={"Anatoly Karpov"}
+  fen={"1q3rk1/r4p2/1p6/p4R2/4n2Q/P7/1P3PPP/5RK1 b - - 2 27"}
+  moves={["f7f6","h4e4","b8e8","e4c4","g8g7","h2h3"]}
+  title={"The stronger continuation before 27...Re8"}
+/>
+
+<MoveSequencePreview fen={"1q3rk1/r4p2/1p3Q2/p4R2/4n3/P7/1P3PPP/5RK1 w - - 1 27"} moves={["f6h4","f8e8"]}>27.Qh4 Re8</MoveSequencePreview>
+
+Karpov activated the rook to the e-file, likely trying to coordinate against the queen and knight while avoiding another weakening pawn move. The idea is understandable: active defense instead of waiting. But it did not interfere with White's immediate rook lift.
+
+<MoveSequencePreview fen={"1q3rk1/r4p2/1p6/p4R2/4n2Q/P7/1P3PPP/5RK1 b - - 2 27"} moves={["f8e8","f5h5","f7f5","h5h8","g8f7","h4h5","f7e7","h8h7","e7f6","h7h6","f6e7","h5f5"]}>27...Re8 28.Rh5 f5 29.Rh8+ Kf7 30.Qh5+ Ke7 31.Rh7+ Kf6 32.Rh6+ Ke7 33.Qxf5</MoveSequencePreview>
+
+The target was the h-file and the exposed king route. White could lift the rook, check along h8, and drag the king forward. Stockfish preferred forcing White's queen to define itself with the f-pawn, then using the queen and rook to build a defensive shell.
+
+<MoveSequencePreview fen={"1q3rk1/r4p2/1p6/p4R2/4n2Q/P7/1P3PPP/5RK1 b - - 2 27"} moves={["f7f6","h4e4","b8e8","e4c4","g8g7","h2h3","a7e7","f5f3"]}>27...f6 28.Qxe4 Qe8 29.Qc4+ Kg7 30.h3 Re7 31.Rf3</MoveSequencePreview>
+
+The game ended after White's rook lift and Black's final pawn move, with the recorded result 1-0.
+
+<MoveSequencePreview fen={"1q3rk1/r4p2/1p6/p4R2/4n2Q/P7/1P3PPP/5RK1 b - - 2 27"} moves={["f8e8","f5h5","f7f5"]}>27...Re8 28.Rh5 f5</MoveSequencePreview>
+
+The practical lessons are clear. In Exchange Queen's Gambit structures, do not leave the bad bishop problem unsolved for too long. When the opponent retreats a queen passively, add pressure before consolidating. And in a king defense, identify the piece that stops the sacrifice before moving it to an active square.
+
+## Evaluation Swing Scorecard
+
+| Moment | Side | Loss | What changed |
+|---|---:|---:|---|
+| <MoveSequencePreview fen={"rqb2rk1/3nnpp1/1pp4p/p7/3PN3/P2B4/1PQ1NPPP/3R1RK1 w - - 1 16"} moves={["e2c3"]}>16.N2c3</MoveSequencePreview> | White | 53 cp | White improved a knight before maximizing rook pressure, giving Black time to contest the central files and regroup. |
+| <MoveSequencePreview fen={"rqb2rk1/3nnpp1/1pp4p/p7/3PN3/P1NB4/1PQ2PPP/3R1RK1 b - - 2 16"} moves={["c8a6"]}>16...Ba6</MoveSequencePreview> | Black | 36 cp | Black exchanged the bad bishop, but pulled a rook off its natural file and made White's central break easier. |
+| <MoveSequencePreview fen={"1q3rk1/r2n1pp1/1p5p/p2R4/4N3/P7/1P1Q1PPP/5RK1 b - - 2 21"} moves={["d7c5"]}>21...Nc5</MoveSequencePreview> | Black | 448 cp | The knight abandoned its defensive post and allowed the forced sacrifice that opened h6 and f5 to White's queen and rook. |
+| <MoveSequencePreview fen={"1q3rk1/r4p2/1p6/p4R2/4n2Q/P7/1P3PPP/5RK1 b - - 2 27"} moves={["f8e8"]}>27...Re8</MoveSequencePreview> | Black | 55 cp | Black sought active defense without disrupting the queen-rook battery, so White's rook lift became forcing. |
