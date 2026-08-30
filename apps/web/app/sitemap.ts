@@ -2,9 +2,44 @@ import { MetadataRoute } from "next";
 import { BLOG_CATEGORIES } from "@/lib/blog-types";
 import { BLOG_AUTHORS, getBlogPosts } from "@/lib/blog";
 import { BASE_URL } from "@/lib/seo";
+import {
+  ECO_FAMILIES,
+  buildOpeningSlug,
+  getCanonicalOpenings,
+  getVisibleLegends,
+  slugifyName,
+} from "@/lib/learn-directory";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const blogPosts = await getBlogPosts();
+
+  // Public reference pages backed by the database. Fail-soft: a build
+  // environment without database access still produces a valid sitemap
+  // containing every static page.
+  const [openings, legends] = await Promise.all([
+    getCanonicalOpenings().catch(() => []),
+    getVisibleLegends().catch(() => []),
+  ]);
+
+  const ecoFamilyPages: MetadataRoute.Sitemap = ECO_FAMILIES.filter((family) =>
+    openings.some((opening) => opening.eco.charAt(0) === family.letter),
+  ).map((family) => ({
+    url: `${BASE_URL}/learn/openings/eco/${family.letter.toLowerCase()}`,
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+
+  const openingPages: MetadataRoute.Sitemap = openings.map((opening) => ({
+    url: `${BASE_URL}/learn/openings/${buildOpeningSlug(opening.name, opening.eco)}`,
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
+  }));
+
+  const legendPages: MetadataRoute.Sitemap = legends.map((legend) => ({
+    url: `${BASE_URL}/learn/legends/${slugifyName(legend.name)}`,
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
+  }));
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [
@@ -63,9 +98,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.5,
     }));
 
-  // NOTE: Legend, opening, and profile pages excluded from sitemap.
-  // Legends and openings are auth-gated to prevent scraping. Profiles
-  // are thin content that wastes crawl budget.
+  // NOTE: The auth-gated app pages (/openings, /legends, /profile) stay out
+  // of the sitemap. Their public, indexable counterparts live under /learn
+  // and are included above via ecoFamilyPages, openingPages, and legendPages.
 
-  return [...staticPages, ...categoryPages, ...authorPages, ...blogPages];
+  return [
+    ...staticPages,
+    ...ecoFamilyPages,
+    ...categoryPages,
+    ...authorPages,
+    ...blogPages,
+    ...legendPages,
+    ...openingPages,
+  ];
 }

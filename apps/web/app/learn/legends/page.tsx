@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { Navbar } from "@/app/components/Navbar";
 import { Footer } from "@/app/components/Footer";
 import { BASE_URL, createMetadata, safeJsonLd } from "@/lib/seo";
+import { getVisibleLegends, slugifyName } from "@/lib/learn-directory";
 
 export const metadata: Metadata = createMetadata({
   title: "Learn Chess Through Famous Players and Games",
@@ -30,7 +31,10 @@ const jsonLd = {
   publisher: { "@id": `${BASE_URL}/#organization` },
 };
 
-export default function LegendsGuidePage() {
+export default async function LegendsGuidePage() {
+  // Fail-soft: the guide still renders if the database is unreachable
+  const legends = await getVisibleLegends().catch(() => []);
+
   return (
     <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar breadcrumbLabel="Chess Legends Guide" />
@@ -150,6 +154,35 @@ export default function LegendsGuidePage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
           </section>
+
+          {legends.length > 0 && (
+            <section className="mt-16 border-t border-cb-hover pt-12">
+              <h2 className="font-serif text-4xl">Browse the legends</h2>
+              <p className="mt-5 font-sans text-base leading-8 text-cb-text-muted">
+                Each legend has a reference page covering their playing style,
+                achievements, and famous games — and positions from their games
+                you can play out against the engine.
+              </p>
+              <ul className="mt-8 grid grid-cols-1 gap-px bg-cb-hover sm:grid-cols-2 lg:grid-cols-3">
+                {legends.map((legend) => (
+                  <li key={legend.referenceId} className="bg-cb-bg">
+                    <Link
+                      href={`/learn/legends/${slugifyName(legend.name)}`}
+                      className="block p-5 transition-colors hover:bg-cb-hover"
+                    >
+                      <p className="font-sans text-sm text-cb-text">
+                        {legend.name}
+                      </p>
+                      <p className="mt-1 font-sans text-[11px] text-cb-text-faint">
+                        {legend.era}
+                        {legend.peakRating ? ` · Peak ${legend.peakRating}` : ""}
+                      </p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </article>
       </main>
       <Footer />

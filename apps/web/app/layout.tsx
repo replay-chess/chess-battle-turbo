@@ -73,6 +73,16 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  // Search engine ownership verification. Set the env vars after generating
+  // the tokens in Google Search Console / Bing Webmaster Tools — see SEO.md.
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION && {
+      google: process.env.GOOGLE_SITE_VERIFICATION,
+    }),
+    ...(process.env.BING_SITE_VERIFICATION && {
+      other: { "msvalidate.01": process.env.BING_SITE_VERIFICATION },
+    }),
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

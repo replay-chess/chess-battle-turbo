@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { Navbar } from "@/app/components/Navbar";
 import { Footer } from "@/app/components/Footer";
 import { BASE_URL, createMetadata, safeJsonLd } from "@/lib/seo";
+import { ECO_FAMILIES } from "@/lib/learn-directory";
 
 export const metadata: Metadata = createMetadata({
   title: "Chess Openings: Learn Plans, Not Move Lists",
@@ -156,6 +157,33 @@ export default function OpeningsGuidePage() {
                 Try a position <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
+          </section>
+
+          <section className="mt-16 border-t border-cb-hover pt-12">
+            <h2 className="font-serif text-4xl">Browse the opening database</h2>
+            <p className="mt-5 font-sans text-base leading-8 text-cb-text-muted">
+              Every named opening in our database has a reference page with its
+              move order, the resulting position, and a board to train it
+              against the engine. Start from its ECO family:
+            </p>
+            <ul className="mt-8 grid grid-cols-1 gap-px bg-cb-hover sm:grid-cols-2">
+              {ECO_FAMILIES.map((family) => (
+                <li key={family.letter} className="bg-cb-bg">
+                  <Link
+                    href={`/learn/openings/eco/${family.letter.toLowerCase()}`}
+                    className="group block p-5 transition-colors hover:bg-cb-hover"
+                  >
+                    <p className="flex items-center gap-2 font-sans text-sm text-cb-text">
+                      ECO {family.letter} — {family.name}
+                      <ArrowRight className="h-3 w-3 text-cb-text-faint opacity-0 transition-opacity group-hover:opacity-100" />
+                    </p>
+                    <p className="mt-1 font-sans text-[11px] leading-5 text-cb-text-faint">
+                      Openings {family.description}.
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </section>
         </article>
       </main>
