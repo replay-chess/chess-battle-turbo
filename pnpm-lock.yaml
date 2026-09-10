@@ -71,8 +71,8 @@ importers:
         specifier: ^6.33.7
         version: 6.33.7(next@15.5.9(@babel/core@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@dodopayments/nextjs':
-        specifier: ^0.3.4
-        version: 0.3.4(next@15.5.9(@babel/core@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(zod@4.1.12)
+        specifier: ^0.3.9
+        version: 0.3.9(next@15.5.9(@babel/core@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(zod@4.1.12)
       '@ducanh2912/next-pwa':
         specifier: ^10.2.9
         version: 10.2.9(@types/babel__core@7.20.5)(next@15.5.9(@babel/core@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(webpack@5.104.1)
@@ -119,8 +119,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       dodopayments:
-        specifier: ^2.19.1
-        version: 2.19.1
+        specifier: ^2.49.0
+        version: 2.49.0
       lucide-react:
         specifier: ^0.546.0
         version: 0.546.0(react@19.1.0)
@@ -1109,13 +1109,13 @@ packages:
     peerDependencies:
       postcss: ^8.4
 
-  '@dodopayments/core@0.3.8':
-    resolution: {integrity: sha512-Klynu56uAwDNv8vSMxtSnDby+pBjK9W6860d0pWY8kkYdq9SyBJiW64vf/3kVRmd5RZoaHe8x0dS5QEyFMgdLw==}
+  '@dodopayments/core@0.3.15':
+    resolution: {integrity: sha512-xbBqfY7Ytq6c0jR1qmV8UqqyA7qGnOoP5g02NpDOWyCgkeXLxcAfr6z/g8FkPNCiFcI405oIwi0AlFDVUKm6SA==}
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
 
-  '@dodopayments/nextjs@0.3.4':
-    resolution: {integrity: sha512-VBqxZy6LXjCCy/SaqURJ6qRwdYBl6Bvn5jDahyOCwvC95xOhDkoEMfqqFwJkoy9wQ5fD+nGEYLJBOXBsivuJFw==}
+  '@dodopayments/nextjs@0.3.9':
+    resolution: {integrity: sha512-AxKISyMwvtUxaNU9QYSIehLXYwG/cWlciQsg0ddfvQXS/jXD/0ArR7/Iys9tOOnXkBbORHbWyljzE1AlXqtk6w==}
     peerDependencies:
       next: ^14.0.0 || ^15.0.0 || ^16.0.0
       zod: ^3.25.0 || ^4.0.0
@@ -3408,8 +3408,8 @@ packages:
     resolution: {integrity: sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw==}
     engines: {node: '>=0.10.0'}
 
-  dodopayments@2.19.1:
-    resolution: {integrity: sha512-wM198By5HXm6wqvsGZRqmCYY5nHCKG3UkcKFld1A5YYbLJKsQSQHNMeZPYoqSH+p+mFu6aKCMAM2tQWSKFxMRA==}
+  dodopayments@2.49.0:
+    resolution: {integrity: sha512-7hIdidOmrNGdWsCdv5n/8YpP9Rb2kFNvmQwrd4iYMvt6syiTXGi4UqfMzkv26/gnPc2Gq0PgmPalPWe2qw/NAQ==}
     hasBin: true
 
   dotenv@16.0.3:
@@ -7122,15 +7122,15 @@ snapshots:
     dependencies:
       postcss: 8.4.47
 
-  '@dodopayments/core@0.3.8(zod@4.1.12)':
+  '@dodopayments/core@0.3.15(zod@4.1.12)':
     dependencies:
-      dodopayments: 2.19.1
+      dodopayments: 2.49.0
       standardwebhooks: 1.0.0
       zod: 4.1.12
 
-  '@dodopayments/nextjs@0.3.4(next@15.5.9(@babel/core@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(zod@4.1.12)':
+  '@dodopayments/nextjs@0.3.9(next@15.5.9(@babel/core@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(zod@4.1.12)':
     dependencies:
-      '@dodopayments/core': 0.3.8(zod@4.1.12)
+      '@dodopayments/core': 0.3.15(zod@4.1.12)
       next: 15.5.9(@babel/core@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       zod: 4.1.12
 
@@ -9445,7 +9445,7 @@ snapshots:
     dependencies:
       esutils: 2.0.3
 
-  dodopayments@2.19.1:
+  dodopayments@2.49.0:
     dependencies:
       standardwebhooks: 1.0.0
 

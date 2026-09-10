@@ -40,12 +40,14 @@
     "billing-sdk": {
       "source": "dodopayments/skills",
       "sourceType": "github",
-      "computedHash": "38ba24500996f9bbc33e61a757a583f57cc2f7af3b8dfe57bc684b1ec7b9fbb5"
+      "skillPath": "dodo-payments/billing-sdk/SKILL.md",
+      "computedHash": "61fe578610668ddcadd161b7acb1a064ceefa37a032cf7b0b823d874b5ffa6a9"
     },
     "checkout-integration": {
       "source": "dodopayments/skills",
       "sourceType": "github",
-      "computedHash": "8cf6940ab614a7d1ea3b400edc43c910f7bec9d8cba207facad2d75e2ab9de40"
+      "skillPath": "dodo-payments/checkout-integration/SKILL.md",
+      "computedHash": "211107cb6e3e7c2ac3ac0af9723373d4ad7924997add13d86b3583ba0fd4d392"
     },
     "churn-prevention": {
       "source": "coreyhaines31/marketingskills",
@@ -127,13 +129,20 @@
     "dodo-best-practices": {
       "source": "dodopayments/skills",
       "sourceType": "github",
-      "computedHash": "ddee4d91bf5f04b60b2ecf6b32a5b535d93868f5cc24b856ba11199b69b243f9"
+      "skillPath": "dodo-payments/dodo-best-practices/SKILL.md",
+      "computedHash": "44794838939ca57b1f930dd3a1094bee20330bd34cfcfe7efa8651f39f9e1757"
     },
     "emails": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "skillPath": "skills/emails/SKILL.md",
       "computedHash": "261d986c2a1f1f5f823f8c889e16db723edb8a9d0fa5ede8412f981594715c49"
+    },
+    "framework-adapters": {
+      "source": "dodopayments/skills",
+      "sourceType": "github",
+      "skillPath": "dodo-payments/framework-adapters/SKILL.md",
+      "computedHash": "b7e8ff71ec4b0f7c628ede3f1ad54cbfb4f81ac581561a53a3eaa168b1be4dd6"
     },
     "free-tools": {
       "source": "coreyhaines31/marketingskills",
@@ -167,7 +176,8 @@
     "license-keys": {
       "source": "dodopayments/skills",
       "sourceType": "github",
-      "computedHash": "99481ad83e2827b715189d189adff615e9b65ddc38da74373509b72c1823a169"
+      "skillPath": "dodo-payments/license-keys/SKILL.md",
+      "computedHash": "0713a835f0b4c52c47f77b951408f90580db12e8a991b5e8e747e7a4f8d15c69"
     },
     "marketing-council": {
       "source": "coreyhaines31/marketingskills",
@@ -325,12 +335,20 @@
     "subscription-integration": {
       "source": "dodopayments/skills",
       "sourceType": "github",
-      "computedHash": "0a829f6c4f4b2c8828a505a34fe2f6332e5c218ae806d3de681afaf87af2b68d"
+      "skillPath": "dodo-payments/subscription-integration/SKILL.md",
+      "computedHash": "c3660d27392a22f97cd260af17a0702d21b0ff1c147c8a698fe8ba5b7646e67b"
+    },
+    "testing-and-go-live": {
+      "source": "dodopayments/skills",
+      "sourceType": "github",
+      "skillPath": "dodo-payments/testing-and-go-live/SKILL.md",
+      "computedHash": "e65eb7e4d7bce47e484d5012c5f6a7f0fa3c18ea184e4a3810b2af0cb09c4acf"
     },
     "usage-based-billing": {
       "source": "dodopayments/skills",
       "sourceType": "github",
-      "computedHash": "c18dad693599fc1b2003f3d1ab458f341f5a02cfe11cc2296830b472b114d743"
+      "skillPath": "dodo-payments/usage-based-billing/SKILL.md",
+      "computedHash": "2a00891a2081c5800b34a2c12c030d8b08229d1f8bcd72d81d608c3bb32cebfe"
     },
     "video": {
       "source": "coreyhaines31/marketingskills",
@@ -341,7 +359,8 @@
     "webhook-integration": {
       "source": "dodopayments/skills",
       "sourceType": "github",
-      "computedHash": "8bfb5a49da121cb659e71588434ec466f352fcdca3cbc28087db83708c1ea5ba"
+      "skillPath": "dodo-payments/webhook-integration/SKILL.md",
+      "computedHash": "0b8d8d62969fd4f395dd5ddf758423f950b93bfa943f3a8b8d463a787ff44589"
     }
   }
 }

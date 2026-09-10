@@ -142,7 +142,13 @@ function PricingContent() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [billing, setBilling] = useState<PlanKey>("yearly");
   const searchParams = useSearchParams();
-  const checkoutSuccess = searchParams.get("checkout") === "success";
+  // Dodo appends subscription_id, status and email to the return URL.
+  // Treat the redirect as informational only; entitlement comes from the
+  // subscription API and webhooks, never from these query parameters.
+  const checkoutSuccess =
+    searchParams.get("checkout") === "success" &&
+    searchParams.get("status") !== "failed";
+  const checkoutFailed = searchParams.get("status") === "failed";
 
   // Read user + subscription from Zustand store
   const storeUser = useUserStore((s) => s.user);
@@ -607,6 +613,23 @@ function PricingContent() {
                   </p>
                 </div>
               </motion.div>
+            )}
+
+            {checkoutFailed && (
+              <div className="max-w-md mx-auto mb-8 px-4">
+                <div
+                  role="alert"
+                  className="border border-red-500/30 bg-red-500/10 p-4 text-center"
+                >
+                  <p
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                    className="text-sm text-red-400"
+                  >
+                    Your payment did not go through. You have not been charged.
+                    Pick a plan below to try again.
+                  </p>
+                </div>
+              </div>
             )}
 
             {/* Billing interval toggle */}
