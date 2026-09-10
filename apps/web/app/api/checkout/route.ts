@@ -3,15 +3,64 @@ import { auth, currentUser } from "@clerk/nextjs/server"
 import { z } from "zod"
 import { dodo } from "@/lib/dodo"
 import { prisma } from "@/lib/prisma"
+import { BASE_URL } from "@/lib/seo"
 import { PLAN_KEYS } from "@/lib/billing/plans"
 import {
   BillingNotConfiguredError,
   getProductIdForPlan,
 } from "@/lib/billing/products"
 
+/**
+ * Paths a checkout may return to. Anything else falls back to /pricing so the
+ * return URL can never be turned into an open redirect.
+ */
+const RETURN_PATH_PREFIXES = [
+  "/pricing",
+  "/onboarding",
+  "/play",
+  "/queue",
+  "/challenge",
+  "/join",
+  "/join-tournament",
+  "/tournament",
+  "/legends",
+  "/openings",
+  "/position",
+  "/profile",
+  "/analysis",
+]
+
 const checkoutBodySchema = z.object({
   plan: z.enum(PLAN_KEYS),
+  returnPath: z.string().max(512).optional(),
+  theme: z.enum(["dark", "light", "system"]).optional(),
 })
+
+/** Origin the user should land on after paying. */
+function appOrigin(): string {
+  const configured = process.env.DODO_PAYMENTS_RETURN_URL
+  if (configured) {
+    try {
+      return new URL(configured).origin
+    } catch {
+      // fall through to the canonical site
+    }
+  }
+  return BASE_URL
+}
+
+export function buildReturnUrl(returnPath: string | undefined): string {
+  const safePath =
+    returnPath &&
+    returnPath.startsWith("/") &&
+    !returnPath.startsWith("//") &&
+    RETURN_PATH_PREFIXES.some((prefix) => returnPath.startsWith(prefix))
+      ? returnPath
+      : "/pricing"
+  const url = new URL(safePath, appOrigin())
+  url.searchParams.set("checkout", "success")
+  return url.toString()
+}
 
 /**
  * Creates a Dodo Payments checkout session for the Player plan.
@@ -40,7 +89,7 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     )
   }
-  const { plan } = parsed.data
+  const { plan, returnPath, theme } = parsed.data
 
   const clerkUser = await currentUser()
   const email =
@@ -105,7 +154,14 @@ export async function POST(req: NextRequest) {
       product_cart: [{ product_id: productId, quantity: 1 }],
       customer: { email, name: name || undefined },
       metadata: { clerkUserId: userId, plan },
-      return_url: process.env.DODO_PAYMENTS_RETURN_URL,
+      return_url: buildReturnUrl(returnPath),
+      customization: { theme: theme ?? "system", show_order_details: true },
+      feature_flags: {
+        // Land the user straight back in the app instead of on Dodo's own
+        // success page; the return page confirms activation itself.
+        redirect_immediately: true,
+        allow_discount_code: true,
+      },
     })
 
     return NextResponse.json({

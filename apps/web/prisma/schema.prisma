@@ -30,6 +30,17 @@ model User {
   onboarded         Boolean          @default(false)
   dodoCustomerId    String?          @unique
   role              Role             @default(USER)
+
+  // Billing entitlement, synced from Dodo Payments by the webhook and the
+  // subscription API. Read through lib/billing/entitlement.ts, never directly.
+  plan                  String?
+  planInterval          String?
+  subscriptionId        String?   @unique
+  subscriptionStatus    String?
+  subscriptionProductId String?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean   @default(false)
+  subscriptionUpdatedAt DateTime?
   chessComProfile      ChessComProfile?
   gamesAsCreator       Game[]             @relation("CreatorGames")
   gamesAsOpponent      Game[]             @relation("OpponentGames")
@@ -44,6 +55,7 @@ model User {
   @@index([code])
   @@index([referenceId])
   @@index([dodoCustomerId])
+  @@index([subscriptionStatus])
   @@map("users")
 }
 
