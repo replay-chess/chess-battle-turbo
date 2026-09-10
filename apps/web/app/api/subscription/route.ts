@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server"
-import { auth, currentUser } from "@clerk/nextjs/server"
+import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { dodo } from "@/lib/dodo"
+import { resolvePlanFromProductId } from "@/lib/billing/plans"
+import { getProductCatalog } from "@/lib/billing/products"
 
 export async function GET() {
   const { userId: clerkUserId } = await auth()
@@ -58,7 +60,21 @@ export async function GET() {
       })
     }
 
-    const activeSub = subItems[0]!
+    // Prefer a subscription on a product we know how to describe. Any other
+    // active subscription still counts as the Player plan so nobody who paid
+    // is locked out because of a product ID mismatch.
+    const catalog = getProductCatalog()
+    const activeSub =
+      subItems.find((sub) => resolvePlanFromProductId(sub.product_id, catalog)) ??
+      subItems[0]!
+    const resolved = resolvePlanFromProductId(activeSub.product_id, catalog)
+    if (!resolved && process.env.NODE_ENV === "development") {
+      console.warn(
+        "[subscription] Active subscription on unknown product:",
+        activeSub.product_id,
+      )
+    }
+
     return NextResponse.json({
       plan: "player",
       customerId,
@@ -67,6 +83,11 @@ export async function GET() {
         status: activeSub.status,
         productId: activeSub.product_id,
         nextBillingDate: activeSub.next_billing_date,
+        planKey: resolved?.planKey ?? null,
+        interval:
+          resolved?.interval ??
+          (activeSub.payment_frequency_interval === "Year" ? "year" : "month"),
+        priceCents: resolved?.priceCents ?? null,
       },
     })
   } catch {

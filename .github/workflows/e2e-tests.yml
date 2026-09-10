@@ -41,7 +41,9 @@ jobs:
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           NEXT_PUBLIC_WEBSOCKET_URL: "ws://localhost:3002"
           NEXT_PUBLIC_CLERK_SIGN_IN_URL: "/sign-in"
-          NEXT_PUBLIC_DODO_PLAYER_PRODUCT_ID: "pdt_0NYhwCW2cH6Rs73vtYwmW"
+          DODO_LEGACY_PLAYER_PRODUCT_ID: "pdt_0NYhwCW2cH6Rs73vtYwmW"
+          DODO_PRODUCT_ID_MONTHLY: ${{ secrets.DODO_PRODUCT_ID_MONTHLY }}
+          DODO_PRODUCT_ID_YEARLY: ${{ secrets.DODO_PRODUCT_ID_YEARLY }}
           DATABASE_URL: ${{ secrets.PERF_DATABASE_URL }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           DODO_PAYMENTS_API_KEY: ${{ secrets.DODO_PAYMENTS_API_KEY }}
@@ -61,7 +63,9 @@ jobs:
           NEXT_PUBLIC_CLERK_SIGN_IN_URL: "/sign-in"
           DODO_PAYMENTS_API_KEY: ${{ secrets.DODO_PAYMENTS_API_KEY }}
           DODO_PAYMENTS_WEBHOOK_KEY: ${{ secrets.DODO_PAYMENTS_WEBHOOK_KEY }}
-          NEXT_PUBLIC_DODO_PLAYER_PRODUCT_ID: "pdt_0NYhwCW2cH6Rs73vtYwmW"
+          DODO_LEGACY_PLAYER_PRODUCT_ID: "pdt_0NYhwCW2cH6Rs73vtYwmW"
+          DODO_PRODUCT_ID_MONTHLY: ${{ secrets.DODO_PRODUCT_ID_MONTHLY }}
+          DODO_PRODUCT_ID_YEARLY: ${{ secrets.DODO_PRODUCT_ID_YEARLY }}
           DODO_PAYMENTS_RETURN_URL: "http://localhost:3000/pricing?checkout=success"
           DODO_PAYMENTS_ENVIRONMENT: "test_mode"
           INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}

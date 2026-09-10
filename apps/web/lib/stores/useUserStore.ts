@@ -37,6 +37,10 @@ export interface StoreSubscription {
     status: string;
     productId: string;
     nextBillingDate: string;
+    /** "monthly" | "yearly" for current products, "legacy" for the original $8 plan. */
+    planKey?: "monthly" | "yearly" | "legacy" | null;
+    interval?: "month" | "year" | null;
+    priceCents?: number | null;
   };
 }
 

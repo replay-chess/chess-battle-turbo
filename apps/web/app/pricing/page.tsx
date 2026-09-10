@@ -17,8 +17,19 @@ import { AnimatePresence, motion } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { useUserStore } from "@/lib/stores";
 import Image from "next/image";
+import {
+  BILLING_PLANS,
+  PLAN_KEYS,
+  formatPrice,
+  monthlyEquivalentCents,
+  yearlySavings,
+  type PlanKey,
+} from "@/lib/billing/plans";
 
-const PLAYER_PRODUCT_ID = process.env.NEXT_PUBLIC_DODO_PLAYER_PRODUCT_ID!;
+const SAVINGS = yearlySavings();
+const MONTHLY_PRICE = formatPrice(BILLING_PLANS.monthly.priceCents);
+const YEARLY_PRICE = formatPrice(BILLING_PLANS.yearly.priceCents);
+const YEARLY_PER_MONTH = formatPrice(monthlyEquivalentCents(BILLING_PLANS.yearly));
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -37,9 +48,13 @@ const SUBSCRIBER_FAQS = [
       "You can cancel anytime from the Manage Billing page. Your access continues until the end of your current billing period. No questions asked.",
   },
   {
-    question: "When am I billed each month?",
+    question: "When am I billed?",
     answer:
-      "You are billed on the same date each month as your original subscription date. If you subscribed on the 15th, you will be billed on the 15th of each subsequent month.",
+      "Monthly members are billed on the same date each month as their original subscription date. Yearly members are billed once a year on their anniversary date. Your next billing date is shown above.",
+  },
+  {
+    question: "Can I switch between monthly and yearly billing?",
+    answer: `Yes. Email hello@playchess.tech and we will move you to the other plan. Switching to yearly saves ${SAVINGS.percent}% and the unused part of your current period is credited.`,
   },
   {
     question: "Can I get a refund?",
@@ -64,6 +79,10 @@ function formatBillingDate(isoDate: string): string {
 
 const SALES_FAQS = [
   {
+    question: "How much does ReplayChess cost?",
+    answer: `The Player plan is ${MONTHLY_PRICE} per month, or ${YEARLY_PRICE} per year. Yearly billing works out to ${YEARLY_PER_MONTH} a month and saves ${SAVINGS.percent}% compared with paying monthly.`,
+  },
+  {
     question: "Do you offer refunds?",
     answer:
       "New subscriptions have a 30-day money-back guarantee under the ReplayChess Terms of Service. Contact hello@playchess.tech to request a refund.",
@@ -71,7 +90,7 @@ const SALES_FAQS = [
   {
     question: "What does the Player plan include?",
     answer:
-      "The Player plan includes unlimited positions, game recording and export, 1080p output, basic AI analysis, and priority access to supported product features.",
+      "The Player plan includes unlimited positions, game recording and export, 1080p output, basic AI analysis, and priority access to supported product features. Monthly and yearly members get the same features.",
   },
   {
     question: "Can I try ReplayChess before subscribing?",
@@ -93,8 +112,21 @@ type SubscriptionInfo = {
     status: string;
     productId: string;
     nextBillingDate: string;
+    planKey?: "monthly" | "yearly" | "legacy" | null;
+    interval?: "month" | "year" | null;
+    priceCents?: number | null;
   };
 };
+
+function describeSubscriptionPrice(
+  subscription: SubscriptionInfo["subscription"],
+): { price: string; period: string } | null {
+  if (!subscription?.priceCents || !subscription.interval) return null;
+  return {
+    price: formatPrice(subscription.priceCents),
+    period: subscription.interval === "year" ? "/yr" : "/mo",
+  };
+}
 
 export default function PricingPage() {
   return (
@@ -107,12 +139,15 @@ export default function PricingPage() {
 function PricingContent() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [billing, setBilling] = useState<PlanKey>("yearly");
   const searchParams = useSearchParams();
   const checkoutSuccess = searchParams.get("checkout") === "success";
 
   // Read user + subscription from Zustand store
   const storeUser = useUserStore((s) => s.user);
   const subscription = useUserStore((s) => s.subscription);
+  const fetchSubscription = useUserStore((s) => s.fetchSubscription);
   const subInfo: SubscriptionInfo | null = subscription
     ? {
         plan: subscription.plan,
@@ -127,28 +162,43 @@ function PricingContent() {
       return;
     }
     setCheckoutLoading(true);
+    setCheckoutError(null);
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: PLAYER_PRODUCT_ID,
-          email: storeUser.email,
-          name: storeUser.name,
-          metadata: { clerkUserId: storeUser.clerkUserId },
-        }),
+        body: JSON.stringify({ plan: billing }),
       });
-      if (!res.ok) throw new Error(res.statusText);
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.code === "already_subscribed") {
+        // The store was stale: refresh it so the page switches to the
+        // subscriber view.
+        await fetchSubscription();
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : res.statusText,
+        );
+      }
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
+        return;
       }
-    } catch {
-      // checkout failed — button re-enables via finally
+      throw new Error("Checkout did not return a payment link");
+    } catch (err) {
+      setCheckoutError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Could not start checkout. Please try again.",
+      );
     } finally {
       setCheckoutLoading(false);
     }
   }
+
+  const selectedPlan = BILLING_PLANS[billing];
+  const subscriptionPrice = describeSubscriptionPrice(subInfo?.subscription);
 
   const isSubscribed = subInfo?.plan === "player";
 
@@ -245,12 +295,27 @@ function PricingContent() {
                 >
                   Player
                 </h2>
-                <p
-                  style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-2xl text-cb-text-secondary"
-                >
-                  $8<span className="text-base text-cb-text-muted">/mo</span>
-                </p>
+                {subscriptionPrice && (
+                  <p
+                    style={{ fontFamily: "'Instrument Serif', serif" }}
+                    className="text-2xl text-cb-text-secondary"
+                  >
+                    {subscriptionPrice.price}
+                    <span className="text-base text-cb-text-muted">
+                      {subscriptionPrice.period}
+                    </span>
+                  </p>
+                )}
+                {subInfo?.subscription?.interval && (
+                  <p
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                    className="text-xs text-cb-text-muted mt-2"
+                  >
+                    {subInfo.subscription.interval === "year"
+                      ? "Billed yearly"
+                      : "Billed monthly"}
+                  </p>
+                )}
               </div>
 
               {/* Status strip */}
@@ -544,6 +609,48 @@ function PricingContent() {
               </motion.div>
             )}
 
+            {/* Billing interval toggle */}
+            <div className="flex justify-center mb-8 px-4">
+              <div
+                role="radiogroup"
+                aria-label="Billing interval"
+                className="inline-flex border border-cb-border bg-cb-hover p-1"
+              >
+                {PLAN_KEYS.map((key) => {
+                  const plan = BILLING_PLANS[key];
+                  const active = billing === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setBilling(key)}
+                      style={{ fontFamily: "'Geist', sans-serif" }}
+                      className={`px-5 py-2 text-sm transition-colors flex items-center gap-2 ${
+                        active
+                          ? "bg-cb-accent text-cb-accent-fg"
+                          : "text-cb-text-muted hover:text-cb-text"
+                      }`}
+                    >
+                      {plan.label}
+                      {key === "yearly" && (
+                        <span
+                          className={`text-[10px] uppercase tracking-widest px-1.5 py-0.5 border ${
+                            active
+                              ? "border-cb-accent-fg/40"
+                              : "border-amber-500/40 text-amber-400"
+                          }`}
+                        >
+                          Save {SAVINGS.percent}%
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Single Player Pricing Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -559,12 +666,30 @@ function PricingContent() {
                   >
                     Player
                   </h3>
+                  <span
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                    className="text-[10px] uppercase tracking-widest text-cb-text-muted"
+                  >
+                    {selectedPlan.label}
+                  </span>
                 </div>
                 <p
                   style={{ fontFamily: "'Instrument Serif', serif" }}
                   className="text-5xl text-cb-text mb-2"
+                  data-testid="pricing-amount"
                 >
-                  $8<span className="text-lg text-cb-text-muted">/mo</span>
+                  {formatPrice(selectedPlan.priceCents)}
+                  <span className="text-lg text-cb-text-muted">
+                    {selectedPlan.periodLabel}
+                  </span>
+                </p>
+                <p
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="text-sm text-cb-text-muted mb-1"
+                >
+                  {billing === "yearly"
+                    ? `That's ${YEARLY_PER_MONTH} a month, billed ${YEARLY_PRICE} once a year.`
+                    : selectedPlan.billingNote}
                 </p>
                 <p
                   style={{ fontFamily: "'Geist', sans-serif" }}
@@ -606,9 +731,24 @@ function PricingContent() {
                   ) : !storeUser ? (
                     "Sign in to subscribe"
                   ) : (
-                    "Subscribe"
+                    `Subscribe ${selectedPlan.label.toLowerCase()}`
                   )}
                 </button>
+                {checkoutError && (
+                  <p
+                    role="alert"
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                    className="mt-3 text-xs text-red-400 text-center"
+                  >
+                    {checkoutError}
+                  </p>
+                )}
+                <p
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="mt-4 text-[11px] text-cb-text-muted text-center"
+                >
+                  30-day money-back guarantee. Cancel anytime.
+                </p>
               </div>
             </motion.div>
 
@@ -647,7 +787,13 @@ function PricingContent() {
                         style={{ fontFamily: "'Instrument Serif', serif" }}
                         className="text-xl text-cb-text-secondary"
                       >
-                        $8/mo
+                        {MONTHLY_PRICE}/mo
+                      </p>
+                      <p
+                        style={{ fontFamily: "'Geist', sans-serif" }}
+                        className="text-xs text-cb-text-muted mt-1"
+                      >
+                        or {YEARLY_PRICE}/yr
                       </p>
                     </th>
                   </tr>

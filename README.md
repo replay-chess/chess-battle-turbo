@@ -245,6 +245,13 @@ chess-battle-turbo/
 | `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN for error tracking |
 | `SENTRY_AUTH_TOKEN` | Sentry auth token (build-time, for source maps) |
 | `SCRAPER_API_KEY` | API key for `/api/scraper/*` routes |
+| `DODO_PAYMENTS_API_KEY` | Dodo Payments API key (billing) |
+| `DODO_PAYMENTS_ENVIRONMENT` | `test_mode` or `live_mode` |
+| `DODO_PAYMENTS_WEBHOOK_KEY` | Signing secret for `/api/webhook/dodo-payments` |
+| `DODO_PAYMENTS_RETURN_URL` | Where Dodo sends users after checkout (e.g. `https://www.playchess.tech/pricing?checkout=success`) |
+| `DODO_PRODUCT_ID_MONTHLY` | Player plan, $4.99/month. Create with `pnpm --filter web dodo:setup-products` |
+| `DODO_PRODUCT_ID_YEARLY` | Player plan, $50/year. Create with `pnpm --filter web dodo:setup-products` |
+| `DODO_LEGACY_PLAYER_PRODUCT_ID` | Original $8/month product, kept so existing subscribers stay active |
 
 ### `apps/web-socket/.env`
 

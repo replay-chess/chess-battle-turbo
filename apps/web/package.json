@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "next lint --max-warnings 0",
     "check-types": "tsc --noEmit",
-    "test:unit": "tsx --test app/blog/_components/*.test.ts lib/hooks/*.test.ts",
+    "test:unit": "tsx --test app/blog/_components/*.test.ts lib/hooks/*.test.ts lib/billing/*.test.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
@@ -18,7 +18,8 @@
     "test:e2e": "set -a && source .env.test && set +a && npx playwright test 2>&1",
     "test:e2e:ui": "set -a && source .env.test && set +a && npx playwright test --ui 2>&1",
     "test:e2e:headed": "set -a && source .env.test && set +a && npx playwright test --headed 2>&1",
-    "test:seo": "tsx scripts/seo-check.ts"
+    "test:seo": "tsx scripts/seo-check.ts",
+    "dodo:setup-products": "tsx scripts/dodo-setup-products.ts"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",
