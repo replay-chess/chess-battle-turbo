@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getRandomChessPosition, getRandomPositionByLegend, getPositionByReferenceId, incrementPositionPlayCount } from "@/lib/services/chess-position.service";
 import { getOpeningByReferenceId, getOpeningPlayerColor } from "@/lib/services/opening.service";
 import { ValidationError } from "@/lib/errors/validation-error";
-import { resolveUser } from "@/lib/auth/resolve-user";
+import { requireSubscribedUser } from "@/lib/auth/require-subscription";
 import { logger } from "@/lib/logger";
 import { trackUserAction } from "@/lib/metrics";
 
@@ -132,11 +132,10 @@ const DEFAULT_STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Authenticate user via Clerk session
-    const authUser = await resolveUser(request);
-    if (!authUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // 1. Authenticate user via Clerk session and require an active Player plan
+    const gate = await requireSubscribedUser(request);
+    if (gate.response) return gate.response;
+    const authUser = gate.user;
 
     // 2. Parse and validate request body
     const body = await request.json();

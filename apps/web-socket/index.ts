@@ -20,6 +20,12 @@ import {
 import { withGameTrace } from "./utils/traceContext";
 import { logger } from "./utils/logger";
 import { trackSocketEvent, trackActiveConnections } from "./utils/sentry";
+import {
+  getVerifiedUserReferenceId,
+  isSocketAuthRequired,
+  socketAuthMiddleware,
+  socketMayActAs,
+} from "./utils/socketAuth";
 import { watchForSpotInterruption } from "./spotInterruption";
 
 let activeConnectionCount = 0;
@@ -77,6 +83,10 @@ const io = new Server(server, {
   },
 });
 
+// Verify the per-user token sent in the socket.io `auth` handshake. Sockets
+// without a valid token are rejected only when SOCKET_AUTH_REQUIRED=true.
+io.use(socketAuthMiddleware);
+
 // Initialize GameManager and TournamentManager
 const gameManager = new GameManager();
 let tournamentManager: TournamentManager;
@@ -100,6 +110,20 @@ io.on("connection", (socket) => {
   socket.on("join_game", async (payload: JoinGamePayload) => {
     trackSocketEvent("join_game");
     const { gameReferenceId, userReferenceId } = payload;
+
+    // A socket that authenticated as one user may not join as another. This is
+    // the only event that trusts a client-supplied userReferenceId; every later
+    // event (moves, resign, draws) is resolved from the socket itself.
+    if (!socketMayActAs(socket, userReferenceId)) {
+      logger.warn("join_game rejected: userReferenceId does not match the socket's verified user", {
+        game: gameReferenceId,
+        claimed: userReferenceId,
+        verified: getVerifiedUserReferenceId(socket) ?? "",
+        socket: socket.id,
+      });
+      socket.emit("error", { message: "Unauthorized: you cannot join a game as another player" });
+      return;
+    }
 
     await withGameTrace(
       gameReferenceId,
@@ -358,5 +382,8 @@ process.on("SIGINT", () => {
 const PORT = process.env.PORT || 3002;
 server.listen(PORT, () => {
   logger.info(`WebSocket server running at http://localhost:${PORT}`);
+  logger.info(
+    `Socket auth: ${isSocketAuthRequired() ? "required" : "optional (SOCKET_AUTH_REQUIRED is not 'true')"}`
+  );
   logger.info(`Active games: ${gameManager.getActiveGameCount()}`);
 });

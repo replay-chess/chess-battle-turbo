@@ -1,131 +1,54 @@
 "use client";
 
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { Footer } from "../components/Footer";
 import { Navbar } from "../components/Navbar";
-import {
-  Bot,
-  ChevronDown,
-  Video,
-  Loader2,
-  Check,
-  CreditCard,
-  LifeBuoy,
-  ArrowRight,
-} from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import { useSearchParams } from "next/navigation";
+import { Bot, Video, Loader2, Check, ArrowRight } from "lucide-react";
+import { motion } from "motion/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useUserStore } from "@/lib/stores";
 import Image from "next/image";
 import {
   BILLING_PLANS,
-  PLAN_KEYS,
+  PLAN_NAME,
   formatPrice,
-  monthlyEquivalentCents,
+  isPlanKey,
   yearlySavings,
   type PlanKey,
 } from "@/lib/billing/plans";
+import {
+  PLAN_FEATURES,
+  SALES_FAQS,
+  SUBSCRIBER_FAQS,
+  SUPPORT_EMAIL,
+} from "@/lib/billing/copy";
+import {
+  BillingToggle,
+  FaqAccordion,
+  MembershipCard,
+  PricingCard,
+  useCheckout,
+} from "@/app/components/billing";
 
 const SAVINGS = yearlySavings();
 const MONTHLY_PRICE = formatPrice(BILLING_PLANS.monthly.priceCents);
 const YEARLY_PRICE = formatPrice(BILLING_PLANS.yearly.priceCents);
-const YEARLY_PER_MONTH = formatPrice(monthlyEquivalentCents(BILLING_PLANS.yearly));
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-const PLAN_FEATURES = [
-  "Unlimited Positions",
-  "Record & Export",
-  "1080p Quality",
-  "Basic AI Analysis",
-  "Priority Features",
-];
+/** How often and how many times we re-check entitlement after checkout. */
+const ACTIVATION_POLL_MS = 2000;
+const ACTIVATION_POLL_ATTEMPTS = 6;
 
-const SUBSCRIBER_FAQS = [
-  {
-    question: "How do I cancel my subscription?",
-    answer:
-      "You can cancel anytime from the Manage Billing page. Your access continues until the end of your current billing period. No questions asked.",
-  },
-  {
-    question: "When am I billed?",
-    answer:
-      "Monthly members are billed on the same date each month as their original subscription date. Yearly members are billed once a year on their anniversary date. Your next billing date is shown above.",
-  },
-  {
-    question: "Can I switch between monthly and yearly billing?",
-    answer: `Yes. Email hello@playchess.tech and we will move you to the other plan. Switching to yearly saves ${SAVINGS.percent}% and the unused part of your current period is credited.`,
-  },
-  {
-    question: "Can I get a refund?",
-    answer:
-      "New subscriptions have a 30-day money-back guarantee under the ReplayChess Terms of Service. Contact hello@playchess.tech to request a refund.",
-  },
-  {
-    question: "How do I update my payment method?",
-    answer:
-      'Click "Manage Billing" above to access the customer portal. From there you can update your credit card, view invoices, and manage all billing details.',
-  },
-];
+type ActivationState = "idle" | "polling" | "stalled";
 
-function formatBillingDate(isoDate: string): string {
-  const date = new Date(isoDate);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-const SALES_FAQS = [
-  {
-    question: "How much does ReplayChess cost?",
-    answer: `The Player plan is ${MONTHLY_PRICE} per month, or ${YEARLY_PRICE} per year. Yearly billing works out to ${YEARLY_PER_MONTH} a month and saves ${SAVINGS.percent}% compared with paying monthly.`,
-  },
-  {
-    question: "Do you offer refunds?",
-    answer:
-      "New subscriptions have a 30-day money-back guarantee under the ReplayChess Terms of Service. Contact hello@playchess.tech to request a refund.",
-  },
-  {
-    question: "What does the Player plan include?",
-    answer:
-      "The Player plan includes unlimited positions, game recording and export, 1080p output, basic AI analysis, and priority access to supported product features. Monthly and yearly members get the same features.",
-  },
-  {
-    question: "Can I try ReplayChess before subscribing?",
-    answer:
-      "Yes. The public position challenges are free and do not require an account. Open the Try page to play a featured position against the engine.",
-  },
-  {
-    question: "How do I manage or cancel a subscription?",
-    answer:
-      "Signed-in subscribers can open the account menu and choose Manage Billing. Cancellation takes effect according to the billing terms shown in the customer portal.",
-  },
-];
-
-type SubscriptionInfo = {
-  plan: string | null;
-  customerId?: string;
-  subscription?: {
-    id: string;
-    status: string;
-    productId: string;
-    nextBillingDate: string;
-    planKey?: "monthly" | "yearly" | "legacy" | null;
-    interval?: "month" | "year" | null;
-    priceCents?: number | null;
-  };
-};
-
-function describeSubscriptionPrice(
-  subscription: SubscriptionInfo["subscription"],
-): { price: string; period: string } | null {
-  if (!subscription?.priceCents || !subscription.interval) return null;
-  return {
-    price: formatPrice(subscription.priceCents),
-    period: subscription.interval === "year" ? "/yr" : "/mo",
-  };
+/** Only same-origin app paths may be used as a post-checkout destination. */
+function safeRedirectPath(value: string | null): string | undefined {
+  if (!value) return undefined;
+  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) {
+    return undefined;
+  }
+  return value;
 }
 
 export default function PricingPage() {
@@ -137,11 +60,9 @@ export default function PricingPage() {
 }
 
 function PricingContent() {
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [billing, setBilling] = useState<PlanKey>("yearly");
+  const router = useRouter();
   const searchParams = useSearchParams();
+
   // Dodo appends subscription_id, status and email to the return URL.
   // Treat the redirect as informational only; entitlement comes from the
   // subscription API and webhooks, never from these query parameters.
@@ -149,66 +70,76 @@ function PricingContent() {
     searchParams.get("checkout") === "success" &&
     searchParams.get("status") !== "failed";
   const checkoutFailed = searchParams.get("status") === "failed";
+  const paywallRequired = searchParams.get("reason") === "required";
+  const redirectUrl = safeRedirectPath(searchParams.get("redirect_url"));
+  const requestedPlan = searchParams.get("plan");
 
-  // Read user + subscription from Zustand store
+  const [billing, setBilling] = useState<PlanKey>(
+    isPlanKey(requestedPlan) ? requestedPlan : "yearly",
+  );
+  const [activation, setActivation] = useState<ActivationState>("idle");
+  const redirected = useRef(false);
+
   const storeUser = useUserStore((s) => s.user);
   const subscription = useUserStore((s) => s.subscription);
   const fetchSubscription = useUserStore((s) => s.fetchSubscription);
-  const subInfo: SubscriptionInfo | null = subscription
-    ? {
-        plan: subscription.plan,
-        customerId: subscription.customerId,
-        subscription: subscription.subscription,
-      }
-    : null;
+  const { startCheckout, loading: checkoutLoading, error: checkoutError } =
+    useCheckout();
 
-  async function handleCheckout() {
-    if (!storeUser) {
-      window.location.href = "/sign-in";
-      return;
-    }
-    setCheckoutLoading(true);
-    setCheckoutError(null);
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: billing }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 409 && data.code === "already_subscribed") {
-        // The store was stale: refresh it so the page switches to the
-        // subscriber view.
+  // `entitled` is what the server decided; older cached stores predate it and
+  // only carry `plan`.
+  const isSubscribed = subscription?.entitled ?? subscription?.plan === "player";
+
+  // After a successful checkout the webhook may still be in flight, so refresh
+  // right away and then keep polling for a short while.
+  useEffect(() => {
+    if (!checkoutSuccess) return;
+    let cancelled = false;
+
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const entitledNow = () => useUserStore.getState().subscription?.entitled === true;
+
+    async function run() {
+      setActivation("polling");
+      await fetchSubscription();
+      for (let attempt = 0; attempt < ACTIVATION_POLL_ATTEMPTS; attempt++) {
+        if (cancelled || entitledNow()) break;
+        await wait(ACTIVATION_POLL_MS);
+        if (cancelled) break;
         await fetchSubscription();
-        return;
       }
-      if (!res.ok) {
-        throw new Error(
-          typeof data.error === "string" ? data.error : res.statusText,
-        );
-      }
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-        return;
-      }
-      throw new Error("Checkout did not return a payment link");
-    } catch (err) {
-      setCheckoutError(
-        err instanceof Error && err.message
-          ? err.message
-          : "Could not start checkout. Please try again.",
-      );
-    } finally {
-      setCheckoutLoading(false);
+      if (cancelled) return;
+      setActivation(entitledNow() ? "idle" : "stalled");
     }
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [checkoutSuccess, fetchSubscription]);
+
+  // Once the plan is live, send the user back to where the paywall stopped them.
+  useEffect(() => {
+    if (!checkoutSuccess || !redirectUrl || !isSubscribed) return;
+    if (redirected.current) return;
+    redirected.current = true;
+    router.replace(redirectUrl);
+  }, [checkoutSuccess, redirectUrl, isSubscribed, router]);
+
+  async function handleRefresh() {
+    setActivation("polling");
+    await fetchSubscription();
+    setActivation(
+      useUserStore.getState().subscription?.entitled === true ? "idle" : "stalled",
+    );
   }
 
-  const selectedPlan = BILLING_PLANS[billing];
-  const subscriptionPrice = describeSubscriptionPrice(subInfo?.subscription);
-
-  const isSubscribed = subInfo?.plan === "player";
+  function handleSubscribe() {
+    void startCheckout(billing, { returnPath: redirectUrl });
+  }
 
   if (isSubscribed) {
+    const isMonthlyMember = subscription?.subscription?.interval === "month";
     return (
       <div className="min-h-screen bg-cb-bg text-cb-text">
         <Navbar />
@@ -250,7 +181,7 @@ function PricingContent() {
               style={{ fontFamily: "'Geist', sans-serif" }}
               className="text-lg text-cb-text-muted"
             >
-              Manage your Player plan and billing details.
+              Manage your {PLAN_NAME} plan and billing details.
             </motion.p>
           </div>
         </section>
@@ -264,7 +195,10 @@ function PricingContent() {
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-8"
               >
-                <div className="border border-amber-500/30 bg-amber-500/10 p-4 text-center">
+                <div
+                  className="border border-amber-500/30 bg-amber-500/10 p-4 text-center"
+                  data-testid="checkout-success-banner"
+                >
                   <p
                     style={{ fontFamily: "'Geist', sans-serif" }}
                     className="text-sm text-amber-400"
@@ -275,91 +209,52 @@ function PricingContent() {
               </motion.div>
             )}
 
+            {/* Already subscribed but sent here by the paywall: offer the way back. */}
+            {!checkoutSuccess && paywallRequired && redirectUrl && (
+              <div className="mb-8 border border-cb-border bg-cb-hover p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="text-sm text-cb-text-secondary"
+                >
+                  Your {PLAN_NAME} plan is active. You can head straight back.
+                </p>
+                <a
+                  href={redirectUrl}
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-cb-accent text-cb-accent-fg hover:bg-cb-accent/90 transition-colors"
+                >
+                  Continue
+                  <ArrowRight className="w-4 h-4" />
+                </a>
+              </div>
+            )}
+
             {/* Membership Status Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.2, ease: EASE }}
-              className="border border-cb-border bg-cb-hover mb-12"
+              className="mb-12"
             >
-              <div className="p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
-                  </span>
+              <MembershipCard
+                subscription={subscription}
+                customerId={subscription?.customerId}
+              />
+              {isMonthlyMember && storeUser?.referenceId && (
+                <a
+                  href={`/profile/${storeUser.referenceId}#membership`}
+                  data-testid="switch-to-yearly-hint"
+                  className="group mt-4 flex items-center justify-between border border-amber-500/30 bg-amber-500/10 p-4 hover:bg-amber-500/15 transition-colors"
+                >
                   <span
                     style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs font-medium text-amber-400 uppercase tracking-widest"
-                  >
-                    Active
-                  </span>
-                </div>
-                <h2
-                  style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-4xl sm:text-5xl text-cb-text mb-2"
-                >
-                  Player
-                </h2>
-                {subscriptionPrice && (
-                  <p
-                    style={{ fontFamily: "'Instrument Serif', serif" }}
-                    className="text-2xl text-cb-text-secondary"
-                  >
-                    {subscriptionPrice.price}
-                    <span className="text-base text-cb-text-muted">
-                      {subscriptionPrice.period}
-                    </span>
-                  </p>
-                )}
-                {subInfo?.subscription?.interval && (
-                  <p
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs text-cb-text-muted mt-2"
-                  >
-                    {subInfo.subscription.interval === "year"
-                      ? "Billed yearly"
-                      : "Billed monthly"}
-                  </p>
-                )}
-              </div>
-
-              {/* Status strip */}
-              <div className="grid grid-cols-2 gap-px bg-cb-hover">
-                <div className="bg-cb-bg p-5">
-                  <p
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
-                  >
-                    Next Billing Date
-                  </p>
-                  <p
-                    style={{ fontFamily: "'Geist Mono', monospace" }}
-                    className="text-sm text-cb-text-secondary"
-                  >
-                    {subInfo?.subscription?.nextBillingDate
-                      ? formatBillingDate(subInfo.subscription.nextBillingDate)
-                      : "—"}
-                  </p>
-                </div>
-                <div className="bg-cb-bg p-5">
-                  <p
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-2"
-                  >
-                    Status
-                  </p>
-                  <p
-                    style={{ fontFamily: "'Geist Mono', monospace" }}
                     className="text-sm text-amber-400"
                   >
-                    {subInfo?.subscription?.status
-                      ? subInfo.subscription.status.charAt(0).toUpperCase() +
-                        subInfo.subscription.status.slice(1)
-                      : "Active"}
-                  </p>
-                </div>
-              </div>
+                    Switch to yearly and save {SAVINGS.percent}%
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+                </a>
+              )}
             </motion.div>
 
             {/* Feature Access Grid */}
@@ -367,7 +262,7 @@ function PricingContent() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.35, ease: EASE }}
-              className="mb-12"
+              className="mb-20"
             >
               <div className="flex items-center gap-4 mb-6">
                 <div className="flex-1 h-px bg-gradient-to-r from-transparent to-cb-border" />
@@ -412,113 +307,9 @@ function PricingContent() {
               </div>
             </motion.section>
 
-            {/* Quick Actions */}
-            <motion.section
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5, ease: EASE }}
-              className="mb-20"
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <a
-                  href={`/api/customer-portal?customer_id=${subInfo?.customerId}`}
-                  className="group border border-cb-border bg-cb-hover hover:bg-cb-hover transition-colors p-6 flex flex-col"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <CreditCard className="w-5 h-5 text-cb-text-muted" />
-                    <ArrowRight className="w-4 h-4 text-cb-text-faint group-hover:text-cb-text-muted transition-colors" />
-                  </div>
-                  <p
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-sm font-medium text-cb-text mb-1"
-                  >
-                    Manage Billing
-                  </p>
-                  <p
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs text-cb-text-muted"
-                  >
-                    Update payment, view invoices, cancel
-                  </p>
-                </a>
-                <a
-                  href="mailto:hello@playchess.tech"
-                  className="group border border-cb-border bg-cb-hover hover:bg-cb-hover transition-colors p-6 flex flex-col"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <LifeBuoy className="w-5 h-5 text-cb-text-muted" />
-                    <ArrowRight className="w-4 h-4 text-cb-text-faint group-hover:text-cb-text-muted transition-colors" />
-                  </div>
-                  <p
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-sm font-medium text-cb-text mb-1"
-                  >
-                    Get Support
-                  </p>
-                  <p
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-xs text-cb-text-muted"
-                  >
-                    Help with subscription or features
-                  </p>
-                </a>
-              </div>
-            </motion.section>
-
             {/* Subscriber FAQ */}
             <section className="mb-20">
-              <h2
-                style={{ fontFamily: "'Instrument Serif', serif" }}
-                className="text-3xl sm:text-4xl mb-8 text-center text-cb-text"
-              >
-                Subscription FAQ
-              </h2>
-              <div className="space-y-3">
-                {SUBSCRIBER_FAQS.map((faq, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.1 }}
-                    className="border border-cb-border overflow-hidden"
-                  >
-                    <button
-                      onClick={() =>
-                        setOpenFaq(openFaq === index ? null : index)
-                      }
-                      className="w-full p-5 text-left flex justify-between items-center bg-cb-hover hover:bg-cb-hover transition-colors"
-                    >
-                      <span
-                        style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-sm font-medium text-cb-text"
-                      >
-                        {faq.question}
-                      </span>
-                      <ChevronDown
-                        className={`w-4 h-4 text-cb-text-muted transition-transform duration-300 ${openFaq === index ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                    <AnimatePresence>
-                      {openFaq === index && (
-                        <motion.div
-                          initial={{ height: 0 }}
-                          animate={{ height: "auto" }}
-                          exit={{ height: 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div
-                            style={{ fontFamily: "'Geist', sans-serif" }}
-                            className="p-5 border-t border-cb-border text-sm text-cb-text-muted leading-relaxed"
-                          >
-                            {faq.answer}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                ))}
-              </div>
+              <FaqAccordion items={SUBSCRIBER_FAQS} heading="Subscription FAQ" />
             </section>
           </main>
 
@@ -528,7 +319,7 @@ function PricingContent() {
     );
   }
 
-  // Non-subscriber sales page (unchanged)
+  // Non-subscriber sales page
   return (
     <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
@@ -597,20 +388,69 @@ function PricingContent() {
               </motion.p>
             </div>
 
-            {/* Checkout success banner */}
+            {/* Paywall banner */}
+            {paywallRequired && !checkoutSuccess && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="max-w-md mx-auto mb-8 px-4"
+              >
+                <div
+                  role="status"
+                  data-testid="paywall-banner"
+                  className="border border-amber-500/30 bg-amber-500/10 p-4 text-center"
+                >
+                  <p
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                    className="text-sm text-amber-400"
+                  >
+                    A {PLAN_NAME} plan is required to play. Pick a plan and
+                    you&apos;ll be sent straight back.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Checkout success: activating / stalled */}
             {checkoutSuccess && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="max-w-md mx-auto mb-8 px-4"
               >
-                <div className="border border-amber-500/30 bg-amber-500/10 p-4 text-center">
-                  <p
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-sm text-amber-400"
-                  >
-                    Payment successful! Your subscription is being activated.
-                  </p>
+                <div
+                  role="status"
+                  data-testid="checkout-activating-banner"
+                  className="border border-amber-500/30 bg-amber-500/10 p-4 text-center"
+                >
+                  {activation === "stalled" ? (
+                    <>
+                      <p
+                        style={{ fontFamily: "'Geist', sans-serif" }}
+                        className="text-sm text-amber-400"
+                      >
+                        Payment received. Your plan is activating, this can take
+                        a minute.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleRefresh}
+                        data-testid="activation-refresh"
+                        style={{ fontFamily: "'Geist', sans-serif" }}
+                        className="mt-3 px-4 py-2 text-xs font-medium uppercase tracking-widest border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors"
+                      >
+                        Refresh
+                      </button>
+                    </>
+                  ) : (
+                    <p
+                      style={{ fontFamily: "'Geist', sans-serif" }}
+                      className="text-sm text-amber-400 flex items-center justify-center gap-2"
+                    >
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Payment successful! Your subscription is being activated.
+                    </p>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -619,6 +459,7 @@ function PricingContent() {
               <div className="max-w-md mx-auto mb-8 px-4">
                 <div
                   role="alert"
+                  data-testid="checkout-failed-banner"
                   className="border border-red-500/30 bg-red-500/10 p-4 text-center"
                 >
                   <p
@@ -634,44 +475,7 @@ function PricingContent() {
 
             {/* Billing interval toggle */}
             <div className="flex justify-center mb-8 px-4">
-              <div
-                role="radiogroup"
-                aria-label="Billing interval"
-                className="inline-flex border border-cb-border bg-cb-hover p-1"
-              >
-                {PLAN_KEYS.map((key) => {
-                  const plan = BILLING_PLANS[key];
-                  const active = billing === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => setBilling(key)}
-                      style={{ fontFamily: "'Geist', sans-serif" }}
-                      className={`px-5 py-2 text-sm transition-colors flex items-center gap-2 ${
-                        active
-                          ? "bg-cb-accent text-cb-accent-fg"
-                          : "text-cb-text-muted hover:text-cb-text"
-                      }`}
-                    >
-                      {plan.label}
-                      {key === "yearly" && (
-                        <span
-                          className={`text-[10px] uppercase tracking-widest px-1.5 py-0.5 border ${
-                            active
-                              ? "border-cb-accent-fg/40"
-                              : "border-amber-500/40 text-amber-400"
-                          }`}
-                        >
-                          Save {SAVINGS.percent}%
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              <BillingToggle value={billing} onChange={setBilling} />
             </div>
 
             {/* Single Player Pricing Card */}
@@ -681,98 +485,13 @@ function PricingContent() {
               viewport={{ once: true }}
               className="max-w-md mx-auto px-4 sm:px-6"
             >
-              <div className="border border-cb-border bg-cb-hover p-8">
-                <div className="flex items-center justify-between mb-4">
-                  <h3
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-sm font-medium text-cb-text-secondary uppercase tracking-widest"
-                  >
-                    Player
-                  </h3>
-                  <span
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="text-[10px] uppercase tracking-widest text-cb-text-muted"
-                  >
-                    {selectedPlan.label}
-                  </span>
-                </div>
-                <p
-                  style={{ fontFamily: "'Instrument Serif', serif" }}
-                  className="text-5xl text-cb-text mb-2"
-                  data-testid="pricing-amount"
-                >
-                  {formatPrice(selectedPlan.priceCents)}
-                  <span className="text-lg text-cb-text-muted">
-                    {selectedPlan.periodLabel}
-                  </span>
-                </p>
-                <p
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-sm text-cb-text-muted mb-1"
-                >
-                  {billing === "yearly"
-                    ? `That's ${YEARLY_PER_MONTH} a month, billed ${YEARLY_PRICE} once a year.`
-                    : selectedPlan.billingNote}
-                </p>
-                <p
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="text-sm text-cb-text-muted mb-8"
-                >
-                  For casual players and learners
-                </p>
-                <ul
-                  className="space-y-3 text-sm text-cb-text-muted mb-8"
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                >
-                  <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-cb-text-muted" />
-                    Unlimited positions
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-cb-text-muted" />
-                    Record &amp; export
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-cb-text-muted" />
-                    1080p quality
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 text-cb-text-muted" />
-                    Basic AI analysis
-                  </li>
-                </ul>
-
-                {/* Subscribe button */}
-                <button
-                  onClick={handleCheckout}
-                  disabled={checkoutLoading}
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="w-full py-3 text-sm font-medium text-cb-accent-fg bg-cb-accent hover:bg-cb-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {checkoutLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : !storeUser ? (
-                    "Sign in to subscribe"
-                  ) : (
-                    `Subscribe ${selectedPlan.label.toLowerCase()}`
-                  )}
-                </button>
-                {checkoutError && (
-                  <p
-                    role="alert"
-                    style={{ fontFamily: "'Geist', sans-serif" }}
-                    className="mt-3 text-xs text-red-400 text-center"
-                  >
-                    {checkoutError}
-                  </p>
-                )}
-                <p
-                  style={{ fontFamily: "'Geist', sans-serif" }}
-                  className="mt-4 text-[11px] text-cb-text-muted text-center"
-                >
-                  30-day money-back guarantee. Cancel anytime.
-                </p>
-              </div>
+              <PricingCard
+                plan={billing}
+                onSubscribe={handleSubscribe}
+                loading={checkoutLoading}
+                error={checkoutError}
+                isSignedIn={!!storeUser}
+              />
             </motion.div>
 
             <p
@@ -780,7 +499,7 @@ function PricingContent() {
               className="text-sm text-cb-text-muted text-center mt-8 mb-8 max-w-xl mx-auto p-4"
             >
               Review the included features and billing FAQs before subscribing.
-              Questions can be sent to hello@playchess.tech.
+              Questions can be sent to {SUPPORT_EMAIL}.
             </p>
           </section>
         </main>
@@ -804,7 +523,7 @@ function PricingContent() {
                         style={{ fontFamily: "'Geist', sans-serif" }}
                         className="text-sm font-medium text-cb-text mb-2"
                       >
-                        Player
+                        {PLAN_NAME}
                       </h3>
                       <p
                         style={{ fontFamily: "'Instrument Serif', serif" }}
@@ -886,56 +605,7 @@ function PricingContent() {
         {/* FAQ Section */}
         <section className="py-20">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2
-              style={{ fontFamily: "'Instrument Serif', serif" }}
-              className="text-3xl sm:text-4xl lg:text-5xl mb-12 text-center text-cb-text"
-            >
-              Frequently Asked Questions
-            </h2>
-            <div className="space-y-3">
-              {SALES_FAQS.map((faq, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                  className="border border-cb-border overflow-hidden"
-                >
-                  <button
-                    onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                    className="w-full p-5 text-left flex justify-between items-center bg-cb-hover hover:bg-cb-hover transition-colors"
-                  >
-                    <span
-                      style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-sm font-medium text-cb-text"
-                    >
-                      {faq.question}
-                    </span>
-                    <ChevronDown
-                      className={`w-4 h-4 text-cb-text-muted transition-transform duration-300 ${openFaq === index ? "rotate-180" : ""}`}
-                    />
-                  </button>
-                  <AnimatePresence>
-                    {openFaq === index && (
-                      <motion.div
-                        initial={{ height: 0 }}
-                        animate={{ height: "auto" }}
-                        exit={{ height: 0 }}
-                        className="overflow-hidden"
-                      >
-                        <div
-                          style={{ fontFamily: "'Geist', sans-serif" }}
-                          className="p-5 border-t border-cb-border text-sm text-cb-text-muted leading-relaxed"
-                        >
-                          {faq.answer}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              ))}
-            </div>
+            <FaqAccordion items={SALES_FAQS} heading="Frequently Asked Questions" />
           </div>
         </section>
 

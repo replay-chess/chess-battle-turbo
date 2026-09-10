@@ -8,7 +8,8 @@ import ChessBoard from "../components/ChessBoard";
 import TimeControlSelector, { TimeControlValue } from "../components/TimeControlSelector";
 import SearchableDropdown from "../components/SearchableDropdown";
 import { toast } from "sonner";
-import { useRequireAuth, UseRequireAuthReturn } from "@/lib/hooks/useRequireAuth";
+import { useRequireSubscription } from "@/lib/hooks/useRequireSubscription";
+import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/app/components/Navbar";
 import { Users, Zap, Crown, Bot, ArrowRight, Sparkles, BookOpen } from "lucide-react";
@@ -53,7 +54,7 @@ const noiseTextureStyle = {
 } as const;
 
 function PlayContent() {
-  const { isReady, userObject }: UseRequireAuthReturn = useRequireAuth();
+  const { isReady, userObject } = useRequireSubscription();
   const userReferenceId = userObject?.user?.referenceId;
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -157,6 +158,11 @@ function PlayContent() {
           body: JSON.stringify(aiGameData),
         });
 
+        if (await isSubscriptionRequiredResponse(response)) {
+          router.push(paywallUrl(currentAppPath()));
+          return;
+        }
+
         const data = await response.json();
         trackApiResponseTime("chess.createAiGame", Date.now() - start);
 
@@ -189,6 +195,11 @@ function PlayContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(gameData),
         });
+
+        if (await isSubscriptionRequiredResponse(response)) {
+          router.push(paywallUrl(currentAppPath()));
+          return;
+        }
 
         const data = await response.json();
         trackApiResponseTime("chess.createGame", Date.now() - start);

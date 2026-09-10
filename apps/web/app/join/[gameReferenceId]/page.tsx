@@ -6,7 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { cn, getInitials } from "@/lib/utils";
 import { logger } from "@/lib/logger";
-import { useRequireAuth, UseRequireAuthReturn } from "@/lib/hooks";
+import { useRequireSubscription } from "@/lib/hooks/useRequireSubscription";
+import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";
 import { motion } from "motion/react";
 import { Navbar } from "@/app/components/Navbar";
 import { Swords, Clock } from "lucide-react";
@@ -51,7 +52,7 @@ export default function JoinPage({
 }: {
   params: Promise<{ gameReferenceId: string }>;
 }) {
-  const { isReady, userObject }: UseRequireAuthReturn = useRequireAuth();
+  const { isReady, userObject } = useRequireSubscription();
   const userReferenceId = userObject?.user?.referenceId;
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -104,6 +105,11 @@ export default function JoinPage({
           opponentReferenceId: userReferenceId,
         }),
       });
+
+      if (await isSubscriptionRequiredResponse(response)) {
+        router.push(paywallUrl(currentAppPath()));
+        return;
+      }
 
       const data = await response.json();
 

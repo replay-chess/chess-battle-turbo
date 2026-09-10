@@ -115,7 +115,7 @@ export default function () {
       pollCount++;
 
       const statusRes = http.get(
-        apiUrl(`/api/matchmaking/match-status?referenceId=${queueRefId}`),
+        apiUrl(`/api/matchmaking/match-status?referenceId=${queueRefId}&userReferenceId=${user.referenceId}`),
         { tags: { name: 'matchmaking-poll' } },
       );
 

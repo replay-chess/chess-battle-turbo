@@ -3,14 +3,15 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { Chess } from "chess.js";
-import { useRequireAuth, UseRequireAuthReturn } from "@/lib/hooks";
+import { useRequireSubscription } from "@/lib/hooks/useRequireSubscription";
+import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 import { motion } from "motion/react";
 import { Navbar } from "@/app/components/Navbar";
 import ChessBoard from "@/app/components/ChessBoard";
 import { ShareLinkModal } from "@/app/play/ShareLinkModal";
-import { Swords, Bot, Users, Clock } from "lucide-react";
+import { Bot, Users, Clock } from "lucide-react";
 
 interface PositionData {
   type: "position" | "opening";
@@ -37,7 +38,7 @@ export function PositionPageClient({
 }: {
   params: Promise<{ referenceId: string }>;
 }) {
-  const { isReady, userObject }: UseRequireAuthReturn = useRequireAuth();
+  const { isReady, userObject } = useRequireSubscription();
   const userReferenceId = userObject?.user?.referenceId;
   const router = useRouter();
   const { referenceId } = use(params);
@@ -106,6 +107,10 @@ export function PositionPageClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      if (await isSubscriptionRequiredResponse(response)) {
+        router.push(paywallUrl(currentAppPath()));
+        return;
+      }
       const data = await response.json();
 
       if (!data.success) {
@@ -144,6 +149,10 @@ export function PositionPageClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      if (await isSubscriptionRequiredResponse(response)) {
+        router.push(paywallUrl(currentAppPath()));
+        return;
+      }
       const data = await response.json();
 
       if (!data.success) {

@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";
 import { Loader2, Search, X } from "lucide-react";
 
 const geistFont = { fontFamily: "'Geist', sans-serif" } as const;
@@ -39,6 +40,11 @@ export default function FindMatchButton({
         body: JSON.stringify({ tournamentReferenceId }),
       });
 
+      if (await isSubscriptionRequiredResponse(res)) {
+        router.push(paywallUrl(currentAppPath()));
+        return;
+      }
+
       const data = await res.json();
 
       if (!res.ok) {
@@ -66,6 +72,12 @@ export default function FindMatchButton({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ tournamentReferenceId }),
           });
+
+          if (await isSubscriptionRequiredResponse(pollRes)) {
+            if (pollRef.current) clearInterval(pollRef.current);
+            router.push(paywallUrl(currentAppPath()));
+            return;
+          }
 
           const pollData = await pollRes.json();
 

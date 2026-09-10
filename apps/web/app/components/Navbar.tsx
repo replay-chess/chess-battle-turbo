@@ -252,9 +252,13 @@ export const Navbar = ({ breadcrumbLabel }: { breadcrumbLabel?: string }) => {
               >
                 <UserButton.MenuItems>
                   <UserButton.Link
-                    label="Subscription"
+                    label="Membership"
                     labelIcon={<CreditCard className="w-4 h-4" />}
-                    href="/pricing"
+                    href={
+                      userReferenceId
+                        ? `/profile/${userReferenceId}#membership`
+                        : "/pricing"
+                    }
                   />
                   {customerId && (
                     <UserButton.Action

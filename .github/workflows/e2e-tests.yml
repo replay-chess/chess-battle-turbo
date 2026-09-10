@@ -50,6 +50,11 @@ jobs:
           DODO_PAYMENTS_WEBHOOK_KEY: ${{ secrets.DODO_PAYMENTS_WEBHOOK_KEY }}
           DODO_PAYMENTS_RETURN_URL: "http://localhost:3000/pricing?checkout=success"
           DODO_PAYMENTS_ENVIRONMENT: "test_mode"
+          # The gameplay suites sign in with test accounts that have no
+          # subscription. Keep the paywall off so they can still create and
+          # play games; pricing.spec.ts covers the paywall UI and the 402 gate
+          # itself is unit-tested (lib/billing/*.test.ts).
+          BILLING_PAYWALL: "off"
           E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
 
       - name: Run E2E tests
@@ -68,6 +73,10 @@ jobs:
           DODO_PRODUCT_ID_YEARLY: ${{ secrets.DODO_PRODUCT_ID_YEARLY }}
           DODO_PAYMENTS_RETURN_URL: "http://localhost:3000/pricing?checkout=success"
           DODO_PAYMENTS_ENVIRONMENT: "test_mode"
+          # Same as the build step: gameplay suites use unsubscribed test
+          # accounts, so the paywall stays off. pricing.spec.ts covers the
+          # paywall UI; the gate itself is unit-tested.
+          BILLING_PAYWALL: "off"
           INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
           E2E_USER_A_EMAIL: ${{ secrets.E2E_USER_A_EMAIL }}
           E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}

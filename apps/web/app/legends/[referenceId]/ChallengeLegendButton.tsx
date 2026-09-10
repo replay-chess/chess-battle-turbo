@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useRequireAuth, UseRequireAuthReturn } from "@/lib/hooks";
+import { useRequireAuth } from "@/lib/hooks/useRequireAuth";
+import { useUserStore } from "@/lib/stores";
+import {
+  currentAppPath,
+  isEntitledClient,
+  isSubscriptionRequiredResponse,
+  paywallUrl,
+} from "@/lib/billing/client";
 import { ShareLinkModal } from "@/app/play/ShareLinkModal";
 import { Users } from "lucide-react";
 import { logger } from "@/lib/logger";
@@ -13,7 +20,11 @@ interface ChallengeLegendButtonProps {
 }
 
 export function ChallengeLegendButton({ legendReferenceId, legendName }: ChallengeLegendButtonProps) {
-  const { isReady, userObject }: UseRequireAuthReturn = useRequireAuth();
+  // Legend pages are browsable by any signed-in user; the paywall applies
+  // when they try to start a game, not when they read the page.
+  const { isReady, userObject } = useRequireAuth();
+  const subscription = useUserStore((s) => s.subscription);
+  const role = useUserStore((s) => s.user?.role ?? null);
   const userReferenceId = userObject?.user?.referenceId;
   const router = useRouter();
 
@@ -23,6 +34,10 @@ export function ChallengeLegendButton({ legendReferenceId, legendName }: Challen
 
   const handleChallenge = async () => {
     if (!isReady || !userReferenceId || creating) return;
+    if (subscription && !isEntitledClient(subscription, role)) {
+      router.push(paywallUrl(currentAppPath()));
+      return;
+    }
     setCreating(true);
 
     try {
@@ -38,6 +53,11 @@ export function ChallengeLegendButton({ legendReferenceId, legendName }: Challen
           selectedLegend: legendReferenceId,
         }),
       });
+      if (await isSubscriptionRequiredResponse(response)) {
+        router.push(paywallUrl(currentAppPath()));
+        return;
+      }
+
       const data = await response.json();
 
       if (!data.success) throw new Error(data.error || "Failed to create game");

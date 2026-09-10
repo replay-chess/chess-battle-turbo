@@ -14,7 +14,8 @@ import {
   useMatchmaking,
   OpponentInfo,
 } from "@/lib/hooks/useMatchmaking";
-import { useRequireAuth, UseRequireAuthReturn } from "@/lib/hooks/useRequireAuth";
+import { useRequireSubscription } from "@/lib/hooks/useRequireSubscription";
+import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";
 import { motion } from "motion/react";
 
 type QueueState = "initializing" | "searching" | "timeout" | "matched" | "error";
@@ -22,7 +23,7 @@ type QueueState = "initializing" | "searching" | "timeout" | "matched" | "error"
 function QueueContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isReady, userObject }: UseRequireAuthReturn = useRequireAuth();
+  const { isReady, userObject } = useRequireSubscription();
 
   const [queueState, setQueueState] = useState<QueueState>("initializing");
   const [queueReferenceId, setQueueReferenceId] = useState<string | null>(null);
@@ -79,6 +80,11 @@ function QueueContent() {
         }),
       });
 
+      if (await isSubscriptionRequiredResponse(response)) {
+        router.push(paywallUrl(currentAppPath()));
+        return;
+      }
+
       const data = await response.json();
       trackApiResponseTime("matchmaking.create", Date.now() - start);
 
@@ -105,7 +111,7 @@ function QueueContent() {
     } finally {
       setIsCreating(false);
     }
-  }, [userObject?.user?.referenceId, legendReferenceId, openingReferenceId, initialTimeSeconds, incrementSeconds, redirectToGame]);
+  }, [userObject?.user?.referenceId, legendReferenceId, openingReferenceId, initialTimeSeconds, incrementSeconds, redirectToGame, router]);
 
   useEffect(() => {
     if (!isReady || !userObject?.user?.referenceId) return;
@@ -263,6 +269,11 @@ function QueueContent() {
           ...(legendReferenceId && { selectedLegend: legendReferenceId }),
         }),
       });
+
+      if (await isSubscriptionRequiredResponse(response)) {
+        router.push(paywallUrl(currentAppPath()));
+        return;
+      }
 
       const data = await response.json();
       trackApiResponseTime("chess.createAiGame", Date.now() - start);

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { resolveUser } from "@/lib/auth/resolve-user";
+import { requireSubscribedUser } from "@/lib/auth/require-subscription";
 
 const createTournamentSchema = z.object({
   name: z.string().min(1, "Tournament name is required").max(100),
@@ -20,10 +20,10 @@ const createTournamentSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const dbUser = await resolveUser(request);
-    if (!dbUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Creating a tournament enrolls the creator, so it needs a Player plan.
+    const gate = await requireSubscribedUser(request);
+    if (gate.response) return gate.response;
+    const dbUser = gate.user;
 
     const body = await request.json();
     const data = createTournamentSchema.parse(body);

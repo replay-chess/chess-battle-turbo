@@ -3,7 +3,7 @@ import { z } from "zod";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { ValidationError } from "@/lib/errors/validation-error";
-import { resolveUser } from "@/lib/auth/resolve-user";
+import { requireSubscribedUser } from "@/lib/auth/require-subscription";
 import { logger } from "@/lib/sentry/logger";
 import { trackUserAction } from "@/lib/metrics";
 
@@ -53,11 +53,10 @@ async function validateAndFetchGame(gameReferenceId: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Authenticate user via Clerk session
-    const opponent = await resolveUser(request);
-    if (!opponent) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // 1. Authenticate user via Clerk session and require an active Player plan
+    const gate = await requireSubscribedUser(request);
+    if (gate.response) return gate.response;
+    const opponent = gate.user;
 
     // 2. Parse and validate request body
     const body = await request.json();
@@ -68,7 +67,7 @@ export async function POST(request: NextRequest) {
     const game = await validateAndFetchGame(validatedData.gameReferenceId);
 
     // 3b. Continue the game's distributed trace if trace context is available
-    const traceContext = (game.gameData as any)?.traceContext;
+    const traceContext = (game.gameData as { traceContext?: { sentryTrace?: string; baggage?: string } } | null)?.traceContext;
     Sentry.setTag("game.referenceId", game.referenceId);
 
     trackUserAction("join_game");
