@@ -9,6 +9,14 @@ type Badge = { label: string; tone: "active" | "warning" };
 
 function badgeFor(subscription: StoreSubscription | null): Badge {
   const status = subscription?.subscription?.status ?? subscription?.status ?? null;
+  // Dodo keeps a period-end cancellation `active`; a subscription that is
+  // already `cancelled` without a scheduled cancel was ended immediately.
+  if (status === "cancelled" && !subscription?.cancelAtPeriodEnd) {
+    return { label: "Ended", tone: "warning" };
+  }
+  if (status === "expired" || status === "failed") {
+    return { label: "Ended", tone: "warning" };
+  }
   if (subscription?.cancelAtPeriodEnd || status === "cancelled") {
     return { label: "Cancelling", tone: "warning" };
   }
@@ -28,10 +36,10 @@ function humanizeStatus(status: string | null | undefined): string {
 
 export function MembershipCard({
   subscription,
-  customerId,
   compact,
 }: {
   subscription: StoreSubscription | null;
+  /** No longer needed: the portal route resolves the customer server-side. */
   customerId?: string;
   compact?: boolean;
 }) {
@@ -42,12 +50,13 @@ export function MembershipCard({
       ? describePlanPrice({ interval: details.interval, priceCents: details.priceCents })
       : null;
   const periodEnd = details?.nextBillingDate ?? subscription?.currentPeriodEnd ?? null;
-  const cancelling = badge.label === "Cancelling";
-  const dateLabel = cancelling ? "Access until" : "Renews on";
-  const portalCustomerId = customerId ?? subscription?.customerId;
-  const portalHref = portalCustomerId
-    ? `/api/customer-portal?customer_id=${encodeURIComponent(portalCustomerId)}`
-    : "/api/customer-portal";
+  const ended = badge.label === "Ended";
+  // An immediate cancel still carries a future next_billing_date, so never
+  // present that date as an access date once the plan has ended.
+  const dateLabel = ended ? "Access" : badge.label === "Cancelling" ? "Access until" : "Renews on";
+  const dateValue = ended ? "Ended" : periodEnd ? formatBillingDate(periodEnd) : "—";
+  // The portal route resolves the customer from the signed-in user itself.
+  const portalHref = "/api/customer-portal";
 
   return (
     <div data-testid="membership-card">
@@ -113,7 +122,7 @@ export function MembershipCard({
               className="text-sm text-cb-text-secondary"
               data-testid="membership-period-end"
             >
-              {periodEnd ? formatBillingDate(periodEnd) : "—"}
+              {dateValue}
             </p>
           </div>
           <div className="bg-cb-bg p-5">

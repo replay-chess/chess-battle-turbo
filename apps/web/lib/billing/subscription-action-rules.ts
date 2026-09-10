@@ -184,6 +184,11 @@ export interface PlanChangePreview {
   immediateChargeCents: number | null;
   currency: string | null;
   taxCents: number | null;
+  /**
+   * Net credit movement from Dodo's `summary.customer_credits`, in minor
+   * units: negative = existing credit consumed to offset the charge (typical
+   * on upgrades), positive = credit added to the customer's balance.
+   */
   customerCreditsCents: number | null;
   effectiveAt: string | null;
   lineItems: PreviewLineItem[];

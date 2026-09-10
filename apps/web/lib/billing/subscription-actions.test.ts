@@ -154,7 +154,9 @@ describe("mapPlanChangePreview", () => {
             },
             { id: "li_2", type: "meter", name: "Usage", subtotal: 0 },
           ],
-          summary: { currency: "USD", total_amount: 4501, tax: 0, customer_credits: 499 },
+          // Dodo reports credits as a signed net movement; negative means credit
+          // was consumed to offset the charge.
+          summary: { currency: "USD", total_amount: 4501, tax: 0, customer_credits: -499 },
         },
         new_plan: {
           product_id: "pdt_y",
@@ -167,7 +169,7 @@ describe("mapPlanChangePreview", () => {
 
     assert.equal(preview.immediateChargeCents, 4501);
     assert.equal(preview.currency, "USD");
-    assert.equal(preview.customerCreditsCents, 499);
+    assert.equal(preview.customerCreditsCents, -499);
     assert.equal(preview.effectiveAt, "2026-09-10T12:00:00Z");
     assert.equal(preview.lineItems.length, 2);
     assert.deepEqual(preview.lineItems[0], {

@@ -16,6 +16,7 @@ export const RETURN_PATH_PREFIXES: readonly string[] = [
   "/join",
   "/join-tournament",
   "/tournament",
+  "/game",
   "/legends",
   "/openings",
   "/position",

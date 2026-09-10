@@ -45,6 +45,21 @@ describe("buildReturnUrl", () => {
     assert.equal(isAllowedReturnPath("/profile/user_1"), true);
   });
 
+  it("accepts game pages, where the rematch paywall sends buyers back", () => {
+    assert.equal(isAllowedReturnPath("/game/abc123"), true);
+    assert.equal(
+      buildReturnUrl("/game/abc123", ORIGIN),
+      `${ORIGIN}/game/abc123?checkout=success`,
+    );
+  });
+
+  it("accepts the pricing hand-off that carries a gated redirect_url", () => {
+    const url = new URL(buildReturnUrl("/pricing?redirect_url=%2Fgame%2Fabc123", ORIGIN));
+    assert.equal(url.pathname, "/pricing");
+    assert.equal(url.searchParams.get("redirect_url"), "/game/abc123");
+    assert.equal(url.searchParams.get("checkout"), "success");
+  });
+
   it("builds against the origin it is given", () => {
     assert.equal(
       buildReturnUrl("/play", "http://localhost:3000"),

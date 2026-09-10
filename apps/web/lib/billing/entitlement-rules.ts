@@ -30,12 +30,17 @@ export interface EntitlementRecord {
 }
 
 /**
- * Statuses that keep access until the paid period runs out. A cancellation at
- * period end, a failed renewal that Dodo is retrying, and a past-due invoice
- * all leave the customer with time they already paid for.
+ * Statuses that keep access until the paid period runs out. A failed renewal
+ * that Dodo is retrying and a past-due invoice both leave the customer with
+ * time they already paid for.
+ *
+ * `cancelled` is deliberately not here: Dodo keeps a period-end cancellation
+ * `active` (with `cancel_at_next_billing_date=true`) until the billing date,
+ * so a subscription that is already `cancelled` was cancelled immediately
+ * (portal "cancel now", merchant cancel, refund) and access is revoked now.
+ * `isEntitled` handles it explicitly.
  */
 export const GRACE_STATUSES: readonly SubscriptionStatus[] = [
-  "cancelled",
   "on_hold",
   "past_due",
 ];
@@ -51,6 +56,16 @@ export function isEntitled(record: EntitlementRecord, now: Date = new Date()): b
   const status = record.subscriptionStatus as SubscriptionStatus | null;
   if (!status) return false;
   if (status === "active") return true;
+  if (status === "cancelled") {
+    // Dodo keeps a period-end cancellation `active` with
+    // cancel_at_next_billing_date=true; status `cancelled` means access was
+    // revoked now unless the cancel was scheduled.
+    return (
+      record.cancelAtPeriodEnd &&
+      !!record.currentPeriodEnd &&
+      record.currentPeriodEnd.getTime() > now.getTime()
+    );
+  }
   if (GRACE_STATUSES.includes(status)) {
     return !!record.currentPeriodEnd && record.currentPeriodEnd.getTime() > now.getTime();
   }
@@ -121,7 +136,11 @@ export function fieldsFromSnapshot(
 ): EntitlementRecord {
   const resolved: ResolvedPlan | null = resolvePlanFromProductId(snapshot.product_id, catalog);
   const status = snapshot.status as SubscriptionStatus;
-  const grantsPlan = status === "active" || GRACE_STATUSES.includes(status);
+  const cancelAtPeriodEnd = Boolean(snapshot.cancel_at_next_billing_date);
+  const grantsPlan =
+    status === "active" ||
+    GRACE_STATUSES.includes(status) ||
+    (status === "cancelled" && cancelAtPeriodEnd);
 
   return {
     plan: grantsPlan ? "player" : null,
@@ -130,7 +149,7 @@ export function fieldsFromSnapshot(
     subscriptionStatus: status,
     subscriptionProductId: snapshot.product_id,
     currentPeriodEnd: toDate(snapshot.next_billing_date),
-    cancelAtPeriodEnd: Boolean(snapshot.cancel_at_next_billing_date),
+    cancelAtPeriodEnd,
     subscriptionUpdatedAt: eventTime ?? new Date(),
   };
 }

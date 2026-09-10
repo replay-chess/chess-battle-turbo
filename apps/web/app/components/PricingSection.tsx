@@ -6,12 +6,18 @@ import { motion } from "motion/react";
 import { ArrowRight, Check } from "lucide-react";
 import { useUserStore } from "@/lib/stores";
 import { PLAN_NAME, type PlanKey } from "@/lib/billing/plans";
+import { checkoutReturnPath } from "@/lib/billing/client";
 import { BillingToggle, PricingCard, useCheckout } from "@/app/components/billing";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-/** Where a visitor lands after paying from the homepage. */
-const CHECKOUT_RETURN_PATH = "/play";
+/**
+ * Where a visitor lands after paying from the homepage. The return goes
+ * through /pricing, which waits for the plan to activate before forwarding to
+ * /play; landing on /play directly would let its paywall gate bounce a buyer
+ * whose plan is still activating.
+ */
+const CHECKOUT_RETURN_PATH = checkoutReturnPath("/play");
 
 const VALUE_POINTS: { title: string; description: string }[] = [
   {

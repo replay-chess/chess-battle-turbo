@@ -75,22 +75,45 @@ export async function POST(req: NextRequest) {
     throw err
   }
 
-  // Avoid creating a second subscription for someone who is already active.
+  // Avoid creating a second subscription for someone who is already active,
+  // or whose existing subscription Dodo is still retrying: a new checkout
+  // there would leave the customer with two live subscriptions once the retry
+  // succeeds. A pending (abandoned) first checkout must still be retried.
   const dbUser = await prisma.user.findFirst({
     where: { googleId: userId },
     select: { dodoCustomerId: true },
   })
   if (dbUser?.dodoCustomerId) {
     try {
-      const active = await dodo.subscriptions.list({
+      let paymentUpdateSubscriptionId: string | null = null
+      const subscriptions = await dodo.subscriptions.list({
         customer_id: dbUser.dodoCustomerId,
-        status: "active",
       })
-      for await (const _subscription of active) {
+      for await (const subscription of subscriptions) {
+        if (subscription.status === "active") {
+          return NextResponse.json(
+            {
+              error: "You already have an active subscription",
+              code: "already_subscribed",
+              customerId: dbUser.dodoCustomerId,
+            },
+            { status: 409 },
+          )
+        }
+        if (
+          !paymentUpdateSubscriptionId &&
+          (subscription.status === "on_hold" || subscription.status === "past_due")
+        ) {
+          paymentUpdateSubscriptionId = subscription.subscription_id
+        }
+      }
+      if (paymentUpdateSubscriptionId) {
         return NextResponse.json(
           {
-            error: "You already have an active subscription",
-            code: "already_subscribed",
+            error:
+              "Your subscription has a payment issue. Update your payment method to keep your plan instead of starting a new one.",
+            code: "payment_update_required",
+            subscriptionId: paymentUpdateSubscriptionId,
             customerId: dbUser.dodoCustomerId,
           },
           { status: 409 },

@@ -58,6 +58,7 @@ await checkIndexablePage("/learn/openings");
 await checkIndexablePage("/learn/legends");
 await checkIndexablePage("/blog/author/rohit-pandit");
 await checkIndexablePage("/blog/editorial-policy");
+await checkIndexablePage("/pricing");
 
 const home = await fetchPage("/");
 assert.equal(home.response.status, 200);

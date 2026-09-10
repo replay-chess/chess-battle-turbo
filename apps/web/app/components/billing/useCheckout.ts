@@ -44,6 +44,20 @@ export function useCheckout(): {
         await fetchSubscription();
         return;
       }
+      if (res.status === 409 && data.code === "payment_update_required") {
+        // An existing subscription is waiting on a payment retry. Send the
+        // member to the billing portal to fix the payment method rather than
+        // creating a second subscription.
+        if (typeof window !== "undefined") {
+          window.location.href = "/api/customer-portal";
+          return;
+        }
+        throw new Error(
+          typeof data.error === "string"
+            ? data.error
+            : "Update your payment method to keep your existing subscription.",
+        );
+      }
       if (!res.ok) {
         throw new Error(typeof data.error === "string" ? data.error : res.statusText);
       }

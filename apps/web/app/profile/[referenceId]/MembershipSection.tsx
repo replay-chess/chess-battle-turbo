@@ -57,7 +57,6 @@ interface MembershipView {
   status: string | null;
   periodEnd: string | null;
   cancelAtPeriodEnd: boolean;
-  customerId: string | undefined;
 }
 
 function viewFromStore(subscription: StoreSubscription | null): MembershipView {
@@ -70,7 +69,6 @@ function viewFromStore(subscription: StoreSubscription | null): MembershipView {
     status: details?.status ?? subscription?.status ?? null,
     periodEnd: subscription?.currentPeriodEnd ?? details?.nextBillingDate ?? null,
     cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
-    customerId: subscription?.customerId,
   };
 }
 
@@ -289,9 +287,10 @@ export function MembershipSection() {
     );
   }
 
-  const portalHref = view.customerId
-    ? `/api/customer-portal?customer_id=${encodeURIComponent(view.customerId)}`
-    : "/api/customer-portal";
+  // The portal route resolves the Dodo customer from the signed-in user, so
+  // the link never carries a customer id.
+  const portalHref = "/api/customer-portal";
+  const paymentIssue = view.status === "on_hold" || view.status === "past_due";
 
   // Loading: the store has not answered yet.
   if (subscription === null) {
@@ -308,6 +307,47 @@ export function MembershipSection() {
   }
 
   if (!view.entitled) {
+    if (paymentIssue) {
+      // A failed renewal put the subscription on hold: Dodo keeps retrying the
+      // charge, so fixing the card revives this subscription. Starting a new
+      // plan here would risk a second, parallel subscription.
+      return (
+        <section id="membership" ref={rootRef} className="scroll-mt-24" data-testid="membership-section">
+          <a
+            href={portalHref}
+            data-testid="membership-update-payment"
+            className="group block border border-cb-border-strong bg-cb-hover hover:border-cb-text-muted transition-colors p-6 sm:p-8"
+          >
+            <p style={SANS} className="text-[10px] tracking-[0.3em] uppercase text-cb-text-muted mb-4">
+              Membership
+            </p>
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+              <div>
+                <h2 style={SERIF} className="text-3xl sm:text-4xl text-cb-text mb-1">
+                  Update payment method
+                </h2>
+                <p style={SANS} className="text-sm text-cb-text-muted max-w-md">
+                  Your last {PLAN_NAME} plan payment did not go through. Update your card and
+                  your access resumes as soon as the payment succeeds.
+                </p>
+              </div>
+              <span
+                style={SANS}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-cb-accent text-cb-accent-fg text-sm font-medium self-start sm:self-auto"
+              >
+                <CreditCard className="w-3.5 h-3.5" strokeWidth={1.5} />
+                Update payment method
+                <ArrowRight
+                  className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform"
+                  strokeWidth={1.5}
+                />
+              </span>
+            </div>
+          </a>
+        </section>
+      );
+    }
+
     return (
       <section id="membership" ref={rootRef} className="scroll-mt-24" data-testid="membership-section">
         <a
@@ -347,14 +387,19 @@ export function MembershipSection() {
     );
   }
 
-  const cancelling = view.cancelAtPeriodEnd || view.status === "cancelled";
-  const paymentIssue = view.status === "on_hold" || view.status === "past_due";
-  const badge = cancelling
-    ? { label: `Cancels on ${formatMembershipDate(view.periodEnd)}`, tone: "warning" as const }
-    : paymentIssue
-      ? { label: "Payment issue", tone: "warning" as const }
-      : { label: "Active", tone: "active" as const };
-  const dateLabel = cancelling ? "Access until" : "Renews on";
+  // Dodo keeps a period-end cancellation `active` with cancelAtPeriodEnd set;
+  // status `cancelled` without that flag means access ended immediately.
+  const immediateCancel = view.status === "cancelled" && !view.cancelAtPeriodEnd;
+  const terminal = immediateCancel || view.status === "expired" || view.status === "failed";
+  const cancelling = !terminal && (view.cancelAtPeriodEnd || view.status === "cancelled");
+  const badge = terminal
+    ? { label: "Ended", tone: "warning" as const }
+    : cancelling
+      ? { label: `Cancels on ${formatMembershipDate(view.periodEnd)}`, tone: "warning" as const }
+      : paymentIssue
+        ? { label: "Payment issue", tone: "warning" as const }
+        : { label: "Active", tone: "active" as const };
+  const dateLabel = terminal ? "Access" : cancelling ? "Access until" : "Renews on";
   const priceLabel =
     view.priceCents !== null && view.interval
       ? describePlanPrice({ interval: view.interval, priceCents: view.priceCents })
@@ -367,8 +412,6 @@ export function MembershipSection() {
         : view.interval === "month"
           ? "Billed monthly"
           : null;
-  const terminal = view.status === "expired" || view.status === "failed";
-
   const changes = availablePlanChanges(view.planKey);
   const tiles: React.ReactNode[] = [];
 
@@ -537,7 +580,7 @@ export function MembershipSection() {
               {dateLabel}
             </p>
             <p style={MONO} className="text-sm text-cb-text-secondary" data-testid="membership-period-end">
-              {formatMembershipDate(view.periodEnd)}
+              {terminal ? "Ended" : formatMembershipDate(view.periodEnd)}
             </p>
           </div>
           <div className="bg-cb-bg p-5">
@@ -619,11 +662,7 @@ export function MembershipSection() {
                     {previewLoading
                       ? "Working out your prorated amount…"
                       : preview
-                        ? `Next renewal ${formatMembershipDate(preview.newPlan.nextBillingDate)}${
-                            preview.customerCreditsCents
-                              ? `, after ${formatMinorUnits(preview.customerCreditsCents, preview.currency)} in credit`
-                              : ""
-                          }.`
+                        ? `Next renewal ${formatMembershipDate(preview.newPlan.nextBillingDate)}${describeCreditMovement(preview)}.`
                         : previewError
                           ? previewError
                           : "Preview unavailable."}
@@ -761,6 +800,22 @@ export function MembershipSection() {
       </MembershipModal>
     </section>
   );
+}
+
+/**
+ * Dodo reports `customer_credits` as a signed net movement: negative when
+ * existing credit was consumed to offset the charge (the usual upgrade case),
+ * positive when the change added credit to the balance.
+ */
+function describeCreditMovement(preview: PlanChangePreview): string {
+  const credits = preview.customerCreditsCents ?? 0;
+  if (credits < 0) {
+    return `, after ${formatMinorUnits(-credits, preview.currency)} in credit applied`;
+  }
+  if (credits > 0) {
+    return `, with ${formatMinorUnits(credits, preview.currency)} added to your credit balance`;
+  }
+  return "";
 }
 
 function humanizeStatus(status: string | null): string {

@@ -13,6 +13,7 @@ import type { ChessComPreviewData } from "@/lib/types/chess-com";
 import { useUserStore, type StoreSubscription, type StoreUser } from "@/lib/stores";
 import { PLAN_NAME, isPlanKey, type PlanKey } from "@/lib/billing/plans";
 import { BillingToggle, PricingCard, useCheckout } from "@/app/components/billing";
+import { waitForEntitlement } from "@/lib/billing/client";
 
 /**
  * Onboarding state machine.
@@ -35,8 +36,6 @@ type ActivationState = "idle" | "polling" | "stalled";
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 /** How often and how many times we re-check entitlement after checkout. */
-const ACTIVATION_POLL_MS = 2000;
-const ACTIVATION_POLL_ATTEMPTS = 6;
 
 const DESTINATION_AFTER_ONBOARDING = "/play";
 
@@ -109,6 +108,15 @@ function OnboardingContent() {
   // their plan just activated.
   const currentStep: Step = step === "plan" && entitled === true ? "input" : step;
 
+  // Completed members have nothing to do on this page (they typically arrive
+  // via a "Sign in to subscribe" CTA clicked while signed out). Send them on
+  // instead of re-asking for a chess.com account. New users (onboarded false)
+  // and lapsed members (not entitled) still go through the steps.
+  const alreadyDone = !!storeUser?.onboarded && entitled === true;
+  useEffect(() => {
+    if (alreadyDone) router.replace(DESTINATION_AFTER_ONBOARDING);
+  }, [alreadyDone, router]);
+
   // Signed-out visitors cannot pay or connect anything; send them to sign in
   // and bring them straight back here.
   useEffect(() => {
@@ -133,19 +141,16 @@ function OnboardingContent() {
     if (!checkoutSuccess) return;
     let cancelled = false;
 
-    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
     async function run() {
       setActivation("polling");
-      await fetchSubscription();
-      for (let attempt = 0; attempt < ACTIVATION_POLL_ATTEMPTS; attempt++) {
-        if (cancelled || storeSaysEntitled()) break;
-        await wait(ACTIVATION_POLL_MS);
-        if (cancelled) break;
-        await fetchSubscription();
-      }
+      // Shared schedule with /pricing and the gated-page hook.
+      const entitled = await waitForEntitlement({
+        refresh: fetchSubscription,
+        isEntitled: storeSaysEntitled,
+        isCancelled: () => cancelled,
+      });
       if (cancelled) return;
-      setActivation(storeSaysEntitled() ? "idle" : "stalled");
+      setActivation(entitled ? "idle" : "stalled");
     }
 
     void run();
@@ -246,9 +251,14 @@ function OnboardingContent() {
 
   // Wait for Clerk, the synced user, and (unless already known) the
   // subscription before choosing a first step, so the plan card never
-  // flashes for a paying member.
+  // flashes for a paying member, and keep the loading screen up while a
+  // completed member is being redirected so the chess.com step never flashes.
   const booting =
-    !isLoaded || !isSignedIn || !storeUser || (entitled === null && !checkoutSuccess);
+    !isLoaded ||
+    !isSignedIn ||
+    !storeUser ||
+    alreadyDone ||
+    (entitled === null && !checkoutSuccess);
 
   if (booting) {
     return <LoadingScreen />;

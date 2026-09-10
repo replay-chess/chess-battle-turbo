@@ -322,7 +322,8 @@ Subscription state is persisted on the `users` row (`plan`, `planInterval`, `sub
 The rules (`lib/billing/entitlement-rules.ts`, pure and unit-tested) are:
 
 - `active` → entitled.
-- `cancelled`, `on_hold`, `past_due` → entitled until `currentPeriodEnd` (the customer keeps the time they paid for).
+- `on_hold`, `past_due` → entitled until `currentPeriodEnd` (the customer keeps the time they paid for).
+- `cancelled` → entitled until `currentPeriodEnd` only when `cancelAtPeriodEnd` is true (a period-end cancellation). An immediate cancellation is not entitled.
 - `pending`, `paused`, `expired`, `failed`, or no subscription → not entitled.
 
 ### The 402 contract
@@ -340,7 +341,7 @@ The client treats `code: "subscription_required"` as a redirect to `upgradeUrl`.
 
 ### Checkout
 
-`POST /api/checkout` with `{ plan: "monthly" | "yearly", returnPath?, theme? }` creates a Dodo checkout session and returns `{ checkoutUrl, sessionId }` (`401` signed out, `409 already_subscribed`, `503` when the product env var is missing). `returnPath` must be an app path on the allowlist in `lib/billing/return-url.ts`; anything else falls back to `/pricing`. Dodo sends the user back with `?checkout=success` and the pricing page polls `GET /api/subscription` until the webhook has landed.
+`POST /api/checkout` with `{ plan: "monthly" | "yearly", returnPath?, theme? }` creates a Dodo checkout session and returns `{ checkoutUrl, sessionId }` (`401` signed out, `409 already_subscribed`, `503` when the product env var is missing). `returnPath` must be an app path on the allowlist in `lib/billing/return-url.ts`; anything else falls back to `/pricing`. Every checkout returns through `/pricing?redirect_url=<gated path>` (the homepage uses `/play`) so one page owns the activation polling: Dodo appends `checkout=success`, the pricing page polls `GET /api/subscription` until the plan is active, then sends the user on to `redirect_url`. A `409 payment_update_required` is returned when the customer has an on-hold or past-due subscription; the client sends them to `/api/customer-portal` to update the card instead of creating a second subscription.
 
 ### Applying the migration
 
