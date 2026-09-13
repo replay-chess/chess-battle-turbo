@@ -105,6 +105,14 @@ export const DIRECTORY_BADGES: {
     width: 265,
     height: 58,
   },
+  {
+    // launchigniter.com free launch (DR 74): per-product badge, verified from the schedule page.
+    href: "https://launchigniter.com/product/replaychess?ref=badge-replaychess",
+    src: "https://launchigniter.com/api/badge/replaychess?theme=light",
+    alt: "Featured on LaunchIgniter",
+    width: 212,
+    height: 55,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
