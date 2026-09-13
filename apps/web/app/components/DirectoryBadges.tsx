@@ -47,6 +47,13 @@ export const DIRECTORY_BADGES: {
     alt: "Fazier badge",
     width: 120,
   },
+  {
+    // neeed.directory (DR 72): free listing is nofollow until this badge is verified from the product page.
+    href: "https://neeed.directory",
+    src: "https://neeed.directory/badges/neeed-badge-light.svg",
+    alt: "Featured on neeed.directory",
+    width: 139,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
