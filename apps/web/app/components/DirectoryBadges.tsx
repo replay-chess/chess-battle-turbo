@@ -233,6 +233,14 @@ export const DIRECTORY_BADGES: {
     width: 159,
     height: 55,
   },
+  {
+    // FoundrList — badge qualifies the free launch (DR 72; launch week Oct 12-18 2026)
+    href: "https://www.foundrlist.com/product/replaychess?utm_source=badge&utm_medium=embed",
+    src: "https://www.foundrlist.com/api/badge/replaychess",
+    alt: "Featured on FoundrList",
+    width: 150,
+    height: 48,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
