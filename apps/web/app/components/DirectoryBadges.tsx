@@ -257,6 +257,14 @@ export const DIRECTORY_BADGES: {
     width: 240,
     height: 56,
   },
+  {
+    // Postmake — free badge listing (they review the badge placement URL)
+    href: "https://postmake.io",
+    src: "https://postmake.io/postmake_badge_light.png",
+    alt: "Featured on the Postmake directory",
+    width: 606,
+    height: 192,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
