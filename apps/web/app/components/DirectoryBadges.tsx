@@ -217,6 +217,14 @@ export const DIRECTORY_BADGES: {
     width: 240,
     height: 54,
   },
+  {
+    // DailyPings — free listing goes live instantly on badge verify; dofollow while the badge stays (checked daily)
+    href: "https://dailypings.com/p/replaychess",
+    src: "https://dailypings.com/badge.svg",
+    alt: "Featured on DailyPings",
+    width: 179,
+    height: 32,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
