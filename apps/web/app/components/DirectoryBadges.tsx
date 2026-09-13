@@ -70,6 +70,14 @@ export const DIRECTORY_BADGES: {
     width: 360,
     height: 80,
   },
+  {
+    // easylaunch.dev (DR 51): listing goes live with a dofollow link once this badge is found.
+    href: "https://easylaunch.dev/games/replaychess",
+    src: "https://easylaunch.dev/badge/easylaunch-badge-light.svg",
+    alt: "Featured on EasyLaunch",
+    width: 188,
+    height: 56,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
