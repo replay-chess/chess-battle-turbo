@@ -32,6 +32,14 @@ export const DIRECTORY_BADGES: {
     width: 200,
     height: 54,
   },
+  {
+    // wired.business free tier (DR 77): same verifier family as twelve.tools.
+    href: "https://wired.business",
+    src: "https://wired.business/badge0-dark.svg",
+    alt: "Featured on Wired Business",
+    width: 200,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
