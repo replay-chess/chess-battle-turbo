@@ -113,6 +113,30 @@ export const DIRECTORY_BADGES: {
     width: 212,
     height: 55,
   },
+  {
+    // postyourstartup.co free listing (DR 71): per-startup badge; verify from their dashboard.
+    href: "https://postyourstartup.co/startup/replaychess-1?ref=badge",
+    src: "https://postyourstartup.co/api/badge/replaychess-1?theme=light",
+    alt: "Featured on PostYourStartup",
+    width: 212,
+    height: 55,
+  },
+  {
+    // newtool.site free tier (DR 68): verify from the payment page after deploy.
+    href: "https://newtool.site/item/replaychess",
+    src: "https://newtool.site/badges/newtool-light.svg",
+    alt: "Featured on NewTool.site",
+    width: 160,
+    height: 54,
+  },
+  {
+    // similarlabs.com free listing (DR 68): verify from the submit modal after deploy.
+    href: "https://similarlabs.com",
+    src: "https://similarlabs.com/similarlabs-embed-badge-light.svg",
+    alt: "Featured on SimilarLabs",
+    width: 180,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
