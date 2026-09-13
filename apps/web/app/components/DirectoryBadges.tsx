@@ -78,6 +78,14 @@ export const DIRECTORY_BADGES: {
     width: 188,
     height: 56,
   },
+  {
+    // listmysaas.xyz free tier (DR 48): verify from their dashboard after deploy.
+    href: "https://listmysaas.xyz/",
+    src: "https://listmysaas.xyz/listmysaasbadgenormal.svg",
+    alt: "Featured on ListMySaaS",
+    width: 125,
+    height: 44,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
