@@ -137,6 +137,14 @@ export const DIRECTORY_BADGES: {
     width: 180,
     height: 54,
   },
+  {
+    // saasfame.com free tier (DR 68): 180-day review queue; verify from the payment page.
+    href: "https://saasfame.com/item/replaychess",
+    src: "https://saasfame.com/badge-light.svg",
+    alt: "Featured on saasfame.com",
+    width: 160,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
