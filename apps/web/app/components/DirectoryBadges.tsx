@@ -86,6 +86,14 @@ export const DIRECTORY_BADGES: {
     width: 125,
     height: 44,
   },
+  {
+    // nicklaunches.com free launch (DR 74): verbatim per-product snippet, verified before submit.
+    href: "https://nicklaunches.com/products/replaychess/?utm_source=playchess.tech&utm_medium=badge&utm_campaign=featured",
+    src: "https://nicklaunches.com/badges/featured.png",
+    alt: "ReplayChess on Nick Launches",
+    width: 244,
+    height: 56,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
