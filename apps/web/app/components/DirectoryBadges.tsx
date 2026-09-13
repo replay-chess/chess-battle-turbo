@@ -225,6 +225,14 @@ export const DIRECTORY_BADGES: {
     width: 179,
     height: 32,
   },
+  {
+    // Huzzler — badge required to enter the free 72-day queue (DR 64 dofollow)
+    href: "https://huzzler.so/products/nShiR9xQeM/replaychess?utm_source=huzzler_product_website&utm_medium=badge&utm_campaign=free_listing",
+    src: "https://huzzler.so/assets/images/embeddable-badges/featured.png",
+    alt: "Huzzler Embed Badge",
+    width: 159,
+    height: 55,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
