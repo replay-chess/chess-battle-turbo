@@ -54,6 +54,14 @@ export const DIRECTORY_BADGES: {
     alt: "Featured on neeed.directory",
     width: 139,
   },
+  {
+    // startupfa.st free launch (DR 71): requires this badge (150×44, dofollow) before submission.
+    href: "https://startupfa.st",
+    src: "https://startupfa.st/images/badges/powered-by-light.svg",
+    alt: "Powered by Startup Fast",
+    width: 150,
+    height: 44,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
