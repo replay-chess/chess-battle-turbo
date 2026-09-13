@@ -265,6 +265,22 @@ export const DIRECTORY_BADGES: {
     width: 606,
     height: 192,
   },
+  {
+    // Launch Streak — badge verify schedules the free launch with a dofollow link
+    href: "https://launchstreak.dev/games/replaychess",
+    src: "https://launchstreak.dev/badge/launch-streak-badge-light.svg",
+    alt: "Launched on Launch Streak",
+    width: 248,
+    height: 68,
+  },
+  {
+    // Just Hunt — badge is auto-verified for an instant dofollow link (launch week Mar 8 2027)
+    href: "https://justhunt.co/startups/replaychess",
+    src: "https://justhunt.co/logo.png",
+    alt: "Featured on JustHunt",
+    width: 64,
+    height: 64,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
