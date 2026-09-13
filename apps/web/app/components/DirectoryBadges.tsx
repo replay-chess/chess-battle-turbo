@@ -169,6 +169,22 @@ export const DIRECTORY_BADGES: {
     width: 200,
     height: 54,
   },
+  {
+    // StartupBase — badge moves the free launch into the priority queue (~4-5 weeks vs 10+)
+    href: "https://startupbase.io/products/replaychess?utm_source=startupbase&utm_medium=badge&utm_campaign=featured-badge-light",
+    src: "https://statics.startupbase.io/site/badges/featured-on-sb.svg",
+    alt: "Featured on StartupBase",
+    width: 212,
+    height: 55,
+  },
+  {
+    // DirOnix — badge required for the free launch (2 dofollow links)
+    href: "https://dironix.com",
+    src: "https://dironix.com/bage.png",
+    alt: "Featured on dironix.com",
+    width: 200,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
