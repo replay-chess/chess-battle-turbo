@@ -15,6 +15,8 @@ export const DIRECTORY_BADGES: {
   alt: string;
   width?: number;
   height?: number;
+  /** Height override for a directory whose terms require the badge at its issued size. */
+  className?: string;
 }[] = [
   {
     // twelve.tools free tier (DR 82): listing goes live once their verifier sees this badge.
@@ -61,6 +63,7 @@ export const DIRECTORY_BADGES: {
     alt: "Powered by Startup Fast",
     width: 150,
     height: 44,
+    className: "h-11",
   },
   {
     // domainrank.app free tier (DR 64): auto-verified badge, 1 dofollow link. Verbatim snippet.
@@ -110,6 +113,52 @@ export function DirectoryBadges() {
   const count = DIRECTORY_BADGES.length + DIRECTORY_TEXT_LINKS.length;
   if (count === 0) return null;
 
+  // ~2.5s per badge keeps the pace readable however many directories we add.
+  const duration = `${Math.max(30, Math.round(count * 2.5))}s`;
+
+  // The track holds two copies of the list and translates by half its width,
+  // so the loop never jumps. The second copy is aria-hidden and untabbable.
+  const items = (copy: number) => [
+    ...DIRECTORY_BADGES.map((badge) => (
+      <li key={`${copy}-${badge.href}`} className="flex shrink-0 items-center">
+        {/* eslint-disable-next-line react/jsx-no-target-blank -- keep the referrer: directories verify badge clicks by it */}
+        <a
+          href={badge.href}
+          target="_blank"
+          rel="noopener"
+          tabIndex={copy === 0 ? 0 : -1}
+          className="inline-flex items-center opacity-70 hover:opacity-100 transition-opacity"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- third-party hosted badge, must stay a plain <img> */}
+          <img
+            src={badge.src}
+            alt={badge.alt}
+            width={badge.width}
+            height={badge.height}
+            loading="lazy"
+            className={`${badge.className ?? "h-7"} w-auto`}
+          />
+        </a>
+      </li>
+    )),
+    ...DIRECTORY_TEXT_LINKS.map((link) => (
+      <li key={`${copy}-${link.href}`} className="flex shrink-0 items-center">
+        {/* eslint-disable-next-line react/jsx-no-target-blank -- keep the referrer: directories verify badge clicks by it */}
+        <a
+          href={link.href}
+          target="_blank"
+          rel="noopener"
+          title={link.title}
+          tabIndex={copy === 0 ? 0 : -1}
+          style={{ fontFamily: "'Geist', sans-serif" }}
+          className="text-[11px] px-2.5 py-1 border border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong transition-colors whitespace-nowrap"
+        >
+          {link.label}
+        </a>
+      </li>
+    )),
+  ];
+
   return (
     <section
       aria-label={`Directories that list ReplayChess (${count})`}
@@ -117,49 +166,18 @@ export function DirectoryBadges() {
     >
       <p
         style={{ fontFamily: "'Geist', sans-serif" }}
-        className="text-[10px] uppercase tracking-[0.2em] text-cb-text-faint mb-4"
+        className="text-[10px] uppercase tracking-[0.2em] text-cb-text-faint mb-3"
       >
         Listed on
       </p>
-      <ul className="flex flex-wrap items-center gap-x-4 gap-y-3 list-none p-0 m-0">
-        {DIRECTORY_BADGES.map((badge) => (
-          <li key={badge.href} className="flex items-center">
-            {/* eslint-disable-next-line react/jsx-no-target-blank -- keep the referrer: directories verify badge clicks by it */}
-            <a
-              href={badge.href}
-              target="_blank"
-              rel="noopener"
-              className="inline-flex items-center opacity-80 hover:opacity-100 transition-opacity"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element -- third-party hosted badge, must stay a plain <img> */}
-              {/* Rendered at the directory's declared size: some verifiers reject badges displayed smaller than issued. */}
-              <img
-                src={badge.src}
-                alt={badge.alt}
-                width={badge.width}
-                height={badge.height}
-                loading="lazy"
-                className="max-h-14 w-auto"
-              />
-            </a>
+      <div className="rc-marquee" style={{ ["--rc-marquee-duration" as string]: duration }}>
+        <ul className="rc-marquee-track list-none p-0 m-0">
+          {items(0)}
+          <li aria-hidden="true" className="contents">
+            <ul className="contents list-none p-0 m-0">{items(1)}</ul>
           </li>
-        ))}
-        {DIRECTORY_TEXT_LINKS.map((link) => (
-          <li key={link.href}>
-            {/* eslint-disable-next-line react/jsx-no-target-blank -- keep the referrer: directories verify badge clicks by it */}
-            <a
-              href={link.href}
-              target="_blank"
-              rel="noopener"
-              title={link.title}
-              style={{ fontFamily: "'Geist', sans-serif" }}
-              className="text-[11px] px-2.5 py-1 border border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong transition-colors"
-            >
-              {link.label}
-            </a>
-          </li>
-        ))}
-      </ul>
+        </ul>
+      </div>
     </section>
   );
 }
