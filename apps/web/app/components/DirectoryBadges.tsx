@@ -62,6 +62,14 @@ export const DIRECTORY_BADGES: {
     width: 150,
     height: 44,
   },
+  {
+    // domainrank.app free tier (DR 64): auto-verified badge, 1 dofollow link. Verbatim snippet.
+    href: "https://domainrank.app",
+    src: "https://domainrank.app/api/badge/playchess.tech?theme=dark",
+    alt: "playchess.tech Domain Rating",
+    width: 360,
+    height: 80,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
