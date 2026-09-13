@@ -201,6 +201,14 @@ export const DIRECTORY_BADGES: {
     width: 188,
     height: 56,
   },
+  {
+    // DanielLaunches — badge required to unlock the free launch date step
+    href: "https://daniellaunches.com",
+    src: "https://daniellaunches.com/badge-light.svg",
+    alt: "Featured on DanielLaunches",
+    width: 220,
+    height: 48,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
