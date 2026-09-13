@@ -94,6 +94,14 @@ export const DIRECTORY_BADGES: {
     width: 244,
     height: 56,
   },
+  {
+    // auraplusplus.com free launch (DR 72): link to the project page is what their verifier checks.
+    href: "https://auraplusplus.com/projects/replaychess",
+    src: "https://auraplusplus.com/images/badges/featured-on-light.svg",
+    alt: "Featured on Aura++",
+    width: 265,
+    height: 58,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
