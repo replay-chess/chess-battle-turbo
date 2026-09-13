@@ -143,7 +143,7 @@ export function DirectoryBadges() {
             alt={badge.alt}
             width={badge.width}
             height={badge.height}
-            loading="lazy"
+            // Eager on purpose: lazy images inside the moving track never fire their load trigger.
             className={`${badge.className ?? "h-7"} w-auto`}
           />
         </a>
