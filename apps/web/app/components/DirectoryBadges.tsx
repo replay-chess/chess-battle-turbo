@@ -281,6 +281,14 @@ export const DIRECTORY_BADGES: {
     width: 64,
     height: 64,
   },
+  {
+    // Mydentify (DR47, badge required for free listing)
+    href: "https://mydentify.com/",
+    src: "https://mydentify.com/badges/listed-on-mydentify.svg",
+    alt: "Listed on Mydentify",
+    width: 176,
+    height: 32,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
