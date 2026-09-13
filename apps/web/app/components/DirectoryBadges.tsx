@@ -249,6 +249,14 @@ export const DIRECTORY_BADGES: {
     width: 200,
     height: 56,
   },
+  {
+    // Pro Launch — badge verify unlocks a free dofollow link (launch Tue 2026-09-22)
+    href: "https://prolaunch.net",
+    src: "https://prolaunch.net/images/badges/featured-light.svg",
+    alt: "Pro Launch Featured Badge",
+    width: 240,
+    height: 56,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
