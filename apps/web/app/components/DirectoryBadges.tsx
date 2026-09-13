@@ -40,6 +40,13 @@ export const DIRECTORY_BADGES: {
     width: 200,
     height: 54,
   },
+  {
+    // fazier.com free launch (DR 55): verbatim from their "Copy embed code" — the deep-link href is what they check.
+    href: "https://fazier.com/launches/www.playchess.tech",
+    src: "https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=light",
+    alt: "Fazier badge",
+    width: 120,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
