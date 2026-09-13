@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = createMetadata({
   title: "Onboarding",
-  description: "Set up your ReplayChess profile.",
+  description: "Choose a plan and set up your ReplayChess profile.",
   path: "/onboarding",
   noIndex: true,
 });

@@ -6,13 +6,53 @@ import { useRouter, usePathname } from "next/navigation";
 import { logger } from "@/lib/logger";
 import { trackApiResponseTime } from "@/lib/metrics";
 import { useUserStore } from "@/lib/stores";
+import { isPlanKey } from "@/lib/billing/plans";
+
+/**
+ * Pages a not-yet-onboarded user may keep reading. Marketing, legal and the
+ * free "try" experience never bounce to onboarding; /pricing and /onboarding
+ * are already part of the flow; /sign-in is Clerk's territory.
+ */
+const ONBOARDING_EXEMPT_PREFIXES: readonly string[] = [
+  "/try",
+  "/blog",
+  "/learn",
+  "/about",
+  "/help",
+  "/contact",
+  "/terms",
+  "/privacy",
+  "/cookies",
+  "/pricing",
+  "/onboarding",
+  "/sign-in",
+];
+
+function isOnboardingExemptPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return ONBOARDING_EXEMPT_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+/**
+ * Where to send a new user. A `plan` query param on the current URL (for
+ * example a marketing link to /?plan=yearly) is carried over so onboarding
+ * preselects that billing interval.
+ */
+function onboardingHref(): string {
+  if (typeof window === "undefined") return "/onboarding";
+  const plan = new URLSearchParams(window.location.search).get("plan");
+  return isPlanKey(plan) ? `/onboarding?plan=${plan}` : "/onboarding";
+}
 
 /**
  * UserSync Component
  *
  * Automatically syncs the authenticated user's data from Clerk to our database.
  * Populates the Zustand user store with user data + subscription.
- * Redirects new users (onboarded === false) to the onboarding page.
+ * Redirects new users (onboarded === false) to the onboarding page, unless
+ * they are on a page that should stay reachable without onboarding.
  * Runs once per session.
  */
 export const UserSync = () => {
@@ -103,9 +143,9 @@ export const UserSync = () => {
         if (
           data.user &&
           !data.user.onboarded &&
-          pathname !== "/onboarding"
+          !isOnboardingExemptPath(pathname)
         ) {
-          router.push("/onboarding");
+          router.push(onboardingHref());
         }
       } catch (error) {
         logger.error("Error syncing user:", error);

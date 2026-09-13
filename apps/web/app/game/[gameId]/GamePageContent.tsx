@@ -19,6 +19,8 @@ import { PlayerInfoCard } from "./PlayerInfoCard";
 import { GameActionButtons } from "./GameActionButtons";
 import { AnalysisPhaseBannerMobile, AnalysisPhaseBannerDesktop } from "./AnalysisPhaseBanner";
 import { ShareLinkModal } from "@/app/play/ShareLinkModal";
+import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";
+import { retryOnUnauthorized, socketAuth } from "@/lib/hooks/useSocketToken";
 import type {
   Player,
   GameStartedPayload,
@@ -319,6 +321,10 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
           selectedLegend: null,
         }),
       });
+      if (await isSubscriptionRequiredResponse(response)) {
+        router.push(paywallUrl(currentAppPath()));
+        return;
+      }
       const data = await response.json();
       if (!data.success) throw new Error(data.error || "Failed to create rematch");
       const ref = data.data.game.referenceId;
@@ -389,7 +395,12 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       reconnectionAttempts: Infinity,
+      // Signed user token, fetched before each (re)connect so the server can
+      // verify `userReferenceId`. Falls back to an empty handshake if the
+      // token cannot be fetched (see useSocketToken).
+      auth: socketAuth,
     });
+    const stopAuthRetry = retryOnUnauthorized(socketRef.current);
 
     socketRef.current.on("connect", () => {
       socketRef.current!.emit("join_game", {
@@ -606,7 +617,9 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
         try {
           const count = parseInt(localStorage.getItem('games_completed') || '0', 10);
           localStorage.setItem('games_completed', String(count + 1));
-        } catch {}
+        } catch {
+          // localStorage can be unavailable (private mode, blocked storage)
+        }
       }
 
       // Play game end sound
@@ -708,6 +721,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
     });
 
     return () => {
+      stopAuthRetry();
       socketRef.current?.disconnect();
     };
   }, [gameId, userReferenceId, hydrateFromDb]);
@@ -1384,7 +1398,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
                   style={{ fontFamily: "'Instrument Serif', serif" }}
                   className="text-cb-text-faint text-sm italic"
                 >
-                  "The beauty of a move lies not in its appearance but in the thought behind it."
+                  &ldquo;The beauty of a move lies not in its appearance but in the thought behind it.&rdquo;
                 </p>
                 <p style={{ fontFamily: "'Geist', sans-serif" }} className="text-cb-text-faint text-[10px] uppercase tracking-widest mt-2">
                   Aaron Nimzowitsch

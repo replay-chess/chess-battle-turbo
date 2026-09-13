@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useRequireAuth, UseRequireAuthReturn } from "@/lib/hooks";
+import { useRequireSubscription } from "@/lib/hooks/useRequireSubscription";
+import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";
 import { ShareLinkModal } from "@/app/play/ShareLinkModal";
 import { Navbar } from "@/app/components/Navbar";
 import { motion } from "motion/react";
@@ -10,8 +11,8 @@ import { logger } from "@/lib/logger";
 import TimeControlSelector, { TimeControlValue } from "@/app/components/TimeControlSelector";
 import { cn } from "@/lib/utils";
 
-export default function ChallengeNewPage() {
-  const { isReady, userObject }: UseRequireAuthReturn = useRequireAuth();
+function ChallengeNewContent() {
+  const { isReady, userObject } = useRequireSubscription();
   const userReferenceId = userObject?.user?.referenceId;
   const router = useRouter();
 
@@ -44,6 +45,11 @@ export default function ChallengeNewPage() {
           selectedLegend: legend,
         }),
       });
+      if (await isSubscriptionRequiredResponse(response)) {
+        router.push(paywallUrl(currentAppPath()));
+        return;
+      }
+
       const data = await response.json();
 
       if (!data.success) throw new Error(data.error || "Failed to create game");
@@ -157,5 +163,19 @@ export default function ChallengeNewPage() {
         }}
       />
     </>
+  );
+}
+
+export default function ChallengeNewPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-cb-bg flex items-center justify-center">
+          <div className="w-12 h-12 border-2 border-cb-border-strong border-t-cb-text rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <ChallengeNewContent />
+    </Suspense>
   );
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createMatchRequest } from "@/lib/services/matchmaking";
-import { resolveUser } from "@/lib/auth/resolve-user";
+import { requireSubscribedUser } from "@/lib/auth/require-subscription";
 import { logger } from "@/lib/logger";
 
 const createMatchRequestSchema = z.object({
@@ -19,10 +19,9 @@ const createMatchRequestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await resolveUser(request);
-    if (!user) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireSubscribedUser(request);
+    if (gate.response) return gate.response;
+    const user = gate.user;
 
     const body = await request.json();
     const validatedData = createMatchRequestSchema.parse(body);

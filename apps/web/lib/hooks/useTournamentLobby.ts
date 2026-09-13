@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
+import { retryOnUnauthorized, useSocketToken } from "./useSocketToken";
 
 interface TournamentParticipant {
   referenceId: string;
@@ -63,6 +64,8 @@ export function useTournamentLobby(tournamentReferenceId: string) {
   const socketRef = useRef<Socket | null>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFetching = useRef(false);
+  // Warms the socket auth token cache; `auth` is a stable module-level function.
+  const { auth } = useSocketToken();
 
   const fetchTournament = useCallback(async () => {
     try {
@@ -118,7 +121,11 @@ export function useTournamentLobby(tournamentReferenceId: string) {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 10,
+      // Signed user token, fetched before each (re)connect. Falls back to an
+      // empty handshake if the token cannot be fetched (see useSocketToken).
+      auth,
     });
+    const stopAuthRetry = retryOnUnauthorized(socket);
 
     socketRef.current = socket;
 
@@ -134,11 +141,12 @@ export function useTournamentLobby(tournamentReferenceId: string) {
     socket.on("tournament_ended", fetchTournament); // Immediate — rare, important
 
     return () => {
+      stopAuthRetry();
       socket.emit("leave_tournament_lobby", { tournamentReferenceId });
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [tournamentReferenceId, fetchTournament, debouncedFetch]);
+  }, [tournamentReferenceId, fetchTournament, debouncedFetch, auth]);
 
   return {
     tournament,

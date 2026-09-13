@@ -31,12 +31,24 @@ export interface StoreUser {
 
 export interface StoreSubscription {
   plan: string | null;
+  /** True when the user may play. Mirrors the server; never trust it alone. */
+  entitled?: boolean;
+  /** False when the server paywall is switched off. */
+  paywall?: boolean;
+  status?: string | null;
+  currentPeriodEnd?: string | null;
+  cancelAtPeriodEnd?: boolean;
+  subscriptionId?: string | null;
   customerId?: string;
   subscription?: {
     id: string;
     status: string;
     productId: string;
     nextBillingDate: string;
+    /** "monthly" | "yearly" for current products, "legacy" for the original $8 plan. */
+    planKey?: "monthly" | "yearly" | "legacy" | null;
+    interval?: "month" | "year" | null;
+    priceCents?: number | null;
   };
 }
 
@@ -84,13 +96,13 @@ export const useUserStore = create<UserState>()(
             set({ isSyncing: true });
             const res = await fetch("/api/subscription");
             if (!res.ok) {
-              set({ subscription: { plan: null }, isSyncing: false });
+              set({ subscription: { plan: null, entitled: false }, isSyncing: false });
               return;
             }
             const data = await res.json();
             set({ subscription: data, isSyncing: false });
           } catch {
-            set({ subscription: { plan: null }, isSyncing: false });
+            set({ subscription: { plan: null, entitled: false }, isSyncing: false });
           }
         },
 

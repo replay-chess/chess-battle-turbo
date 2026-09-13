@@ -5,7 +5,7 @@ import {prisma} from "@/lib/prisma";
 import {getRandomChessPosition, getRandomPositionByLegend, getPositionByReferenceId, incrementPositionPlayCount} from "@/lib/services/chess-position.service";
 import { getOpeningByReferenceId, getOpeningPlayerColor } from "@/lib/services/opening.service";
 import { ValidationError } from "@/lib/errors/validation-error";
-import { resolveUser } from "@/lib/auth/resolve-user";
+import { requireSubscribedUser } from "@/lib/auth/require-subscription";
 import { captureGameTraceData } from "@/lib/sentry/game-trace";
 import { logger } from "@/lib/logger";
 import { trackUserAction } from "@/lib/metrics";
@@ -27,11 +27,10 @@ function calculateExpirationTime(hoursFromNow: number = 1): Date {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Authenticate user via Clerk session
-    const user = await resolveUser(request);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // 1. Authenticate user via Clerk session and require an active Player plan
+    const gate = await requireSubscribedUser(request);
+    if (gate.response) return gate.response;
+    const user = gate.user;
 
     // 2. Parse and validate request body using Zod schema
     const body = await request.json();

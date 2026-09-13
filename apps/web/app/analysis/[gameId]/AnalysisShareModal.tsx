@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Link, Swords, Clock, Share2, Copy, Check, MessageCircle, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -181,6 +182,11 @@ export function AnalysisShareModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      if (await isSubscriptionRequiredResponse(response)) {
+        router.push(paywallUrl(currentAppPath()));
+        return;
+      }
+
       const data = await response.json();
 
       if (!data.success) {

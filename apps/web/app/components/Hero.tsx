@@ -112,7 +112,7 @@ export default function Hero() {
               >
                 <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
                 <span className="relative flex items-center gap-3 group-hover:text-cb-text transition-colors duration-300">
-                  Play Legendary Games — Free
+                  Play Legendary Games
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </span>
               </button>
@@ -137,6 +137,14 @@ export default function Hero() {
               </button>
             </Link>
           )}
+          <Link
+            href="/#pricing"
+            data-testid="hero-see-plans"
+            style={{ fontFamily: "'Geist', sans-serif" }}
+            className="text-xs tracking-[0.2em] uppercase text-cb-text-muted hover:text-cb-text transition-colors underline-offset-4 hover:underline"
+          >
+            See plans
+          </Link>
         </motion.div>
       </motion.div>
 
@@ -159,7 +167,7 @@ export default function Hero() {
             >
               <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
               <span className="relative flex items-center justify-center gap-2 group-hover:text-cb-text transition-colors duration-300">
-                Play Free
+                Play Now
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
             </button>

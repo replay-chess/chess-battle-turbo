@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { MatchmakingStatus } from "@/app/generated/prisma";
+import { useRouter } from "next/navigation";
 import { trackApiResponseTime } from "@/lib/metrics";
+import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";
 
 export interface OpponentInfo {
   name: string;
@@ -184,6 +186,7 @@ export interface UseCreateMatchRequestReturn {
 export function useCreateMatchRequest(
   options: UseCreateMatchRequestOptions
 ): UseCreateMatchRequestReturn {
+  const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
 
   const createMatchRequest = useCallback(
@@ -205,6 +208,11 @@ export function useCreateMatchRequest(
           body: JSON.stringify(params),
         });
 
+        if (await isSubscriptionRequiredResponse(response)) {
+          router.push(paywallUrl(currentAppPath()));
+          return;
+        }
+
         const data = await response.json();
         trackApiResponseTime("matchmaking.create", Date.now() - start);
 
@@ -224,7 +232,7 @@ export function useCreateMatchRequest(
         setIsCreating(false);
       }
     },
-    [options]
+    [options, router]
   );
 
   return {

@@ -1,28 +1,151 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@clerk/nextjs/server"
+import { auth, currentUser } from "@clerk/nextjs/server"
+import { z } from "zod"
 import { dodo } from "@/lib/dodo"
+import { prisma } from "@/lib/prisma"
+import { BASE_URL } from "@/lib/seo"
+import { PLAN_KEYS } from "@/lib/billing/plans"
+import {
+  BillingNotConfiguredError,
+  getProductIdForPlan,
+} from "@/lib/billing/products"
+import { buildReturnUrl, resolveAppOrigin } from "@/lib/billing/return-url"
 
+const checkoutBodySchema = z.object({
+  plan: z.enum(PLAN_KEYS),
+  returnPath: z.string().max(512).optional(),
+  theme: z.enum(["dark", "light", "system"]).optional(),
+})
+
+/**
+ * Creates a Dodo Payments checkout session for the Player plan.
+ *
+ * The client only chooses a plan key ("monthly" | "yearly"). The product ID,
+ * customer email, and name all come from the server so a caller cannot start
+ * a checkout for an arbitrary product or on behalf of another email address.
+ */
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { productId, email, name, metadata } = await req.json()
+  let rawBody: unknown
+  try {
+    rawBody = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
 
-  if (!productId || !email) {
+  const parsed = checkoutBodySchema.safeParse(rawBody)
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Missing required fields" },
+      { error: "Choose a monthly or yearly plan" },
       { status: 400 },
     )
+  }
+  const { plan, returnPath, theme } = parsed.data
+
+  const clerkUser = await currentUser()
+  const email =
+    clerkUser?.primaryEmailAddress?.emailAddress ??
+    clerkUser?.emailAddresses[0]?.emailAddress
+  if (!email) {
+    return NextResponse.json(
+      { error: "Your account has no email address" },
+      { status: 400 },
+    )
+  }
+  const name =
+    clerkUser?.fullName ??
+    [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(" ") ??
+    undefined
+
+  let productId: string
+  try {
+    productId = getProductIdForPlan(plan)
+  } catch (err) {
+    if (err instanceof BillingNotConfiguredError) {
+      console.error("[checkout]", err.message)
+      return NextResponse.json(
+        { error: "This plan is not available right now" },
+        { status: 503 },
+      )
+    }
+    throw err
+  }
+
+  // Avoid creating a second subscription for someone who is already active,
+  // or whose existing subscription Dodo is still retrying: a new checkout
+  // there would leave the customer with two live subscriptions once the retry
+  // succeeds. A pending (abandoned) first checkout must still be retried.
+  const dbUser = await prisma.user.findFirst({
+    where: { googleId: userId },
+    select: { dodoCustomerId: true },
+  })
+  if (dbUser?.dodoCustomerId) {
+    try {
+      let paymentUpdateSubscriptionId: string | null = null
+      const subscriptions = await dodo.subscriptions.list({
+        customer_id: dbUser.dodoCustomerId,
+      })
+      for await (const subscription of subscriptions) {
+        if (subscription.status === "active") {
+          return NextResponse.json(
+            {
+              error: "You already have an active subscription",
+              code: "already_subscribed",
+              customerId: dbUser.dodoCustomerId,
+            },
+            { status: 409 },
+          )
+        }
+        if (
+          !paymentUpdateSubscriptionId &&
+          (subscription.status === "on_hold" || subscription.status === "past_due")
+        ) {
+          paymentUpdateSubscriptionId = subscription.subscription_id
+        }
+      }
+      if (paymentUpdateSubscriptionId) {
+        return NextResponse.json(
+          {
+            error:
+              "Your subscription has a payment issue. Update your payment method to keep your plan instead of starting a new one.",
+            code: "payment_update_required",
+            subscriptionId: paymentUpdateSubscriptionId,
+            customerId: dbUser.dodoCustomerId,
+          },
+          { status: 409 },
+        )
+      }
+    } catch (err) {
+      // A lookup failure should not block a legitimate checkout.
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[checkout] Could not verify existing subscriptions:", err)
+      }
+    }
   }
 
   try {
     const session = await dodo.checkoutSessions.create({
       product_cart: [{ product_id: productId, quantity: 1 }],
-      customer: { email, name },
-      metadata,
-      return_url: process.env.DODO_PAYMENTS_RETURN_URL,
+      customer: { email, name: name || undefined },
+      metadata: { clerkUserId: userId, plan },
+      return_url: buildReturnUrl(
+        returnPath,
+        resolveAppOrigin(
+          { DODO_PAYMENTS_RETURN_URL: process.env.DODO_PAYMENTS_RETURN_URL },
+          BASE_URL,
+        ),
+      ),
+      customization: { theme: theme ?? "system", show_order_details: true },
+      feature_flags: {
+        // Land the user straight back in the app instead of on Dodo's own
+        // success page; the return page confirms activation itself.
+        redirect_immediately: true,
+        allow_discount_code: true,
+      },
     })
 
     return NextResponse.json({
@@ -30,10 +153,11 @@ export async function POST(req: NextRequest) {
       sessionId: session.session_id,
     })
   } catch (err) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[checkout] Dodo API error:', err)
+    if (process.env.NODE_ENV === "development") {
+      console.error("[checkout] Dodo API error:", err)
     }
-    const message = err instanceof Error ? err.message : "Failed to create checkout session"
+    const message =
+      err instanceof Error ? err.message : "Failed to create checkout session"
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { resolveUser } from "@/lib/auth/resolve-user";
+import { requireSubscribedUser } from "@/lib/auth/require-subscription";
 import {
   autoCompleteTournamentIfExpired,
   resolveStartingPosition,
@@ -15,10 +15,9 @@ const findMatchSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const dbUser = await resolveUser(request);
-    if (!dbUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const gate = await requireSubscribedUser(request);
+    if (gate.response) return gate.response;
+    const dbUser = gate.user;
 
     const body = await request.json();
     const data = findMatchSchema.parse(body);

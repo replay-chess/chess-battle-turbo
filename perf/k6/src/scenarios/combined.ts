@@ -177,7 +177,7 @@ export function matchmakingGame() {
       pollCount++;
 
       const statusRes = http.get(
-        apiUrl(`/api/matchmaking/match-status?referenceId=${queueRefId}`),
+        apiUrl(`/api/matchmaking/match-status?referenceId=${queueRefId}&userReferenceId=${playerA.referenceId}`),
         { tags: { name: 'matchmaking-poll' } },
       );
 

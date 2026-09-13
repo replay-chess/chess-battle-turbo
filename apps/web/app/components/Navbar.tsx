@@ -22,7 +22,7 @@ export const Navbar = ({ breadcrumbLabel }: { breadcrumbLabel?: string }) => {
 
   const userReferenceId = user?.referenceId ?? null;
   const isAdmin = user?.role === "ADMIN";
-  const customerId = subscription?.customerId;
+  const hasMembership = Boolean(subscription?.subscriptionId || subscription?.entitled);
 
   const handlePlayClick = () => {
     if (useUserStore.getState().user !== null) {
@@ -252,20 +252,19 @@ export const Navbar = ({ breadcrumbLabel }: { breadcrumbLabel?: string }) => {
               >
                 <UserButton.MenuItems>
                   <UserButton.Link
-                    label="Subscription"
+                    label="Membership"
                     labelIcon={<CreditCard className="w-4 h-4" />}
-                    href="/pricing"
+                    href={
+                      userReferenceId
+                        ? `/profile/${userReferenceId}#membership`
+                        : "/pricing"
+                    }
                   />
-                  {customerId && (
+                  {hasMembership && (
                     <UserButton.Action
                       label="Manage Billing"
                       labelIcon={<Receipt className="w-4 h-4" />}
-                      onClick={() =>
-                        window.open(
-                          `/api/customer-portal?customer_id=${customerId}`,
-                          "_blank",
-                        )
-                      }
+                      onClick={() => window.open("/api/customer-portal", "_blank")}
                     />
                   )}
                 </UserButton.MenuItems>

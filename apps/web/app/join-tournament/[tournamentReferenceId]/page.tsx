@@ -4,7 +4,8 @@ import React, { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
-import { useRequireAuth } from "@/lib/hooks";
+import { useRequireSubscription } from "@/lib/hooks/useRequireSubscription";
+import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";
 import { motion } from "motion/react";
 import { Navbar } from "@/app/components/Navbar";
 import { Trophy, Clock, Gamepad2, Users, Timer, Loader2 } from "lucide-react";
@@ -72,7 +73,7 @@ export default function JoinTournamentPage({
   params: Promise<{ tournamentReferenceId: string }>;
 }) {
   const { tournamentReferenceId } = use(params);
-  const { isReady, userObject } = useRequireAuth();
+  const { isReady, userObject } = useRequireSubscription();
   const userReferenceId = userObject?.user?.referenceId;
   const router = useRouter();
 
@@ -124,6 +125,10 @@ export default function JoinTournamentPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tournamentReferenceId }),
       });
+      if (await isSubscriptionRequiredResponse(res)) {
+        router.push(paywallUrl(currentAppPath()));
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         router.push(`/tournament/${tournamentReferenceId}`);

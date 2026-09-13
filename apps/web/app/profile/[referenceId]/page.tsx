@@ -12,6 +12,7 @@ import { ProfileHero } from "./ProfileHero";
 import { StatsOverview } from "./StatsOverview";
 import { GameHistory } from "./GameHistory";
 import { ChessComConnectModal } from "./ChessComConnectModal";
+import { MembershipSection } from "./MembershipSection";
 
 interface ProfileUser {
   referenceId: string;
@@ -78,38 +79,46 @@ const ProfilePage = ({
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ProfileData | null>(null);
   const [showConnectModal, setShowConnectModal] = useState(false);
+  // Bumped to re-fetch the profile (e.g. after connecting chess.com).
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Read current user's referenceId from store instead of fetching
   const currentUserRefId = useUserStore((s) => s.user?.referenceId ?? null);
 
-  const fetchProfile = async () => {
-    try {
-      const response = await fetch(`/api/profile/${referenceId}`);
-      const result = await response.json();
-
-      if (!result.success) {
-        setError(result.error || "Profile not found");
-        return;
-      }
-
-      setData(result.data);
-    } catch {
-      setError("Failed to load profile");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchProfile();
-  }, [referenceId]);
+    let cancelled = false;
+
+    const fetchProfile = async () => {
+      try {
+        const response = await fetch(`/api/profile/${referenceId}`);
+        const result = await response.json();
+        if (cancelled) return;
+
+        if (!result.success) {
+          setError(result.error || "Profile not found");
+          return;
+        }
+
+        setData(result.data);
+      } catch {
+        if (!cancelled) setError("Failed to load profile");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void fetchProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [referenceId, reloadKey]);
 
   const isOwnProfile = currentUserRefId === referenceId;
 
   const handleConnectSuccess = () => {
     setShowConnectModal(false);
     // Re-fetch profile data to show the new chess.com ratings
-    fetchProfile();
+    setReloadKey((key) => key + 1);
   };
 
   if (loading) {
@@ -187,6 +196,17 @@ const ProfilePage = ({
               transition={{ delay: 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             >
               <ThemeToggle />
+            </motion.div>
+          )}
+
+          {/* Membership — own profile only */}
+          {isOwnProfile && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.12, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <MembershipSection />
             </motion.div>
           )}
 

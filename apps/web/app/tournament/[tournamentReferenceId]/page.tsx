@@ -4,7 +4,9 @@ import React, { useState, use } from "react";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 import { Navbar } from "@/app/components/Navbar";
-import { useRequireAuth } from "@/lib/hooks";
+import { useRouter } from "next/navigation";
+import { useRequireSubscription } from "@/lib/hooks/useRequireSubscription";
+import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";
 import { useTournamentLobby } from "@/lib/hooks/useTournamentLobby";
 import TournamentHeader from "./TournamentHeader";
 import Leaderboard from "./Leaderboard";
@@ -21,7 +23,8 @@ export default function TournamentPage({
   params: Promise<{ tournamentReferenceId: string }>;
 }) {
   const { tournamentReferenceId } = use(params);
-  const { isReady, userObject } = useRequireAuth();
+  const router = useRouter();
+  const { isReady, userObject } = useRequireSubscription();
   const userReferenceId = userObject?.user?.referenceId;
 
   const { tournament, isLoading, error, refetch } =
@@ -67,6 +70,10 @@ export default function TournamentPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tournamentReferenceId }),
       });
+      if (await isSubscriptionRequiredResponse(res)) {
+        router.push(paywallUrl(currentAppPath()));
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         refetch();
