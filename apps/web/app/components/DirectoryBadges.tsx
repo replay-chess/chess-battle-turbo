@@ -145,6 +145,30 @@ export const DIRECTORY_BADGES: {
     width: 160,
     height: 54,
   },
+  {
+    // OpenHunts — club badge required to skip the ~60-week free queue
+    href: "https://openhunts.com",
+    src: "https://cdn.openhunts.com/badges/club.webp",
+    alt: "OpenHunts Club Member",
+    width: 486,
+    height: 105,
+  },
+  {
+    // First Look — free listing is dofollow while the badge stays up (checked weekly)
+    href: "https://firstlook.tools",
+    src: "https://firstlook.tools/badge/badge_light.svg",
+    alt: "Featured on First Look",
+    width: 200,
+    height: 54,
+  },
+  {
+    // NavFolders — badge required for the free (dofollow) plan
+    href: "https://navfolders.com",
+    src: "https://navfolders.com/badge/nav_light.svg",
+    alt: "Featured on NavFolders",
+    width: 200,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
