@@ -185,6 +185,22 @@ export const DIRECTORY_BADGES: {
     width: 200,
     height: 54,
   },
+  {
+    // SaaSBison — badge required for the free listing; must stay permanently
+    href: "https://saasbison.com",
+    src: "https://saasbison.com/badge.png",
+    alt: "Featured on SaaSBison",
+    width: 200,
+    height: 54,
+  },
+  {
+    // EasyDoFollow — listing goes live with a dofollow link once the badge is found
+    href: "https://easydofollow.dev/games/replaychess",
+    src: "https://easydofollow.dev/badge/easydofollow-badge-light.svg",
+    alt: "Featured on EasyDoFollow",
+    width: 188,
+    height: 56,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
