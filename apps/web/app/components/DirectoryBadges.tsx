@@ -89,16 +89,17 @@ export function DirectoryBadges() {
               href={badge.href}
               target="_blank"
               rel="noopener"
-              className="inline-flex h-8 items-center opacity-70 hover:opacity-100 transition-opacity"
+              className="inline-flex items-center opacity-80 hover:opacity-100 transition-opacity"
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- third-party hosted badge, must stay a plain <img> */}
+              {/* Rendered at the directory's declared size: some verifiers reject badges displayed smaller than issued. */}
               <img
                 src={badge.src}
                 alt={badge.alt}
                 width={badge.width}
                 height={badge.height}
                 loading="lazy"
-                className="h-8 w-auto"
+                className="max-h-14 w-auto"
               />
             </a>
           </li>
