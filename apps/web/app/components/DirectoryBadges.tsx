@@ -15,7 +15,24 @@ export const DIRECTORY_BADGES: {
   alt: string;
   width?: number;
   height?: number;
-}[] = [];
+}[] = [
+  {
+    // twelve.tools free tier (DR 82): listing goes live once their verifier sees this badge.
+    href: "https://twelve.tools",
+    src: "https://twelve.tools/badge0-white.svg",
+    alt: "Featured on Twelve Tools",
+    width: 148,
+    height: 40,
+  },
+  {
+    // tooldirs.com free tier (DR 66): verifier checks for this exact badge before publishing.
+    href: "https://tooldirs.com",
+    src: "https://tooldirs.com/badge/badge_dark.svg",
+    alt: "Featured on ToolDirs",
+    width: 200,
+    height: 54,
+  },
+];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
 
