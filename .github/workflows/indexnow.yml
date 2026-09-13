@@ -1,0 +1,29 @@
+name: IndexNow
+
+# Tells Bing/Yandex/etc. about changed URLs. Google does not use IndexNow;
+# it reads the sitemaps. Daily run picks up anything published in the last
+# two days; the manual run with scope=all re-submits every URL (use once
+# after a big content change, e.g. opening the catalogue pages).
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "recent (last 2 days by lastmod) or all"
+        default: "recent"
+        type: choice
+        options: [recent, all]
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: apps/web/scripts/indexnow.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node apps/web/scripts/indexnow.mjs --scope "${{ github.event.inputs.scope || 'recent' }}"

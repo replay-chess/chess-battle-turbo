@@ -19,6 +19,7 @@
     "test:e2e:ui": "set -a && source .env.test && set +a && npx playwright test --ui 2>&1",
     "test:e2e:headed": "set -a && source .env.test && set +a && npx playwright test --headed 2>&1",
     "test:seo": "tsx scripts/seo-check.ts",
+    "indexnow": "node scripts/indexnow.mjs",
     "dodo:setup-products": "tsx scripts/dodo-setup-products.ts"
   },
   "dependencies": {

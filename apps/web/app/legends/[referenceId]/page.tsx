@@ -84,7 +84,9 @@ export default async function LegendDetailPage({ params }: Props) {
         name: a,
       })),
     }),
-    sameAs: `https://www.playchess.tech/legends/${referenceId}`,
+    // Entity link for the knowledge graph. Legends are world-famous players
+    // whose Wikipedia titles are their common names; a miss is harmless.
+    sameAs: [`https://en.wikipedia.org/wiki/${encodeURIComponent(legend.name.trim().replace(/\s+/g, "_"))}`],
   };
 
   return (

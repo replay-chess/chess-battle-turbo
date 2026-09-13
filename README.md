@@ -7,7 +7,7 @@
 
   Replay iconic positions from the greatest chess games ever played. Inspired by Agadmator's "pause the video, find the best move" format — but interactive, competitive, and real-time.
 
-  [![Live Site](https://img.shields.io/badge/Live-playchess.tech-blue?style=for-the-badge)](https://playchess.tech)
+  [![Live Site](https://img.shields.io/badge/Live-playchess.tech-blue?style=for-the-badge)](https://www.playchess.tech)
 
   ![Next.js](https://img.shields.io/badge/Next.js_15-black?style=flat-square&logo=next.js)
   ![React](https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react&logoColor=black)
@@ -395,7 +395,7 @@ pnpm --filter web prisma:seed:openings   # Seed openings data
 
 <div align="center">
 
-**[playchess.tech](https://playchess.tech)**
+**[playchess.tech](https://www.playchess.tech)**
 
 Built by [Rohit Pandit](https://github.com/sasuke0007) | [replay-chess](https://github.com/replay-chess)
 

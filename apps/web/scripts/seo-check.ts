@@ -56,6 +56,11 @@ await checkIndexablePage("/blog");
 await checkIndexablePage("/try");
 await checkIndexablePage("/learn/openings");
 await checkIndexablePage("/learn/legends");
+await checkIndexablePage("/press");
+// Catalogue pages are public and indexable (the play actions behind them are
+// what stays auth-gated). A regression here silently hides ~3,700 pages.
+await checkIndexablePage("/openings");
+await checkIndexablePage("/legends");
 await checkIndexablePage("/blog/author/rohit-pandit");
 await checkIndexablePage("/blog/editorial-policy");
 await checkIndexablePage("/pricing");
@@ -175,6 +180,9 @@ assert.ok(sitemap.body.includes("/try</loc>"), "Sitemap must include /try");
 for (const pathname of [
   "/learn/openings",
   "/learn/legends",
+  "/openings",
+  "/legends",
+  "/press",
   "/blog/author/rohit-pandit",
   "/blog/editorial-policy",
 ]) {
@@ -193,5 +201,36 @@ for (const slug of publishedSlugs)
   assert.ok(sitemap.body.includes(`/blog/${slug}</loc>`));
 for (const slug of draftSlugs)
   assert.ok(!sitemap.body.includes(slug), `Sitemap must exclude draft ${slug}`);
+
+// Catalogue sitemaps: one per catalogue so Search Console reports them
+// separately. Each must be well-formed and its first URL must be a real,
+// indexable, self-canonical page.
+const robotsTxt = await fetchPage("/robots.txt");
+assert.equal(robotsTxt.response.status, 200);
+for (const [file, prefix] of [
+  ["/sitemap-legends.xml", "/legends/"],
+  ["/sitemap-openings.xml", "/openings/"],
+] as const) {
+  assert.ok(
+    robotsTxt.body.includes(`Sitemap: ${new URL(file, "https://www.playchess.tech").href}`),
+    `robots.txt must list ${file}`,
+  );
+  const catalogue = await fetchPage(file);
+  assert.equal(catalogue.response.status, 200, `${file} must return 200`);
+  assert.match(
+    catalogue.response.headers.get("content-type") ?? "",
+    /application\/xml/,
+    `${file} must be served as XML`,
+  );
+  const locs = [...catalogue.body.matchAll(/<loc>([^<]+)<\/loc>/g)].map(
+    (m) => new URL(m[1]!).pathname,
+  );
+  assert.ok(locs.length > 0, `${file} must contain at least one URL`);
+  assert.ok(
+    locs.every((pathname) => pathname.startsWith(prefix)),
+    `${file} must only contain ${prefix} URLs`,
+  );
+  await checkIndexablePage(locs[0]!);
+}
 
 console.log(`SEO checks passed against ${baseUrl}`);

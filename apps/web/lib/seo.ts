@@ -49,7 +49,7 @@ export function createMetadata({
         {
           url: resolvedOgImage,
           width: 1200,
-          height: ogImage || ogType ? 630 : 800,
+          height: 630,
           alt: title,
         },
       ],

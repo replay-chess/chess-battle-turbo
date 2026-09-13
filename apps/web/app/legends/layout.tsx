@@ -4,9 +4,8 @@ import type { Metadata } from "next";
 export const metadata: Metadata = createMetadata({
   title: "Chess Legends",
   description:
-    "Explore profiles of history's greatest chess players — from Morphy and Capablanca to Fischer and Carlsen.",
+    "Explore profiles of history's greatest chess players — from Morphy and Capablanca to Fischer and Carlsen — and replay their most famous positions.",
   path: "/legends",
-  noIndex: true,
   ogType: "legend",
   ogTitle: "Chess Legends",
 });

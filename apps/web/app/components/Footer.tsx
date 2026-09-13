@@ -3,17 +3,20 @@
 import { Mail, Twitter, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { DirectoryBadges } from "./DirectoryBadges";
 
 const footerLinks = {
   product: [
     { name: "Try Free", href: "/try" },
-    { name: "Chess Legends", href: "/learn/legends" },
+    { name: "Chess Legends", href: "/legends" },
+    { name: "Chess Openings", href: "/openings" },
     { name: "Opening Guide", href: "/learn/openings" },
     { name: "Pricing", href: "/pricing" },
   ],
   company: [
     { name: "About Us", href: "/about" },
     { name: "Blog", href: "/blog" },
+    { name: "Press Kit", href: "/press" },
     { name: "Careers", href: "/careers" },
     { name: "Contact", href: "/contact" },
   ],
@@ -215,6 +218,8 @@ export function Footer() {
             </div>
           </div>
         </div>
+
+        <DirectoryBadges />
 
         {/* Bottom Bar */}
         <div className="mt-10 sm:mt-16 pt-6 sm:pt-8 border-t border-cb-border">

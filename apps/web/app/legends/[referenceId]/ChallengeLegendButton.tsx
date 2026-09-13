@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useRequireAuth } from "@/lib/hooks/useRequireAuth";
+import { usePathname, useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { useUserStore } from "@/lib/stores";
 import {
   currentAppPath,
@@ -20,20 +20,31 @@ interface ChallengeLegendButtonProps {
 }
 
 export function ChallengeLegendButton({ legendReferenceId, legendName }: ChallengeLegendButtonProps) {
-  // Legend pages are browsable by any signed-in user; the paywall applies
-  // when they try to start a game, not when they read the page.
-  const { isReady, userObject } = useRequireAuth();
+  // Legend pages are public and indexable, so this button must never redirect
+  // on mount (useRequireAuth would). Anonymous visitors are sent to sign-in
+  // only when they click; the paywall applies when they try to start a game.
+  const { isLoaded, isSignedIn } = useUser();
+  const storeUser = useUserStore((s) => s.user);
   const subscription = useUserStore((s) => s.subscription);
   const role = useUserStore((s) => s.user?.role ?? null);
-  const userReferenceId = userObject?.user?.referenceId;
+  const userReferenceId = storeUser?.referenceId;
   const router = useRouter();
+  const pathname = usePathname();
+  // Signed-out visitors can always click (they get sent to sign-in); signed-in
+  // users wait until UserSync has populated the store.
+  const isReady = isLoaded && (!isSignedIn || !!userReferenceId);
 
   const [creating, setCreating] = useState(false);
   const [gameRef, setGameRef] = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
 
   const handleChallenge = async () => {
-    if (!isReady || !userReferenceId || creating) return;
+    if (!isReady || creating) return;
+    if (!isSignedIn) {
+      router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
+      return;
+    }
+    if (!userReferenceId) return;
     if (subscription && !isEntitledClient(subscription, role)) {
       router.push(paywallUrl(currentAppPath()));
       return;

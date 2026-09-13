@@ -22,6 +22,7 @@ The platform features 50+ chess legends organized by era (Romantic, Classical, H
 - [Pricing](https://www.playchess.tech/pricing): Subscription plans and billing
 - [Blog](https://www.playchess.tech/blog): Articles on chess strategy, history, and platform updates
 - [About](https://www.playchess.tech/about): About ReplayChess and the team
+- [Press Kit](https://www.playchess.tech/press): Facts, boilerplate, logos and trailer for writing about ReplayChess
 - [Help](https://www.playchess.tech/help): FAQ and support
 - [Community](https://www.playchess.tech/community): Community page
 - [Contact](https://www.playchess.tech/contact): Contact form

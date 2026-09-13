@@ -22,8 +22,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     { url: `${BASE_URL}/pricing`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE_URL}/blog`, changeFrequency: "weekly", priority: 0.8 },
-    // legends and openings excluded — auth-gated to prevent scraping
+    // Catalogue index pages. The individual legend/opening URLs live in
+    // /sitemap-legends.xml and /sitemap-openings.xml (see lib/sitemaps.ts).
+    { url: `${BASE_URL}/legends`, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${BASE_URL}/openings`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${BASE_URL}/about`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${BASE_URL}/press`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE_URL}/help`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/contact`, changeFrequency: "monthly", priority: 0.5 },
     {
@@ -63,9 +67,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.5,
     }));
 
-  // NOTE: Legend, opening, and profile pages excluded from sitemap.
-  // Legends and openings are auth-gated to prevent scraping. Profiles
-  // are thin content that wastes crawl budget.
+  // NOTE: Profile pages are excluded — thin content that wastes crawl budget.
 
   return [...staticPages, ...categoryPages, ...authorPages, ...blogPages];
 }

@@ -4,9 +4,8 @@ import type { Metadata } from "next";
 export const metadata: Metadata = createMetadata({
   title: "Chess Openings",
   description:
-    "Browse hundreds of chess openings organized by ECO code. Study move sequences, positions, and play from any opening.",
+    "Browse 3,600+ chess openings organized by ECO code. See the moves, the resulting position, and play from any opening on ReplayChess.",
   path: "/openings",
-  noIndex: true,
   ogType: "opening",
   ogTitle: "Chess Openings",
 });

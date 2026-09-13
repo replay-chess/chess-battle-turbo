@@ -1,5 +1,6 @@
 import { MetadataRoute } from "next";
 import { BASE_URL } from "@/lib/seo";
+import { CATALOGUE_SITEMAPS } from "@/lib/sitemaps";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -23,6 +24,6 @@ export default function robots(): MetadataRoute.Robots {
         "/try/analysis/",
       ],
     },
-    sitemap: `${BASE_URL}/sitemap.xml`,
+    sitemap: [`${BASE_URL}/sitemap.xml`, ...CATALOGUE_SITEMAPS],
   };
 }

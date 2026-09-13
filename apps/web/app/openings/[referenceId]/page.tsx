@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { BASE_URL, safeJsonLd } from "@/lib/seo";
 import { Navbar } from "../../components/Navbar";
 import { Footer } from "../../components/Footer";
 
@@ -33,9 +34,57 @@ export default async function OpeningDetailPage({ params }: Props) {
   const ecoCategory = ecoCategories[ecoLetter];
   const fullMoveCount = Math.ceil(opening.moveCount / 2);
 
+  // The explanation JSON drives the narrated analysis view; its narration text
+  // is the richest content we have for the opening, so surface it as prose.
+  const narration = extractNarration(opening.explanation);
+
+  const pageUrl = `${BASE_URL}/openings/${referenceId}`;
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: BASE_URL },
+      { "@type": "ListItem", position: 2, name: "Chess Openings", item: `${BASE_URL}/openings` },
+      ...(ecoCategory
+        ? [{ "@type": "ListItem", position: 3, name: `${ecoCategory.name} (ECO ${ecoLetter})`, item: `${BASE_URL}/openings?eco=${ecoLetter}` }]
+        : []),
+      { "@type": "ListItem", position: ecoCategory ? 4 : 3, name: opening.name, item: pageUrl },
+    ],
+  };
+  const pageJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": pageUrl,
+    url: pageUrl,
+    name: `${opening.name} (${opening.eco})`,
+    description: `The ${opening.name} is a chess opening classified under ECO code ${opening.eco}, reached after ${opening.pgn}.`,
+    isPartOf: { "@type": "WebSite", "@id": `${BASE_URL}/#website`, url: BASE_URL, name: "ReplayChess" },
+    about: {
+      "@type": "Thing",
+      name: opening.name,
+      identifier: opening.eco,
+      description: `ECO ${opening.eco}: ${opening.pgn}`,
+    },
+    primaryImageOfPage: {
+      "@type": "ImageObject",
+      url: `${BASE_URL}/og?title=${encodeURIComponent(opening.name)}&subtitle=${encodeURIComponent(opening.eco)}&type=opening`,
+      width: 1200,
+      height: 630,
+    },
+  };
+
   return (
     <div className="min-h-screen bg-cb-bg text-cb-text">
       <Navbar />
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(pageJsonLd) }}
+      />
 
       {/* Grid background */}
       <div
@@ -111,6 +160,29 @@ export default async function OpeningDetailPage({ params }: Props) {
               </div>
             </div>
 
+            {/* Narrated ideas — shown on every viewport when we have them */}
+            {narration.length > 0 && (
+              <section className="mb-12 mt-10 lg:mt-0">
+                <h2
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className="text-xs font-medium uppercase tracking-[0.2em] text-cb-text-secondary mb-4"
+                >
+                  Ideas in this opening
+                </h2>
+                <div className="space-y-4 max-w-2xl">
+                  {narration.map((paragraph, i) => (
+                    <p
+                      key={i}
+                      style={{ fontFamily: "'Geist', sans-serif" }}
+                      className="text-sm text-cb-text-secondary leading-relaxed"
+                    >
+                      {paragraph}
+                    </p>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Desktop: full details */}
             <div className="hidden lg:block">
               <div className="h-px w-full bg-cb-hover mb-12" />
@@ -184,7 +256,7 @@ export default async function OpeningDetailPage({ params }: Props) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-cb-hover">
             {ecoCategory && (
               <Link
-                href={`/openings?q=${ecoLetter}`}
+                href={`/openings?eco=${ecoLetter}`}
                 className="group bg-cb-bg p-5 hover:bg-cb-hover transition-colors"
               >
                 <p
@@ -242,4 +314,22 @@ export default async function OpeningDetailPage({ params }: Props) {
       <Footer />
     </div>
   );
+}
+
+/**
+ * Pulls the narration paragraphs out of an Opening.explanation JSON blob
+ * (shape: { segments: [{ narration: string, ... }] }). Tolerates any other
+ * shape by returning nothing, so a malformed row never breaks the page.
+ */
+function extractNarration(explanation: unknown): string[] {
+  if (!explanation || typeof explanation !== "object") return [];
+  const segments = (explanation as { segments?: unknown }).segments;
+  if (!Array.isArray(segments)) return [];
+  return segments
+    .map((segment) =>
+      segment && typeof segment === "object"
+        ? String((segment as { narration?: unknown }).narration ?? "").trim()
+        : "",
+    )
+    .filter((text) => text.length > 0);
 }

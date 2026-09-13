@@ -9,13 +9,19 @@ import { OpeningsSearch } from "./OpeningsSearch";
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; eco?: string }>;
 }
 
 export default async function OpeningsPage({ searchParams }: Props) {
-  const { q } = await searchParams;
+  const { q, eco: rawEco } = await searchParams;
+  // ?eco=A..E narrows to one ECO volume (used by detail-page breadcrumbs and
+  // internal links). Anything else is ignored rather than 404ing.
+  const eco = rawEco && /^[A-E]$/i.test(rawEco) ? rawEco.toUpperCase() : undefined;
 
   const where: Prisma.OpeningWhereInput = { isActive: true };
+  if (eco) {
+    where.eco = { startsWith: eco };
+  }
   if (q) {
     where.OR = [
       { name: { contains: q, mode: "insensitive" } },
@@ -95,6 +101,32 @@ export default async function OpeningsPage({ searchParams }: Props) {
             position.
           </p>
           <OpeningsSearch />
+          <nav
+            aria-label="ECO volumes"
+            className="mt-6 flex flex-wrap items-center justify-center gap-2"
+          >
+            {[
+              { letter: undefined, label: "All" },
+              ...Object.entries(ecoLabels).map(([letter, label]) => ({ letter, label: `${letter} · ${label}` })),
+            ].map(({ letter, label }) => {
+              const active = letter === eco;
+              return (
+                <Link
+                  key={label}
+                  href={letter ? `/openings?eco=${letter}` : "/openings"}
+                  aria-current={active ? "page" : undefined}
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                  className={`text-[11px] px-3 py-1.5 border transition-colors ${
+                    active
+                      ? "border-cb-border-strong text-cb-text"
+                      : "border-cb-border text-cb-text-muted hover:text-cb-text-secondary hover:border-cb-border-strong"
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
       </section>
 
