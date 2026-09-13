@@ -209,6 +209,14 @@ export const DIRECTORY_BADGES: {
     width: 220,
     height: 48,
   },
+  {
+    // StartupTrusted — badge required for the free (manually reviewed) listing
+    href: "https://startuptrusted.com?ref=playchess.tech",
+    src: "https://startuptrusted.com/api/badge?type=featured&style=light",
+    alt: "ReplayChess on StartupTrusted",
+    width: 240,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
