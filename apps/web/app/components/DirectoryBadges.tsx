@@ -241,6 +241,14 @@ export const DIRECTORY_BADGES: {
     width: 150,
     height: 48,
   },
+  {
+    // Better Launch — badge keeps the free listing's link dofollow (rechecked daily)
+    href: "https://www.betterlaunch.co/product/replaychess",
+    src: "https://www.betterlaunch.co/badge-seen-gradient.svg",
+    alt: "As seen on Better Launch",
+    width: 200,
+    height: 56,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
