@@ -297,6 +297,14 @@ export const DIRECTORY_BADGES: {
     width: 250,
     height: 54,
   },
+  {
+    // CurlShip (badge flips free listing to dofollow; listing 3149)
+    href: "https://curlship.com",
+    src: "https://curlship.com/badge.svg",
+    alt: "Listed on CurlShip",
+    width: 120,
+    height: 20,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
