@@ -345,6 +345,14 @@ export const DIRECTORY_BADGES: {
     width: 176,
     height: 56,
   },
+  {
+    // Buildlist (free Builder plan; listing goes live once the badge is found)
+    href: "https://buildlist.io",
+    src: "https://buildlist.io/badge.svg",
+    alt: "Featured on Buildlist",
+    width: 116,
+    height: 58,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [
