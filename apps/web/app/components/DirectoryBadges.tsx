@@ -425,6 +425,14 @@ export const DIRECTORY_BADGES: {
     width: 150,
     height: 54,
   },
+  {
+    // ToolFame (free listing requires the badge verified; dofollow once approved)
+    href: "https://toolfame.com/item/replaychess",
+    src: "https://toolfame.com/badge-light.svg",
+    alt: "Featured on toolfame.com",
+    width: 160,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [
