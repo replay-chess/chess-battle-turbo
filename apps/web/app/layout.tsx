@@ -88,6 +88,10 @@ export const metadata: Metadata = {
     shortcut: "/icons/icon-192x192.png",
     apple: "/icons/icon-384x384.png",
   },
+  other: {
+    // Directory ownership verification (directree.io claim)
+    "directree-verify": "directree-verify=5514e531baeb842302968314b8bee9cd",
+  },
 };
 
 export default function RootLayout({
