@@ -369,6 +369,30 @@ export const DIRECTORY_BADGES: {
     width: 150,
     height: 54,
   },
+  {
+    // SumoDir (free listing requires the badge on the homepage)
+    href: "https://sumodir.com",
+    src: "https://sumodir.com/badge.png",
+    alt: "Featured on SumoDir",
+    width: 200,
+    height: 54,
+  },
+  {
+    // ToolsClaw (free tier is cron-checked for this footer backlink)
+    href: "https://toolsclaw.com",
+    src: "https://toolsclaw.com/badge/toolsclaw.com-badge.svg",
+    alt: "Featured on ToolsClaw",
+    width: 200,
+    height: 54,
+  },
+  {
+    // Software Bolt (badge must link to the listing URL before the form unlocks)
+    href: "https://softwarebolt.com/product/playchess",
+    src: "https://softwarebolt.com/assets/images/badge.png",
+    alt: "Featured on Software Bolt",
+    width: 200,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [
