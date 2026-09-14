@@ -331,7 +331,14 @@ export const DIRECTORY_BADGES: {
   },
 ];
 
-export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
+export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [
+  {
+    // Launchtory publishes a free listing once this exact text link is on the homepage.
+    href: "https://launchtory.com/projects/playchess-tech",
+    label: "ReplayChess on Launchtory",
+    title: "ReplayChess on Launchtory",
+  },
+];
 
 export function DirectoryBadges() {
   const count = DIRECTORY_BADGES.length + DIRECTORY_TEXT_LINKS.length;
