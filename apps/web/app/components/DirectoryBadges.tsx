@@ -361,6 +361,14 @@ export const DIRECTORY_BADGES: {
     width: 202,
     height: 61,
   },
+  {
+    // Shipybara (badge = permanent dofollow backlink regardless of ranking; launch Mon 8 Mar 2027)
+    href: "https://shipybara.com/projects/replaychess",
+    src: "https://shipybara.com/images/badges/shipybara-badge-light.svg",
+    alt: "Featured on Shipybara",
+    width: 150,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [
