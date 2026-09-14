@@ -359,7 +359,7 @@ export const DIRECTORY_BADGES: {
     src: "https://tinylaunch.com/tinylaunch_badge_launching_soon.svg",
     alt: "Launching soon on TinyLaunch",
     width: 202,
-    height: 54,
+    height: 61,
   },
 ];
 
