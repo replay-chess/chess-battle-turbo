@@ -316,7 +316,7 @@ export const DIRECTORY_BADGES: {
   {
     // TinyShelf (DR72; badge required for free dofollow link)
     href: "https://www.tinyshelf.co",
-    src: "https://www.tinyshelf.co/badge/tinyshelf-badge-light-f4d1216a.svg",
+    src: "https://www.tinyshelf.co/badge/tinyshelf-badge-light-5ca4026a.svg",
     alt: "Featured on tinyshelf",
     width: 216,
     height: 64,
