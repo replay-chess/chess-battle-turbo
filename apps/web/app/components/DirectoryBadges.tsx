@@ -289,6 +289,14 @@ export const DIRECTORY_BADGES: {
     width: 176,
     height: 32,
   },
+  {
+    // ConfettiSaaS (badge keeps the dofollow link after editorial review)
+    href: "https://confettisaas.com/saas/playchess-tech?ref=badge",
+    src: "https://confettisaas.com/badge-light.svg",
+    alt: "ReplayChess on ConfettiSaaS",
+    width: 250,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
