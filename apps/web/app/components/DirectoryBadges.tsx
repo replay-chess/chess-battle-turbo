@@ -337,6 +337,14 @@ export const DIRECTORY_BADGES: {
     width: 250,
     height: 54,
   },
+  {
+    // IndieTools (badge enables the free DoFollow link)
+    href: "https://www.indietools.app/products/replaychess",
+    src: "https://www.indietools.app/badges/listed-on-indietools-light.png",
+    alt: "Listed on IndieTools",
+    width: 176,
+    height: 56,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [
