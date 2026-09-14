@@ -409,6 +409,14 @@ export const DIRECTORY_BADGES: {
     width: 154,
     height: 44,
   },
+  {
+    // SaaSGrow (free listing approved once the badge is verified; dofollow)
+    href: "https://saasgrow.app?ref=playchess.tech",
+    src: "https://saasgrow.app/api/badge?type=featured&style=light",
+    alt: "ReplayChess on SaaSGrow",
+    width: 240,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [
