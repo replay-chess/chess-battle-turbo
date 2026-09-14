@@ -401,6 +401,14 @@ export const DIRECTORY_BADGES: {
     width: 200,
     height: 54,
   },
+  {
+    // ProofStories (badge upgrades the listing link from nofollow to dofollow)
+    href: "https://proofstories.io/directory/products/replaychess/",
+    src: "https://proofstories.io/directory/badges/l/replaychess.svg",
+    alt: "Listed on ProofStories",
+    width: 176,
+    height: 44,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [
