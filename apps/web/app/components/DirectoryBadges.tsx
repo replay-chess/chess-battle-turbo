@@ -393,6 +393,14 @@ export const DIRECTORY_BADGES: {
     width: 200,
     height: 54,
   },
+  {
+    // aat.ee (badge = priority launch in 2 days + dofollow link)
+    href: "https://www.aat.ee/?ref=badge",
+    src: "https://www.aat.ee/images/badges/featured-badge-light.svg",
+    alt: "Featured on aat.ee",
+    width: 200,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [
