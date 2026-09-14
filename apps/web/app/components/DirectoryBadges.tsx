@@ -329,6 +329,14 @@ export const DIRECTORY_BADGES: {
     width: 200,
     height: 54,
   },
+  {
+    // PaveLaunch (badge required to activate the free launch; product b702b034)
+    href: "https://www.pavelaunch.com/p/b702b034-36d9-438a-9d68-3f4a13aba557",
+    src: "https://www.pavelaunch.com/api/embed?type=launching-soon&theme=light",
+    alt: "On PaveLaunch",
+    width: 250,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [
