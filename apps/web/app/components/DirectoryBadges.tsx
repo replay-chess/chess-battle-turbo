@@ -406,7 +406,7 @@ export const DIRECTORY_BADGES: {
     href: "https://proofstories.io/directory/products/replaychess/",
     src: "https://proofstories.io/directory/badges/l/replaychess.svg",
     alt: "Listed on ProofStories",
-    width: 176,
+    width: 154,
     height: 44,
   },
 ];
