@@ -371,7 +371,7 @@ export const DIRECTORY_BADGES: {
   },
   {
     // SumoDir (free listing requires the badge on the homepage)
-    href: "https://sumodir.com",
+    href: "https://sumodir.com/item/replaychess-wwwplaychesstech",
     src: "https://sumodir.com/badge.png",
     alt: "Featured on SumoDir",
     width: 200,
