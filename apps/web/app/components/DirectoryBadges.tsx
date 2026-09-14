@@ -433,6 +433,14 @@ export const DIRECTORY_BADGES: {
     width: 160,
     height: 54,
   },
+  {
+    // directree (verified owner; badge turns the listing link dofollow at approval)
+    href: "https://www.directree.io",
+    src: "https://www.directree.io/badge/directree-badge-lightmode.svg",
+    alt: "Verified on directree",
+    width: 200,
+    height: 37,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [
