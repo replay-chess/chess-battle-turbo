@@ -353,6 +353,14 @@ export const DIRECTORY_BADGES: {
     width: 116,
     height: 58,
   },
+  {
+    // TinyLaunch (launch scheduled Mon 12 Oct 2026; badge required for the free backlink)
+    href: "https://tinylaunch.com",
+    src: "https://tinylaunch.com/tinylaunch_badge_launching_soon.svg",
+    alt: "Launching soon on TinyLaunch",
+    width: 202,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [
