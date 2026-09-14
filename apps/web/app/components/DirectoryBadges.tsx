@@ -321,6 +321,14 @@ export const DIRECTORY_BADGES: {
     width: 216,
     height: 64,
   },
+  {
+    // DodoDirectory (free listing requires permanent badge; dofollow)
+    href: "https://dododirectory.com",
+    src: "https://dododirectory.com/badge-light.png",
+    alt: "Featured on DodoDirectory",
+    width: 200,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
