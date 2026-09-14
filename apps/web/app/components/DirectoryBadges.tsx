@@ -417,6 +417,14 @@ export const DIRECTORY_BADGES: {
     width: 240,
     height: 54,
   },
+  {
+    // SaaSCity (free listing needs the badge verified on the homepage; dofollow)
+    href: "https://saascity.io",
+    src: "https://saascity.io/badges/featured-light.svg",
+    alt: "Featured on SaaSCity",
+    width: 150,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [
