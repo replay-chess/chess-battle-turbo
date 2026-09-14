@@ -305,6 +305,14 @@ export const DIRECTORY_BADGES: {
     width: 120,
     height: 20,
   },
+  {
+    // Dofollow.Tools (DR73; free listing stays dofollow while badge is up)
+    href: "https://dofollow.tools",
+    src: "https://dofollow.tools/badge/badge_light.svg",
+    alt: "Featured on Dofollow.Tools",
+    width: 200,
+    height: 54,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
