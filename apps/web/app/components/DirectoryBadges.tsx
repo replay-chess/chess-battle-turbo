@@ -313,6 +313,14 @@ export const DIRECTORY_BADGES: {
     width: 200,
     height: 54,
   },
+  {
+    // TinyShelf (DR72; badge required for free dofollow link)
+    href: "https://www.tinyshelf.co",
+    src: "https://www.tinyshelf.co/badge/tinyshelf-badge-light-f4d1216a.svg",
+    alt: "Featured on tinyshelf",
+    width: 216,
+    height: 64,
+  },
 ];
 
 export const DIRECTORY_TEXT_LINKS: { href: string; label: string; title?: string }[] = [];
