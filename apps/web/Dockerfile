@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Stage 1: Dependencies
 FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat
@@ -42,26 +43,16 @@ RUN apk add --no-cache openssl
 # Prisma will auto-detect the correct binary for Alpine Linux (linux-musl)
 RUN npx prisma generate
 
-# Build arguments for environment variables
-ARG DATABASE_URL
-ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-ARG NEXT_PUBLIC_CLERK_SIGN_IN_URL
-ARG CLERK_SECRET_KEY
-ARG NEXT_PUBLIC_WEBSOCKET_URL
-
-# Set environment variables for build
-ENV DATABASE_URL=$DATABASE_URL
-ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-ENV NEXT_PUBLIC_CLERK_SIGN_IN_URL=$NEXT_PUBLIC_CLERK_SIGN_IN_URL
-ENV CLERK_SECRET_KEY=$CLERK_SECRET_KEY
-ENV NEXT_PUBLIC_WEBSOCKET_URL=$NEXT_PUBLIC_WEBSOCKET_URL
+# Standalone output is what the runner stage copies
+ENV USE_STANDALONE=true
 ENV NODE_ENV=production
 
-# Debug: Print environment variables (remove in production)
-RUN echo "Building with NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}"
-
-# Build the application
-RUN pnpm build
+# The build reads the full production env (NEXT_PUBLIC_* values are inlined,
+# pages that query the DB are prerendered) from a BuildKit secret, so no
+# secret ends up in an image layer:
+#   docker build --secret id=buildenv,src=.env ...
+RUN --mount=type=secret,id=buildenv,required=true \
+    set -a && . /run/secrets/buildenv && set +a && pnpm build
 
 # Stage 3: Runner
 FROM node:22-alpine AS runner
@@ -78,6 +69,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 COPY --from=builder /app/apps/web/app/generated ./apps/web/app/generated
+# Blog posts are read from disk at request time (lib/blog.ts)
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/content ./apps/web/content
 
 # Switch to non-root user
 USER nextjs

@@ -74,10 +74,15 @@ app.post("/internal/tournament-event", (req, res) => {
 
 const server = createServer(app);
 
-// Configure Socket.IO with CORS
+// Configure Socket.IO with CORS. ALLOWED_ORIGINS is a comma-separated list
+// (e.g. "https://www.playchess.tech,https://playchess.tech"); unset allows any.
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: allowedOrigins?.length ? allowedOrigins : "*",
     methods: ["GET", "POST"],
     credentials: true,
   },
