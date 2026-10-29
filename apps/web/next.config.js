@@ -39,7 +39,6 @@ const withPWA = withPWAInit({
 // bandwidth from Vercel.
 const MEDIA_URL = (process.env.NEXT_PUBLIC_MEDIA_URL ?? "").replace(/\/+$/, "");
 const MEDIA_PATHS = [
-  "/ReplayChessTrailer.gif",
   "/ReplayChessTrailer.mp4",
   "/Kings_Gambit_Chess_Board_Animation.mp4",
   "/video_clip.webm",

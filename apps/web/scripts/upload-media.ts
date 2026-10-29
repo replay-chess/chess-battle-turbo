@@ -20,7 +20,6 @@ loadEnv({ path: [".env.local", ".env"], quiet: true });
 
 const PUBLIC_DIR = "public";
 const FILES = [
-  "ReplayChessTrailer.gif",
   "ReplayChessTrailer.mp4",
   "Kings_Gambit_Chess_Board_Animation.mp4",
   "video_clip.webm",
@@ -28,7 +27,6 @@ const FILES = [
 const DIRS = ["sounds"];
 
 const CONTENT_TYPES: Record<string, string> = {
-  ".gif": "image/gif",
   ".mp4": "video/mp4",
   ".webm": "video/webm",
 };
