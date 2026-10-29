@@ -1,18 +1,19 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
+import { mediaUrl } from '@/lib/media';
 
 type SoundType = 'move' | 'capture' | 'check' | 'castle' | 'promote' | 'game-start' | 'game-end' | 'illegal' | 'tenseconds' | 'notify';
 
 const SOUND_FILES: Record<SoundType, string> = {
-  'move': '/sounds/move.webm',
-  'capture': '/sounds/capture.webm',
-  'check': '/sounds/check.webm',
-  'castle': '/sounds/castle.webm',
-  'promote': '/sounds/promote.webm',
-  'game-start': '/sounds/game-start.webm',
-  'game-end': '/sounds/game-end.webm',
-  'illegal': '/sounds/illegal.webm',
-  'tenseconds': '/sounds/tenseconds.webm',
-  'notify': '/sounds/notify.webm',
+  'move': mediaUrl('/sounds/move.webm'),
+  'capture': mediaUrl('/sounds/capture.webm'),
+  'check': mediaUrl('/sounds/check.webm'),
+  'castle': mediaUrl('/sounds/castle.webm'),
+  'promote': mediaUrl('/sounds/promote.webm'),
+  'game-start': mediaUrl('/sounds/game-start.webm'),
+  'game-end': mediaUrl('/sounds/game-end.webm'),
+  'illegal': mediaUrl('/sounds/illegal.webm'),
+  'tenseconds': mediaUrl('/sounds/tenseconds.webm'),
+  'notify': mediaUrl('/sounds/notify.webm'),
 };
 
 const MUTE_STORAGE_KEY = 'chess-sound-muted';

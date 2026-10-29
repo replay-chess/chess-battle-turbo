@@ -5,6 +5,7 @@ import { BASE_URL, safeJsonLd } from "@/lib/seo";
 
 import "./globals.css";
 import { UserSync } from "./components/UserSync";
+import { PostHogIdentify } from "./components/PostHogIdentify";
 import { GoogleAnalytics } from "./components/GoogleAnalytics";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "./components/ThemeProvider";
@@ -156,6 +157,7 @@ export default function RootLayout({
             <Analytics />
             <SpeedInsights />
             <UserSync />
+            <PostHogIdentify />
             <ThemeAwareToaster />
             {children}
           </ThemeAwareClerkProvider>

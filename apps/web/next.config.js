@@ -16,11 +16,35 @@ const withPWA = withPWAInit({
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
   disable: process.env.NODE_ENV === "development",
+  // Every public/ file is precached unless excluded here, so each install
+  // downloaded ~90 MB of media most visitors never open. These still load
+  // normally when a page uses them.
+  publicExcludes: [
+    "!noprecache/**/*",
+    "!**/*.{gif,mp4,webm,map}",
+    "!sounds/**/*",
+    "!workers/**/*.wasm",
+    "!rohit-pandit.jpeg",
+    "!chess_logo_share.png",
+    "!mobile_icon_perfect.png",
+  ],
   workboxOptions: {
     disableDevLogs: true,
     exclude: [/\.wasm$/],
   },
 });
+
+// Base URL of the R2 media bucket (see lib/media.ts). When set, these public/
+// files redirect to the bucket so links from other sites stop pulling
+// bandwidth from Vercel.
+const MEDIA_URL = (process.env.NEXT_PUBLIC_MEDIA_URL ?? "").replace(/\/+$/, "");
+const MEDIA_PATHS = [
+  "/ReplayChessTrailer.gif",
+  "/ReplayChessTrailer.mp4",
+  "/Kings_Gambit_Chess_Board_Animation.mp4",
+  "/video_clip.webm",
+  "/sounds/:file*",
+];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -30,6 +54,21 @@ const nextConfig = {
   ...(process.env.USE_STANDALONE === "true" && { output: "standalone" }),
   experimental: {
     reactCompiler: true,
+  },
+  // PostHog is proxied through /ingest so ad blockers don't drop events
+  // (https://posthog.com/docs/advanced/proxy/nextjs)
+  skipTrailingSlashRedirect: true,
+  async rewrites() {
+    return [
+      {
+        source: "/ingest/static/:path*",
+        destination: "https://us-assets.i.posthog.com/static/:path*",
+      },
+      {
+        source: "/ingest/:path*",
+        destination: "https://us.i.posthog.com/:path*",
+      },
+    ];
   },
   images: {
     remotePatterns: [
@@ -47,6 +86,13 @@ const nextConfig = {
         destination: "https://www.playchess.tech/:path*",
         permanent: true,
       },
+      ...(MEDIA_URL
+        ? MEDIA_PATHS.map((source) => ({
+            source,
+            destination: `${MEDIA_URL}${source}`,
+            permanent: false,
+          }))
+        : []),
     ];
   },
   async headers() {

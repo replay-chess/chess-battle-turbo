@@ -20,7 +20,8 @@
     "test:e2e:headed": "set -a && source .env.test && set +a && npx playwright test --headed 2>&1",
     "test:seo": "tsx scripts/seo-check.ts",
     "indexnow": "node scripts/indexnow.mjs",
-    "dodo:setup-products": "tsx scripts/dodo-setup-products.ts"
+    "dodo:setup-products": "tsx scripts/dodo-setup-products.ts",
+    "media:upload": "tsx scripts/upload-media.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.33.7",
@@ -45,6 +46,7 @@
     "motion": "^12.23.24",
     "next": "^15.5.9",
     "next-themes": "^0.4.6",
+    "posthog-js": "^1.442.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -57,6 +59,7 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1159.0",
     "@clerk/testing": "^1.13.37",
     "@playwright/test": "^1.58.2",
     "@repo/eslint-config": "workspace:*",

@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { mediaUrl } from "@/lib/media";
 import { motion } from "motion/react";
 
 export const AgadmatorFeature = () => {
@@ -78,7 +79,7 @@ export const AgadmatorFeature = () => {
                   controls
                   className="absolute inset-0 w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
                 >
-                  <source src="/video_clip.webm" type="video/webm" />
+                  <source src={mediaUrl("/video_clip.webm")} type="video/webm" />
                 </video>
 
                 {/* Gradient Overlay */}

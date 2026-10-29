@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import posthog from "posthog-js";
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -30,3 +31,15 @@ Sentry.init({
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+
+// PostHog product analytics. Events go through the /ingest proxy in
+// next.config.js; nothing is sent when the key is unset (local dev, CI).
+if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
+    api_host: "/ingest",
+    ui_host: "https://us.posthog.com",
+    capture_pageview: "history_change",
+    capture_pageleave: true,
+    person_profiles: "identified_only",
+  });
+}
