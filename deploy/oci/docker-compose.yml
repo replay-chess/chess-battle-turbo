@@ -1,5 +1,5 @@
-# Production stack on the Hetzner server, run from /opt/replay-chess.
-# Images are built by .github/workflows/deploy-hetzner.yml; the same workflow
+# Production stack on the OCI server, run from /opt/replay-chess.
+# Images are built by .github/workflows/deploy-oci.yml; the same workflow
 # writes .env next to this file (app secrets + WEB_IMAGE / WS_IMAGE tags).
 
 services:

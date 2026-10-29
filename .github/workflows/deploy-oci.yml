@@ -1,15 +1,15 @@
-name: Deploy to Hetzner
+name: Deploy to OCI
 
-# Builds the web + websocket images on GitHub's runners (the 4 GB server is
-# too small to build Next.js comfortably), pushes them to GHCR, then pulls
-# and restarts the stack on the server.
+# Builds the arm64 web + websocket images on GitHub's arm runners (the OCI
+# Ampere A1 server is arm64), pushes them to GHCR, then pulls and restarts
+# the stack on the server.
 #
 # Secrets:
 #   PROD_ENV_FILE    full production .env (see apps/web/.env.example and
 #                    apps/web-socket/.env.example); used for the build and
 #                    written to /opt/replay-chess/.env on the server
-#   HETZNER_HOST     server IP
-#   HETZNER_SSH_KEY  private key of the `deploy` user (deploy/hetzner/setup-server.sh)
+#   OCI_HOST         server public IP
+#   OCI_SSH_KEY      private key of the `deploy` user (deploy/oci/setup-server.sh)
 
 on:
   push:
@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-hetzner
+  group: deploy-oci
   cancel-in-progress: false
 
 permissions:
@@ -30,7 +30,8 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Native arm64 build; free for public repos
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
 
@@ -74,12 +75,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: deploy/hetzner
+          sparse-checkout: deploy/oci
 
       - name: Assemble bundle
         run: |
           mkdir -p bundle
-          cp deploy/hetzner/docker-compose.yml deploy/hetzner/Caddyfile bundle/
+          cp deploy/oci/docker-compose.yml deploy/oci/Caddyfile bundle/
           {
             printf '%s\n' "$PROD_ENV_FILE"
             echo "WEB_IMAGE=$WEB_IMAGE"
@@ -91,9 +92,9 @@ jobs:
       - name: Copy bundle to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.HETZNER_HOST }}
+          host: ${{ secrets.OCI_HOST }}
           username: deploy
-          key: ${{ secrets.HETZNER_SSH_KEY }}
+          key: ${{ secrets.OCI_SSH_KEY }}
           source: "bundle/docker-compose.yml,bundle/Caddyfile,bundle/.env"
           target: /opt/replay-chess
           strip_components: 1
@@ -104,9 +105,9 @@ jobs:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          host: ${{ secrets.HETZNER_HOST }}
+          host: ${{ secrets.OCI_HOST }}
           username: deploy
-          key: ${{ secrets.HETZNER_SSH_KEY }}
+          key: ${{ secrets.OCI_SSH_KEY }}
           envs: GHCR_USER,GHCR_TOKEN
           script_stop: true
           script: |
