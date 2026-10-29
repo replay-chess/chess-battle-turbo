@@ -131,8 +131,8 @@ const nextConfig = {
 };
 
 export default withSentryConfig(withMDX(withPWA(nextConfig)), {
-  org: "replay-chess",
-  project: "replay-chess",
+  org: "replay-chess-uf",
+  project: "replay-chess-web",
   silent: !process.env.CI,
   widenClientFileUpload: true,
   tunnelRoute: "/monitoring",
