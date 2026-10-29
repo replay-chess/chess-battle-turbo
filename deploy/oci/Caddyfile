@@ -1,12 +1,6 @@
-# Caddy gets and renews TLS certificates for these hosts automatically once
-# their DNS A records point at the server. WebSocket upgrades are proxied
-# without extra config.
-
-www.playchess.tech, playchess.tech {
-	encode zstd gzip
-	# next.config.mjs redirects playchess.tech -> www
-	reverse_proxy web:3000
-}
+# Caddy gets and renews the TLS certificate automatically once the DNS A
+# record points at the server. WebSocket upgrades are proxied without extra
+# config. The web app (www.playchess.tech) is served by Vercel.
 
 ws-chess.playchess.tech {
 	reverse_proxy websocket:3002

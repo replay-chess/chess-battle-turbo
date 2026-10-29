@@ -1,19 +1,22 @@
-name: Deploy to OCI
+name: Deploy WebSocket to OCI
 
-# Builds the arm64 web + websocket images on GitHub's arm runners (the OCI
-# Ampere A1 server is arm64), pushes them to GHCR, then pulls and restarts
-# the stack on the server.
+# Builds the arm64 websocket image on GitHub's arm runners (the OCI Ampere A1
+# server is arm64), pushes it to GHCR, then pulls and restarts the stack on
+# the server. The Next.js app stays on Vercel.
 #
 # Secrets:
-#   PROD_ENV_FILE    full production .env (see apps/web/.env.example and
-#                    apps/web-socket/.env.example); used for the build and
-#                    written to /opt/replay-chess/.env on the server
-#   OCI_HOST         server public IP
-#   OCI_SSH_KEY      private key of the `deploy` user (deploy/oci/setup-server.sh)
+#   WS_ENV_FILE  websocket server .env (see deploy/oci/.env.example); written
+#                to /opt/replay-chess/.env on the server
+#   OCI_HOST     server public IP
+#   OCI_SSH_KEY  private key of the `deploy` user (deploy/oci/setup-server.sh)
 
 on:
   push:
     branches: [main]
+    paths:
+      - "apps/web-socket/**"
+      - "deploy/oci/**"
+      - ".github/workflows/deploy-oci.yml"
   workflow_dispatch:
 
 concurrency:
@@ -25,7 +28,6 @@ permissions:
   packages: write
 
 env:
-  WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/replay-chess-web:${{ github.sha }}
   WS_IMAGE: ghcr.io/${{ github.repository_owner }}/replay-chess-websocket:${{ github.sha }}
 
 jobs:
@@ -42,22 +44,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Write build env
-        run: printf '%s\n' "$PROD_ENV_FILE" > "$RUNNER_TEMP/build.env"
-        env:
-          PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
-
-      - name: Build and push web
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          push: true
-          tags: ${{ env.WEB_IMAGE }}
-          secret-files: buildenv=${{ runner.temp }}/build.env
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,scope=web,mode=max
 
       - name: Build and push websocket
         uses: docker/build-push-action@v6
@@ -82,12 +68,11 @@ jobs:
           mkdir -p bundle
           cp deploy/oci/docker-compose.yml deploy/oci/Caddyfile bundle/
           {
-            printf '%s\n' "$PROD_ENV_FILE"
-            echo "WEB_IMAGE=$WEB_IMAGE"
+            printf '%s\n' "$WS_ENV_FILE"
             echo "WS_IMAGE=$WS_IMAGE"
           } > bundle/.env
         env:
-          PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
+          WS_ENV_FILE: ${{ secrets.WS_ENV_FILE }}
 
       - name: Copy bundle to server
         uses: appleboy/scp-action@v0.1.7

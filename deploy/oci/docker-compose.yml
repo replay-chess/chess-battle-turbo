@@ -1,39 +1,14 @@
-# Production stack on the OCI server, run from /opt/replay-chess.
-# Images are built by .github/workflows/deploy-oci.yml; the same workflow
-# writes .env next to this file (app secrets + WEB_IMAGE / WS_IMAGE tags).
+# WebSocket stack on the OCI server, run from /opt/replay-chess. The Next.js
+# app runs on Vercel. The image is built by .github/workflows/deploy-oci.yml;
+# the same workflow writes .env next to this file (secrets + WS_IMAGE tag).
 
 services:
-  web:
-    image: ${WEB_IMAGE}
-    env_file: .env
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - HOSTNAME=0.0.0.0
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3000/api/healthcheck"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    logging: &logging
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   websocket:
     image: ${WS_IMAGE}
     env_file: .env
     environment:
       - NODE_ENV=production
       - PORT=3002
-      # Socket -> web API calls stay on the Docker network
-      - WEB_APP_URL=http://web:3000
-    depends_on:
-      web:
-        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3002/health"]
@@ -41,7 +16,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-    logging: *logging
+    logging: &logging
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   caddy:
     image: caddy:2-alpine
@@ -54,7 +33,6 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - web
       - websocket
     restart: unless-stopped
     logging: *logging
