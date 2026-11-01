@@ -63,7 +63,7 @@ Work happens on the `dev` branch; `main` is production. Test on dev, then merge 
 
 | | dev | production |
 |---|---|---|
-| Web (Vercel, replaychess007) | project `replay-chess-dev`, builds the `dev` branch → https://replay-chess-dev-replaychess007-1069.vercel.app | separate `replay-chess` project for `main` (to be created at go-live) |
+| Web (Vercel, replaychess007) | project `replay-chess-dev` (its production branch is `dev`) → https://replay-chess-dev-replaychess007-1069.vercel.app | separate `replay-chess` project for `main` (to be created at go-live) |
 | WebSocket (OCI, ap-mumbai-1) | instance `replay-chess-dev` 80.225.200.210 → `wss://ws-dev.80-225-200-210.sslip.io` | instance `replay-chess` 132.226.190.10 → `ws-chess.playchess.tech` |
 | Database (Neon, replaychess007) | `dev` branch | `production` branch |
 | Clerk | development instance | production instance |
@@ -72,4 +72,5 @@ Work happens on the `dev` branch; `main` is production. Test on dev, then merge 
 
 - OCI: both instances are VM.Standard.A1.Flex, 1 OCPU / 6 GB, 50 GB boot — inside the Always Free allowance (4 OCPU / 24 GB / 200 GB total). Never resize or add instances beyond that; nothing on Oracle should cost money. The `oci` CLI on this machine is configured (API key) for the tenancy.
 - WebSocket deploys: `.github/workflows/deploy-oci.yml` — push to `dev` deploys the dev server (secrets `OCI_DEV_HOST`, `WS_DEV_ENV_FILE`), push to `main` deploys prod (`OCI_HOST`, `WS_ENV_FILE`). SSH: `ssh -i ~/.ssh/oci_deploy deploy@<ip>`.
-- DNS for playchess.tech is moving from the old Cloudflare account (pandit.rohit0007) to the replaychess007 Cloudflare account (zone already created, nameservers jacqueline/jimmy.ns.cloudflare.com). Registrar: Hostinger.
+- Domain playchess.tech: registered at Hostinger (account anestheticcoder007@gmail.com, auto-renew OFF, expires 2027-02-02). Nameservers moved on 2026-11-01 to the replaychess007 Cloudflare account (jacqueline/jimmy.ns.cloudflare.com); the zone mirrors the old one exactly (22 records, all DNS only — never proxy the Vercel/Clerk records). The domain is reserved for production; dev uses the .vercel.app and sslip.io addresses.
+- Email: hello@ and careers@playchess.tech are forwarded with Cloudflare Email Routing in the zone's account.
