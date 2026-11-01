@@ -2,6 +2,8 @@
 # record points at the server. WebSocket upgrades are proxied without extra
 # config. The web app (www.playchess.tech) is served by Vercel.
 
-ws-chess.playchess.tech {
+# WS_HOST comes from the stack's .env: ws-chess.playchess.tech on prod, the
+# dev hostname on the dev server.
+{$WS_HOST} {
 	reverse_proxy websocket:3002
 }

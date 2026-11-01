@@ -72,7 +72,6 @@ export const Navbar = ({ breadcrumbLabel }: { breadcrumbLabel?: string }) => {
 
         <div className="hidden items-center gap-5 md:flex">
           {[
-            { label: "Try", href: "/try" },
             { label: "Learn", href: "/learn/openings" },
             { label: "Blog", href: "/blog" },
             { label: "Pricing", href: "/pricing" },

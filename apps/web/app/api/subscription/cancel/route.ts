@@ -1,3 +1,4 @@
+import { isSubscriptionInTrial } from "@/lib/billing/trial-rules"
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { z } from "zod"
@@ -76,6 +77,8 @@ export async function POST(req: NextRequest) {
   )
   return respondAfterMutation(
     owned,
-    "Your subscription will end at the close of the current period.",
+    isSubscriptionInTrial(owned.subscription)
+      ? "Your free trial is cancelled. You won't be charged."
+      : "Your subscription will end at the close of the current period.",
   )
 }

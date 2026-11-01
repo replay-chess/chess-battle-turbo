@@ -8,7 +8,13 @@ import {
   monthlyEquivalentCents,
   type PlanKey,
 } from "@/lib/billing/plans";
-import { MONEY_BACK_COPY, PLAN_FEATURES } from "@/lib/billing/copy";
+import {
+  MONEY_BACK_COPY,
+  PLAN_FEATURES,
+  TRIAL_DAYS_COPY,
+  trialChargeDate,
+  trialTermsLine,
+} from "@/lib/billing/copy";
 
 const YEARLY_PRICE = formatPrice(BILLING_PLANS.yearly.priceCents);
 const YEARLY_PER_MONTH = formatPrice(monthlyEquivalentCents(BILLING_PLANS.yearly));
@@ -22,6 +28,7 @@ export function PricingCard({
   ctaLabel,
   note,
   compact,
+  trialEligible = true,
 }: {
   plan: PlanKey;
   onSubscribe: () => void;
@@ -31,11 +38,22 @@ export function PricingCard({
   ctaLabel?: string;
   note?: string;
   compact?: boolean;
+  /** Show the 7-day free trial offer. False for people who already used it. */
+  trialEligible?: boolean;
 }) {
   const selected = BILLING_PLANS[plan];
   const label =
     ctaLabel ??
-    (isSignedIn ? `Subscribe ${selected.label.toLowerCase()}` : "Sign in to subscribe");
+    (trialEligible
+      ? isSignedIn
+        ? `Start ${TRIAL_DAYS_COPY}`
+        : `Sign in to start your ${TRIAL_DAYS_COPY}`
+      : isSignedIn
+        ? "Start Coaching"
+        : "Sign in to start Coaching");
+  const termsLine = trialEligible
+    ? trialTermsLine(selected.interval, trialChargeDate())
+    : "Your free trial has been used. Billing starts today.";
   const billingNote =
     plan === "yearly"
       ? `That's ${YEARLY_PER_MONTH} a month, billed ${YEARLY_PRICE} once a year.`
@@ -78,7 +96,7 @@ export function PricingCard({
         style={{ fontFamily: "'Geist', sans-serif" }}
         className={`text-sm text-cb-text-muted ${compact ? "mb-5" : "mb-8"}`}
       >
-        {note ?? "For casual players and learners"}
+        {note ?? "Personal coaching built from your own games"}
       </p>
       <ul
         className={`text-sm text-cb-text-muted ${compact ? "space-y-2 mb-5" : "space-y-3 mb-8"}`}
@@ -102,6 +120,13 @@ export function PricingCard({
       >
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : label}
       </button>
+      <p
+        data-testid="pricing-trial-terms"
+        style={{ fontFamily: "'Geist', sans-serif" }}
+        className="mt-2 text-xs text-cb-text-muted text-center"
+      >
+        {termsLine}
+      </p>
       {error && (
         <p
           role="alert"

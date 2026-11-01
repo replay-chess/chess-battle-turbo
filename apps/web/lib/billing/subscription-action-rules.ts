@@ -81,7 +81,20 @@ const DOWNGRADE: Omit<PlanChange, "target"> = {
  * - legacy ($8/mo) -> either new product is treated as an upgrade so the
  *   member moves to the cheaper price right away
  */
-export function availablePlanChanges(current: CurrentPlanKey): PlanChange[] {
+export function availablePlanChanges(
+  current: CurrentPlanKey,
+  options: { inTrial?: boolean } = {},
+): PlanChange[] {
+  // During the free trial nothing has been paid yet, so every switch takes
+  // effect on the first charge date and nothing is billed today. Charging a
+  // prorated amount now would end the free week early.
+  if (options.inTrial) {
+    return availablePlanChanges(current).map((change) => ({
+      ...change,
+      effectiveAt: "next_billing_date",
+      prorationBillingMode: "do_not_bill",
+    }));
+  }
   switch (current) {
     case "monthly":
       return [{ target: "yearly", ...UPGRADE }];
@@ -106,6 +119,7 @@ export function decidePlanChange(
   current: CurrentPlanKey,
   status: string | null | undefined,
   target: PlanKey,
+  options: { inTrial?: boolean } = {},
 ): PlanChange | PlanChangeRejection {
   if (current === target) {
     return {
@@ -124,10 +138,13 @@ export function decidePlanChange(
           : "Only an active subscription can change plans.",
     };
   }
-  const change = availablePlanChanges(current).find((option) => option.target === target);
+  const change = availablePlanChanges(current, options).find((option) => option.target === target);
   // A subscription on an unknown product is treated like an upgrade so the
-  // member lands on a current product immediately.
-  return change ?? { target, ...UPGRADE };
+  // member lands on a current product immediately (at trial end during a trial).
+  if (change) return change;
+  return options.inTrial
+    ? { target, kind: "upgrade", effectiveAt: "next_billing_date", prorationBillingMode: "do_not_bill" }
+    : { target, ...UPGRADE };
 }
 
 export function isPlanChangeRejection(

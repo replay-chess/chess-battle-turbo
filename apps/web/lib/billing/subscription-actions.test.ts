@@ -228,6 +228,7 @@ describe("mergeEntitlementIntoStore", () => {
     subscriptionId: "sub_1",
     currentPeriodEnd: "2027-09-10T12:00:00.000Z",
     cancelAtPeriodEnd: false,
+    trial: { active: false, used: false, endsAt: null, daysLeft: 0 },
   };
 
   it("keeps store-only fields and rewrites the entitlement ones", () => {
@@ -274,5 +275,28 @@ describe("mergeEntitlementIntoStore", () => {
     });
     assert.equal(ended.entitled, false);
     assert.equal(ended.subscription, undefined);
+  });
+});
+
+describe("plan changes during the free trial", () => {
+  it("never bills today: every switch waits for the first charge date", async () => {
+    const { availablePlanChanges, decidePlanChange } = await import("./subscription-action-rules");
+    for (const change of availablePlanChanges("monthly", { inTrial: true })) {
+      assert.equal(change.effectiveAt, "next_billing_date");
+      assert.equal(change.prorationBillingMode, "do_not_bill");
+    }
+    const decision = decidePlanChange("monthly", "active", "yearly", { inTrial: true });
+    assert.ok(!("status" in decision));
+    if (!("status" in decision)) {
+      assert.equal(decision.effectiveAt, "next_billing_date");
+      assert.equal(decision.prorationBillingMode, "do_not_bill");
+    }
+  });
+
+  it("outside the trial, monthly to yearly still applies now with proration", async () => {
+    const { decidePlanChange } = await import("./subscription-action-rules");
+    const decision = decidePlanChange("monthly", "active", "yearly");
+    assert.ok(!("status" in decision));
+    if (!("status" in decision)) assert.equal(decision.prorationBillingMode, "prorated_immediately");
   });
 });

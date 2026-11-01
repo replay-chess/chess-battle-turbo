@@ -44,10 +44,10 @@ export default function ApiDocsPage() {
                 available now while developer access is being evaluated.
               </p>
               <Link
-                href="/try"
+                href="/pricing"
                 className="mt-7 inline-flex items-center gap-2 font-sans text-xs uppercase tracking-[0.12em] text-cb-text-secondary"
               >
-                Try a position <ArrowRight className="h-4 w-4" />
+                Start free trial <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </div>

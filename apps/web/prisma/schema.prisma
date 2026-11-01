@@ -41,7 +41,12 @@ model User {
   currentPeriodEnd      DateTime?
   cancelAtPeriodEnd     Boolean   @default(false)
   subscriptionUpdatedAt DateTime?
-  chessComProfile      ChessComProfile?
+  // Free trial: one per person. Set from the first subscription webhook that
+  // carries trial_period_days > 0. A non-null trialStartedAt means the trial
+  // has been used, even if it was cancelled.
+  trialStartedAt        DateTime?
+  trialEndsAt           DateTime?
+  chessComProfile     ChessComProfile?
   gamesAsCreator       Game[]             @relation("CreatorGames")
   gamesAsOpponent      Game[]             @relation("OpponentGames")
   gamesWon             Game[]             @relation("WinnerGames")

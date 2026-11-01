@@ -32,6 +32,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    environment:
+      - WS_HOST=${WS_HOST:-ws-chess.playchess.tech}
     depends_on:
       - websocket
     restart: unless-stopped

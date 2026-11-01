@@ -10,6 +10,7 @@ import {
   type SubscriptionSnapshot,
 } from "./entitlement-rules";
 import { getProductCatalog } from "./products";
+import { trialFieldsFromSnapshot } from "./trial-rules";
 
 export type { EntitlementRecord, EntitlementSummary, SubscriptionSnapshot };
 export { isEntitled } from "./entitlement-rules";
@@ -24,9 +25,13 @@ export const ENTITLEMENT_SELECT = {
   currentPeriodEnd: true,
   cancelAtPeriodEnd: true,
   subscriptionUpdatedAt: true,
+  trialStartedAt: true,
+  trialEndsAt: true,
 } as const;
 
-export function summarizeUserEntitlement(record: EntitlementRecord): EntitlementSummary {
+export function summarizeUserEntitlement(
+  record: EntitlementRecord & { trialStartedAt?: Date | null; trialEndsAt?: Date | null },
+): EntitlementSummary {
   return summarizeEntitlement(record, getProductCatalog());
 }
 
@@ -89,10 +94,13 @@ export async function applySubscriptionSnapshot(
   }
 
   const fields = fieldsFromSnapshot(snapshot, getProductCatalog(), eventTime);
+  // Record the first (and only) free trial. Never moves once set.
+  const trialFields = trialFieldsFromSnapshot(user, snapshot);
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: {
       ...fields,
+      ...(trialFields ?? {}),
       // Backfill the customer link when it is missing or belongs to this customer.
       ...(customerId && user.dodoCustomerId !== customerId && !user.dodoCustomerId
         ? { dodoCustomerId: customerId }

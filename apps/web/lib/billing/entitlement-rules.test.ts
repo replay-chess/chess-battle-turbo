@@ -240,6 +240,53 @@ describe("summarizeEntitlement", () => {
       subscriptionId: "sub_1",
       currentPeriodEnd: FUTURE.toISOString(),
       cancelAtPeriodEnd: true,
+      trial: { active: false, used: false, endsAt: null, daysLeft: 0 },
     });
+  });
+
+  it("reports an active trial with days left", () => {
+    const start = new Date(NOW.getTime() - 2 * 86_400_000);
+    const end = new Date(NOW.getTime() + 5 * 86_400_000);
+    const summary = summarizeEntitlement(
+      {
+        ...record({
+          subscriptionId: "sub_t",
+          subscriptionStatus: "active",
+          subscriptionProductId: "pdt_m",
+          planInterval: "month",
+          currentPeriodEnd: end,
+        }),
+        trialStartedAt: start,
+        trialEndsAt: end,
+      },
+      catalog,
+      NOW,
+    );
+    assert.equal(summary.entitled, true);
+    assert.deepEqual(summary.trial, { active: true, used: true, endsAt: end.toISOString(), daysLeft: 5 });
+  });
+
+  it("a trial cancelled during the window keeps access to the end and never reads as active once lapsed", () => {
+    const start = new Date(NOW.getTime() - 9 * 86_400_000);
+    const end = new Date(NOW.getTime() - 2 * 86_400_000);
+    const summary = summarizeEntitlement(
+      {
+        ...record({
+          subscriptionId: "sub_t",
+          subscriptionStatus: "cancelled",
+          subscriptionProductId: "pdt_m",
+          planInterval: "month",
+          currentPeriodEnd: end,
+          cancelAtPeriodEnd: true,
+        }),
+        trialStartedAt: start,
+        trialEndsAt: end,
+      },
+      catalog,
+      NOW,
+    );
+    assert.equal(summary.entitled, false);
+    assert.equal(summary.trial.active, false);
+    assert.equal(summary.trial.used, true);
   });
 });

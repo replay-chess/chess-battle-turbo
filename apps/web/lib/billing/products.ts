@@ -5,8 +5,8 @@ import { BILLING_PLANS } from "./plans";
 /**
  * Dodo Payments product IDs, read from the server environment.
  *
- * - DODO_PRODUCT_ID_MONTHLY: Player plan billed monthly ($4.99)
- * - DODO_PRODUCT_ID_YEARLY:  Player plan billed yearly ($50)
+ * - DODO_PRODUCT_ID_MONTHLY: Coaching plan billed monthly ($4.99)
+ * - DODO_PRODUCT_ID_YEARLY:  Coaching plan billed yearly ($50)
  * - DODO_LEGACY_PLAYER_PRODUCT_ID: the original $8/mo product, kept so
  *   existing subscribers stay recognized. NEXT_PUBLIC_DODO_PLAYER_PRODUCT_ID
  *   is accepted as a fallback for deployments that still set it.

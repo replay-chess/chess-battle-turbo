@@ -18,7 +18,7 @@ export const metadata: Metadata = createMetadata({
 const FACTS = [
   { label: "Name", value: "ReplayChess" },
   { label: "Website", value: BASE_URL },
-  { label: "Try without an account", value: `${BASE_URL}/try` },
+  { label: "Pricing", value: `${BASE_URL}/pricing` },
   { label: "Founded", value: "2026" },
   { label: "Founder", value: "Rohit Pandit" },
   { label: "Source", value: "Open source, MIT — github.com/replay-chess/chess-battle-turbo" },
@@ -266,7 +266,7 @@ export default function PressPage() {
           >
             {(
               [
-                ["/try", "Play a famous position without an account"],
+                ["/pricing", "Coaching plan and 7-day free trial"],
                 ["/legends", "Chess legends catalogue"],
                 ["/openings", "Openings encyclopedia (ECO A–E)"],
                 ["/blog", "Annotated games and platform updates"],

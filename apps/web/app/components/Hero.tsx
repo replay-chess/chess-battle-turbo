@@ -118,7 +118,7 @@ export default function Hero() {
               </button>
             </Link>
           ) : (
-            <Link href="/try">
+            <Link href="/pricing">
               <button
                 className={cn(
                   "group relative overflow-hidden",
@@ -131,7 +131,7 @@ export default function Hero() {
               >
                 <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
                 <span className="relative flex items-center gap-3 group-hover:text-cb-text transition-colors duration-300">
-                  Try a Position — No Sign-up
+                  Start 7-Day Free Trial
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </span>
               </button>
@@ -173,7 +173,7 @@ export default function Hero() {
             </button>
           </Link>
         ) : (
-          <Link href="/try" className="block">
+          <Link href="/pricing" className="block">
             <button
               className={cn(
                 "group relative overflow-hidden w-full",
@@ -186,7 +186,7 @@ export default function Hero() {
             >
               <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
               <span className="relative flex items-center justify-center gap-2 group-hover:text-cb-text transition-colors duration-300">
-                Try a Position
+                Start Free Trial
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
             </button>

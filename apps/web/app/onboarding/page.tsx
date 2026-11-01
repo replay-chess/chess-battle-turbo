@@ -11,7 +11,7 @@ import { Check, ExternalLink, Loader2, Search } from "lucide-react";
 import { ChessComPreviewCard } from "../components/ChessComPreviewCard";
 import type { ChessComPreviewData } from "@/lib/types/chess-com";
 import { useUserStore, type StoreSubscription, type StoreUser } from "@/lib/stores";
-import { PLAN_NAME, isPlanKey, type PlanKey } from "@/lib/billing/plans";
+import { isPlanKey, type PlanKey } from "@/lib/billing/plans";
 import { BillingToggle, PricingCard, useCheckout } from "@/app/components/billing";
 import { waitForEntitlement } from "@/lib/billing/client";
 
@@ -306,7 +306,7 @@ function OnboardingContent() {
                   style={{ fontFamily: "'Geist', sans-serif" }}
                   className="text-cb-text-muted"
                 >
-                  A {PLAN_NAME} plan is needed to play. Pick how you&apos;d like
+                  Your first 7 days are free. Pick how you&apos;d like
                   to be billed.
                 </p>
               </motion.div>
@@ -416,24 +416,10 @@ function OnboardingContent() {
                       error={checkoutError}
                       isSignedIn
                       compact
+                      trialEligible={subscription?.trialEligible ?? true}
                     />
                   </motion.div>
 
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                    className="text-center pt-6"
-                  >
-                    <Link
-                      href="/try"
-                      data-testid="onboarding-browse-free"
-                      style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="inline-flex items-center gap-1 text-xs text-cb-text-muted hover:text-cb-text-secondary transition-colors"
-                    >
-                      Just browsing? Explore free positions
-                    </Link>
-                  </motion.div>
                 </>
               )}
             </motion.div>

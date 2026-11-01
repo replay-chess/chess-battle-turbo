@@ -5,6 +5,8 @@ type PlayerFixture = { context: BrowserContext; page: Page };
 
 type AuthFixtures = {
   authedPage: Page;
+  /** Signed in as E2E user R, who has no membership and has never had a trial. */
+  nonMemberPage: Page;
   playerA: PlayerFixture;
   playerB: PlayerFixture;
   playerC: PlayerFixture;
@@ -32,10 +34,12 @@ export async function signIn(page: Page, email: string, password: string) {
     await page.waitForTimeout(2000);
     await page.goto("/", { timeout: 60_000, waitUntil: "domcontentloaded" });
   }
-  await clerk.signIn({
-    page,
-    signInParams: { strategy: "password", identifier: email, password },
-  });
+  // Ticket-based sign-in (a sign-in token minted with CLERK_SECRET_KEY). It
+  // signs the test user in directly, so Clerk's Device Trust second factor
+  // never interrupts automated runs. `password` stays in the signature for
+  // callers that still pass it.
+  void password;
+  await clerk.signIn({ page, emailAddress: email });
 
   // Ensure user is synced to local DB and onboarding is completed via API.
   // This is far more reliable than waiting for UI redirects, especially under
@@ -77,6 +81,11 @@ function playerFixture(envKey: string) {
 }
 
 export const test = base.extend<AuthFixtures>({
+  nonMemberPage: async ({ page }, use) => {
+    test.skip(!process.env.E2E_USER_R_EMAIL, "E2E_USER_R (non-member) not provisioned");
+    await signIn(page, process.env.E2E_USER_R_EMAIL!, process.env.E2E_USER_R_PASSWORD!);
+    await use(page);
+  },
   authedPage: async ({ page }, use) => {
     await signIn(page, process.env.E2E_USER_A_EMAIL!, process.env.E2E_USER_A_PASSWORD!);
     await use(page);

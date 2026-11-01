@@ -21,7 +21,7 @@ export function isPaywallEnabled(): boolean {
 }
 
 /**
- * Resolves the caller like `resolveUser`, then requires an active Player plan.
+ * Resolves the caller like `resolveUser`, then requires an active Coaching membership (or trial).
  *
  * Bypassed for: internal service calls (the socket server persisting moves),
  * the perf-test auth bypass, admins, and when the paywall is switched off.
@@ -48,7 +48,7 @@ export async function requireSubscribedUser(
   return {
     response: NextResponse.json(
       {
-        error: "An active ReplayChess Player plan is required to play",
+        error: "A ReplayChess Coaching membership is needed for this. Start your 7-day free trial to continue.",
         code: SUBSCRIPTION_REQUIRED_CODE,
         upgradeUrl: "/pricing?reason=required",
       },

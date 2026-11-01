@@ -38,6 +38,7 @@ import {
   type PlanChange,
   type PlanChangePreview,
 } from "@/lib/billing/subscription-action-rules";
+import { trialMembershipCopy } from "@/lib/billing/copy";
 import { MembershipModal } from "./MembershipModal";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -57,6 +58,7 @@ interface MembershipView {
   status: string | null;
   periodEnd: string | null;
   cancelAtPeriodEnd: boolean;
+  trial: StoreSubscription["trial"] | null;
 }
 
 function viewFromStore(subscription: StoreSubscription | null): MembershipView {
@@ -69,6 +71,7 @@ function viewFromStore(subscription: StoreSubscription | null): MembershipView {
     status: details?.status ?? subscription?.status ?? null,
     periodEnd: subscription?.currentPeriodEnd ?? details?.nextBillingDate ?? null,
     cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
+    trial: subscription?.trial ?? null,
   };
 }
 
@@ -392,14 +395,30 @@ export function MembershipSection() {
   const immediateCancel = view.status === "cancelled" && !view.cancelAtPeriodEnd;
   const terminal = immediateCancel || view.status === "expired" || view.status === "failed";
   const cancelling = !terminal && (view.cancelAtPeriodEnd || view.status === "cancelled");
-  const badge = terminal
+  const trialCopy = terminal
+    ? null
+    : trialMembershipCopy({
+        trial: view.trial,
+        cancelAtPeriodEnd: view.cancelAtPeriodEnd,
+        interval: view.interval,
+        priceCents: view.priceCents,
+      });
+  const badge = trialCopy
+    ? { label: trialCopy.badge, tone: "active" as const }
+    : terminal
     ? { label: "Ended", tone: "warning" as const }
     : cancelling
       ? { label: `Cancels on ${formatMembershipDate(view.periodEnd)}`, tone: "warning" as const }
       : paymentIssue
         ? { label: "Payment issue", tone: "warning" as const }
         : { label: "Active", tone: "active" as const };
-  const dateLabel = terminal ? "Access" : cancelling ? "Access until" : "Renews on";
+  const dateLabel = trialCopy
+    ? trialCopy.dateLabel
+    : terminal
+      ? "Access"
+      : cancelling
+        ? "Access until"
+        : "Renews on";
   const priceLabel =
     view.priceCents !== null && view.interval
       ? describePlanPrice({ interval: view.interval, priceCents: view.priceCents })
@@ -412,7 +431,8 @@ export function MembershipSection() {
         : view.interval === "month"
           ? "Billed monthly"
           : null;
-  const changes = availablePlanChanges(view.planKey);
+  const inTrial = !!view.trial?.active;
+  const changes = availablePlanChanges(view.planKey, { inTrial });
   const tiles: React.ReactNode[] = [];
 
   for (const change of changes) {
@@ -429,6 +449,21 @@ export function MembershipSection() {
           onClick={keepCurrentPlan}
           disabled={busy}
           testId="keep-current-plan"
+        />,
+      );
+      continue;
+    }
+    if (inTrial) {
+      tiles.push(
+        <ActionTile
+          key={`change:${change.target}`}
+          icon={ArrowUpRight}
+          title={`Switch to ${target.label.toLowerCase()}`}
+          detail={`${describePlanPrice(target)} from ${formatMembershipDate(view.trial?.endsAt ?? view.periodEnd)}, when your trial ends. Nothing is charged today.`}
+          onClick={() => openChange(change)}
+          disabled={busy}
+          highlight={change.target === "yearly"}
+          testId={`switch-to-${change.target}`}
         />,
       );
       continue;
@@ -471,7 +506,11 @@ export function MembershipSection() {
         key="resume"
         icon={RotateCcw}
         title={pending === "resume" ? "Resuming…" : "Resume subscription"}
-        detail={`Keep your plan renewing on ${formatMembershipDate(view.periodEnd)}.`}
+        detail={
+          inTrial
+            ? `Keep coaching after your trial. First charge ${priceLabel ?? ""} on ${formatMembershipDate(view.trial?.endsAt ?? view.periodEnd)}.`.replace("  ", " ")
+            : `Keep your plan renewing on ${formatMembershipDate(view.periodEnd)}.`
+        }
         onClick={resume}
         disabled={busy}
         highlight
@@ -483,8 +522,12 @@ export function MembershipSection() {
       <ActionTile
         key="cancel"
         icon={Ban}
-        title="Cancel at period end"
-        detail={`Access continues until ${formatMembershipDate(view.periodEnd)}. Resume anytime before then.`}
+        title={inTrial ? "Cancel trial" : "Cancel at period end"}
+        detail={
+          inTrial
+            ? `You won't be charged. Access continues until ${formatMembershipDate(view.trial?.endsAt ?? view.periodEnd)}.`
+            : `Access continues until ${formatMembershipDate(view.periodEnd)}. Resume anytime before then.`
+        }
         onClick={() => {
           setModalError(null);
           setModal({ kind: "cancel" });
@@ -580,7 +623,7 @@ export function MembershipSection() {
               {dateLabel}
             </p>
             <p style={MONO} className="text-sm text-cb-text-secondary" data-testid="membership-period-end">
-              {terminal ? "Ended" : formatMembershipDate(view.periodEnd)}
+              {terminal ? "Ended" : trialCopy ? trialCopy.dateValue : formatMembershipDate(view.periodEnd)}
             </p>
           </div>
           <div className="bg-cb-bg p-5">
@@ -729,8 +772,12 @@ export function MembershipSection() {
         onClose={closeModal}
         locked={busy}
         testId="cancel-modal"
-        title="Cancel at period end"
-        description={`You keep full access until ${formatMembershipDate(view.periodEnd)} and will not be billed again. You can resume anytime before then.`}
+        title={inTrial ? "Cancel your free trial" : "Cancel at period end"}
+        description={
+          inTrial
+            ? `Your trial continues until ${formatMembershipDate(view.trial?.endsAt ?? view.periodEnd)} and your card will not be charged. You can resume anytime before then.`
+            : `You keep full access until ${formatMembershipDate(view.periodEnd)} and will not be billed again. You can resume anytime before then.`
+        }
       >
         <form
           className="space-y-5"

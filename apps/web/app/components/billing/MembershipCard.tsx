@@ -2,7 +2,7 @@
 
 import { ArrowRight, CreditCard, LifeBuoy } from "lucide-react";
 import { PLAN_NAME, describePlanPrice } from "@/lib/billing/plans";
-import { SUPPORT_EMAIL, formatBillingDate } from "@/lib/billing/copy";
+import { SUPPORT_EMAIL, formatBillingDate, trialMembershipCopy } from "@/lib/billing/copy";
 import type { StoreSubscription } from "@/lib/stores/useUserStore";
 
 type Badge = { label: string; tone: "active" | "warning" };
@@ -44,17 +44,36 @@ export function MembershipCard({
   compact?: boolean;
 }) {
   const details = subscription?.subscription;
-  const badge = badgeFor(subscription);
+  const trialCopy = trialMembershipCopy({
+    trial: subscription?.trial,
+    cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd,
+    interval: details?.interval,
+    priceCents: details?.priceCents,
+  });
+  const baseBadge = badgeFor(subscription);
+  const badge: Badge = trialCopy ? { label: trialCopy.badge, tone: "active" } : baseBadge;
   const priceLabel =
     details?.priceCents && details.interval
       ? describePlanPrice({ interval: details.interval, priceCents: details.priceCents })
       : null;
   const periodEnd = details?.nextBillingDate ?? subscription?.currentPeriodEnd ?? null;
-  const ended = badge.label === "Ended";
+  const ended = baseBadge.label === "Ended";
   // An immediate cancel still carries a future next_billing_date, so never
   // present that date as an access date once the plan has ended.
-  const dateLabel = ended ? "Access" : badge.label === "Cancelling" ? "Access until" : "Renews on";
-  const dateValue = ended ? "Ended" : periodEnd ? formatBillingDate(periodEnd) : "—";
+  const dateLabel = trialCopy
+    ? trialCopy.dateLabel
+    : ended
+      ? "Access"
+      : baseBadge.label === "Cancelling"
+        ? "Access until"
+        : "Renews on";
+  const dateValue = trialCopy
+    ? trialCopy.dateValue
+    : ended
+      ? "Ended"
+      : periodEnd
+        ? formatBillingDate(periodEnd)
+        : "—";
   // The portal route resolves the customer from the signed-in user itself.
   const portalHref = "/api/customer-portal";
 
@@ -137,7 +156,7 @@ export function MembershipCard({
               className={`text-sm ${badge.tone === "active" ? "text-amber-400" : "text-cb-text-secondary"}`}
               data-testid="membership-status"
             >
-              {humanizeStatus(details?.status ?? subscription?.status)}
+              {trialCopy ? "Free trial" : humanizeStatus(details?.status ?? subscription?.status)}
             </p>
           </div>
         </div>

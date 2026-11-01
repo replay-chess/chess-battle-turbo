@@ -6,7 +6,8 @@ import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  environment: process.env.NODE_ENV || "development",
+  // "dev" on the dev deployment, "production" on prod, NODE_ENV locally.
+  environment: process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV || "development",
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 1,

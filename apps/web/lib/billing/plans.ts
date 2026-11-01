@@ -2,13 +2,13 @@
  * ReplayChess billing catalog.
  *
  * This module is safe to import from client and server code. It holds the
- * public facts about the Player plan (prices, intervals, copy) and the pure
+ * public facts about the Coaching plan (prices, intervals, copy) and the pure
  * helpers used to map a Dodo Payments product back to a plan. Product IDs
  * themselves are read from environment variables in `products.ts`, which is
  * server-only.
  */
 
-export const PLAN_NAME = "Player";
+export const PLAN_NAME = "Coaching";
 
 export type BillingInterval = "month" | "year";
 export type PlanKey = "monthly" | "yearly";
@@ -39,9 +39,9 @@ export const BILLING_PLANS: Record<PlanKey, BillingPlan> = {
     priceCents: 499,
     periodLabel: "/mo",
     billingNote: "Billed monthly. Cancel anytime.",
-    dodoProductName: "ReplayChess Player (Monthly)",
+    dodoProductName: "ReplayChess Coaching (Monthly)",
     dodoProductDescription:
-      "ReplayChess Player membership billed every month. Unlimited legendary positions, analysis tools, and priority features.",
+      "ReplayChess Coaching billed every month: analysis of your games, puzzles from your own mistakes, your Weakness Profile and the AI coach. Starts with a 7-day free trial.",
   },
   yearly: {
     key: "yearly",
@@ -50,9 +50,9 @@ export const BILLING_PLANS: Record<PlanKey, BillingPlan> = {
     priceCents: 5000,
     periodLabel: "/yr",
     billingNote: "Billed once a year.",
-    dodoProductName: "ReplayChess Player (Yearly)",
+    dodoProductName: "ReplayChess Coaching (Yearly)",
     dodoProductDescription:
-      "ReplayChess Player membership billed once a year. Unlimited legendary positions, analysis tools, and priority features at the best price.",
+      "ReplayChess Coaching billed once a year: analysis of your games, puzzles from your own mistakes, your Weakness Profile and the AI coach. Starts with a 7-day free trial.",
   },
 };
 

@@ -13,6 +13,7 @@ const subscriptionSnapshotSchema = z.object({
   cancel_at_next_billing_date: z.boolean().default(false),
   created_at: z.union([z.string(), z.date()]).optional(),
   payment_frequency_interval: z.string().optional(),
+  trial_period_days: z.number().int().nullable().optional(),
   customer: z.object({
     customer_id: z.string().min(1),
     email: z.string(),

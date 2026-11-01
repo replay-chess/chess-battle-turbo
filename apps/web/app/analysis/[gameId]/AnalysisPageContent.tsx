@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { SUBSCRIPTION_REQUIRED_STATUS, paywallUrl } from "@/lib/billing/client";
 import { Chess, Move, Color } from "chess.js";
 import { useRouter } from "next/navigation";
 import ChessBoard from "../../components/ChessBoard";
@@ -80,11 +81,13 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const url = userReferenceId
-          ? `/api/analysis/${gameId}?userReferenceId=${userReferenceId}`
-          : `/api/analysis/${gameId}`;
+        const url = `/api/analysis/${gameId}`;
         const start = Date.now();
         const response = await fetch(url);
+        if (response.status === SUBSCRIPTION_REQUIRED_STATUS) {
+          window.location.assign(paywallUrl(`/analysis/${gameId}`));
+          return;
+        }
         const result = await response.json();
         trackApiResponseTime("analysis.fetch", Date.now() - start);
 
@@ -242,7 +245,7 @@ export function AnalysisPageContent({ gameId, userReferenceId, isDemo = false }:
     data?.startingFen?.split(" ")[1] === "b" ? "b" : "w";
 
   // Navigation helpers — demo mode goes to /try instead of /play
-  const backPath = isDemo ? "/try" : "/play";
+  const backPath = "/play";
 
   if (loading) {
     return (

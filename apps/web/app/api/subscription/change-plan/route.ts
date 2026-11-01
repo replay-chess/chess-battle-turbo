@@ -1,3 +1,4 @@
+import { isSubscriptionInTrial } from "@/lib/billing/trial-rules"
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { z } from "zod"
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
     owned.planKey,
     owned.subscription.status,
     parsed.data.plan,
+    { inTrial: isSubscriptionInTrial(owned.subscription) },
   )
   if (isPlanChangeRejection(decision)) {
     return NextResponse.json(

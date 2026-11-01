@@ -7,7 +7,7 @@ import { DirectoryBadges } from "./DirectoryBadges";
 
 const footerLinks = {
   product: [
-    { name: "Try Free", href: "/try" },
+    { name: "Free Trial", href: "/pricing" },
     { name: "Chess Legends", href: "/legends" },
     { name: "Chess Openings", href: "/openings" },
     { name: "Opening Guide", href: "/learn/openings" },

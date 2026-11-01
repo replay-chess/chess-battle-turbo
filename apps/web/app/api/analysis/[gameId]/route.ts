@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { requireSubscribedUser } from "@/lib/auth/require-subscription";
 import { prisma } from "../../../../lib/prisma";
 import { Chess, Move } from "chess.js";
 import { logger } from "@/lib/logger";
@@ -134,8 +134,12 @@ export async function GET(
 ) {
   try {
     const { gameId } = await params;
-    const { searchParams } = new URL(request.url);
-    const userReferenceId = searchParams.get("userReferenceId");
+
+    // Members only (trial counts). The caller is always the signed-in user;
+    // the client no longer chooses whose view of the game it gets.
+    const gate = await requireSubscribedUser(request);
+    if (gate.response) return gate.response;
+    const caller = gate.user;
 
     // 1. Find the game with its chess position
     const game = await prisma.game.findUnique({
@@ -152,16 +156,6 @@ export async function GET(
       },
     });
 
-    // Look up user if userReferenceId provided
-    let currentUserId: bigint | null = null;
-    if (userReferenceId) {
-      const user = await prisma.user.findUnique({
-        where: { referenceId: userReferenceId },
-        select: { id: true },
-      });
-      currentUserId = user?.id ?? null;
-    }
-
     if (!game) {
       return NextResponse.json(
         { success: false, error: "Game not found" },
@@ -169,17 +163,16 @@ export async function GET(
       );
     }
 
-    // 1b. Auth gate: unauthenticated users can only access demo games
-    const { userId } = await auth();
-    if (!userId) {
-      const gd = game.gameData as { isDemo?: boolean } | null;
-      if (!gd?.isDemo) {
-        return NextResponse.json(
-          { success: false, error: "Authentication required" },
-          { status: 403 }
-        );
-      }
+    // Only the two players (or an admin) can open a game's review.
+    const isParticipant =
+      caller.id === game.creatorId || caller.id === game.opponentId;
+    if (!isParticipant && caller.role !== "ADMIN") {
+      return NextResponse.json(
+        { success: false, error: "Game not found" },
+        { status: 404 }
+      );
     }
+    const currentUserId: bigint | null = isParticipant ? caller.id : null;
 
     // 2. Extract user moves from gameData
     const gameData = game.gameData as {

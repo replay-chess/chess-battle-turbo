@@ -14,6 +14,12 @@ On 2026-03-08 we ran `prisma migrate dev --name add-tournament-description` on a
 5. **Before ANY destructive database command**: Always ask the user for explicit confirmation. State clearly: "This command may reset/drop your database. Are you sure?"
 
 ### Neon Database Details
+**New account (replaychess007@gmail.com), project `replay-chess` (`withered-cake-82837167`, AWS us-east-1)** — the database Replay Chess is moving to:
+- `production` branch (`br-shiny-shape-b8lvr0f5`, default): the future prod database. All migrations applied with `prisma migrate deploy`. Empty of user data until the old prod data is copied over.
+- `dev` branch (`br-misty-dew-b8wy3a8w`, child of production): local development and E2E. Seeded with `prisma/seed.ts` and `prisma/opening-seed.ts`. Safe to change; `prisma db push` / `migrate dev` are allowed here only.
+- MCP: `neon-replaychess` (local scope, project-scoped API key "claude-code-mcp").
+
+**Old account (pandit.rohit0007@gmail.com), project `chess_battle`** — still serves the live site today:
 - Project: `shy-morning-50748774`
 - Main branch: `br-still-brook-a5nutqwh`
 - Database name: `prisma_migrate_shadow_db_696341e6-c32e-46e7-8f09-b53758dedd0f`
@@ -34,3 +40,19 @@ On 2026-03-08 we ran `prisma migrate dev --name add-tournament-description` on a
 - Next.js 15 + React 19, Tailwind CSS 4, Prisma ORM, Clerk auth
 - React Compiler enabled — no manual memoization needed
 - Socket.io for real-time, Zustand for state
+
+## Accounts and browsers
+- Service accounts for Replay Chess are owned by **replaychess007@gmail.com**: Clerk, PostHog, Cloudflare (R2), Sentry, Vercel, and the new Neon account. Use **ego-browser** (ego-lite), which is logged in as that account, for any dashboard work on them.
+- **Dodo Payments** belongs to the owner's main email (pandit.rohit0007@gmail.com). Use **Claude in Chrome** for the Dodo dashboard.
+- Test the app in a browser with **ego-browser**. Playwright (`apps/web/e2e`) is for the automated e2e regression suite.
+
+## Local development and testing
+- `apps/web/.env.development.local` (gitignored) overrides `.env.local` for `next dev`: the new account's Neon `dev` branch (safe to change), the Clerk development instance, and Dodo **test mode**. Never point local dev at the prod database.
+- `apps/web/.env.test` (gitignored) holds the same plus E2E users A–P (members), Q (used its trial in manual testing) and R (non-member, never had a trial; used by the nonMemberPage fixture). Re-create users with `E2E_LETTERS=... npx tsx e2e/scripts/provision-test-users.ts [--entitle]`.
+- Signed-out e2e specs only: `E2E_PUBLIC_ONLY=1 npx playwright test`.
+- Implementation plan: `docs/implementation-plan.md`.
+
+## MCP servers
+- User scope (already connected): `neon` (old main account, live prod project `shy-morning-50748774`), `vercel` (replaychess007), `dodopayments`.
+- Local scope: `neon-replaychess` (new account, project `withered-cake-82837167`).
+- Project scope (`.mcp.json`): `sentry`, `posthog`, `cloudflare-bindings` (R2), `cloudflare-observability`. They authenticate with OAuth on first use via `/mcp`; sign in as replaychess007@gmail.com.

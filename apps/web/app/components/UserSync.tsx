@@ -14,7 +14,6 @@ import { isPlanKey } from "@/lib/billing/plans";
  * are already part of the flow; /sign-in is Clerk's territory.
  */
 const ONBOARDING_EXEMPT_PREFIXES: readonly string[] = [
-  "/try",
   "/blog",
   "/learn",
   "/about",

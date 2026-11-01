@@ -10,6 +10,7 @@ import {
   getProductIdForPlan,
 } from "@/lib/billing/products"
 import { buildReturnUrl, resolveAppOrigin } from "@/lib/billing/return-url"
+import { TRIAL_DAYS, isTrialEligible } from "@/lib/billing/trial-rules"
 
 const checkoutBodySchema = z.object({
   plan: z.enum(PLAN_KEYS),
@@ -81,7 +82,19 @@ export async function POST(req: NextRequest) {
   // succeeds. A pending (abandoned) first checkout must still be retried.
   const dbUser = await prisma.user.findFirst({
     where: { googleId: userId },
-    select: { dodoCustomerId: true },
+    select: {
+      dodoCustomerId: true,
+      subscriptionId: true,
+      trialStartedAt: true,
+      trialEndsAt: true,
+    },
+  })
+  // One free trial per person: only someone who has never started a trial
+  // and never held a subscription gets one. Everyone else pays on day one.
+  const withTrial = isTrialEligible({
+    trialStartedAt: dbUser?.trialStartedAt ?? null,
+    trialEndsAt: dbUser?.trialEndsAt ?? null,
+    subscriptionId: dbUser?.subscriptionId ?? null,
   })
   if (dbUser?.dodoCustomerId) {
     try {
@@ -131,7 +144,9 @@ export async function POST(req: NextRequest) {
     const session = await dodo.checkoutSessions.create({
       product_cart: [{ product_id: productId, quantity: 1 }],
       customer: { email, name: name || undefined },
-      metadata: { clerkUserId: userId, plan },
+      metadata: { clerkUserId: userId, plan, trial: withTrial ? "yes" : "no" },
+      // Card is collected now; Dodo charges it when the trial ends (day 8).
+      ...(withTrial ? { subscription_data: { trial_period_days: TRIAL_DAYS } } : {}),
       return_url: buildReturnUrl(
         returnPath,
         resolveAppOrigin(
@@ -151,6 +166,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       checkoutUrl: session.checkout_url,
       sessionId: session.session_id,
+      trial: withTrial,
     })
   } catch (err) {
     if (process.env.NODE_ENV === "development") {

@@ -23,6 +23,8 @@ export interface SubscriptionResponse extends EntitlementSummary {
   customerId?: string
   /** False when BILLING_PAYWALL=off; clients then skip their own gate. */
   paywall: boolean
+  /** True when the next checkout will include the 7-day free trial. */
+  trialEligible: boolean
   /** Kept for older clients; mirrors `entitled` and `subscriptionId`. */
   subscription?: {
     id: string
@@ -44,6 +46,7 @@ function toResponse(
     ...summary,
     customerId: customerId ?? undefined,
     paywall: isPaywallEnabled(),
+    trialEligible: !summary.trial.used && !summary.subscriptionId,
     subscription:
       summary.subscriptionId && summary.status
         ? {

@@ -22,6 +22,9 @@ export default defineConfig({
     video: "on-first-retry",
   },
   globalSetup: "./e2e/global-setup.ts",
+  // Signed-out specs are tagged @public so they can run without Clerk test users:
+  //   E2E_PUBLIC_ONLY=1 npx playwright test --grep @public
+  grep: process.env.E2E_PUBLIC_ONLY === "1" ? /@public/ : undefined,
   projects: [
     {
       name: "chromium",
@@ -38,6 +41,12 @@ export default defineConfig({
     {
       command: "pnpm --filter web-socket dev",
       port: 3002,
+      // apps/web-socket/.env holds production values; the local socket server
+      // must call back into and accept connections from the local web app.
+      env: {
+        WEB_APP_URL: "http://localhost:3000",
+        ALLOWED_ORIGINS: "http://localhost:3000",
+      },
       reuseExistingServer: false,
       timeout: 30_000,
     },

@@ -5,6 +5,7 @@
  */
 import type { BillingInterval, ProductCatalog, ResolvedPlan } from "./plans";
 import { resolvePlanFromProductId } from "./plans";
+import { isInTrial, trialDaysLeft } from "./trial-rules";
 
 /** Dodo subscription statuses, mirrored from the SDK. */
 export type SubscriptionStatus =
@@ -81,6 +82,8 @@ export interface SubscriptionSnapshot {
   cancel_at_next_billing_date: boolean;
   created_at?: string | Date;
   payment_frequency_interval?: "Day" | "Week" | "Month" | "Year" | string;
+  /** Days of free trial on this subscription (0 or absent when none). */
+  trial_period_days?: number | null;
   customer: { customer_id: string; email: string; name?: string };
 }
 
@@ -188,14 +191,32 @@ export interface EntitlementSummary {
   subscriptionId: string | null;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
+  /** Free-trial state. `used` stays true forever once a trial has started. */
+  trial: {
+    active: boolean;
+    used: boolean;
+    endsAt: string | null;
+    daysLeft: number;
+  };
+}
+
+/** Optional trial columns, present when the caller selected them. */
+export interface TrialColumns {
+  trialStartedAt?: Date | null;
+  trialEndsAt?: Date | null;
 }
 
 export function summarizeEntitlement(
-  record: EntitlementRecord,
+  record: EntitlementRecord & TrialColumns,
   catalog: ProductCatalog,
   now: Date = new Date(),
 ): EntitlementSummary {
   const entitled = isEntitled(record, now);
+  const trialRecord = {
+    trialStartedAt: record.trialStartedAt ?? null,
+    trialEndsAt: record.trialEndsAt ?? null,
+  };
+  const trialActive = entitled && isInTrial(trialRecord, now);
   const resolved = resolvePlanFromProductId(record.subscriptionProductId, catalog);
   const interval =
     resolved?.interval ??
@@ -212,5 +233,11 @@ export function summarizeEntitlement(
     subscriptionId: record.subscriptionId,
     currentPeriodEnd: record.currentPeriodEnd ? record.currentPeriodEnd.toISOString() : null,
     cancelAtPeriodEnd: record.cancelAtPeriodEnd,
+    trial: {
+      active: trialActive,
+      used: !!trialRecord.trialStartedAt,
+      endsAt: trialRecord.trialEndsAt ? trialRecord.trialEndsAt.toISOString() : null,
+      daysLeft: trialActive ? trialDaysLeft(trialRecord.trialEndsAt, now) : 0,
+    },
   };
 }

@@ -20,8 +20,6 @@ export default function robots(): MetadataRoute.Robots {
         "/queue",
         "/position/",
         "/tournament/",
-        "/try/game/",
-        "/try/analysis/",
       ],
     },
     sitemap: [`${BASE_URL}/sitemap.xml`, ...CATALOGUE_SITEMAPS],

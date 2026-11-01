@@ -797,8 +797,8 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
   }, [isAIGame, gameStarted, gameOver, botColor, currentTurn, computeBotMove, gameId, game]);
 
   // Navigation helpers — demo mode goes to /try/* instead of authenticated routes
-  const analysisPath = isDemo ? `/try/analysis/${gameId}` : `/analysis/${gameId}`;
-  const backPath = isDemo ? "/try" : "/play";
+  const analysisPath = `/analysis/${gameId}`;
+  const backPath = "/play";
 
   // Determine if this is a victory for confetti (not for spectators)
   const isVictory = !isSpectator && gameOver && gameResultType === "victory";

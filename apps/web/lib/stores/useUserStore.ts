@@ -40,6 +40,9 @@ export interface StoreSubscription {
   cancelAtPeriodEnd?: boolean;
   subscriptionId?: string | null;
   customerId?: string;
+  /** True when the next checkout includes the 7-day free trial. */
+  trialEligible?: boolean;
+  trial?: { active: boolean; used: boolean; endsAt: string | null; daysLeft: number };
   subscription?: {
     id: string;
     status: string;

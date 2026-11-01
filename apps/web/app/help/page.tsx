@@ -6,11 +6,11 @@ import { safeJsonLd } from "@/lib/seo";
 
 const helpItems = [
   {
-    question: "Can I try ReplayChess without creating an account?",
+    question: "Can I try ReplayChess before paying?",
     answer:
-      "Yes. Open the free position challenges, choose a featured position, and play against the engine. An account is only required for protected multiplayer and library features.",
-    href: "/try",
-    linkLabel: "Open free challenges",
+      "Yes. Every new member gets a 7-day free trial with full access. You add a card when you start and nothing is charged until day 8. Cancel before then and you won't be charged.",
+    href: "/pricing",
+    linkLabel: "Start free trial",
   },
   {
     question:

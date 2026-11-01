@@ -55,8 +55,9 @@ const sections = [
         <p>We do not sell your personal data. We may share information with:</p>
         <ul className="list-disc list-inside space-y-2 text-cb-text-muted">
           <li>
-            <span className="text-cb-text-secondary">Service Providers:</span> Hosting (Vercel), authentication (Clerk), payment
-            processing (Stripe), and analytics providers
+            <span className="text-cb-text-secondary">Service Providers:</span> Hosting (Vercel, Oracle Cloud), authentication
+            (Clerk), payment processing (Dodo Payments), product analytics (PostHog), error monitoring (Sentry) and media
+            storage (Cloudflare R2)
           </li>
           <li>
             <span className="text-cb-text-secondary">Chess.com:</span> When you use our import feature, limited data is exchanged
@@ -163,10 +164,24 @@ const sections = [
             <span className="text-cb-text-secondary">Clerk</span> — Authentication and user management
           </li>
           <li>
-            <span className="text-cb-text-secondary">Stripe</span> — Payment processing
+            <span className="text-cb-text-secondary">Dodo Payments</span> — Payment processing and subscriptions (merchant of
+            record)
           </li>
           <li>
             <span className="text-cb-text-secondary">Vercel</span> — Hosting and edge computing
+          </li>
+          <li>
+            <span className="text-cb-text-secondary">Oracle Cloud</span> — Hosting for real-time game connections
+          </li>
+          <li>
+            <span className="text-cb-text-secondary">PostHog</span> — Product analytics (pages visited and features used, to
+            improve the Platform)
+          </li>
+          <li>
+            <span className="text-cb-text-secondary">Sentry</span> — Error monitoring and session replay for debugging
+          </li>
+          <li>
+            <span className="text-cb-text-secondary">Cloudflare R2</span> — Storage and delivery of audio and video files
           </li>
           <li>
             <span className="text-cb-text-secondary">Chess.com API</span> — Game import functionality

@@ -20,6 +20,7 @@ import {
 import {
   PLAN_FEATURES,
   SALES_FAQS,
+  trialMembershipCopy,
   SUBSCRIBER_FAQS,
   SUPPORT_EMAIL,
 } from "@/lib/billing/copy";
@@ -241,7 +242,12 @@ export function PricingContent({
                     style={{ fontFamily: "'Geist', sans-serif" }}
                     className="text-sm text-amber-400"
                   >
-                    Payment successful! Your subscription is now active.
+                    {trialMembershipCopy({
+                      trial: subscription?.trial,
+                      cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd,
+                      interval: subscription?.subscription?.interval,
+                      priceCents: subscription?.subscription?.priceCents,
+                    })?.note ?? "Payment successful! Your subscription is now active."}
                   </p>
                 </div>
               </motion.div>
@@ -401,7 +407,7 @@ export function PricingContent({
             style={{ fontFamily: "'Geist', sans-serif" }}
             className="text-lg sm:text-xl md:text-2xl text-cb-text-muted max-w-2xl"
           >
-            All-in-one chess creation suite. Powered by AI.
+            Personal chess coaching built from your own games.
           </motion.p>
         </div>
       </section>
@@ -418,8 +424,8 @@ export function PricingContent({
                 style={{ fontFamily: "'Geist', sans-serif" }}
                 className="text-md text-cb-text-muted mb-8 mx-auto"
               >
-                Game Recorder, Position Editor, AI Assistant, Voice Coach,
-                Analysis Generator - all in one powerful package.
+                Game analysis, puzzles from your own mistakes, your Weakness
+                Profile and an AI coach. The first 7 days are free.
               </motion.p>
             </div>
 
@@ -456,7 +462,7 @@ export function PricingContent({
                     style={{ fontFamily: "'Geist', sans-serif" }}
                     className="text-sm text-amber-400"
                   >
-                    A {PLAN_NAME} plan is required to play.
+                    Start your 7-day free trial to use this.
                     {redirectUrl
                       ? " Pick a plan and you'll be sent straight back."
                       : " Pick a plan to get started."}
@@ -502,7 +508,7 @@ export function PricingContent({
                       className="text-sm text-amber-400 flex items-center justify-center gap-2"
                     >
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Payment successful! Your subscription is being activated.
+                      Card saved. Your membership is being activated.
                     </p>
                   )}
                 </div>
@@ -583,6 +589,7 @@ export function PricingContent({
                 loading={checkoutLoading || awaitingPaywallCheck}
                 error={checkoutError}
                 isSignedIn={!!storeUser}
+                trialEligible={subscription?.trialEligible ?? true}
               />
             </motion.div>
 
@@ -590,7 +597,7 @@ export function PricingContent({
               style={{ fontFamily: "'Geist', sans-serif" }}
               className="text-sm text-cb-text-muted text-center mt-8 mb-8 max-w-xl mx-auto p-4"
             >
-              Review the included features and billing FAQs before subscribing.
+              Every new member starts with a 7-day free trial.
               Questions can be sent to {SUPPORT_EMAIL}.
             </p>
           </section>
@@ -639,14 +646,14 @@ export function PricingContent({
                       style={{ fontFamily: "'Geist', sans-serif" }}
                       className="p-4 text-xs uppercase tracking-widest font-medium text-cb-text-secondary bg-cb-hover flex items-center gap-2"
                     >
-                      Chess Tools <Video className="w-3 h-3" />
+                      Coaching <Video className="w-3 h-3" />
                     </td>
                   </tr>
                   {[
-                    { label: "Positions", value: "Unlimited" },
-                    { label: "Record & Export", value: "✓" },
-                    { label: "Quality", value: "1080p" },
-                    { label: "Recording Length", value: "15 mins" },
+                    { label: "Analysis of your games", value: "Every game" },
+                    { label: "Puzzles from your mistakes", value: "Daily" },
+                    { label: "Weakness Profile", value: "✓" },
+                    { label: "Legend and opening positions", value: "Unlimited" },
                   ].map((row) => (
                     <tr key={row.label} className="border-t border-cb-border">
                       <td
@@ -669,10 +676,10 @@ export function PricingContent({
                       style={{ fontFamily: "'Geist', sans-serif" }}
                       className="p-4 text-xs uppercase tracking-widest font-medium text-cb-text-secondary bg-cb-hover flex items-center gap-2"
                     >
-                      AI Features <Bot className="w-3 h-3" />
+                      AI Coach <Bot className="w-3 h-3" />
                     </td>
                   </tr>
-                  {[{ label: "AI Analysis", value: "Basic" }].map((row) => (
+                  {[{ label: "Questions to the coach", value: "Unlimited" }].map((row) => (
                     <tr key={row.label} className="border-t border-cb-border">
                       <td
                         style={{ fontFamily: "'Geist', sans-serif" }}

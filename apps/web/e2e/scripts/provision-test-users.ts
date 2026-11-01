@@ -39,7 +39,8 @@ if (ENTITLE && !process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-const LETTERS = "EFGHIJKLMNOP".split("");
+// Override with E2E_LETTERS=ABCD... (e.g. a fresh Clerk instance needs A through P).
+const LETTERS = (process.env.E2E_LETTERS ?? "EFGHIJKLMNOP").toUpperCase().split("");
 
 /** Product id stored on entitled fixture rows; never a real Dodo product. */
 const E2E_FIXTURE_PRODUCT_ID = "e2e-fixture";
@@ -57,7 +58,9 @@ async function createClerkUser(
   letter: string,
   password: string,
 ): Promise<{ id: string; email: string }> {
-  const email = `e2e-player${letter.toLowerCase()}@chessbattle.dev`;
+  // "+clerk_test" addresses accept the fixed code 424242 for any email
+  // verification or second factor on Clerk development instances.
+  const email = `e2e-player${letter.toLowerCase()}+clerk_test@chessbattle.dev`;
   const res = await fetch("https://api.clerk.com/v1/users", {
     method: "POST",
     headers: {
@@ -75,7 +78,10 @@ async function createClerkUser(
   if (!res.ok) {
     const text = await res.text();
     // If user already exists, that's fine — just warn
-    if (res.status === 422 && text.includes("already been taken")) {
+    if (
+      res.status === 422 &&
+      (text.includes("already been taken") || text.includes("form_identifier_exists"))
+    ) {
       console.warn(`  User ${email} already exists — skipping creation`);
       return { id: "existing", email };
     }
@@ -143,7 +149,7 @@ async function entitleUser(
 }
 
 async function main() {
-  console.log("Provisioning 12 E2E test users (E through P)...\n");
+  console.log(`Provisioning ${LETTERS.length} E2E test users (${LETTERS.join("")})...\n`);
 
   const envLines: string[] = [];
   const created: Array<{ letter: string; email: string; id: string }> = [];
@@ -151,8 +157,9 @@ async function main() {
   for (const letter of LETTERS) {
     const password = generatePassword();
     const { id, email } = await createClerkUser(letter, password);
-    console.log(`  Created: ${email}`);
     created.push({ letter, email, id });
+    if (id === "existing") continue; // keep the password already in .env.test
+    console.log(`  Created: ${email}`);
 
     envLines.push(`E2E_USER_${letter}_EMAIL=${email}`);
     envLines.push(`E2E_USER_${letter}_PASSWORD=${password}`);

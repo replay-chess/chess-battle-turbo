@@ -193,10 +193,16 @@ const sections = [
             <span className="text-cb-text-secondary">Clerk</span> — Authentication session management
           </li>
           <li>
-            <span className="text-cb-text-secondary">Stripe</span> — Payment security and fraud prevention
+            <span className="text-cb-text-secondary">Dodo Payments</span> — Payment security and fraud prevention during checkout
           </li>
           <li>
             <span className="text-cb-text-secondary">Vercel Analytics</span> — Anonymous performance monitoring
+          </li>
+          <li>
+            <span className="text-cb-text-secondary">PostHog</span> — Product analytics (stores an anonymous visitor ID)
+          </li>
+          <li>
+            <span className="text-cb-text-secondary">Google Analytics</span> — Site traffic measurement
           </li>
         </ul>
         <p className="mt-4">

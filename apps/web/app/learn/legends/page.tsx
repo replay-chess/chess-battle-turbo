@@ -143,7 +143,7 @@ export default function LegendsGuidePage() {
               </p>
             </div>
             <Link
-              href="/try"
+              href="/pricing"
               className="mt-8 inline-flex items-center gap-2 bg-cb-accent px-5 py-3 font-sans text-xs uppercase tracking-[0.12em] text-cb-accent-fg"
             >
               Practice from a critical position{" "}

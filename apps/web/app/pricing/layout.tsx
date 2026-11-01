@@ -8,7 +8,7 @@ const YEARLY_PRICE = formatPrice(BILLING_PLANS.yearly.priceCents);
 
 export const metadata: Metadata = createMetadata({
   title: "Chess Training Plans and Pricing",
-  description: `ReplayChess Player plan from ${MONTHLY_PRICE}/month or ${YEARLY_PRICE}/year. Play legendary positions, record games, and use chess analysis tools. Start with a free challenge.`,
+  description: `ReplayChess Coaching from ${MONTHLY_PRICE}/month or ${YEARLY_PRICE}/year: analysis of your Chess.com games, puzzles from your own mistakes, your Weakness Profile and an AI coach. Start with a 7-day free trial.`,
   path: "/pricing",
 });
 

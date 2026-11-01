@@ -150,10 +150,10 @@ export default function OpeningsGuidePage() {
                 Study the King&apos;s Gambit <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href="/try"
+                href="/pricing"
                 className="inline-flex items-center gap-2 bg-cb-accent px-5 py-3 font-sans text-xs uppercase tracking-[0.12em] text-cb-accent-fg"
               >
-                Try a position <ArrowRight className="h-4 w-4" />
+                Start free trial <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </section>

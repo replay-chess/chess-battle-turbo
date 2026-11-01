@@ -85,6 +85,10 @@ const nextConfig = {
         destination: "https://www.playchess.tech/:path*",
         permanent: true,
       },
+      // The free guest demo is gone (paid-only, 7-day trial). Keep old links
+      // and their search ranking pointing somewhere useful.
+      { source: "/try", destination: "/pricing", permanent: true },
+      { source: "/try/:path*", destination: "/pricing", permanent: true },
       ...(MEDIA_URL
         ? MEDIA_PATHS.map((source) => ({
             source,

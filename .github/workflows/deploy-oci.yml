@@ -4,15 +4,20 @@ name: Deploy WebSocket to OCI
 # server is arm64), pushes it to GHCR, then pulls and restarts the stack on
 # the server. The Next.js app stays on Vercel.
 #
+# Two environments, one workflow:
+#   push to main -> prod server  (OCI_HOST,     WS_ENV_FILE,     ws-chess.playchess.tech)
+#   push to dev  -> dev server   (OCI_DEV_HOST, WS_DEV_ENV_FILE, WS_DEV_HOST)
+#
 # Secrets:
-#   WS_ENV_FILE  websocket server .env (see deploy/oci/.env.example); written
-#                to /opt/replay-chess/.env on the server
-#   OCI_HOST     server public IP
-#   OCI_SSH_KEY  private key of the `deploy` user (deploy/oci/setup-server.sh)
+#   WS_ENV_FILE / WS_DEV_ENV_FILE  websocket server .env for each environment
+#                (see deploy/oci/.env.example); written to /opt/replay-chess/.env
+#   OCI_HOST / OCI_DEV_HOST        server public IPs
+#   OCI_SSH_KEY  private key of the `deploy` user on both servers
+#                (deploy/oci/setup-server.sh)
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - "apps/web-socket/**"
       - "deploy/oci/**"
@@ -20,7 +25,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-oci
+  group: deploy-oci-${{ github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -70,14 +75,18 @@ jobs:
           {
             printf '%s\n' "$WS_ENV_FILE"
             echo "WS_IMAGE=$WS_IMAGE"
+            echo "WS_HOST=$WS_HOST"
           } > bundle/.env
         env:
-          WS_ENV_FILE: ${{ secrets.WS_ENV_FILE }}
+          WS_ENV_FILE: ${{ github.ref_name == 'main' && secrets.WS_ENV_FILE || secrets.WS_DEV_ENV_FILE }}
+          # The dev host uses sslip.io (resolves to the IP inside the name) until
+          # a ws-dev.playchess.tech DNS record exists.
+          WS_HOST: ${{ github.ref_name == 'main' && 'ws-chess.playchess.tech' || 'ws-dev.80-225-200-210.sslip.io' }}
 
       - name: Copy bundle to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.OCI_HOST }}
+          host: ${{ github.ref_name == 'main' && secrets.OCI_HOST || secrets.OCI_DEV_HOST }}
           username: deploy
           key: ${{ secrets.OCI_SSH_KEY }}
           source: "bundle/docker-compose.yml,bundle/Caddyfile,bundle/.env"
@@ -90,7 +99,7 @@ jobs:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          host: ${{ secrets.OCI_HOST }}
+          host: ${{ github.ref_name == 'main' && secrets.OCI_HOST || secrets.OCI_DEV_HOST }}
           username: deploy
           key: ${{ secrets.OCI_SSH_KEY }}
           envs: GHCR_USER,GHCR_TOKEN

@@ -7,7 +7,8 @@ import posthog from "posthog-js";
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  environment: process.env.NODE_ENV || "development",
+  // "dev" on the dev deployment, "production" on prod, NODE_ENV locally.
+  environment: process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV || "development",
 
   // Add optional integrations for additional features
   integrations: [Sentry.replayIntegration()],
@@ -42,4 +43,6 @@ if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
     capture_pageleave: true,
     person_profiles: "identified_only",
   });
+  // Tag every event with the deployment so dev traffic never mixes with prod.
+  posthog.register({ app_env: process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV });
 }

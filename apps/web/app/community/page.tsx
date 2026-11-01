@@ -23,11 +23,11 @@ const channels = [
     icon: BookOpen,
   },
   {
-    title: "Try a position",
+    title: "Start your free trial",
     description:
-      "Play a curated position against the engine without creating an account.",
-    href: "/try",
-    label: "Start a challenge",
+      "Try every coaching feature free for 7 days. Add a card, cancel any time before day 8 and you won't be charged.",
+    href: "/pricing",
+    label: "Start free trial",
     external: false,
     icon: Swords,
   },

@@ -57,3 +57,7 @@ scripts/webreel/videos/
 
 .env*.local
 
+
+# ego-browser skill (local install, not committed)
+.agents/skills/ego-browser/
+.claude/skills/ego-browser
