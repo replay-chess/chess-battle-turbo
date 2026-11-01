@@ -45,6 +45,7 @@ On 2026-03-08 we ran `prisma migrate dev --name add-tournament-description` on a
 - Service accounts for Replay Chess are owned by **replaychess007@gmail.com**: Clerk, PostHog, Cloudflare (R2), Sentry, Vercel, and the new Neon account. Use **ego-browser** (ego-lite), which is logged in as that account, for any dashboard work on them.
 - **Dodo Payments** belongs to the owner's main email (pandit.rohit0007@gmail.com). Use **Claude in Chrome** for the Dodo dashboard.
 - Test the app in a browser with **ego-browser**. Playwright (`apps/web/e2e`) is for the automated e2e regression suite.
+- When a browser task is done, close what you opened: in ego-browser call `task.finish({ keep: [] })` (or `page.close()` for extra pages); in Claude in Chrome close your tabs. Idle tabs waste memory.
 
 ## Local development and testing
 - `apps/web/.env.development.local` (gitignored) overrides `.env.local` for `next dev`: the new account's Neon `dev` branch (safe to change), the Clerk development instance, and Dodo **test mode**. Never point local dev at the prod database.
@@ -56,3 +57,19 @@ On 2026-03-08 we ran `prisma migrate dev --name add-tournament-description` on a
 - User scope (already connected): `neon` (old main account, live prod project `shy-morning-50748774`), `vercel` (replaychess007), `dodopayments`.
 - Local scope: `neon-replaychess` (new account, project `withered-cake-82837167`).
 - Project scope (`.mcp.json`): `sentry`, `posthog`, `cloudflare-bindings` (R2), `cloudflare-observability`. They authenticate with OAuth on first use via `/mcp`; sign in as replaychess007@gmail.com.
+
+## Environments
+Work happens on the `dev` branch; `main` is production. Test on dev, then merge to main.
+
+| | dev | production |
+|---|---|---|
+| Web (Vercel, replaychess007) | project `replay-chess-dev`, builds the `dev` branch → https://replay-chess-dev-replaychess007-1069.vercel.app | separate `replay-chess` project for `main` (to be created at go-live) |
+| WebSocket (OCI, ap-mumbai-1) | instance `replay-chess-dev` 80.225.200.210 → `wss://ws-dev.80-225-200-210.sslip.io` | instance `replay-chess` 132.226.190.10 → `ws-chess.playchess.tech` |
+| Database (Neon, replaychess007) | `dev` branch | `production` branch |
+| Clerk | development instance | production instance |
+| Dodo | test mode (webhook → dev URL) | live mode |
+| Telemetry tag | `NEXT_PUBLIC_APP_ENV` / `APP_ENV` = `dev` | `production` |
+
+- OCI: both instances are VM.Standard.A1.Flex, 1 OCPU / 6 GB, 50 GB boot — inside the Always Free allowance (4 OCPU / 24 GB / 200 GB total). Never resize or add instances beyond that; nothing on Oracle should cost money. The `oci` CLI on this machine is configured (API key) for the tenancy.
+- WebSocket deploys: `.github/workflows/deploy-oci.yml` — push to `dev` deploys the dev server (secrets `OCI_DEV_HOST`, `WS_DEV_ENV_FILE`), push to `main` deploys prod (`OCI_HOST`, `WS_ENV_FILE`). SSH: `ssh -i ~/.ssh/oci_deploy deploy@<ip>`.
+- DNS for playchess.tech is moving from the old Cloudflare account (pandit.rohit0007) to the replaychess007 Cloudflare account (zone already created, nameservers jacqueline/jimmy.ns.cloudflare.com). Registrar: Hostinger.
