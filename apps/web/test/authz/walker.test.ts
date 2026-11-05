@@ -98,7 +98,10 @@ describe("authz walker: signed-out calls (AUTHZ_BASE_URL)", { skip: BASE_URL ? f
         const urlPath = def.path.replace(/\{[^}]+\}/g, SAMPLE_ID);
         const res = await fetch(`${BASE_URL}${urlPath}`, { method: def.method, redirect: "manual" });
         await res.arrayBuffer();
-        if (!res.headers.get("x-request-id")) wrong.push(`${def.id}: no x-request-id`);
+        // A successful public-* response is replayed by the CDN, so it carries no per-request id (lib/api/README.md).
+        const cdnShared = def.cache?.startsWith("public-") && (res.ok || res.status === 304);
+        if (!cdnShared && !res.headers.get("x-request-id")) wrong.push(`${def.id}: no x-request-id`);
+        if (cdnShared && res.headers.get("x-request-id")) wrong.push(`${def.id}: x-request-id on a CDN-shared response`);
         if (!expectedAnonymous(def).includes(res.status)) {
           wrong.push(`${def.method} ${urlPath} (${def.auth}): ${res.status}, expected ${expectedAnonymous(def).join("|")}`);
         }
