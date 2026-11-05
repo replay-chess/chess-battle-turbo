@@ -114,6 +114,7 @@ jobs:
       - run: pnpm --filter web exec playwright install --with-deps chromium
       - name: Migrate and seed the Docker database
         run: |
+          pnpm --filter web exec prisma generate
           pnpm --filter web exec prisma migrate deploy
           pnpm --filter web prisma:seed
           pnpm --filter web prisma:seed:openings
@@ -242,6 +243,7 @@ jobs:
       - if: steps.has.outputs.project == '1'
         run: |
           pnpm --filter web exec playwright install --with-deps chromium
+          pnpm --filter web exec prisma generate
           pnpm --filter web exec prisma migrate deploy
           pnpm --filter web prisma:seed
           pnpm --filter web exec playwright test --project=flags-off

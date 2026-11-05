@@ -65,6 +65,7 @@ jobs:
             || { echo "::error::@playwright/test is ${want}; update the image tag here and in nightly.yml"; exit 1; }
       - name: Migrate and seed the database
         run: |
+          pnpm --filter web exec prisma generate
           pnpm --filter web exec prisma migrate deploy
           pnpm --filter web prisma:seed
       - name: Regenerate the @visual baselines (builds and serves on :3100)

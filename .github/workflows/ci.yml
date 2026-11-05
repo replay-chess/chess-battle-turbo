@@ -261,6 +261,7 @@ jobs:
           echo "CLERK_WEBHOOK_SIGNING_SECRET=$clerk" >> "$GITHUB_ENV"
       - name: Migrate and seed the Docker database
         run: |
+          pnpm --filter web exec prisma generate
           pnpm --filter web exec prisma migrate deploy
           pnpm --filter web prisma:seed
           pnpm --filter web prisma:seed:openings
