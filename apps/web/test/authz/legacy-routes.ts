@@ -59,7 +59,6 @@ export const LEGACY_ROUTES: readonly LegacyRoute[] = [
   { file: "app/api/scraper/positions/import/route.ts", method: "POST", anonymous: 401, signedInNonAdmin: 403, owner: "P12" },
   { file: "app/api/subscription/cancel/route.ts", method: "POST", anonymous: 401, owner: "P10" },
   { file: "app/api/subscription/change-plan/preview/route.ts", method: "POST", anonymous: 401, owner: "P10" },
-  { file: "app/api/subscription/change-plan/route.ts", method: "GET", anonymous: 401, owner: "P10" },
   { file: "app/api/subscription/change-plan/route.ts", method: "POST", anonymous: 401, owner: "P10" },
   { file: "app/api/subscription/change-plan/route.ts", method: "DELETE", anonymous: 401, owner: "P10" },
   { file: "app/api/subscription/resume/route.ts", method: "POST", anonymous: 401, owner: "P10" },

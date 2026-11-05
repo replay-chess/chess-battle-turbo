@@ -147,6 +147,8 @@ test.describe("security: signed out @p1 @smoke @public", () => {
     const health = await call(request, "GET", "/api/health");
     expect(health.status()).toBe(200);
     expect(((await health.json()) as { data?: { ok?: boolean } }).data?.ok).toBe(true);
+    // The middleware matcher skips /api/health; next.config.js headers() still marks it noindex off production.
+    expect(health.headers()["x-robots-tag"]).toBe("noindex, nofollow");
   });
 
   test("scanner paths are 404 without Clerk work", async ({ request }) => {
@@ -155,6 +157,7 @@ test.describe("security: signed out @p1 @smoke @public", () => {
     expect(res.status()).toBe(404);
     const clerkHeaders = Object.keys(res.headers()).filter((h) => h.startsWith("x-clerk-"));
     expect(clerkHeaders).toEqual([]);
+    expect(res.headers()["x-robots-tag"]).toBe("noindex, nofollow");
   });
 });
 

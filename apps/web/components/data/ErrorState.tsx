@@ -6,11 +6,15 @@
 // Variants (derived from the error unless `variant` is given):
 // - inline: "Couldn’t load {object}", Event ID (8 chars of x-request-id) with Copy, "Try Again" → onRetry;
 // - offline: "Needs a connection";
-// - rate_limited: "Too many requests. Try again in m:ss" counted down from retryAfterSec with performance.now()
-//   deltas; the retry control is aria-disabled until 0, then (with `autoRetry`) retries once by itself.
-//   TODO(1B·F8): render F8's <RetryCountdown> here once components/system/RetryCountdown.tsx exists.
-import { useEffect, useRef, useState } from "react";
+// - rate_limited: the shared <RetryCountdown> row ("Too many requests. Try again in m:ss", counted down from
+//   retryAfterSec by useRetryCountdown with performance.now() deltas, plus its rate_limited_* telemetry); the
+//   retry control takes the hook's `controlProps` (aria-disabled + aria-describedby) until 0, then (with
+//   `autoRetry`) retries once by itself.
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { RetryCountdown } from "@/components/system/RetryCountdown";
+import { formatMmSs } from "@/components/system/countdown";
+import { useRetryCountdown } from "@/components/system/useRetryCountdown";
 import { ApiError, shortEventId } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
 
@@ -39,11 +43,8 @@ export function errorVariantOf(error: unknown): ErrorStateVariant {
   return "inline";
 }
 
-/** `m:ss` from whole seconds (65 → "1:05"). */
-export function formatMmSs(totalSec: number): string {
-  const s = Math.max(0, Math.ceil(totalSec));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
+/** `m:ss` from seconds (65 → "1:05"); the one implementation lives in components/system/countdown.ts. */
+export { formatMmSs };
 
 const FRAME = "flex w-full flex-col items-center gap-3 px-6 py-10 text-center";
 const TITLE = "font-serif text-2xl/[1.1] font-normal tracking-[-0.01em] text-balance text-cb-text";
@@ -61,11 +62,9 @@ export function ErrorState({
 }: ErrorStateProps) {
   const kind = variant ?? errorVariantOf(error);
   if (kind === "rate_limited") {
-    const retryAfterSec = error instanceof ApiError ? (error.retryAfterSec ?? 30) : 30;
     return (
       <RateLimited
-        key={`${retryAfterSec}:${error instanceof ApiError ? (error.requestId ?? "") : ""}`}
-        retryAfterSec={retryAfterSec}
+        error={error}
         onRetry={onRetry}
         retrying={retrying}
         autoRetry={autoRetry}
@@ -162,65 +161,49 @@ function Failed({
 }
 
 function RateLimited({
-  retryAfterSec,
+  error,
   onRetry,
   retrying,
   autoRetry,
   className,
   testId,
 }: {
-  retryAfterSec: number;
+  error: unknown;
   onRetry?: () => unknown;
   retrying: boolean;
   autoRetry: boolean;
   className?: string;
   testId: string;
 }) {
-  const [left, setLeft] = useState(retryAfterSec);
-  const startedAt = useRef<number | null>(null);
-  const autoRetried = useRef(false);
-
-  useEffect(() => {
-    // Count down from the received seconds with performance.now() deltas, never from absolute times (clock skew).
-    startedAt.current ??= performance.now();
-    const tick = () => {
-      const elapsed = (performance.now() - (startedAt.current ?? performance.now())) / 1000;
-      const remaining = Math.max(0, retryAfterSec - elapsed);
-      setLeft(remaining);
-      if (remaining <= 0) {
-        clearInterval(id);
-        if (autoRetry && onRetry && !autoRetried.current) {
-          autoRetried.current = true;
-          void onRetry();
-        }
-      }
-    };
-    const id = setInterval(tick, 250);
-    return () => clearInterval(id);
-  }, [retryAfterSec, autoRetry, onRetry]);
-
-  const ready = left <= 0;
-  const rowId = `${testId}-countdown`;
+  // The hook keys its timer on the error's identity. Hold one instance per 429 (retryAfterSec + request id), so a
+  // caller that rebuilds an equal error each render (fake queries on /dev/ui/data) does not restart the wait. A
+  // forced `variant="rate_limited"` without a 429 gets a stand-in with the default 30 s.
+  const incoming = error instanceof ApiError && error.code === "rate_limited" ? error : null;
+  const key = incoming ? `${incoming.retryAfterSec ?? ""}:${incoming.requestId ?? ""}` : "stand-in";
+  const fresh = () => incoming ?? new ApiError({ status: 429, code: "rate_limited", retryAfterSec: 30 });
+  const [held, setHeld] = useState(() => ({ key, error: fresh() }));
+  if (held.key !== key) setHeld({ key, error: fresh() });
+  const limitedError = held.key === key ? held.error : fresh();
+  const rl = useRetryCountdown(
+    { error: limitedError, status: "error" },
+    { onReady: autoRetry && onRetry ? onRetry : undefined },
+  );
+  const ready = !rl.limited;
   return (
     <div data-testid={testId} data-state={ready ? "inline_ready" : "rate_limited"} className={cn(FRAME, className)}>
-      {ready ? null : (
-        <p id={rowId} role="status" className={BODY}>
-          Too many requests. Try again in <span role="timer">{formatMmSs(left)}</span>
-        </p>
-      )}
+      <RetryCountdown countdown={rl} className="justify-center" data-testid={`${testId}-countdown`} />
       {onRetry ? (
         <Button
           variant="secondary"
           loading={retrying}
           loadingLabel="Retrying…"
-          aria-disabled={ready ? undefined : true}
-          aria-describedby={ready ? undefined : rowId}
+          {...rl.controlProps}
           onClick={() => {
             if (ready) void onRetry();
           }}
           data-testid={`${testId}-retry`}
         >
-          {ready ? "Try Again" : `Try Again in ${formatMmSs(left)}`}
+          {ready ? "Try Again" : `Try Again in ${rl.label}`}
         </Button>
       ) : null}
     </div>

@@ -3,8 +3,8 @@
 // Client providers (plan §5.4, CDL §3.2): the tab's QueryClient, the router bridge for non-React code, the
 // session-watcher slot and the dev-only Query devtools.
 //
-// Not mounted yet: 1B·J wraps the root layout's children in <Providers> (with UserSync inside). Until then a page
-// that needs TanStack wraps itself locally.
+// Mounted once, in the root layout (app/layout.tsx), around every page with UserSync inside and
+// `<SessionWatcher />` in the session-watcher slot (1B·J). Pages never add their own QueryClientProvider.
 import { QueryClientProvider } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { getQueryClient } from "@/lib/api/query-client";

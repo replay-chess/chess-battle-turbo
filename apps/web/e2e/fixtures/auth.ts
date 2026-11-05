@@ -54,7 +54,61 @@ export async function ensureViewerOnboarded(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Linux WebKit (WPE/GTK, libsoup) refuses cookies with `Domain=localhost`, and
+ * clerk-js writes `__client_uat` with exactly that domain on http://localhost
+ * (its cookie-domain probe returns the bare hostname for localhost). The
+ * host-only `__session` is stored and `__client_uat` is not, so Clerk's backend
+ * sees "session token but no client_uat" and treats every fetch and RSC request
+ * as signed out (`GET /api/me` → 401). Chromium and macOS WebKit accept the
+ * domain cookie, and no real deployment is served from bare `localhost`, so
+ * only the Linux CI runner is affected (sign-off D3).
+ *
+ * Test-only shim: on WebKit at http://localhost, `document.cookie` writes drop a
+ * `Domain=localhost` attribute, so the cookie is stored host-only, which is what
+ * Chromium effectively does. Clerk's own writes, refreshes and removals then
+ * behave as they do in Chromium. (Adding a host-only `__client_uat` from the
+ * test does not work: clerk-js deletes it on its next client update.)
+ * Reproduced and verified in the Playwright 1.58.2 Linux image (FIX-B).
+ */
+export async function allowLocalhostDomainCookies(page: Page): Promise<void> {
+  const context = page.context();
+  if (context.browser()?.browserType().name() !== "webkit") return;
+  if ((context as { __rcLocalhostCookieShim?: boolean }).__rcLocalhostCookieShim) return;
+  (context as { __rcLocalhostCookieShim?: boolean }).__rcLocalhostCookieShim = true;
+  await context.addInitScript(() => {
+    if (location.hostname !== "localhost") return;
+    const desc = Object.getOwnPropertyDescriptor(Document.prototype, "cookie");
+    if (!desc?.get || !desc.set) return;
+    const { get, set } = desc;
+    Object.defineProperty(Document.prototype, "cookie", {
+      configurable: true,
+      enumerable: desc.enumerable,
+      get() {
+        return get.call(this);
+      },
+      set(value: string) {
+        set.call(this, String(value).replace(/;\s*domain=\.?localhost\s*(?=;|$)/gi, ""));
+      },
+    });
+  });
+}
+
+async function waitForClerk(page: Page): Promise<void> {
+  const loaded = () =>
+    page.waitForFunction(() => (window as unknown as { Clerk?: { loaded?: boolean } }).Clerk?.loaded === true, null, {
+      timeout: 45_000,
+    });
+  try {
+    await loaded();
+  } catch {
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 60_000 });
+    await loaded();
+  }
+}
+
 export async function signIn(page: Page, email: string, password: string) {
+  await allowLocalhostDomainCookies(page);
   await setupClerkTestingToken({ page });
   // Retry goto once — dev server may be compiling
   try {
@@ -68,6 +122,10 @@ export async function signIn(page: Page, email: string, password: string) {
   // never interrupts automated runs. `password` stays in the signature for
   // callers that still pass it.
   void password;
+  // @clerk/testing's signIn waits for window.Clerk with a short internal timeout; on a busy `next dev` or a cold
+  // Vercel function the script can take longer, which failed the fixture now and then ("window.Clerk undefined",
+  // FIX-B). Wait for it here with a real budget, reloading once if it never shows.
+  await waitForClerk(page);
   await clerk.signIn({ page, emailAddress: email });
 
   // Make sure the users row exists and onboarding is done, through the API:

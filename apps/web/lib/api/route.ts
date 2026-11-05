@@ -253,7 +253,12 @@ export function route<const E extends EndpointDef>(
 
     const finish = (response: Response, code: string | undefined): Response => {
       const total = deps.perf() - t0;
-      if (env.NEXT_PUBLIC_APP_ENV !== "production") {
+      // A public-* success is stored by the CDN and replayed to every later client, so it must not carry this
+      // request's id or timings: a support lookup by a HIT's x-request-id would find someone else's request.
+      // Errors stay `private, no-store` and keep both; the api log line below keeps the id either way.
+      const sharedCacheable = isPublicTier(tier) && (response.ok || response.status === 304);
+      if (sharedCacheable) response.headers.delete(REQUEST_ID_HEADER);
+      if (env.NEXT_PUBLIC_APP_ENV !== "production" && !sharedCacheable) {
         const timing = [...segments, { name: "db", dur: store.dbMs }, { name: "total", dur: total }];
         response.headers.set("Server-Timing", serverTimingHeader(timing));
       }

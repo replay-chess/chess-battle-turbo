@@ -2,7 +2,7 @@
 // lib/auth/route-classes/ (one per phase), never here.
 //
 // Order, cheapest first:
-//   1. scanner probe → 404, nothing else (no Clerk, no headers);
+//   1. scanner probe → 404, nothing else (no Clerk; only X-Robots-Tag off production);
 //   2. x-request-id / x-mw-start / x-rc-pathname on the forwarded request; X-Robots-Tag on non-production responses;
 //   7. (EDGE_DOC_LIMIT=on) per-isolate document limiter on /legends and /openings → rewrite to /too-many-requests, 429;
 //   3. api_no_clerk (webhooks, cron, health, /api/openings) → straight through, Clerk never runs;
@@ -81,8 +81,13 @@ function finish(res: Response, p: Prepared): Response {
 export default async function middleware(req: NextRequest, ev: NextFetchEvent): Promise<Response> {
   const p = prepare(req);
 
-  // Step 1: probes never reach Clerk or a function.
-  if (p.cls === "scanner") return new NextResponse(null, { status: 404 });
+  // Step 1: probes never reach Clerk or a function. Non-production still says noindex (P1-17).
+  if (p.cls === "scanner") {
+    return new NextResponse(null, {
+      status: 404,
+      headers: noindexFor(process.env) ? { [ROBOTS_HEADER]: ROBOTS_VALUE } : undefined,
+    });
+  }
 
   // Step 7: optional best-effort document limiter on the public catalogue.
   if (

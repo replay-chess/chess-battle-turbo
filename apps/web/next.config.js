@@ -17,6 +17,11 @@ if (process.env.VERCEL === "1" && !APP_ENVS.includes(process.env.NEXT_PUBLIC_APP
   );
 }
 
+// Same rule as lib/auth/route-classes/rules.ts noindexFor(): every build except production is noindex.
+const NOINDEX = process.env.NEXT_PUBLIC_APP_ENV?.trim()
+  ? process.env.NEXT_PUBLIC_APP_ENV.trim() !== "production"
+  : process.env.VERCEL_ENV !== "production";
+
 const withMDX = createMDX({
   extension: /\.mdx?$/,
   options: {
@@ -45,9 +50,19 @@ const withPWA = withPWAInit({
     "!chess_logo_share.png",
     "!mobile_icon_perfect.png",
   ],
-  // Our two NetworkOnly routes go first, then the plugin's static-asset
-  // defaults. Workbox uses the first matching route, so /api/* and RSC
-  // requests never reach the default "apis" and "pages" caches.
+  // The plugin's "start-url" route is a NetworkFirst cache of `/` registered
+  // ahead of everything else (dynamicStartUrl prepends it; cacheStartUrl would
+  // precache it); `/` renders per-user chrome, so both are off.
+  cacheStartUrl: false,
+  dynamicStartUrl: false,
+  // Our NetworkOnly routes go first, then the plugin's static-asset defaults.
+  // Workbox uses the first matching route, so documents (any navigation),
+  // fetch/XHR calls (same- or cross-origin, e.g. Clerk's /v1/client JSON),
+  // /api/* and RSC requests never reach the default "apis", "pages",
+  // "pages-rsc*" or "cross-origin" NetworkFirst caches, which store 200s
+  // whatever their Cache-Control (phase-01 plan 9.3: the SW never stores
+  // authenticated JSON or HTML). Images, fonts, scripts, styles and media
+  // keep the defaults. test/pwa/sw-routes.test.ts checks the built sw.js.
   extendDefaultRuntimeCaching: true,
   workboxOptions: {
     disableDevLogs: true,
@@ -60,6 +75,14 @@ const withPWA = withPWAInit({
       {
         urlPattern: ({ request, url }) =>
           request.headers.get("RSC") === "1" || url.searchParams.has("_rsc"),
+        handler: "NetworkOnly",
+      },
+      {
+        urlPattern: ({ request }) => request.mode === "navigate" || request.destination === "document",
+        handler: "NetworkOnly",
+      },
+      {
+        urlPattern: ({ request }) => request.destination === "",
         handler: "NetworkOnly",
       },
     ],
@@ -198,6 +221,14 @@ const nextConfig = {
           },
         ],
       },
+      // Non-production builds are never indexed (P1-17, SEC-3). The middleware sets this header on everything it
+      // handles; these are the API routes its matcher skips (they never run Clerk), so they get it here instead,
+      // with the same value as lib/auth/route-classes/rules.ts ROBOTS_VALUE.
+      ...(NOINDEX
+        ? ["/api/health", "/api/health/:path*", "/api/openings", "/api/webhook/:path*", "/api/cron/:path*"].map(
+            (source) => ({ source, headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] }),
+          )
+        : []),
     ];
   },
 };

@@ -93,7 +93,19 @@ export type RefreshResult = {
   refreshed: boolean;
   /** True when the users row was written (the caller syncs the Clerk claims). */
   changed: boolean;
+  /**
+   * The primary subscription's scheduled plan change from this Dodo read (null: none). Undefined when Dodo was not
+   * read, so the caller can tell "none" from "unknown".
+   */
+  scheduledChange?: { productId: string; effectiveAt: string } | null;
 };
+
+function scheduledChangeOf(primary: SubscriptionSnapshot | null): RefreshResult["scheduledChange"] {
+  const change = primary?.scheduled_change;
+  if (!change) return null;
+  const at = change.effective_at instanceof Date ? change.effective_at.toISOString() : String(change.effective_at);
+  return { productId: change.product_id, effectiveAt: at };
+}
 
 function errorName(err: unknown): string {
   return err instanceof Error ? err.name : typeof err;
@@ -125,7 +137,7 @@ export async function refreshMembership(input: RefreshInput, deps: RefreshDeps):
     if (!customerId) return { ...stored, refreshed: true, changed };
 
     const primary = pickPrimarySubscription(await deps.provider.listSubscriptions(customerId), deps.now);
-    if (!primary) return { ...stored, customerId, refreshed: true, changed };
+    if (!primary) return { ...stored, customerId, refreshed: true, changed, scheduledChange: null };
 
     const outcome = await deps.apply(primary, { source: "api", userId: input.userId, now: deps.now });
     if (outcome.status === "applied" || outcome.status === "stale") {
@@ -136,6 +148,7 @@ export async function refreshMembership(input: RefreshInput, deps: RefreshDeps):
         productId: outcome.status === "applied" ? primary.product_id : input.subscriptionProductId,
         refreshed: true,
         changed: changed || outcome.changed,
+        scheduledChange: scheduledChangeOf(primary),
       };
     }
     deps.warn("[billing] refresh: snapshot not applied", { user: String(input.userId), status: outcome.status });

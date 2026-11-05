@@ -2,7 +2,8 @@
 // the compare-and-set (lib/billing/refresh.ts). The only request path that reads Dodo for the viewer: GET
 // /api/subscription and GET /api/me are DB-only. Rate limit `billing-refresh` 10 / 60 s per user fits the activation
 // poll (1 + 6 calls in about 12 s). Dodo unreachable → the stored state with `refreshed: false`; no API key → 503
-// not_configured. When the users row changed, the Clerk claims are synced after the response.
+// not_configured. When the users row changed, the Clerk claims are synced after the response. The response also
+// carries the primary subscription's scheduled plan change (MembershipSection), from the same read.
 import { billingEndpoints } from "@repo/contracts/http/registry";
 import { ApiError } from "@/lib/api/api-error";
 import { route } from "@/lib/api/route";
@@ -36,6 +37,20 @@ export const POST = route(billingEndpoints.refresh, async (ctx) => {
     });
   }
 
+  // The scheduled plan change rides on the same Dodo read (P1-18: no GET reads Dodo). products.ts is server-only,
+  // so it loads lazily like the provider, keeping this module importable by the contract tests.
+  let scheduledChange: { productId: string; planKey: string | null; effectiveAt: string } | null | undefined;
+  if (result.scheduledChange) {
+    const [{ getProductCatalog }, { resolvePlanFromProductId }] = await Promise.all([
+      import("@/lib/billing/products"),
+      import("@/lib/billing/plans"),
+    ]);
+    const planKey = resolvePlanFromProductId(result.scheduledChange.productId, getProductCatalog())?.planKey ?? null;
+    scheduledChange = { ...result.scheduledChange, planKey };
+  } else {
+    scheduledChange = result.scheduledChange;
+  }
+
   const paywall = isPaywallEnabled();
   return {
     entitlement: entitlementOf(result.summary, {
@@ -45,6 +60,7 @@ export const POST = route(billingEndpoints.refresh, async (ctx) => {
       paywallEnabled: paywall,
     }),
     refreshed: result.refreshed,
+    ...(scheduledChange === undefined ? {} : { scheduledChange }),
     legacy: toLegacySubscription(result.summary, { customerId: result.customerId, productId: result.productId, paywall }),
   };
 });

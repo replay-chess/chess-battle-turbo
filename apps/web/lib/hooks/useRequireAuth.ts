@@ -5,6 +5,7 @@ import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter, usePathname } from "next/navigation";
 import { CompleteUserObject } from "../types/user";
 import { useUserStore } from "@/lib/stores";
+import { hasSignOutIntent } from "@/components/system/session-guard";
 
 export interface UseRequireAuthReturn {
   isLoaded: boolean;
@@ -33,6 +34,7 @@ export function useRequireAuth(): UseRequireAuthReturn {
   const router = useRouter();
   const pathname = usePathname();
   const redirectedRef = useRef(false);
+  const wasSignedInRef = useRef(false);
 
   const storeUser = useUserStore((s) => s.user);
   const isSyncing = useUserStore((s) => s.isSyncing);
@@ -84,7 +86,13 @@ export function useRequireAuth(): UseRequireAuthReturn {
   useEffect(() => {
     if (!isLoaded) return;
     // Only Clerk's own "signed out" sends the visitor to sign-in; a failed data read never does.
-    if (isSignedIn && userId) return;
+    if (isSignedIn && userId) {
+      wasSignedInRef.current = true;
+      return;
+    }
+    // Signed in on this page, then the session ended without our sign-out (revoked, expired): SessionWatcher shows
+    // "You’ve Been Signed Out" over the page and its "Sign In Again" returns here (plan §4.9, sign-off D8).
+    if (wasSignedInRef.current && !hasSignOutIntent()) return;
     if (redirectedRef.current) return;
     redirectedRef.current = true;
     router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);

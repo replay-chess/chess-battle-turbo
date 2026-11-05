@@ -9,11 +9,23 @@
 //   (d) an `rc-auth` `session_expired` message from another tab.
 // It closes the modal when Clerk signs in again (here or in another tab: `signed_in`), and runs the local
 // sign-out steps then goes to "/" when another tab broadcasts `signed_out`.
+//
+// Two more duties (FIX-B):
+//   (e) When the session ends on its own on a non-public route (revoked, expired), Clerk's Next provider calls
+//       router.refresh() from `window.__unstable__onAfterSetActive`. That RSC request hits the middleware, which
+//       answers a member page with no session by redirecting to sign-in before (b)'s 1.5 s debounce, so the dialog
+//       never showed (sign-off D8, T15). The watcher wraps that hook and skips the refresh in exactly that case: the
+//       page stays, and (b) opens the dialog over it (plan §4.9: overlay, URL unchanged). Any other set-active
+//       (sign-in, our own sign-out, a public page) still refreshes. If Clerk renames the hook, nothing breaks: the
+//       old redirect behaviour comes back.
+//   (f) A sign-out that skipped signOutEverywhere() (Clerk's UserButton in the marketing Navbar) that ends on a
+//       public page runs clearAfterExternalSignOut(): query cache, user store, SW runtime caches, analytics reset
+//       and POST /api/session/clear (Clear-Site-Data: "cache").
 import { useEffect, useRef } from "react";
 import { useAuth, useClerk } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { setApiErrorDeps } from "@/lib/api/errors";
-import { clearLocalSession } from "@/lib/auth/sign-out";
+import { clearAfterExternalSignOut, clearLocalSession } from "@/lib/auth/sign-out";
 import { SessionExpiredModal } from "./SessionExpiredModal";
 import { isPublicByRouteClass } from "./public-paths";
 import {
@@ -32,8 +44,26 @@ import {
 
 const onPublicPath = () => typeof window !== "undefined" && isSessionPublicPath(window.location.pathname);
 
+/**
+ * `useAuth()` throws "@clerk/nextjs: Invalid state" for a render in which Clerk's context holds a session id but
+ * not yet the matching user (a sign-in or sign-out mid-transition; seen 2 in 5 Simulate 401 runs, handback 1Q·2
+ * §5.1). The watcher sits in the root layout, so that throw became a page error. Every hook inside useAuth runs
+ * before the throw, so catching it keeps the hook order; the render counts as "not loaded" and the effects below
+ * wait for the next, consistent one.
+ */
+function useAuthState(): { isLoaded: boolean; isSignedIn: boolean | undefined } {
+  try {
+    // Unconditional: the try block always runs it, in the same place, every render (see above).
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const { isLoaded, isSignedIn } = useAuth();
+    return { isLoaded, isSignedIn };
+  } catch {
+    return { isLoaded: false, isSignedIn: undefined };
+  }
+}
+
 export function SessionWatcher() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuthState();
   const clerk = useClerk();
   const queryClient = useQueryClient();
 
@@ -87,12 +117,38 @@ export function SessionWatcher() {
       return;
     }
     if (before !== true || hasSignOutIntent()) return;
+    // (f) Signed out by something other than signOutEverywhere() while on a public page: clean up now.
+    if (onPublicPath()) {
+      void clearAfterExternalSignOut(queryClient);
+      return;
+    }
     const timer = setTimeout(() => {
-      if (hasSignOutIntent() || onPublicPath()) return;
+      if (hasSignOutIntent()) return;
+      if (onPublicPath()) {
+        void clearAfterExternalSignOut(queryClient);
+        return;
+      }
       openSessionExpired("clerk");
     }, FLIP_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, queryClient]);
+
+  // (e) No route refresh when the session ends on its own on a non-public route (see the header).
+  useEffect(() => {
+    type Hook = (...args: unknown[]) => unknown;
+    const w = window as unknown as { __unstable__onAfterSetActive?: Hook };
+    const original = w.__unstable__onAfterSetActive;
+    if (typeof original !== "function") return;
+    const wrapped: Hook = (...args) => {
+      const ended = !(clerkRef.current?.session ?? null);
+      if (ended && wasSignedIn.current && !hasSignOutIntent() && !onPublicPath()) return undefined;
+      return original(...args);
+    };
+    w.__unstable__onAfterSetActive = wrapped;
+    return () => {
+      if (w.__unstable__onAfterSetActive === wrapped) w.__unstable__onAfterSetActive = original;
+    };
+  }, []);
 
   // (c) Back to a visible tab while signed out.
   useEffect(() => {

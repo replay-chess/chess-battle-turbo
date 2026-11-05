@@ -92,8 +92,10 @@ describe("QueryState", () => {
       error: err({ status: 429, code: "rate_limited", retryAfterSec: 30 }),
     });
     assert.match(html, /data-state="rate_limited"/);
-    assert.match(html, /Too many requests\. Try again in <span role="timer">0:30<\/span>/);
-    assert.match(html, /aria-disabled="true"/);
+    // The shared RetryCountdown row (components/system), described by the retry control.
+    assert.match(html, /data-testid="region-error-countdown"/);
+    assert.match(html, /Too many requests\. Try again in <span role="timer"[^>]*>0:30<\/span>/);
+    assert.match(html, /aria-disabled="true" aria-describedby="rc-retry-/);
     assert.match(html, /Try Again in 0:30/);
   });
 

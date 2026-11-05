@@ -20,10 +20,14 @@
  * a demoOnly reason is UNEXPLAINED. Either fails (exit 1).
  *
  *   pnpm exec tsx scripts/qa/state-coverage.ts [--phase N] [--only-phase N]
- *     [--from-json list.json ...] [--markdown <file>] [--json <file>]
+ *     [--from-json report.json ...] [--require-run] [--markdown <file>] [--json <file>]
  *
  * Without --from-json it runs `playwright test --list --reporter=json` for both
  * configs in apps/web (playwright.config.ts and playwright.devices.config.ts).
+ * A listing only proves the tags exist: a skipped test still counts. For the
+ * sign-off, pass the json reporter output of real runs (CI writes
+ * apps/web/test-results/results.json) with --require-run: then a state counts
+ * only through a test that passed.
  */
 import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -49,25 +53,42 @@ export type StateRow = {
   reason?: string;
 };
 
-/** Every `@state:` / `@demo:` tag in a Playwright JSON (list) report. */
-export function tagsFromReport(report: unknown): { state: Set<string>; demo: Set<string> } {
+/**
+ * Every `@state:` / `@demo:` tag in a Playwright JSON report.
+ *
+ * - A `--list` report has no results: every tagged test counts ("tagged", `ran: false`).
+ * - A run report (the json reporter after `playwright test`): a tag counts only through a test that passed
+ *   (`expected` or `flaky`), so a skipped or failing test reaches nothing (`ran: true`).
+ * Tags in describe titles apply to the tests inside them.
+ */
+export function tagsFromReport(report: unknown): { state: Set<string>; demo: Set<string>; ran: boolean } {
   const state = new Set<string>();
   const demo = new Set<string>();
-  const take = (text: string) => {
-    for (const m of text.matchAll(/@(state|demo):([A-Za-z0-9_.=-]+)/g)) {
+  let ran = false;
+  type Test = { status?: string; results?: unknown[] };
+  type Node = { title?: string; tags?: string[]; suites?: unknown[]; specs?: unknown[]; tests?: Test[] };
+  const textOf = (n: Node) => [n.title ?? "", ...(n.tags ?? []).map((t) => (t.startsWith("@") ? t : `@${t}`))].join(" ");
+  const specs: { text: string; tests: Test[] }[] = [];
+  const walk = (node: unknown, inherited: string) => {
+    if (!node || typeof node !== "object") return;
+    const n = node as Node;
+    const text = `${inherited} ${textOf(n)}`;
+    if (Array.isArray(n.tests)) {
+      specs.push({ text, tests: n.tests });
+      if (n.tests.some((t) => (t.results?.length ?? 0) > 0)) ran = true;
+    }
+    for (const s of n.suites ?? []) walk(s, text);
+    for (const s of n.specs ?? []) walk(s, text);
+  };
+  walk(report, "");
+  for (const spec of specs) {
+    const reached = !ran || spec.tests.some((t) => t.status === "expected" || t.status === "flaky");
+    if (!reached) continue;
+    for (const m of spec.text.matchAll(/@(state|demo):([A-Za-z0-9_.=-]+)/g)) {
       (m[1] === "state" ? state : demo).add(m[2]!.replace(/\.$/, ""));
     }
-  };
-  const walk = (node: unknown) => {
-    if (!node || typeof node !== "object") return;
-    const n = node as { title?: string; tags?: string[]; suites?: unknown[]; specs?: unknown[] };
-    if (typeof n.title === "string") take(n.title);
-    for (const t of n.tags ?? []) take(t.startsWith("@") ? t : `@${t}`);
-    for (const s of n.suites ?? []) walk(s);
-    for (const s of n.specs ?? []) walk(s);
-  };
-  walk(report);
-  return { state, demo };
+  }
+  return { state, demo, ran };
 }
 
 /** The tag keys that reach one state of a board. */
@@ -171,17 +192,30 @@ function main() {
     ? all("--from-json").map((f) => JSON.parse(readFileSync(f, "utf8")))
     : [listJson([]), listJson(["-c", "playwright.devices.config.ts"])];
   const tags = { state: new Set<string>(), demo: new Set<string>() };
+  let listings = 0;
   for (const r of reports) {
     const t = tagsFromReport(r);
+    if (!t.ran) listings++;
     t.state.forEach((x) => tags.state.add(x));
     t.demo.forEach((x) => tags.demo.add(x));
+  }
+  const mode =
+    listings === reports.length
+      ? "tagged (from `playwright test --list`: a skipped or failing test still counts; pass --from-json <results.json> of a run to count only passing tests)"
+      : listings
+        ? `mixed: ${reports.length - listings} run report(s) count passing tests only, ${listings} listing(s) count every tagged test`
+        : "reached (run reports: only passing tests count)";
+  console.log(`state-coverage mode: ${mode}\n`);
+  if (args.includes("--require-run") && listings) {
+    console.error("state-coverage: --require-run needs run reports (json reporter output), not --list output");
+    process.exit(1);
   }
 
   const rows = computeCoverage(manifest, tags, overrides, phase, onlyPhase);
   const md = toMarkdown(rows);
   console.log(md);
   const mdOut = one("--markdown");
-  if (mdOut) appendFileSync(mdOut, `## Design-state coverage (phase ≤ ${phase})\n\n${md}\n`);
+  if (mdOut) appendFileSync(mdOut, `## Design-state coverage (phase ≤ ${phase})\n\nMode: ${mode}\n\n${md}\n`);
   const jsonOut = one("--json");
   if (jsonOut) writeFileSync(jsonOut, JSON.stringify(rows, null, 2));
 

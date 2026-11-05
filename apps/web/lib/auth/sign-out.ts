@@ -9,7 +9,7 @@
 //      (never "storage": it would wipe the P5 outbox)
 //   6. posthog.reset(); Sentry.setUser(null)
 //   7. BroadcastChannel("rc-auth") { type: "signed_out" }  (other tabs run clearLocalSession and go to "/")
-//   8. await clerk.signOut({ redirectUrl })
+//   8. await clerk.signOut(() => location.assign(redirectUrl), { redirectUrl })  (a full load, T22)
 //
 // Every step is guarded: a failure in one never stops the next, and Clerk's sign-out always runs.
 // Dependencies are injectable (sign-out.test.ts); the defaults load PostHog, Sentry and the store lazily.
@@ -22,7 +22,10 @@ import { postAuthMessage, setSignOutIntent } from "@/components/system/session-g
 /** `/api/session/clear` budget (plan §8.9). */
 export const SESSION_CLEAR_TIMEOUT_MS = 1500;
 
-export type SignOutClerk = { signOut: (options: { redirectUrl: string }) => Promise<unknown> };
+/** Clerk's `signOut(callback, options)` form: the callback replaces Clerk's own (client-router) navigation. */
+export type SignOutClerk = {
+  signOut: (callback: () => void, options: { redirectUrl: string }) => Promise<unknown>;
+};
 
 export type SignOutDeps = {
   setIntent: () => void;
@@ -32,6 +35,8 @@ export type SignOutDeps = {
   resetAnalytics: () => Promise<void> | void;
   resetSentryUser: () => Promise<void> | void;
   broadcast: () => void;
+  /** The navigation after Clerk's sign-out: a full document load (see signOutEverywhere). */
+  navigate: (url: string) => void;
 };
 
 const defaultDeps: SignOutDeps = {
@@ -53,6 +58,7 @@ const defaultDeps: SignOutDeps = {
     Sentry.setUser(null);
   },
   broadcast: () => postAuthMessage("signed_out"),
+  navigate: (url) => window.location.assign(url),
 };
 
 async function attempt(step: () => Promise<unknown> | unknown): Promise<void> {
@@ -85,6 +91,21 @@ export async function clearLocalSession(
   await attempt(d.resetSentryUser);
 }
 
+/**
+ * A sign-out that did not go through signOutEverywhere() (Clerk's own UserButton "Sign out" in the marketing
+ * Navbar, a session revoked elsewhere that ended on a public page): the local steps plus POST /api/session/clear,
+ * so the browser HTTP cache is emptied too. No intent flag, no broadcast (Clerk syncs its other tabs itself), and no
+ * Clerk call: the session is already gone.
+ */
+export async function clearAfterExternalSignOut(
+  queryClient: QueryClient | undefined,
+  deps: Partial<SignOutDeps> = {},
+): Promise<void> {
+  const d = { ...defaultDeps, ...deps };
+  await clearLocalSession(queryClient, deps);
+  await attempt(d.clearServerCache);
+}
+
 export type SignOutOptions = {
   queryClient?: QueryClient;
   /** Where Clerk sends the browser afterwards. Default "/". */
@@ -103,5 +124,9 @@ export async function signOutEverywhere(clerk: SignOutClerk, options: SignOutOpt
   await attempt(d.resetAnalytics);
   await attempt(d.resetSentryUser);
   await attempt(d.broadcast);
-  await clerk.signOut({ redirectUrl: options.redirectUrl ?? "/" });
+  // A full document load, not Clerk's client-router push: it drops the Next router's in-memory tree, so Back to a
+  // member URL loads that document again (private, no-store, never from bfcache) and the middleware sends it to
+  // sign-in (T22, sign-off D7). With a soft push, Back re-rendered the member URL from the router's memory.
+  const redirectUrl = options.redirectUrl ?? "/";
+  await clerk.signOut(() => d.navigate(redirectUrl), { redirectUrl });
 }

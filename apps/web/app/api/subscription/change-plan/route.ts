@@ -22,23 +22,8 @@ const changePlanBodySchema = z.object({
   plan: z.enum(PLAN_KEYS),
 })
 
-/**
- * GET: the plan change currently scheduled on the member's subscription (a
- * downgrade waiting for the renewal date), or null.
- */
-export async function GET() {
-  const { userId } = await auth()
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const result = await getOwnedSubscription(userId)
-  if (!result.ok) return errorResponse(result.error)
-
-  return NextResponse.json({
-    scheduledChange: summarizeScheduledChange(result.owned.subscription.scheduled_change),
-  })
-}
+// No GET: the scheduled plan change used to be read here from Dodo on every profile view. It now comes with
+// POST /api/billing/refresh (the one viewer-triggered Dodo read, plan P1-18), as `scheduledChange`.
 
 /**
  * POST: move the member's subscription to another plan.

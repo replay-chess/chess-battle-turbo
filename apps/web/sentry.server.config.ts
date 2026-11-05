@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { sentryScrubOptions } from "./lib/sentry/scrub";
 import { tracesSampler } from "./lib/sentry/traces-sampler";
 
 Sentry.init({
@@ -17,8 +18,11 @@ Sentry.init({
   // Enable logs to be sent to Sentry
   enableLogs: true,
 
-  // No default PII (IPs, cookies, headers). Users are identified by their reference id only,
-  // set explicitly (plan §10.2, AA F-13).
+  // No default PII. Users are identified by their reference id only, set explicitly (plan §10.2, AA F-13).
+  // In @sentry/nextjs 10 `sendDefaultPii: false` removes only the IP: request headers (Clerk session JWT,
+  // Bearer CRON_SECRET, x-internal-token, test tokens), cookies and bodies are still attached. `beforeSend` /
+  // `beforeSendTransaction` strip them in code (lib/sentry/scrub.ts).
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
   sendDefaultPii: false,
+  ...sentryScrubOptions,
 });

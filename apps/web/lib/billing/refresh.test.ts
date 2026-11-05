@@ -71,7 +71,7 @@ describe("refreshMembership (plan A19)", () => {
     assert.equal(log.applied.length, 1);
     assert.equal(log.applied[0]!.snapshot.subscription_id, "new");
     assert.deepEqual(log.applied[0]!.options, { source: "api", userId: 5n, now: NOW });
-    assert.deepEqual(result, { summary: fresh, customerId: "cus_1", productId: "pdt_new", refreshed: true, changed: true });
+    assert.deepEqual(result, { summary: fresh, customerId: "cus_1", productId: "pdt_new", refreshed: true, changed: true, scheduledChange: null });
   });
 
   it("links the customer by email when the row has none", async () => {
@@ -137,6 +137,27 @@ describe("refreshMembership (plan A19)", () => {
     const result = await refreshMembership(input(), deps);
     assert.equal(result.summary, stored);
     assert.equal(result.refreshed, false);
+  });
+});
+
+describe("refreshMembership: scheduled plan change (P1-18, replaces GET change-plan)", () => {
+  it("carries the primary subscription's scheduled change; null when there is none", async () => {
+    const withChange = { ...snap("a", "active", "2026-01-01T00:00:00Z"), scheduled_change: { product_id: "pdt_monthly", effective_at: "2027-01-01T00:00:00Z" } };
+    const { deps } = harness({ listSubscriptions: async () => [withChange] });
+    const r = await refreshMembership(input(), deps);
+    assert.deepEqual(r.scheduledChange, { productId: "pdt_monthly", effectiveAt: "2027-01-01T00:00:00Z" });
+    const none = harness({ listSubscriptions: async () => [snap("a", "active", "2026-01-01T00:00:00Z")] });
+    assert.equal((await refreshMembership(input(), none.deps)).scheduledChange, null);
+    const empty = harness({ listSubscriptions: async () => [] });
+    assert.equal((await refreshMembership(input(), empty.deps)).scheduledChange, null);
+  });
+  it("unknown (undefined) when Dodo was not read", async () => {
+    const { deps } = harness({
+      listSubscriptions: async () => {
+        throw new Error("down");
+      },
+    });
+    assert.equal((await refreshMembership(input(), deps)).scheduledChange, undefined);
   });
 });
 

@@ -486,9 +486,13 @@ describe("route(): cache tiers (§7.2.1)", () => {
     assert.equal(res.headers.get("vercel-cache-tag"), "openings");
     const etag = res.headers.get("etag")!;
     assert.match(etag, /^"[0-9a-f]{16}"$/);
+    // The CDN replays this response to everyone: no per-request id or timings on it.
+    assert.equal(res.headers.get("x-request-id"), null);
+    assert.equal(res.headers.get("server-timing"), null);
     const again = await GET(request("/api/test", { headers: { "if-none-match": etag } }), noParams());
     assert.equal(again.status, 304);
     assert.equal(await again.text(), "");
+    assert.equal(again.headers.get("x-request-id"), null);
     const cookie = route(
       { ...base, cache: "public-static", publicStatic: { sMaxAge: 1, swr: 1, tags: ["t"] } },
       async () => respondWith({ a: 1 }, { headers: { "Set-Cookie": "a=1" } }),

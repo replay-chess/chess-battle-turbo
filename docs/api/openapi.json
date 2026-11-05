@@ -33,6 +33,16 @@
           "legacy": {},
           "refreshed": {
             "type": "boolean"
+          },
+          "scheduledChange": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScheduledPlanChange"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -534,6 +544,32 @@
           "state",
           "accessEndsAt",
           "accessEndsAtLabel"
+        ],
+        "type": "object"
+      },
+      "ScheduledPlanChange": {
+        "properties": {
+          "effectiveAt": {
+            "type": "string"
+          },
+          "planKey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "productId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "productId",
+          "planKey",
+          "effectiveAt"
         ],
         "type": "object"
       },

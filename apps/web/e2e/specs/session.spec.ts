@@ -6,10 +6,11 @@ import { test, expect } from "../fixtures";
 // "You’ve Been Signed Out" dialog, signing in again returns to the same URL, and other tabs follow.
 //
 // Only the session this test created is revoked (by id), so shared member A stays usable for parallel specs.
-// Until 1B·J mounts the SessionWatcher in the root layout, it exists only on /dev/ui/data (its local Providers);
-// set EXPECT_GLOBAL_SESSION_WATCHER=1 after J to run the same flow on /play.
+// The watcher is global (root layout, 1B·J), and since FIX-B it skips Clerk's route refresh when a session ends on
+// its own on a non-public route, so the flow runs on a real member page: /play (D8). SESSION_SPEC_DEMO=1 runs it on
+// the /dev/ui/data demo instead.
 
-const WATCHED = process.env.EXPECT_GLOBAL_SESSION_WATCHER === "1" ? "/play?tab=friends" : "/dev/ui/data?tab=session";
+const WATCHED = process.env.SESSION_SPEC_DEMO === "1" ? "/dev/ui/data?tab=session" : "/play?tab=friends";
 const DIALOG_NAME = "You’ve Been Signed Out";
 
 async function gotoWatched(page: Page, path = WATCHED) {
@@ -47,7 +48,7 @@ async function returnToTab(page: Page) {
 }
 
 test.describe("session expiry @p1", () => {
-  test("a revoked session shows the dialog, and signing in returns to the same URL @state:V3SessionExpired.modal", async ({
+  test("a revoked session shows the dialog, and signing in returns to the same URL @state:V3SessionExpired.modal @state:V3SessionExpired.signing_in", async ({
     authedPage: page,
   }) => {
     test.setTimeout(300_000);

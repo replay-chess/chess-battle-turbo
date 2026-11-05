@@ -96,6 +96,8 @@ export interface SubscriptionSnapshot {
   payment_frequency_interval?: "Day" | "Week" | "Month" | "Year" | string;
   /** Days of free trial on this subscription (0 or absent when none). */
   trial_period_days?: number | null;
+  /** A plan change waiting for the renewal date (Dodo lists carry it). */
+  scheduled_change?: { product_id: string; effective_at: string | Date } | null;
   customer: { customer_id: string; email: string; name?: string };
 }
 

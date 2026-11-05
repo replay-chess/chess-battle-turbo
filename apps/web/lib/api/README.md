@@ -5,7 +5,7 @@ Two halves live here:
 - **Server:** `route()` and its helpers. Every new `app/api/**/route.ts` uses them (plan phase-01 §7.2, P1-05).
 - **Client:** `api()`, query keys and queries (`client.ts`, `errors.ts`, `endpoints.ts`, `keys/`, `queries/`, `query-client.ts`, `legacy.ts`, `schema.ts`). They are owned by 1B·F3 and described in plan §7.12 and CDL §4.
 
-This README covers the server half.
+The first part covers the server half (`route()`, tiers, the viewer). [Contracts for P2–P12](#contracts-for-p2p12) at the end lists every Phase 1 contract later phases build on, client half included, with one example each (plan §15 "Contracts in place").
 
 ## Writing a route
 
@@ -61,7 +61,7 @@ Exports a route file may have: the HTTP methods plus Next's segment config (`dyn
 | Step | What happens |
 |---|---|
 | 0. Module load | A bad spec throws on import (`routeSpecProblems`), so `next build` and the unit tests fail before production can. Checked: a public tier on a non-public route, `public-static` without `publicStatic`, `public-immutable` without `versionParam`, `owner` without `owner()`, a burst window over 300 s, side effects on a non-GET, a non-GET cron route, `rawBody` on a non-webhook route. |
-| 1. Request id | Taken from `x-request-id` (from middleware), else a new UUID. It goes on the response, in every error body, and as the Sentry tag `request_id`. |
+| 1. Request id | Taken from `x-request-id` (from middleware), else a new UUID. It goes on the response, in every error body, and as the Sentry tag `request_id`. Exception: a successful `public-*` response (and its 304) carries no `x-request-id` and no `Server-Timing`, because the CDN replays it to every later client; the `api` log line still has the id. |
 | 2. Test hooks | Only when `testHooksEnabled()`: `NEXT_PUBLIC_APP_ENV` is `dev` or `test` **and** `ALLOW_TEST_HOOKS=1`. `x-rc-fault: 401\|402\|429\|500\|503` answers that error at once. The 429 reads `x-rc-fault-retry`; the 402 reads `x-rc-fault-reason`. `x-rc-now: <epoch ms>` together with `x-e2e-token = E2E_TEST_TOKEN` sets `ctx.now`. With hooks off, both headers are ignored and the response is byte-identical. `__rc*` query keys are always stripped. |
 | 3. Auth | `public` never calls `auth()`. `optional`, `user`, `member`, `owner` and `admin` read the Clerk JWT, then the viewer (one statement). The answers are 401 when there is no viewer, 402 with `details.reason` and `upgradeUrl` for a non-member (plus the top-level legacy mirror unless `LEGACY_402_MIRROR=off`), 404 when `owner()` is false, and 403 for a non-admin. `internal` checks `verifyInternalRequest(req, id)` (`lib/auth/internal.ts`). `cron` checks `Bearer CRON_SECRET`, timing-safe. `webhook` has no Clerk step; the handler verifies the signature on `ctx.rawBody`. |
 | 4. Rate limit | `checkRateLimit()` (`lib/rate-limit-db.ts`) runs in parallel with the viewer read. A denial is a 429 `rate_limited` with `Retry-After` equal to `retryAfterSec`. When the database fails, the limiter fails open. The limiter's own upsert is not counted as a GET write. |
@@ -126,3 +126,146 @@ A `public-*` tier is allowed only with `auth: "public"`. Handlers never set `Cac
 - Helpers in `test/helpers/`: `route-harness.ts` (`installTestDeps`, `request`, `viewerFixture`), `route-modules.ts`, `query-counter.ts`.
 
 Test env: `installTestDeps()` sets `NEXT_PUBLIC_APP_ENV=test`, which is strict mode. Turn hooks on with `env: { ALLOW_TEST_HOOKS: "1" }`.
+
+## Contracts for P2–P12
+
+One example each. "Where" is the file to read for the full API; "Add" is how a later phase extends it without editing Phase 1 files (registries are directories, `OWNERS.yml` `shared_add_only`).
+
+### `api()` and `devSchema()` (`lib/api/client.ts`, `lib/api/schema.ts`)
+
+The only client fetch for `/api/*`: JSON in and out, `{ data, meta? }` unwrapped, every failure an `ApiError` (`lib/api/errors.ts`) with `code`, `status`, `requestId` and `retryAfterSec`. 15 s timeout, caller `signal`, `idempotencyKey`, and `fault` (dev and test builds only) for the `x-rc-fault` hook. Response schemas are parsed in dev and test only. In client code write the condition at the call site so zod stays out of production chunks; `devSchema()` is for `/dev/**` pages and tests.
+
+```ts
+const schema = process.env.NODE_ENV === "production" ? undefined : MeData;
+const { data } = await api(endpoints.me, { schema, signal });            // GET
+await api(endpoints.billingRefresh, { method: "POST", idempotencyKey });  // POST
+```
+
+### `qk`, the query-key directory (`lib/api/keys/`)
+
+One file per domain (`me.ts`, `catalog.ts`, `game.ts`, …), spread into `qk` by `index.ts`. `keys.test.ts` rejects a key in two files. Add: a new `keys/<domain>.ts` and one spread line.
+
+```ts
+useQuery({ queryKey: qk.me(), queryFn: ({ signal }) => fetchMe(signal) });   // or useQuery(meQuery)
+queryClient.invalidateQueries({ queryKey: qk.me() });
+```
+
+### `QueryState` (`components/data/QueryState.tsx`)
+
+Renders a region from a TanStack result: the designed skeleton while pending, `ErrorState` (inline error with Event ID + Try Again, offline, or the rate-limited countdown) on error without data, `empty` when `isEmpty(data)`, else `children(data)`. Never a spinner alone.
+
+```tsx
+<QueryState query={useQuery(openingsIndexQuery)} object="openings" fallback={<OpeningsSkeleton />}
+  isEmpty={(d) => d.openings.length === 0} empty={<EmptyState title="No Openings Yet" />}>
+  {(d) => <OpeningsList openings={d.openings} />}
+</QueryState>
+```
+
+### `RetryCountdown` and `useRetryCountdown` (`components/system/`)
+
+The V3RateLimited `inline` row for a `429 rate_limited`: "Too many requests. Try again in 0:30", counted with `performance.now()` deltas, `aria-disabled` on the host control until it ends, `rate_limited_shown` / `rate_limited_retry` telemetry. `ErrorState` uses it for queries; mutations use the hook.
+
+```tsx
+const save = useMutation({ mutationFn, meta: { errorUi: "inline" } });
+const rl = useRetryCountdown(save, { routeId: "train.bank.save" });
+<Button {...rl.controlProps} onClick={() => { if (!rl.limited) save.mutate(); }}>Save</Button>
+<RetryCountdown countdown={rl} />
+```
+
+### `SessionExpiredModal`, `SessionWatcher` and `signOutEverywhere()` (`components/system/`, `lib/auth/sign-out.ts`)
+
+Mounted once in the root layout (`<Providers sessionWatcher={<SessionWatcher />}>`). It opens "You’ve Been Signed Out" over any non-public route on an `api()` 401 that a Clerk reload does not fix, on a Clerk sign-out that was not ours (debounced 1.5 s; Clerk's route refresh is skipped so the member page stays put), on returning to the tab, or on an `rc-auth` broadcast. Any sign-out of your own goes through `signOutEverywhere()`.
+
+```ts
+openSessionExpired("api_401");                        // rarely needed: reactToApiError does it for api() 401s
+await signOutEverywhere(clerk, { queryClient });       // account menu, "Use a Different Account", account deletion
+```
+
+### `@repo/analytics` (`packages/analytics/`, sinks in `lib/analytics/`)
+
+The event registry (zod schema per event, one file per area in `src/events/`), the PII guard (`findPii`, `FORBIDDEN_PROPERTY_NAMES`) and `parseEvent()`. Client events go through `trackShell()` / `trackSystem()`; tests read them through the sinks (`e2e/fixtures/telemetry.ts`). See `packages/analytics/README.md`.
+
+```ts
+trackSystem("rate_limited_shown", { route_id: "health.get", bucket: "health-deep", retry_after_sec: 30, surface: "inline" });
+```
+
+### Rate limiter, burst and durable (`lib/rate-limit-db.ts`)
+
+Declared on the registry entry (`rateLimit: { bucket, limit, windowSec, by, store? }`); `route()` runs it in parallel with the viewer read and answers 429 with `Retry-After`. `burst` (UNLOGGED `rate_limit_buckets`, windows ≤ 300 s) is the default; `durable` (`rate_limit_windows`, logged) is for quotas that must survive a crash (coach messages, P7). Fails open when the database fails. A non-route caller uses `checkRateLimit()` directly.
+
+```ts
+export const coachDaily = defineRateLimit({ bucket: "coach-daily", limit: 50, windowSec: 86_400, by: "user", store: "durable" });
+const d = await checkRateLimit(coachDaily, { clerkUserId, ip });
+if (!d.allowed) throw new ApiError("rate_limited", { retryAfterSec: d.retryAfterSec });
+```
+
+### `getFlags()` / `useFlag()` (`lib/flags/`)
+
+Server: `getFlags(viewer)` (React `cache()`, PostHog with a 300 ms cap, registry defaults otherwise, `FLAGS_OVERRIDE` outside production). Client: `useFlag(key)` reads the values the server seeded. Add: `lib/flags/registry/pNN.ts` plus one spread line; each flag also needs a PostHog flag of the same key.
+
+```ts
+const flags = await getFlags(viewer);          // server component or route
+if (!flags["shell-v3"]) return <MarketingChrome />;
+const on = useFlag("shell-v3");                 // client component
+```
+
+### Webhook dedupe, `processWebhook()` (`lib/webhooks/record.ts`)
+
+Claim → handle → record → side effects in `after()`. The claim is an insert into `webhook_events` on `(provider, eventId)`, so a replay returns `{ duplicate: true }` and does nothing else; a handler error marks the row `error` and answers 500 so the provider retries.
+
+```ts
+const { duplicate } = await processWebhook({
+  provider: "dodo", eventId: msgId, type: event.type, eventTime, payload: event, receivedAt: ctx.now,
+  handle: () => applyEvent(event), after: ctx.after, onProcessed: (o) => syncClerkClaims(o.userId),
+});
+```
+
+### Billing compare-and-set (`lib/billing/entitlement.ts`)
+
+`applySubscriptionSnapshot(snapshot, { source, userId?, now })` writes the billing columns only when the row has not changed since it was read and the snapshot is not older than `subscriptionSourceAt`; a no-op snapshot writes nothing. Outcomes: `applied`, `stale`, `unmatched`, or `error` with `cas_exhausted`. Every Dodo read for a viewer goes through `POST /api/billing/refresh` (no GET reads Dodo; its response also carries the scheduled plan change).
+
+```ts
+const outcome = await applySubscriptionSnapshot(subscription, { source: "webhook", now: ctx.now });
+if (outcome.status === "applied" && outcome.changed) ctx.after(() => syncClerkClaims(outcome.userId));
+```
+
+### `syncClerkClaims()` (`lib/auth/claims.ts`)
+
+Writes `{ v, onboarded, entitled, lapsed, trialUsed, role }` to the user's Clerk `publicMetadata` (the session token's `md` claim the middleware member gate reads) when they differ. Call it after any write that changes those columns, inside `after()`.
+
+```ts
+ctx.after(() => syncClerkClaims(viewer.id));
+```
+
+### Cron tasks (`lib/cron/tasks/`)
+
+`GET /api/cron/daily` (Bearer `CRON_SECRET`) runs the ordered list in `tasks/index.ts`; a task that throws is reported `ok: false` and the next one still runs. Add: `tasks/<name>.ts` exporting `{ name, run(ctx) → { count } }` and one line in the list.
+
+```ts
+export const sessionSweep: CronTask = {
+  name: "session-sweep",
+  async run(ctx) { return { count: await deleteExpiredSessions(ctx.now) }; },
+};
+```
+
+### Route classes (`lib/auth/route-classes/`, `docs/route-map.md`)
+
+The middleware is frozen after P1; a route changes class through data. `classify(pathname)` returns `scanner | public | member | signed_in | api | api_no_clerk`. Add: `route-classes/pNN.ts` (`publicPages`, `memberPages`, `signedInPages`, `noClerkApi`) and one `PHASES` line; `route-classes.test.ts` checks it against the route map.
+
+```ts
+// lib/auth/route-classes/p05.ts
+export const memberPages = ["/train(.*)", "/home"];
+```
+
+### `OWNERS.yml` (repo root)
+
+Which phase owns which globs while it is active; `scripts/qa/check-owners.mjs` reports cross-phase touches (report-only until P4, then a PR needs `owner-ok:<phase>`). Registry directories are `shared_add_only`: any phase may add a file there.
+
+```yaml
+phases:
+  p05:
+    name: Train
+    status: active        # planned → active at the first PR → done at sign-off
+    globs:
+      - apps/web/app/(app)/train/**
+```

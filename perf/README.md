@@ -2,7 +2,24 @@
 
 Dedicated performance testing environment for Chess Battle Turbo.
 
-## Infrastructure
+## Phase results and `compare.ts` (phase-01 plan §12.8, §12.9; CT X18)
+
+k6 runs only against the dev deployment (or a local build), never production. Every phase commits its k6 summaries as data:
+
+- `perf/results/p<NN>-<scenario>-<sha>.json`: the summary of one run (`RESULT_FILE`, or `k6 run --summary-export=…`). Phase 1's scenario is `me` (`perf/k6/src/scenarios/me.ts`: `GET /api/me` p95 < 150 ms cold, 304 rate > 95 % with `If-None-Match`).
+- `perf/compare.ts`: compares the newest result of the current phase with the newest of an earlier phase for the shared scenarios (`me`, `api-read-mix`, `ws-ramp`, `train-session`) and fails on a regression above 15 % in p95/p99 duration, failure rate, `ws_connecting` or iteration time. The first phase that runs a scenario has nothing to compare and passes.
+
+```sh
+cd perf/k6 && pnpm run build
+# me.ts mints its own Clerk session tokens through the DEVELOPMENT instance's Backend API
+CLERK_SECRET_KEY=sk_test_… ME_USER_EMAILS=<E2E user emails> \
+  RESULT_FILE=../results/p01-me-$(git rev-parse --short HEAD).json k6 run dist/me.js
+cd ../.. && pnpm exec tsx perf/compare.ts --phase 1          # or --current a.json --baseline b.json
+```
+
+The dev deployment answers bursts from scripts with the Vercel Security Checkpoint (403 `x-vercel-mitigated: challenge`). Set `VERCEL_AUTOMATION_BYPASS_SECRET` (Vercel → Deployment Protection → Protection Bypass for Automation) before a k6 run against it.
+
+## Infrastructure (legacy perf environment)
 
 | Component | URL / Address |
 |-----------|---------------|

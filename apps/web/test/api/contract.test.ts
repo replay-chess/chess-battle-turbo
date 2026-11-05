@@ -248,7 +248,9 @@ describe("contract: body, rate limit, responses", () => {
         const res = await call(entry, entry.def.auth === "webhook" ? signedWebhook(entry.def) : { headers: authHeaders(entry.def) });
         const expected = entry.def.status ?? (entry.def.response || entry.def.responseFormat === "text" ? 200 : 204);
         assert.equal(res.status, expected, `${entry.def.id}: ${res.status} ${res.status >= 400 ? await res.clone().text() : ""}`);
-        assert.ok(res.headers.get("x-request-id"), entry.def.id);
+        // A public-* success is replayed by the CDN to every client, so it carries no per-request id (FIX-B).
+        if (entry.def.cache?.startsWith("public-")) assert.equal(res.headers.get("x-request-id"), null, entry.def.id);
+        else assert.ok(res.headers.get("x-request-id"), entry.def.id);
         if (!entry.def.response || res.status === 204) continue;
         if (entry.def.responseFormat === "text") {
           entry.def.response.parse(await res.text());

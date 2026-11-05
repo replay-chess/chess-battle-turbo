@@ -129,7 +129,11 @@ export function MembershipSection() {
 
   const [modal, setModal] = useState<Modal>(null);
   const [pending, setPending] = useState<string | null>(null);
-  const [scheduledChange, setScheduledChange] = useState<ScheduledChange | null>(null);
+  // From POST /api/billing/refresh (the one Dodo read for a viewer, P1-18); an action response overrides it.
+  const storedScheduledChange = useUserStore((s) => s.scheduledChange);
+  const [actionScheduledChange, setScheduledChange] = useState<ScheduledChange | null | undefined>(undefined);
+  const scheduledChange: ScheduledChange | null =
+    actionScheduledChange !== undefined ? actionScheduledChange : ((storedScheduledChange as ScheduledChange | null | undefined) ?? null);
   const [preview, setPreview] = useState<PlanChangePreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -148,24 +152,15 @@ export function MembershipSection() {
     }
   }, [subscription, fetchSubscription]);
 
-  // A scheduled downgrade is not part of the entitlement summary.
+  // A scheduled downgrade is not part of the entitlement summary: it comes with a billing refresh (POST, rate
+  // limited). A yearly member whose store was filled from /api/me (no refresh yet) asks for one refresh here.
+  const scheduledRequested = useRef(false);
   useEffect(() => {
     if (!view.entitled || view.planKey !== "yearly") return;
-    let cancelled = false;
-    requestJson<{ scheduledChange?: ScheduledChange | null; error?: string }>(
-      "/api/subscription/change-plan",
-      { method: "GET" },
-    )
-      .then((data) => {
-        if (!cancelled) setScheduledChange(data.scheduledChange ?? null);
-      })
-      .catch(() => {
-        // Not worth surfacing: the section still works without it.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [view.entitled, view.planKey]);
+    if (storedScheduledChange !== undefined || requested.current || scheduledRequested.current) return;
+    scheduledRequested.current = true;
+    void fetchSubscription();
+  }, [view.entitled, view.planKey, storedScheduledChange, fetchSubscription]);
 
   // The profile loads asynchronously, so the browser's own hash scroll fires
   // before this section exists.

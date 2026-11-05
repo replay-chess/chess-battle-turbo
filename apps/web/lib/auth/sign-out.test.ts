@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { QueryClient } from "@tanstack/react-query";
-import { clearLocalSession, signOutEverywhere, type SignOutDeps } from "./sign-out";
+import { clearAfterExternalSignOut, clearLocalSession, signOutEverywhere, type SignOutDeps } from "./sign-out";
 
 function recorder() {
   const steps: string[] = [];
@@ -13,10 +13,12 @@ function recorder() {
     resetAnalytics: () => void steps.push("posthog"),
     resetSentryUser: () => void steps.push("sentry"),
     broadcast: () => void steps.push("broadcast"),
+    navigate: (url: string) => void steps.push(`navigate:${url}`),
   };
   const clerk = {
-    signOut: async (o: { redirectUrl: string }) => {
+    signOut: async (callback: () => void, o: { redirectUrl: string }) => {
       steps.push(`clerk:${o.redirectUrl}`);
+      callback();
     },
   };
   return { steps, deps, clerk };
@@ -28,7 +30,7 @@ describe("signOutEverywhere", () => {
     const qc = new QueryClient();
     qc.setQueryData(["me"], { user: { ref: "u1" } });
     await signOutEverywhere(clerk, { queryClient: qc, deps });
-    assert.deepEqual(steps, ["intent", "store", "caches", "session/clear", "posthog", "sentry", "broadcast", "clerk:/"]);
+    assert.deepEqual(steps, ["intent", "store", "caches", "session/clear", "posthog", "sentry", "broadcast", "clerk:/", "navigate:/"]);
     assert.equal(qc.getQueryData(["me"]), undefined, "query cache cleared");
   });
 
@@ -47,7 +49,16 @@ describe("signOutEverywhere", () => {
         },
       },
     });
-    assert.deepEqual(steps, ["intent", "store", "session/clear", "posthog", "sentry", "broadcast", "clerk:/sign-in?redirect_url=%2Fplay"]);
+    assert.deepEqual(steps, [
+      "intent",
+      "store",
+      "session/clear",
+      "posthog",
+      "sentry",
+      "broadcast",
+      "clerk:/sign-in?redirect_url=%2Fplay",
+      "navigate:/sign-in?redirect_url=%2Fplay",
+    ]);
   });
 });
 
@@ -58,6 +69,17 @@ describe("clearLocalSession", () => {
     qc.setQueryData(["me"], { user: { ref: "u1" } });
     await clearLocalSession(qc, deps);
     assert.deepEqual(steps, ["store", "caches", "posthog", "sentry"]);
+    assert.equal(qc.getQueryData(["me"]), undefined);
+  });
+});
+
+describe("clearAfterExternalSignOut", () => {
+  it("the local steps plus POST /api/session/clear; no intent, no broadcast, no Clerk", async () => {
+    const { steps, deps } = recorder();
+    const qc = new QueryClient();
+    qc.setQueryData(["me"], { user: { ref: "u1" } });
+    await clearAfterExternalSignOut(qc, deps);
+    assert.deepEqual(steps, ["store", "caches", "posthog", "sentry", "session/clear"]);
     assert.equal(qc.getQueryData(["me"]), undefined);
   });
 });

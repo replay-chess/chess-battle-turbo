@@ -9,7 +9,7 @@
 //   are migrated by `migrateUserStore` (lib/stores/user-store-rules.ts).
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
-import { BillingRefreshData } from "@repo/contracts/http/billing";
+import { BillingRefreshData, type ScheduledPlanChange } from "@repo/contracts/http/billing";
 import type { MeData } from "@repo/contracts/http/me";
 import { api } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
@@ -32,6 +32,11 @@ export type { StoreSubscription, StoreUser } from "./user-store-rules";
 interface UserState {
   user: StoreUser | null;
   subscription: StoreSubscription | null;
+  /**
+   * The scheduled plan change from the last POST /api/billing/refresh that read Dodo (null: none; undefined: not
+   * known yet). Not persisted, cleared with the store.
+   */
+  scheduledChange: ScheduledPlanChange | null | undefined;
   isSyncing: boolean;
   lastSyncedAt: number | null;
 
@@ -57,6 +62,7 @@ export const useUserStore = create<UserState>()(
       (set, get) => ({
         user: null,
         subscription: null,
+        scheduledChange: undefined,
         isSyncing: false,
         lastSyncedAt: null,
 
@@ -68,6 +74,7 @@ export const useUserStore = create<UserState>()(
           set({
             user: null,
             subscription: null,
+            scheduledChange: undefined,
             lastSyncedAt: null,
           });
           if (typeof window !== "undefined") {
@@ -124,6 +131,7 @@ export const useUserStore = create<UserState>()(
             const legacy = legacySubscriptionOf(data.legacy);
             set((state) => ({
               subscription: legacy ?? subscriptionFromEntitlement(data.entitlement, state.subscription),
+              ...(data.scheduledChange === undefined ? {} : { scheduledChange: data.scheduledChange }),
             }));
             return true;
           } catch (err) {

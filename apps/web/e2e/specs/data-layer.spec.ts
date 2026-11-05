@@ -154,7 +154,7 @@ test.describe("data layer: inline 429 @p1 @smoke @state:V3RateLimited.inline", (
 
 test.describe("data layer: session and errors @p1 @smoke", () => {
   // (5) A 401 that a session reload does not fix: the blocking modal, then sign-in with the same return path.
-  test("Simulate 401 opens the signed-out dialog @state:V3SessionExpired.modal @state:V3SessionExpired.signing_in", async ({
+  test("Simulate 401 opens the signed-out dialog @demo:V3SessionExpired.modal @demo:V3SessionExpired.signing_in", async ({
     authedPage: page,
   }) => {
     await gotoData(page);
