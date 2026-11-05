@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "../../../../lib/prisma";
-import { resolveUser, isInternalServiceRequest } from "@/lib/auth/resolve-user";
+import { prisma } from "@/lib/prisma";
+import { requireInternalRequest } from "@/lib/auth/resolve-user";
+import { errorResponse, requestIdOf, validationErrorResponse } from "@/lib/auth/error-response";
 import { logger } from "@/lib/logger";
+
+// Socket server only (plan §3.2 H2, A12): clock flushes without a move. Browsers get 401/403.
+
+// Bounded so a slow database never holds the socket's 8 s attempt open (H6 #9).
+export const maxDuration = 10;
 
 const gameStateSchema = z.object({
   gameReferenceId: z.string().min(1, "Game reference ID is required"),
@@ -11,49 +17,25 @@ const gameStateSchema = z.object({
   lastMoveAt: z.string().datetime().or(z.date()),
 });
 
-type GameStateRequest = z.infer<typeof gameStateSchema>;
-
 export async function POST(request: NextRequest) {
+  const denied = await requireInternalRequest(request);
+  if (denied) return denied;
+  const requestId = requestIdOf(request);
+
   try {
-    const isInternal = isInternalServiceRequest(request);
-
-    // 1. Authenticate: Clerk session (browser) or internal service token (WebSocket server)
-    if (!isInternal) {
-      const authUser = await resolveUser(request);
-      if (!authUser) {
-        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-      }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return errorResponse("invalid_json", "The request body is not valid JSON.", { requestId });
     }
-
-    // 2. Parse and validate request body
-    const body = await request.json();
     const validatedData = gameStateSchema.parse(body);
 
-    logger.info(`POST /api/chess/game-state - game ${validatedData.gameReferenceId}`);
+    logger.info("POST /api/chess/game-state", { game: validatedData.gameReferenceId });
 
-    // 3. Find game
-    const game = await prisma.game.findUnique({
-      where: { referenceId: validatedData.gameReferenceId },
-    });
-
-    if (!game) {
-      return NextResponse.json(
-        { success: false, error: "Game not found" },
-        { status: 404 }
-      );
-    }
-
-    // 4. Verify game status
-    if (game.status !== "IN_PROGRESS") {
-      return NextResponse.json(
-        { success: false, error: "Game is not in progress" },
-        { status: 400 }
-      );
-    }
-
-    // 5. Update game state (clocks and last move time)
-    await prisma.game.update({
-      where: { referenceId: validatedData.gameReferenceId },
+    // Conditional write: only a game that is still in progress takes new clocks.
+    const written = await prisma.game.updateMany({
+      where: { referenceId: validatedData.gameReferenceId, status: "IN_PROGRESS" },
       data: {
         creatorTimeRemaining: validatedData.whiteTime,
         opponentTimeRemaining: validatedData.blackTime,
@@ -62,40 +44,29 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 5. Return success
+    if (written.count === 0) {
+      const exists = await prisma.game.findUnique({
+        where: { referenceId: validatedData.gameReferenceId },
+        select: { id: true },
+      });
+      return exists
+        ? errorResponse("conflict", "The game is no longer in progress.", { requestId })
+        : errorResponse("not_found", "Game not found.", { requestId });
+    }
+
     return NextResponse.json(
       {
         success: true,
         message: "Game state updated successfully",
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
-    // Handle Zod validation errors
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Validation failed",
-          details: error.issues.map((err) => ({
-            field: err.path.join("."),
-            message: err.message,
-          })),
-        },
-        { status: 400 }
-      );
+      return validationErrorResponse(error.issues, requestId);
     }
 
-    // Handle unexpected errors
-    logger.error(`POST /api/chess/game-state failed: ${error instanceof Error ? error.message : "Unknown error"}`, error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to update game state",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    logger.error("POST /api/chess/game-state failed", error);
+    return errorResponse("internal", "Something went wrong", { requestId });
   }
 }
-

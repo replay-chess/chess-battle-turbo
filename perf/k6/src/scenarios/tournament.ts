@@ -25,7 +25,7 @@ import { Options } from 'k6/options';
 import http from 'k6/http';
 import { SharedArray } from 'k6/data';
 
-import { CONFIG, apiUrl } from '../lib/config';
+import { CONFIG, apiUrl, perfHeaders } from '../lib/config';
 import { playSolo } from '../lib/solo-player';
 import {
   httpErrorRate,
@@ -57,7 +57,7 @@ const matchStaggerSeconds = parseInt(__ENV.T_MATCH_STAGGER || '30', 10);
 // Duration: join window + tournament + 3 min buffer for last games
 const scenarioDuration = `${Math.ceil(joinWindowSeconds / 60) + tournamentDuration + 3}m`;
 
-const jsonHeaders = { headers: { 'Content-Type': 'application/json' } };
+const jsonHeaders = { headers: perfHeaders({ 'Content-Type': 'application/json' }) };
 
 export const options: Options = {
   scenarios: {
@@ -382,7 +382,7 @@ export function teardown(data: SetupData) {
 
   const detailRes = http.get(
     apiUrl(`/api/tournament/${data.tournamentRefId}`),
-    { tags: { name: 'tournament-detail' } },
+    { headers: perfHeaders(), tags: { name: 'tournament-detail' } },
   );
 
   if (detailRes.status === 200) {

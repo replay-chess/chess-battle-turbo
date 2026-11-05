@@ -178,6 +178,7 @@ export async function GET(
     const gameData = game.gameData as {
       moveHistory?: Move[];
       playerColor?: string;
+      creatorColor?: string;
       positionInfo?: {
         whitePlayerName?: string;
         blackPlayerName?: string;
@@ -195,16 +196,18 @@ export async function GET(
     } | null;
 
     const userMoves = gameData?.moveHistory || [];
-    // Determine user color: prefer gameData.playerColor, fall back to creator/opponent relationship
-    // (creator = white player in AI games)
+    // Determine user color: bot games store the human's colour in gameData.playerColor; other
+    // games store the creator's colour in gameData.creatorColor, fixed at creation (H6 #11,
+    // AS F-04). Games from before that field: the creator played White.
     let userColor: "w" | "b" = "w";
     if (gameData?.playerColor === "black" || gameData?.playerColor === "b") {
       userColor = "b";
     } else if (gameData?.playerColor === "white" || gameData?.playerColor === "w") {
       userColor = "w";
     } else if (currentUserId) {
-      // Fallback: creator plays white, opponent plays black
-      userColor = currentUserId === game.creatorId ? "w" : "b";
+      const creatorColor: "w" | "b" = gameData?.creatorColor === "black" ? "b" : "w";
+      const opponentColor: "w" | "b" = creatorColor === "w" ? "b" : "w";
+      userColor = currentUserId === game.creatorId ? creatorColor : opponentColor;
     }
 
     // 3. If game has a chess position, fetch it for legend data
@@ -338,7 +341,6 @@ export async function GET(
       {
         success: false,
         error: "Failed to fetch analysis data",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

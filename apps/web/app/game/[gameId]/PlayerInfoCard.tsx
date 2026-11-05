@@ -114,6 +114,7 @@ export function PlayerInfoCard({
               {legendImage ? (
                 <Image
                   src={legendImage}
+                  unoptimized
                   alt="Legend"
                   fill
                   className="object-cover"

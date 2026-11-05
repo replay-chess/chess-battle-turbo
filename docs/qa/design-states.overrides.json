@@ -1,0 +1,34 @@
+{
+  "$comment": "Reviewed exceptions for scripts/qa/state-coverage.ts. ignore: not a state a route must reach (key = <Board>, <Board>.<prop> or <Board>.<value>). demoOnly: the state is proven on a demo route (/dev/ui/...) and the reason says why real data is not needed or not possible yet. Persona S 'banner' and the real 401/429 paths are @state (phase-01 plan §12.3); everything else in P1 is @demo with a reason here.",
+  "ignore": {
+    "V3FlowMap": "Reference board: the route map and navigation graph. It has no route (allocation.md row 284)."
+  },
+  "demoOnly": {
+    "V3Nav.home": "Home is built in P5; P1 shows the destination on /dev/ui/shell?current=home only.",
+    "V3Nav.play": "Real /play is covered by shell.spec.ts; the board state is the sidebar with Play current, shown on /dev/ui/shell?current=play.",
+    "V3Nav.train": "Train is built in P5; /dev/ui/shell renders the destination.",
+    "V3Nav.learn": "Learn is built in P8; /dev/ui/shell renders the destination.",
+    "V3Nav.review": "Review is built in P3; /dev/ui/shell renders the destination.",
+    "V3Nav.profile": "Profile v3 is built in P10; the legacy /profile keeps its own chrome in P1.",
+    "V3Nav.settings": "Settings is built in P10; /dev/ui/shell renders the destination.",
+    "V3CommandPalette.open": "The palette is a shell overlay; its content does not depend on account data (shell.spec.ts covers it on /play too).",
+    "V3CommandPalette.ask": "Ask mode lights up in P7 (AI coach); P1 shows the disabled entry on /dev/ui/shell.",
+    "V3CommandPalette.closed": "Closed is the shell's resting state; no data involved.",
+    "V3Shortcuts.open": "Static dialog; no account data.",
+    "V3Shortcuts.closed": "Resting state; no account data.",
+    "V3Toasts.default": "Toast system specimen (types, stacking) on /dev/ui/sections/overlays.",
+    "V3iPhoneToasts.default": "Toast placement above the iPhone action bar, on /dev/ui/sections/overlays at iPhone size.",
+    "V3iPadPToasts.default": "Toast placement on iPad portrait, on /dev/ui/sections/overlays at iPad size.",
+    "V3PaymentFailed.last_day": "Needs a past_due period ending within 36 h; /dev/ui/shell?user=payment_last_day (persona payment_last_day exists for manual checks).",
+    "V3PaymentFailed.dismissed": "Client-only state after Dismiss (toast + Undo); /dev/ui/shell?user=payment.",
+    "V3PaymentFailed.expired": "Needs an on_hold period that ended; /dev/ui/shell?user=payment_expired (persona payment_expired exists for manual checks).",
+    "V3Skeletons.game": "Loading skeletons are transient; /dev/ui/skeletons?variant=game holds them still.",
+    "V3Skeletons.review": "Review is built in P3; /dev/ui/skeletons?variant=review.",
+    "V3Skeletons.profile": "Transient; /dev/ui/skeletons?variant=profile.",
+    "V3Skeletons.list": "Transient; /dev/ui/skeletons?variant=list.",
+    "V3EmptyStates.default": "Pattern specimen on /dev/ui/sections/controls; real empty states arrive with each phase's lists.",
+    "V3SessionExpired.signing_in": "Transient state between 'Sign In Again' and Clerk's page; /dev/ui/data holds it.",
+    "V3SessionExpired.in_game_refresh": "In-game silent refresh is built in P2 with the live game.",
+    "V3SessionExpired.in_game_ok": "In-game silent refresh is built in P2 with the live game."
+  }
+}

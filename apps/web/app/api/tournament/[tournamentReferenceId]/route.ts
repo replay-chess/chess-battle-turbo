@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import {
   getTournamentByRef,
   autoCompleteTournamentIfExpired,
@@ -10,6 +10,7 @@ import { notifyTournamentEvent } from "@/lib/services/tournament/notify-websocke
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { auth } from "@clerk/nextjs/server";
+import { bearerMatchesSecret } from "@/lib/auth/secrets";
 
 export async function GET(
   request: NextRequest,
@@ -40,10 +41,12 @@ export async function GET(
     // Auto-complete if expired
     const wasAutoCompleted = await autoCompleteTournamentIfExpired(tournament);
     if (wasAutoCompleted) {
-      notifyTournamentEvent({
-        event: "tournament_ended",
-        tournamentReferenceId,
-      });
+      after(() =>
+        notifyTournamentEvent({
+          event: "tournament_ended",
+          tournamentReferenceId,
+        })
+      );
     }
 
     // Re-fetch if status changed
@@ -126,8 +129,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Not configured" }, { status: 404 });
     }
 
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${secret}`) {
+    if (!bearerMatchesSecret(request.headers.get("authorization"), secret)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

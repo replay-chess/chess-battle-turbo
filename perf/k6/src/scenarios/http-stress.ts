@@ -14,7 +14,7 @@ import { Options } from 'k6/options';
 import http from 'k6/http';
 import { SharedArray } from 'k6/data';
 
-import { CONFIG, apiUrl } from '../lib/config';
+import { CONFIG, apiUrl, jsonParams } from '../lib/config';
 import {
   httpCreateGameDuration,
   httpJoinGameDuration,
@@ -68,7 +68,7 @@ export default function () {
       selectedLegend: null,
       selectedOpening: null,
     }),
-    { headers: { 'Content-Type': 'application/json' }, tags: { name: 'create-game' } },
+    jsonParams({ name: 'create-game' }),
   );
 
   httpCreateGameDuration.add(createRes.timings.duration);
@@ -98,7 +98,7 @@ export default function () {
       gameReferenceId: gameRefId,
       opponentReferenceId: playerB.referenceId,
     }),
-    { headers: { 'Content-Type': 'application/json' }, tags: { name: 'join-game' } },
+    jsonParams({ name: 'join-game' }),
   );
 
   httpJoinGameDuration.add(joinRes.timings.duration);

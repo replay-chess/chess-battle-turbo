@@ -1,12 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import * as Sentry from "@sentry/nextjs";
-import { prisma } from "../../../../lib/prisma";
-import { resolveUser, isInternalServiceRequest } from "@/lib/auth/resolve-user";
-import { logger } from "@/lib/sentry/logger";
+import { prisma } from "@/lib/prisma";
+import { requireInternalRequest } from "@/lib/auth/resolve-user";
+import { errorResponse, requestIdOf, validationErrorResponse } from "@/lib/auth/error-response";
+import { logger } from "@/lib/logger";
 import { trackUserAction } from "@/lib/metrics";
 import { updateTournamentStandings } from "@/lib/services/tournament/tournament.service";
 import { notifyTournamentEvent } from "@/lib/services/tournament/notify-websocket";
+
+// Socket server only (plan §3.2 H2, A12, AA F-02). Browsers get 401/403. The status flip is
+// conditional (§8.7, ADB DB-04): a second call for the same game is a 409 and never counts
+// stats or tournament points twice.
 
 type TransactionClient = Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
 
@@ -41,53 +46,65 @@ const gameOverSchema = z.object({
   fen: z.string().min(1),
   whiteTime: z.number().int().min(0),
   blackTime: z.number().int().min(0),
+  // The final move list, including the decisive move (H6 #7, AS F-07). Optional so that a
+  // socket build without it still works.
+  moveHistory: z.array(z.any()).optional(),
 });
 
-type GameOverRequest = z.infer<typeof gameOverSchema>;
+// Bounded so a slow database never holds the socket's 8 s attempt open (H6 #9).
+export const maxDuration = 10;
+
+function storedHistoryLength(gameData: unknown): number {
+  if (!gameData || typeof gameData !== "object") return 0;
+  const history = (gameData as { moveHistory?: unknown }).moveHistory;
+  return Array.isArray(history) ? history.length : 0;
+}
+
+/** Thrown inside the transaction when another call already ended the game. */
+class GameNotInProgress extends Error {
+  constructor() {
+    super("Game is not in progress");
+    this.name = "GameNotInProgress";
+  }
+}
 
 export async function POST(request: NextRequest) {
+  const denied = await requireInternalRequest(request);
+  if (denied) return denied;
+  const requestId = requestIdOf(request);
+
   try {
-    const isInternal = isInternalServiceRequest(request);
-
-    // 1. Authenticate: Clerk session (browser) or internal service token (WebSocket server)
-    if (!isInternal) {
-      const authUser = await resolveUser(request);
-      if (!authUser) {
-        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-      }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return errorResponse("invalid_json", "The request body is not valid JSON.", { requestId });
     }
-
-    // 2. Parse and validate request body
-    const body = await request.json();
     const validatedData = gameOverSchema.parse(body);
 
     Sentry.setTag("game.referenceId", validatedData.gameReferenceId);
     trackUserAction("game_over");
 
-    // 3. Find game
     const game = await prisma.game.findUnique({
       where: { referenceId: validatedData.gameReferenceId },
-      include: {
+      select: {
+        creatorId: true,
+        opponentId: true,
+        status: true,
+        tournamentId: true,
         tournament: { select: { referenceId: true } },
       },
     });
 
     if (!game) {
-      return NextResponse.json(
-        { success: false, error: "Game not found" },
-        { status: 404 }
-      );
+      return errorResponse("not_found", "Game not found.", { requestId });
     }
-
-    // 4. Verify game is in progress
+    // Fast path; the transaction below re-checks atomically.
     if (game.status !== "IN_PROGRESS") {
-      return NextResponse.json(
-        { success: false, error: "Game is not in progress" },
-        { status: 400 }
-      );
+      return errorResponse("conflict", "The game is no longer in progress.", { requestId });
     }
 
-    // 4. Get winner's database ID if provided (winnerId is referenceId from API)
+    // winnerId is the winner's referenceId.
     let winnerDbId: bigint | null = null;
     if (validatedData.winnerId) {
       const winner = await prisma.user.findUnique({
@@ -99,102 +116,101 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5. Execute transaction to complete game and update stats
-    const result = await prisma.$transaction(async (tx) => {
-      // Update game status
-      const updatedGame = await tx.game.update({
-        where: { referenceId: validatedData.gameReferenceId },
-        data: {
-          status: "COMPLETED",
-          result: validatedData.result,
-          winnerId: winnerDbId,
-          completedAt: new Date(),
-          creatorTimeRemaining: validatedData.whiteTime,
-          opponentTimeRemaining: validatedData.blackTime,
-          gameData: {
-            ...(game.gameData as any),
-            fen: validatedData.fen,
-            method: validatedData.method,
+    const completed = await prisma.$transaction(
+      async (tx) => {
+        const transition = await tx.game.updateMany({
+          where: { referenceId: validatedData.gameReferenceId, status: "IN_PROGRESS" },
+          data: {
+            status: "COMPLETED",
+            result: validatedData.result,
+            winnerId: winnerDbId,
+            completedAt: new Date(),
+            creatorTimeRemaining: validatedData.whiteTime,
+            opponentTimeRemaining: validatedData.blackTime,
           },
-        },
-      });
+        });
+        if (transition.count === 0) throw new GameNotInProgress();
 
-      // Update user stats
-      await updateUserStats(
-        tx,
-        game.creatorId,
-        game.opponentId,
-        validatedData.result
+        // Read gameData after the flip: the row is now locked by this transaction, and the
+        // move route only writes IN_PROGRESS games, so no persisted move can be lost.
+        const current = await tx.game.findUnique({
+          where: { referenceId: validatedData.gameReferenceId },
+          select: { gameData: true },
+        });
+        const updatedGame = await tx.game.update({
+          where: { referenceId: validatedData.gameReferenceId },
+          data: {
+            gameData: {
+              ...(current?.gameData as Record<string, unknown> | null),
+              fen: validatedData.fen,
+              method: validatedData.method,
+              // Never replace a stored history with a shorter one (same rule as the move route).
+              ...(validatedData.moveHistory &&
+              validatedData.moveHistory.length >= storedHistoryLength(current?.gameData)
+                ? { moveHistory: validatedData.moveHistory }
+                : {}),
+            },
+          },
+          select: { referenceId: true, status: true, result: true },
+        });
+
+        await updateUserStats(tx, game.creatorId, game.opponentId, validatedData.result);
+
+        if (game.tournamentId && game.opponentId) {
+          await updateTournamentStandings(
+            tx,
+            game.tournamentId,
+            game.creatorId,
+            game.opponentId,
+            validatedData.result,
+          );
+        }
+
+        return updatedGame;
+      },
+      {
+        maxWait: 10000,
+        timeout: 15000,
+      },
+    );
+
+    // Notify the socket server for tournament live updates, after the response is sent (§8.7).
+    const tournamentReferenceId = game.tournament?.referenceId;
+    if (tournamentReferenceId) {
+      after(() =>
+        notifyTournamentEvent({
+          event: "game_ended",
+          tournamentReferenceId,
+          data: {
+            gameReferenceId: validatedData.gameReferenceId,
+            result: validatedData.result,
+          },
+        })
       );
-
-      // If this is a tournament game, update standings
-      if (game.tournamentId && game.opponentId) {
-        await updateTournamentStandings(
-          tx,
-          game.tournamentId,
-          game.creatorId,
-          game.opponentId,
-          validatedData.result
-        );
-      }
-
-      return { game: updatedGame };
-    }, {
-      maxWait: 10000,
-      timeout: 15000,
-    });
-
-    // 6. Notify WebSocket server for tournament live updates (fire-and-forget)
-    if (game.tournament?.referenceId) {
-      notifyTournamentEvent({
-        event: "game_ended",
-        tournamentReferenceId: game.tournament.referenceId,
-        data: {
-          gameReferenceId: validatedData.gameReferenceId,
-          result: validatedData.result,
-        },
-      });
     }
 
-    // 7. Return success
     return NextResponse.json(
       {
         success: true,
         data: {
-          gameReferenceId: result.game.referenceId,
-          status: result.game.status,
-          result: result.game.result,
+          gameReferenceId: completed.referenceId,
+          status: completed.status,
+          result: completed.result,
         },
         message: "Game completed successfully",
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
-    // Handle Zod validation errors
+    if (error instanceof GameNotInProgress) {
+      return errorResponse("conflict", "The game is no longer in progress.", { requestId });
+    }
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Validation failed",
-          details: error.issues.map((err) => ({
-            field: err.path.join("."),
-            message: err.message,
-          })),
-        },
-        { status: 400 }
-      );
+      return validationErrorResponse(error.issues, requestId);
     }
 
-    // Handle unexpected errors
     logger.error("Error completing game", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to complete game",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return errorResponse("internal", "Something went wrong", { requestId });
   }
 }
 

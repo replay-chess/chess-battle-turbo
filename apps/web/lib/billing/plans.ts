@@ -84,11 +84,24 @@ export function yearlySavings(): { amountCents: number; percent: number } {
 }
 
 /** Dodo product IDs that map onto the catalog. Provided by the server. */
+/**
+ * Product id stored on the entitled E2E fixture rows (`e2e/scripts/provision-test-users.ts --entitle`).
+ * Never a real Dodo product: a test hook (`lib/test-hooks/registry.ts`, guard `isNonProdApp`).
+ */
+export const E2E_FIXTURE_PRODUCT_ID = "e2e-fixture";
+
 export interface ProductCatalog {
   monthly?: string | null;
   yearly?: string | null;
   /** Older product IDs (the original $8/mo Player plan) still honored as active. */
   legacy?: readonly string[];
+  /**
+   * Test-fixture product ids this environment accepts as the monthly plan. `getProductCatalog()`
+   * (lib/billing/products.ts) lists `e2e-fixture` outside production and nothing in production.
+   */
+  fixtures?: readonly string[];
+  /** Called when `e2e-fixture` reaches a catalog that refuses it (production): the server reports it. */
+  onFixtureRefused?: (productId: string) => void;
 }
 
 export interface ResolvedPlan {
@@ -108,6 +121,16 @@ export function resolvePlanFromProductId(
   catalog: ProductCatalog,
 ): ResolvedPlan | null {
   if (!productId) return null;
+
+  // The e2e-fixture rule (plan §11.6 data hook): monthly where the catalog accepts it, nothing elsewhere.
+  if (catalog.fixtures?.includes(productId)) {
+    const plan = BILLING_PLANS.monthly;
+    return { plan: "player", planKey: "monthly", interval: plan.interval, priceCents: plan.priceCents, legacy: false };
+  }
+  if (productId === E2E_FIXTURE_PRODUCT_ID) {
+    catalog.onFixtureRefused?.(productId);
+    return null;
+  }
 
   for (const key of PLAN_KEYS) {
     if (catalog[key] && catalog[key] === productId) {

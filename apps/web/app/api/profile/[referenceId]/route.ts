@@ -154,7 +154,6 @@ export async function GET(
     return NextResponse.json(
       {
         error: "Failed to fetch profile",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

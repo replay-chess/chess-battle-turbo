@@ -82,7 +82,6 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: "Failed to get match status",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

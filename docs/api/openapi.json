@@ -1,0 +1,1691 @@
+{
+  "components": {
+    "headers": {
+      "RequestId": {
+        "description": "Request id; equals error.requestId and the Sentry tag.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "RetryAfter": {
+        "description": "Seconds until the limiter admits the request.",
+        "schema": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      }
+    },
+    "schemas": {
+      "AppEnv": {
+        "enum": [
+          "dev",
+          "production",
+          "test",
+          "local"
+        ],
+        "type": "string"
+      },
+      "BillingRefreshData": {
+        "properties": {
+          "entitlement": {
+            "$ref": "#/components/schemas/Entitlement"
+          },
+          "legacy": {},
+          "refreshed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "entitlement",
+          "refreshed",
+          "legacy"
+        ],
+        "type": "object"
+      },
+      "Color": {
+        "enum": [
+          "w",
+          "b"
+        ],
+        "type": "string"
+      },
+      "CronDailyData": {
+        "properties": {
+          "durationMs": {
+            "type": "number"
+          },
+          "tasks": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CronTaskResult"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "tasks",
+          "durationMs"
+        ],
+        "type": "object"
+      },
+      "CronTaskResult": {
+        "properties": {
+          "count": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "detail": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "ms": {
+            "type": "number"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "ms"
+        ],
+        "type": "object"
+      },
+      "Entitlement": {
+        "properties": {
+          "cancelAtPeriodEnd": {
+            "type": "boolean"
+          },
+          "currentPeriodEnd": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entitled": {
+            "type": "boolean"
+          },
+          "hasBillingPortal": {
+            "type": "boolean"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "enum": [
+                  "month",
+                  "year"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "member": {
+            "type": "boolean"
+          },
+          "paymentIssue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentIssue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "paywall": {
+            "type": "boolean"
+          },
+          "planKey": {
+            "anyOf": [
+              {
+                "enum": [
+                  "monthly",
+                  "yearly",
+                  "legacy"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "priceCents": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/MembershipState"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SubscriptionStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trial": {
+            "$ref": "#/components/schemas/TrialState"
+          }
+        },
+        "required": [
+          "state",
+          "member",
+          "entitled",
+          "paywall",
+          "planKey",
+          "interval",
+          "priceCents",
+          "status",
+          "currentPeriodEnd",
+          "cancelAtPeriodEnd",
+          "trial",
+          "paymentIssue",
+          "hasBillingPortal"
+        ],
+        "type": "object"
+      },
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "default": "internal",
+            "enum": [
+              "invalid_json",
+              "validation_failed",
+              "unauthorized",
+              "subscription_required",
+              "payment_update_required",
+              "forbidden",
+              "not_found",
+              "conflict",
+              "already_subscribed",
+              "payload_too_large",
+              "rate_limited",
+              "internal",
+              "upstream_unavailable",
+              "maintenance",
+              "not_configured",
+              "unavailable"
+            ],
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "retryAfterSec": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "requestId"
+        ],
+        "type": "object"
+      },
+      "ErrorEnvelope": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "HealthData": {
+        "properties": {
+          "buildId": {
+            "type": "string"
+          },
+          "db": {
+            "properties": {
+              "ms": {
+                "type": "number"
+              },
+              "ok": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ok",
+              "ms"
+            ],
+            "type": "object"
+          },
+          "env": {
+            "$ref": "#/components/schemas/AppEnv"
+          },
+          "ok": {
+            "const": true,
+            "type": "boolean"
+          },
+          "time": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "buildId",
+          "env",
+          "time"
+        ],
+        "type": "object"
+      },
+      "HealthQuery": {
+        "properties": {
+          "deep": {
+            "const": "1",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MeData": {
+        "properties": {
+          "buildId": {
+            "type": "string"
+          },
+          "entitlement": {
+            "$ref": "#/components/schemas/Entitlement"
+          },
+          "flags": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "user": {
+            "$ref": "#/components/schemas/MeUser"
+          }
+        },
+        "required": [
+          "user",
+          "entitlement",
+          "flags",
+          "buildId"
+        ],
+        "type": "object"
+      },
+      "MeUser": {
+        "properties": {
+          "avatarUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "code": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "onboarded": {
+            "type": "boolean"
+          },
+          "ratingLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "admin"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref",
+          "code",
+          "name",
+          "email",
+          "avatarUrl",
+          "role",
+          "onboarded",
+          "ratingLabel"
+        ],
+        "type": "object"
+      },
+      "MembershipState": {
+        "enum": [
+          "member",
+          "trial",
+          "grace",
+          "cancelling",
+          "lapsed",
+          "none"
+        ],
+        "type": "string"
+      },
+      "OkMeta": {
+        "properties": {
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "OpeningIndexEntry": {
+        "properties": {
+          "eco": {
+            "maxLength": 3,
+            "type": "string"
+          },
+          "id": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "eco",
+          "name"
+        ],
+        "type": "object"
+      },
+      "OpeningsIndexData": {
+        "properties": {
+          "openings": {
+            "items": {
+              "$ref": "#/components/schemas/OpeningIndexEntry"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "openings"
+        ],
+        "type": "object"
+      },
+      "PageMeta": {
+        "properties": {
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "PaymentIssue": {
+        "properties": {
+          "accessEndsAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "accessEndsAtLabel": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "banner",
+              "last_day",
+              "expired"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "accessEndsAt",
+          "accessEndsAtLabel"
+        ],
+        "type": "object"
+      },
+      "SocketTokenData": {
+        "properties": {
+          "expiresAt": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
+      "SubscriptionStatus": {
+        "enum": [
+          "pending",
+          "active",
+          "on_hold",
+          "paused",
+          "cancelled",
+          "failed",
+          "expired",
+          "past_due"
+        ],
+        "type": "string"
+      },
+      "TrialState": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "daysLeft": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eligible": {
+            "type": "boolean"
+          },
+          "endsAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "used": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "active",
+          "used",
+          "endsAt",
+          "daysLeft",
+          "eligible"
+        ],
+        "type": "object"
+      },
+      "ValidationIssue": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "path",
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "WebhookAckData": {
+        "properties": {
+          "duplicate": {
+            "type": "boolean"
+          },
+          "received": {
+            "const": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "received",
+          "duplicate"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "clerkSession": {
+        "description": "Clerk session (cookie or Authorization bearer).",
+        "in": "cookie",
+        "name": "__session",
+        "type": "apiKey"
+      },
+      "cronBearer": {
+        "description": "Authorization: Bearer CRON_SECRET (Vercel cron).",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "internalToken": {
+        "description": "Shared secret for internal routes.",
+        "in": "header",
+        "name": "x-internal-token",
+        "type": "apiKey"
+      },
+      "webhookSignature": {
+        "description": "Provider signature over the raw body (Standard Webhooks for Dodo, svix-signature for Clerk).",
+        "in": "header",
+        "name": "webhook-signature",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "description": "Generated from @repo/contracts (packages/contracts/src/http/registry) by scripts/openapi.ts. Do not edit by hand. Success bodies are { data, meta? } unless an operation says otherwise; every 4xx/5xx is ErrorEnvelope with Cache-Control: private, no-store.",
+    "title": "Replay Chess HTTP API",
+    "version": "1.0.0"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/billing/refresh": {
+      "post": {
+        "operationId": "billing.refresh",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/BillingRefreshData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable: `not_configured`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Re-reads the membership from the billing provider",
+        "tags": [
+          "billing"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "X",
+        "x-rate-limit": [
+          {
+            "bucket": "billing-refresh",
+            "by": "user",
+            "limit": 10,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/cron/daily": {
+      "get": {
+        "operationId": "cron.daily",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CronDailyData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cronBearer": []
+          }
+        ],
+        "summary": "Runs the ordered daily task list",
+        "tags": [
+          "system"
+        ],
+        "x-auth": "cron",
+        "x-cache": "no-store",
+        "x-class": "X",
+        "x-side-effects": [
+          "cron"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "health.get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "deep",
+            "required": false,
+            "schema": {
+              "const": "1",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/HealthData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable: `unavailable`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Liveness and build id; deep=1 also pings the database",
+        "tags": [
+          "system"
+        ],
+        "x-auth": "public",
+        "x-cache": "no-store",
+        "x-class": "R1",
+        "x-rate-limit": [
+          {
+            "bucket": "health-deep",
+            "by": "ip",
+            "limit": 6,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/healthcheck": {
+      "get": {
+        "deprecated": true,
+        "operationId": "healthcheck.get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "const": "ok",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Plain-text liveness (legacy alias of /api/health)",
+        "tags": [
+          "system"
+        ],
+        "x-auth": "public",
+        "x-cache": "no-store",
+        "x-class": "R1"
+      }
+    },
+    "/api/me": {
+      "get": {
+        "operationId": "me.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MeData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified (If-None-Match matched the ETag)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Gateway: `upstream_unavailable`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "The signed-in viewer: user, entitlement, flags and build id",
+        "tags": [
+          "me"
+        ],
+        "x-auth": "user",
+        "x-cache": "private-etag",
+        "x-class": "R1",
+        "x-side-effects": [
+          "provision_user"
+        ]
+      }
+    },
+    "/api/openings": {
+      "get": {
+        "operationId": "catalog.openings.index",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OpeningsIndexData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified (If-None-Match matched the ETag)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Every active opening: id, ECO code and name",
+        "tags": [
+          "catalog"
+        ],
+        "x-auth": "public",
+        "x-cache": "public-static",
+        "x-class": "P",
+        "x-public-static": {
+          "sMaxAge": 86400,
+          "swr": 604800,
+          "tags": [
+            "openings"
+          ]
+        }
+      }
+    },
+    "/api/session/clear": {
+      "post": {
+        "operationId": "session.clear",
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Clears the browser HTTP cache for this origin on sign-out",
+        "tags": [
+          "system"
+        ],
+        "x-auth": "optional",
+        "x-cache": "no-store",
+        "x-class": "W1"
+      }
+    },
+    "/api/socket-token": {
+      "get": {
+        "operationId": "socket-token.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SocketTokenData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable: `not_configured`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Issues a socket auth token",
+        "tags": [
+          "realtime"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "R1"
+      }
+    },
+    "/api/subscription": {
+      "get": {
+        "deprecated": true,
+        "operationId": "subscription.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Legacy subscription summary (SubscriptionResponse)",
+        "tags": [
+          "billing"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "R1"
+      }
+    },
+    "/api/webhook/clerk": {
+      "post": {
+        "operationId": "webhook.clerk",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WebhookAckData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "webhookSignature": []
+          }
+        ],
+        "summary": "Clerk user lifecycle events",
+        "tags": [
+          "webhooks"
+        ],
+        "x-auth": "webhook",
+        "x-cache": "no-store",
+        "x-class": "WH",
+        "x-max-body-bytes": 262144
+      }
+    },
+    "/api/webhook/dodo-payments": {
+      "post": {
+        "operationId": "webhook.dodo",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WebhookAckData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "webhookSignature": []
+          }
+        ],
+        "summary": "Dodo Payments subscription and payment events",
+        "tags": [
+          "webhooks"
+        ],
+        "x-auth": "webhook",
+        "x-cache": "no-store",
+        "x-class": "WH",
+        "x-max-body-bytes": 262144
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "tags": [
+    {
+      "name": "billing"
+    },
+    {
+      "name": "catalog"
+    },
+    {
+      "name": "me"
+    },
+    {
+      "name": "realtime"
+    },
+    {
+      "name": "system"
+    },
+    {
+      "name": "webhooks"
+    }
+  ],
+  "x-allowed-statuses": [
+    400,
+    401,
+    402,
+    403,
+    404,
+    409,
+    410,
+    412,
+    413,
+    422,
+    429,
+    500,
+    502,
+    503
+  ],
+  "x-error-codes": {
+    "already_subscribed": 409,
+    "conflict": 409,
+    "forbidden": 403,
+    "internal": 500,
+    "invalid_json": 400,
+    "maintenance": 503,
+    "not_configured": 503,
+    "not_found": 404,
+    "payload_too_large": 413,
+    "payment_update_required": 402,
+    "rate_limited": 429,
+    "subscription_required": 402,
+    "unauthorized": 401,
+    "unavailable": 503,
+    "upstream_unavailable": 502,
+    "validation_failed": 400
+  }
+}

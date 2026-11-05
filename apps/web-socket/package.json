@@ -6,13 +6,16 @@
   "scripts": {
     "dev": "tsx watch index.ts",
     "build": "tsc -p tsconfig.production.json",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "tsx --test \"test/**/*.test.ts\"",
+    "test:int": "tsx --test \"test/**/*.int.test.ts\""
   },
   "private": true,
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^24.8.1",
-    "tsx": "^4.20.6",
+    "socket.io-client": "4.8.1",
+    "tsx": "4.20.6",
     "typescript": "^5.7.2"
   },
   "dependencies": {

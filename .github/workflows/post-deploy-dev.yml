@@ -1,0 +1,141 @@
+# Post-deploy check of the dev site (phase-01 plan §7.8, §13.4; CT X2.3).
+#
+# Vercel's GitHub integration reports a deployment_status for every deploy. This
+# runs for successful deploys of the `replay-chess-dev` project and checks:
+# 1. GET <deployment>/api/health → buildId equals the deployed SHA;
+# 2. a socket.io handshake from the dev web origin to the dev socket server is
+#    accepted (catches a wrong ALLOWED_ORIGINS on the OCI dev instance);
+# 3. the @smoke subset passes against the dev URL (Vercel bypass header).
+# It shares the `e2e-dev-shared` concurrency group with nightly's dev-url job, so
+# two runs never use the dev database and the Clerk dev users at the same time.
+#
+# [V] The environment name Vercel reports ("Production – replay-chess-dev" or
+# "Preview – replay-chess-dev"): adjust the job's `if:` if it differs.
+name: Post-deploy (dev)
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Deployment URL to check (defaults to the dev URL)"
+        required: false
+      sha:
+        description: "Expected build SHA (defaults to the dev branch head)"
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-dev-shared
+  cancel-in-progress: false
+
+env:
+  DEV_URL: https://replay-chess-dev-replaychess007-1069.vercel.app
+  WS_DEV_URL: https://ws-dev.80-225-200-210.sslip.io
+
+jobs:
+  check:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       contains(github.event.deployment.environment, 'replay-chess-dev') &&
+       !contains(github.event.deployment.environment, 'Preview'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DEPLOY_URL: ${{ inputs.url || github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+      EXPECTED_SHA: ${{ inputs.sha || github.event.deployment.sha || github.sha }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.event.deployment.sha || 'dev' }}" }
+
+      - name: /api/health buildId equals the deployed SHA
+        run: |
+          url="${DEPLOY_URL:-$DEV_URL}"
+          hdr=()
+          if [ -n "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then hdr=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET"); fi
+          for i in 1 2 3 4 5; do
+            body=$(curl -fsS "${hdr[@]}" "$url/api/health") && break
+            echo "health not ready ($i), retrying"; sleep 10
+          done
+          echo "$body"
+          build=$(echo "$body" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log((j.data??j).buildId??"")})')
+          if [ "$build" != "$EXPECTED_SHA" ] && [ "${EXPECTED_SHA#"$build"}" = "$EXPECTED_SHA" ]; then
+            echo "::error::buildId '$build' does not match the deployed SHA '$EXPECTED_SHA'"; exit 1
+          fi
+
+      - name: socket.io handshake from the dev web origin
+        run: |
+          headers=$(curl -sS -D - -o /tmp/handshake.txt \
+            -H "Origin: $DEV_URL" \
+            "$WS_DEV_URL/socket.io/?EIO=4&transport=polling")
+          echo "$headers" | head -20
+          status=$(echo "$headers" | head -1 | awk '{print $2}')
+          allow=$(echo "$headers" | tr -d '\r' | awk -F': ' 'tolower($1)=="access-control-allow-origin"{print $2}')
+          if [ "$status" != "200" ]; then echo "::error::socket handshake returned $status"; exit 1; fi
+          if [ "$allow" != "$DEV_URL" ] && [ "$allow" != "*" ]; then
+            echo "::error::socket server does not allow origin $DEV_URL (got '$allow'); check ALLOWED_ORIGINS in WS_DEV_ENV_FILE"; exit 1
+          fi
+          grep -q '"sid"' /tmp/handshake.txt || { echo "::error::no Engine.IO open packet"; exit 1; }
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium
+      - run: pnpm --filter web exec prisma generate
+      - name: "@smoke against the dev URL"
+        env:
+          CI: "1"
+          E2E_BASE_URL: ${{ env.DEV_URL }}
+          DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DEV_DATABASE_URL }}
+          E2E_TEST_TOKEN: ${{ secrets.E2E_TEST_TOKEN }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          E2E_USER_A_EMAIL: ${{ secrets.E2E_USER_A_EMAIL }}
+          E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
+          E2E_USER_B_EMAIL: ${{ secrets.E2E_USER_B_EMAIL }}
+          E2E_USER_B_PASSWORD: ${{ secrets.E2E_USER_B_PASSWORD }}
+          E2E_USER_C_EMAIL: ${{ secrets.E2E_USER_C_EMAIL }}
+          E2E_USER_C_PASSWORD: ${{ secrets.E2E_USER_C_PASSWORD }}
+          E2E_USER_D_EMAIL: ${{ secrets.E2E_USER_D_EMAIL }}
+          E2E_USER_D_PASSWORD: ${{ secrets.E2E_USER_D_PASSWORD }}
+          E2E_USER_E_EMAIL: ${{ secrets.E2E_USER_E_EMAIL }}
+          E2E_USER_E_PASSWORD: ${{ secrets.E2E_USER_E_PASSWORD }}
+          E2E_USER_F_EMAIL: ${{ secrets.E2E_USER_F_EMAIL }}
+          E2E_USER_F_PASSWORD: ${{ secrets.E2E_USER_F_PASSWORD }}
+          E2E_USER_G_EMAIL: ${{ secrets.E2E_USER_G_EMAIL }}
+          E2E_USER_G_PASSWORD: ${{ secrets.E2E_USER_G_PASSWORD }}
+          E2E_USER_H_EMAIL: ${{ secrets.E2E_USER_H_EMAIL }}
+          E2E_USER_H_PASSWORD: ${{ secrets.E2E_USER_H_PASSWORD }}
+          E2E_USER_I_EMAIL: ${{ secrets.E2E_USER_I_EMAIL }}
+          E2E_USER_I_PASSWORD: ${{ secrets.E2E_USER_I_PASSWORD }}
+          E2E_USER_J_EMAIL: ${{ secrets.E2E_USER_J_EMAIL }}
+          E2E_USER_J_PASSWORD: ${{ secrets.E2E_USER_J_PASSWORD }}
+          E2E_USER_K_EMAIL: ${{ secrets.E2E_USER_K_EMAIL }}
+          E2E_USER_K_PASSWORD: ${{ secrets.E2E_USER_K_PASSWORD }}
+          E2E_USER_L_EMAIL: ${{ secrets.E2E_USER_L_EMAIL }}
+          E2E_USER_L_PASSWORD: ${{ secrets.E2E_USER_L_PASSWORD }}
+          E2E_USER_M_EMAIL: ${{ secrets.E2E_USER_M_EMAIL }}
+          E2E_USER_M_PASSWORD: ${{ secrets.E2E_USER_M_PASSWORD }}
+          E2E_USER_N_EMAIL: ${{ secrets.E2E_USER_N_EMAIL }}
+          E2E_USER_N_PASSWORD: ${{ secrets.E2E_USER_N_PASSWORD }}
+          E2E_USER_O_EMAIL: ${{ secrets.E2E_USER_O_EMAIL }}
+          E2E_USER_O_PASSWORD: ${{ secrets.E2E_USER_O_PASSWORD }}
+          E2E_USER_P_EMAIL: ${{ secrets.E2E_USER_P_EMAIL }}
+          E2E_USER_P_PASSWORD: ${{ secrets.E2E_USER_P_PASSWORD }}
+          E2E_USER_R_EMAIL: ${{ secrets.E2E_USER_R_EMAIL }}
+          E2E_USER_R_PASSWORD: ${{ secrets.E2E_USER_R_PASSWORD }}
+        run: pnpm --filter web exec playwright test --project=chromium --grep @smoke
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-deploy-dev-report
+          path: apps/web/playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore

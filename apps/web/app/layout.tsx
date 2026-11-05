@@ -1,6 +1,5 @@
-import type { Metadata } from "next";
-import localFont from "next/font/local";
-import { Instrument_Serif } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { BASE_URL, safeJsonLd } from "@/lib/seo";
 
 import "./globals.css";
@@ -12,15 +11,14 @@ import { ThemeProvider } from "./components/ThemeProvider";
 import { ThemeAwareClerkProvider } from "./components/ThemeAwareClerkProvider";
 import { ThemeAwareToaster } from "./components/ThemeAwareToaster";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { ThemeColorSync } from "./components/ThemeColorSync";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-});
+// next/font/google names the families literally 'Geist' and 'Geist Mono', so the
+// existing inline fontFamily: "'Geist'" styles resolve (SPEC D8). app/fonts/*.woff
+// stay for global-error.tsx.
+const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans", display: "swap" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
 
 const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
@@ -30,10 +28,13 @@ const instrumentSerif = Instrument_Serif({
   display: "swap",
 });
 
-export const viewport = {
+// One theme colour; ThemeColorSync follows the app theme (H3). Never set
+// maximumScale/userScalable or interactiveWidget (pinch-zoom must keep working).
+export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#171717",
+  viewportFit: "cover",
+  themeColor: "#FAF9F6",
 };
 
 export const metadata: Metadata = {
@@ -77,7 +78,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "ReplayChess",
   },
   icons: {
@@ -101,7 +102,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="light" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`light ${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         {/* Fonts loaded via next/font/google (self-hosted at build time) — no preconnect needed */}
         <link rel="dns-prefetch" href="https://img.clerk.com" />
@@ -125,7 +130,7 @@ export default function RootLayout({
             }),
           }}
         />
-        {process.env.NODE_ENV === "development" && (
+        {process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_WIDGETS !== "0" && (
           <>
             <script
               src="https://unpkg.com/react-scan/dist/auto.global.js"
@@ -148,9 +153,7 @@ export default function RootLayout({
           </>
         )}
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} bg-cb-bg`}
-      >
+      <body className="bg-cb-bg">
         <ThemeProvider>
           <ThemeAwareClerkProvider>
             <GoogleAnalytics />
@@ -159,7 +162,8 @@ export default function RootLayout({
             <UserSync />
             <PostHogIdentify />
             <ThemeAwareToaster />
-            {children}
+            <ThemeColorSync />
+            <TooltipProvider>{children}</TooltipProvider>
           </ThemeAwareClerkProvider>
         </ThemeProvider>
       </body>

@@ -18,7 +18,7 @@ import { motion } from "motion/react";
 import { PlayerInfoCard } from "./PlayerInfoCard";
 import { GameActionButtons } from "./GameActionButtons";
 import { AnalysisPhaseBannerMobile, AnalysisPhaseBannerDesktop } from "./AnalysisPhaseBanner";
-import { ShareLinkModal } from "@/app/play/ShareLinkModal";
+import { ShareLinkModal } from "@/app/components/ShareLinkModal";
 import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";
 import { retryOnUnauthorized, socketAuth } from "@/lib/hooks/useSocketToken";
 import type {
@@ -650,16 +650,21 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
       playSound('notify');
     });
 
-    socketRef.current.on("error", (payload: ErrorPayload) => {
-      if (payload.message && payload.message.includes("not part of")) {
+    // The socket sends `error { code, message }` (plan §7.5 #3); map codes, never message text.
+    socketRef.current.on("error", (payload: ErrorPayload & { code?: string }) => {
+      if (payload.code === "not_player") {
         setIsSpectator(true);
         isSpectatorRef.current = true;
         socketRef.current?.emit("spectate_game", { gameReferenceId: gameId });
         return;
       }
-      if (payload.message && payload.message.includes("status: COMPLETED")) {
+      if (payload.code === "game_completed") {
         toast.info("This game has already ended.", { duration: 3000 });
         router.back();
+        return;
+      }
+      if (payload.code === "no_pending_offer") {
+        setPendingDrawOffer(false);
         return;
       }
       toast.error(payload.message || "An error occurred");
@@ -900,7 +905,7 @@ export function GamePageContent({ userReferenceId, gameId, isDemo = false }: Gam
         style={backgroundGridStyle}
       />
 
-      <div className="relative max-w-7xl mx-auto px-0 sm:px-2 lg:px-4 pb-0 lg:pb-4 pt-4 lg:py-4 h-[100dvh] lg:min-h-screen flex flex-col lg:flex lg:flex-col lg:justify-center">
+      <div className="relative max-w-7xl mx-auto px-0 sm:px-2 lg:px-4 pb-[var(--safe-bottom,0px)] lg:pb-4 pt-4 lg:py-4 h-[100dvh] lg:min-h-screen flex flex-col lg:flex lg:flex-col lg:justify-center">
         {!gameStarted && !isAnalysisPhase && !isSpectator ? (
           <div className="flex-1 flex flex-col items-center justify-center">
             <div className="flex flex-col items-center">

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { tokenMatchesSecret } from "@/lib/auth/secrets";
 
 export interface ApiKeyValidationResult {
   valid: boolean;
@@ -37,7 +38,7 @@ export function validateScraperApiKey(
     };
   }
 
-  if (apiKey !== expectedKey) {
+  if (!tokenMatchesSecret(apiKey, expectedKey)) {
     return {
       valid: false,
       error: NextResponse.json({ error: "Invalid API key" }, { status: 403 }),

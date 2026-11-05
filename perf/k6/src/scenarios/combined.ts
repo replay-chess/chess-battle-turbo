@@ -13,7 +13,7 @@ import { Options } from 'k6/options';
 import http from 'k6/http';
 import { SharedArray } from 'k6/data';
 
-import { CONFIG, apiUrl } from '../lib/config';
+import { CONFIG, apiUrl, jsonParams, perfHeaders } from '../lib/config';
 import { playGame } from '../lib/game-player';
 import {
   httpCreateGameDuration,
@@ -87,7 +87,7 @@ export function directGame() {
       selectedLegend: null,
       selectedOpening: null,
     }),
-    { headers: { 'Content-Type': 'application/json' }, tags: { name: 'create-game' } },
+    jsonParams({ name: 'create-game' }),
   );
 
   httpCreateGameDuration.add(createRes.timings.duration);
@@ -109,7 +109,7 @@ export function directGame() {
       gameReferenceId: gameRefId,
       opponentReferenceId: playerB.referenceId,
     }),
-    { headers: { 'Content-Type': 'application/json' }, tags: { name: 'join-game' } },
+    jsonParams({ name: 'join-game' }),
   );
 
   httpJoinGameDuration.add(joinRes.timings.duration);
@@ -147,7 +147,7 @@ export function matchmakingGame() {
       legendReferenceId: null,
       openingReferenceId: null,
     }),
-    { headers: { 'Content-Type': 'application/json' }, tags: { name: 'matchmaking-queue' } },
+    jsonParams({ name: 'matchmaking-queue' }),
   );
 
   httpMatchmakingDuration.add(queueRes.timings.duration);
@@ -178,7 +178,7 @@ export function matchmakingGame() {
 
       const statusRes = http.get(
         apiUrl(`/api/matchmaking/match-status?referenceId=${queueRefId}&userReferenceId=${playerA.referenceId}`),
-        { tags: { name: 'matchmaking-poll' } },
+        { headers: perfHeaders(), tags: { name: 'matchmaking-poll' } },
       );
 
       if (statusRes.status !== 200) {

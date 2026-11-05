@@ -1,3 +1,4 @@
+/* global process */
 import withPWAInit from "@ducanh2912/next-pwa";
 import createMDX from "@next/mdx";
 import { withSentryConfig } from "@sentry/nextjs";
@@ -12,9 +13,12 @@ const withMDX = createMDX({
 
 const withPWA = withPWAInit({
   dest: "public",
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
-  reloadOnOnline: true,
+  // The service worker never caches signed-in HTML, RSC payloads or /api/*
+  // responses: those are per-user documents (phase-01 plan 9.3 H8, 11.3).
+  cacheOnFrontEndNav: false,
+  aggressiveFrontEndNavCaching: false,
+  // The online chip replaces the reload (SPEC D18).
+  reloadOnOnline: false,
   disable: process.env.NODE_ENV === "development",
   // Every public/ file is precached unless excluded here, so each install
   // downloaded ~90 MB of media most visitors never open. These still load
@@ -28,9 +32,24 @@ const withPWA = withPWAInit({
     "!chess_logo_share.png",
     "!mobile_icon_perfect.png",
   ],
+  // Our two NetworkOnly routes go first, then the plugin's static-asset
+  // defaults. Workbox uses the first matching route, so /api/* and RSC
+  // requests never reach the default "apis" and "pages" caches.
+  extendDefaultRuntimeCaching: true,
   workboxOptions: {
     disableDevLogs: true,
     exclude: [/\.wasm$/],
+    runtimeCaching: [
+      {
+        urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
+        handler: "NetworkOnly",
+      },
+      {
+        urlPattern: ({ request, url }) =>
+          request.headers.get("RSC") === "1" || url.searchParams.has("_rsc"),
+        handler: "NetworkOnly",
+      },
+    ],
   },
 });
 
@@ -38,6 +57,13 @@ const withPWA = withPWAInit({
 // files redirect to the bucket so links from other sites stop pulling
 // bandwidth from Vercel.
 const MEDIA_URL = (process.env.NEXT_PUBLIC_MEDIA_URL ?? "").replace(/\/+$/, "");
+const MEDIA_HOST = (() => {
+  try {
+    return MEDIA_URL ? new URL(MEDIA_URL).hostname : null;
+  } catch {
+    return null;
+  }
+})();
 const MEDIA_PATHS = [
   "/ReplayChessTrailer.mp4",
   "/Kings_Gambit_Chess_Board_Animation.mp4",
@@ -48,6 +74,11 @@ const MEDIA_PATHS = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
+  // The devices build uses .next-devices so it never fights `next dev` (SPEC 5.2).
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+  devIndicators: process.env.NEXT_PUBLIC_DEV_WIDGETS === "0" ? false : undefined,
+  // Workspace packages ship TypeScript source (phase-01 plan 7.3, 10.1).
+  transpilePackages: ["@repo/contracts", "@repo/analytics"],
   // Only use standalone output for Docker builds
   // Amplify uses standard Next.js output
   ...(process.env.USE_STANDALONE === "true" && { output: "standalone" }),
@@ -69,12 +100,15 @@ const nextConfig = {
       },
     ];
   },
+  // Allow-list only (phase-01 plan 9.3 H12): "**" made /_next/image an open
+  // proxy against the image quota. Avatars and legend portraits come from
+  // hosts we don't control, so those call sites render `unoptimized`.
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**",
-      },
+      { protocol: "https", hostname: "img.clerk.com" },
+      { protocol: "https", hostname: "images.clerk.dev" },
+      { protocol: "https", hostname: "images.chesscomfiles.com" },
+      ...(MEDIA_HOST ? [{ protocol: "https", hostname: MEDIA_HOST }] : []),
     ],
   },
   async redirects() {

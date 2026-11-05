@@ -638,6 +638,7 @@ export default function LegendsAdmin() {
                       {legend.profilePhotoUrl ? (
                         <Image
                           src={legend.profilePhotoUrl}
+                          unoptimized
                           alt={legend.name}
                           width={48}
                           height={48}

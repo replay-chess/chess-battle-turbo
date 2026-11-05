@@ -23,7 +23,7 @@ import { Options } from 'k6/options';
 import http from 'k6/http';
 import { SharedArray } from 'k6/data';
 
-import { CONFIG, apiUrl } from '../lib/config';
+import { CONFIG, apiUrl, jsonParams, perfHeaders } from '../lib/config';
 import { playSolo } from '../lib/solo-player';
 import {
   httpMatchmakingDuration,
@@ -81,7 +81,7 @@ export default function () {
       legendReferenceId: null,
       openingReferenceId: null,
     }),
-    { headers: { 'Content-Type': 'application/json' }, tags: { name: 'matchmaking-queue' } },
+    jsonParams({ name: 'matchmaking-queue' }),
   );
 
   httpMatchmakingDuration.add(queueRes.timings.duration);
@@ -129,7 +129,7 @@ export default function () {
 
       const statusRes = http.get(
         apiUrl(`/api/matchmaking/match-status?referenceId=${queueRefId}&userReferenceId=${user.referenceId}`),
-        { tags: { name: 'matchmaking-poll' } },
+        { headers: perfHeaders(), tags: { name: 'matchmaking-poll' } },
       );
 
       if (statusRes.status !== 200) continue;

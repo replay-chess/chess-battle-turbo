@@ -7,6 +7,10 @@ jobs:
   perf:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # k6 reads system env into __ENV: the scenarios send it as x-perf-token (plan H9; the server
+      # ignores PERF_AUTH_BYPASS without a matching PERF_TOKEN and with test hooks off).
+      PERF_TOKEN: ${{ secrets.PERF_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4

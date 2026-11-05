@@ -1,0 +1,173 @@
+name: Backup live database
+
+# Nightly encrypted dump of the database the live site reads today (old Neon project
+# shy-morning-50748774), plus a weekly restore check (phase-01 plan §7.8, 1B·H11, T24).
+#
+# Scheduled workflows run only from the default branch, so this file does nothing until the
+# owner commits it to `main` as a workflow-only commit (main-guard.yml allows that).
+#
+# Secrets (added by the owner; plan §13.4, Q-19):
+#   LIVE_DB_DUMP_URL       connection string of a READ-ONLY role (pg_read_all_data) on the
+#                          live project; never the owner role
+#   BACKUP_AGE_RECIPIENT   age public key (age1…) the dumps are encrypted to
+#   BACKUP_AGE_IDENTITY    the matching private identity, used only by restore-check; the owner
+#                          keeps another copy offline
+#
+# The repository is public and its artifacts can be downloaded by any signed-in GitHub user,
+# so nothing leaves the runner unencrypted: the dump is piped straight into age, and the row
+# counts (business numbers) are encrypted too.
+
+on:
+  schedule:
+    - cron: "0 22 * * 1-6" # nightly dump, Monday to Saturday (22:00 UTC)
+    - cron: "0 22 * * 0" # Sunday: dump + restore check
+  workflow_dispatch:
+    inputs:
+      restore_check:
+        description: "Also run the restore check on the new dump"
+        type: boolean
+        default: true
+
+concurrency:
+  group: backup-live
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PG_MAJOR: "17"
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      artifact: ${{ steps.names.outputs.artifact }}
+    steps:
+      - name: Check secrets
+        env:
+          LIVE_DB_DUMP_URL: ${{ secrets.LIVE_DB_DUMP_URL }}
+          BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+        run: |
+          missing=0
+          [ -n "$LIVE_DB_DUMP_URL" ] || { echo "::error::secret LIVE_DB_DUMP_URL is not set"; missing=1; }
+          case "$BACKUP_AGE_RECIPIENT" in
+            age1*) ;;
+            *) echo "::error::secret BACKUP_AGE_RECIPIENT is not an age public key"; missing=1 ;;
+          esac
+          exit $missing
+
+      - name: Install PostgreSQL ${{ env.PG_MAJOR }} client and age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq "postgresql-client-${PG_MAJOR}" age
+          echo "/usr/lib/postgresql/${PG_MAJOR}/bin" >> "$GITHUB_PATH"
+
+      - id: names
+        run: |
+          day=$(date -u +%F)
+          echo "day=$day" >> "$GITHUB_OUTPUT"
+          echo "artifact=live-$day" >> "$GITHUB_OUTPUT"
+
+      - name: Row counts (exact, taken right before the dump)
+        env:
+          LIVE_DB_DUMP_URL: ${{ secrets.LIVE_DB_DUMP_URL }}
+          BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+          DAY: ${{ steps.names.outputs.day }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          psql "$LIVE_DB_DUMP_URL" -v ON_ERROR_STOP=1 -At <<'SQL' | age -r "$BACKUP_AGE_RECIPIENT" -o "out/counts-$DAY.json.age"
+          SELECT COALESCE(json_object_agg(table_name, rows ORDER BY table_name), '{}'::json)
+          FROM (
+            SELECT t.table_name,
+                   (xpath('/row/c/text()',
+                          query_to_xml(format('SELECT count(*) AS c FROM %I.%I', t.table_schema, t.table_name),
+                                       false, true, '')))[1]::text::bigint AS rows
+            FROM information_schema.tables t
+            WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+          ) counts;
+          SQL
+
+      - name: Dump (custom format, encrypted in the pipe)
+        env:
+          LIVE_DB_DUMP_URL: ${{ secrets.LIVE_DB_DUMP_URL }}
+          BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+          DAY: ${{ steps.names.outputs.day }}
+        run: |
+          set -euo pipefail
+          pg_dump --format=custom --no-owner --no-privileges "$LIVE_DB_DUMP_URL" \
+            | age -r "$BACKUP_AGE_RECIPIENT" -o "out/live-$DAY.dump.age"
+          ls -l out
+          # Refuse an empty or suspiciously small dump.
+          [ "$(stat -c %s "out/live-$DAY.dump.age")" -gt 10240 ]
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.names.outputs.artifact }}
+          path: out/
+          retention-days: 14
+          if-no-files-found: error
+
+  restore-check:
+    needs: dump
+    if: >-
+      (github.event_name == 'schedule' && github.event.schedule == '0 22 * * 0') ||
+      (github.event_name == 'workflow_dispatch' && inputs.restore_check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+    services:
+      restore:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: restore
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/db
+
+      - name: Install PostgreSQL ${{ env.PG_MAJOR }} client, age and jq
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq "postgresql-client-${PG_MAJOR}" age jq
+          echo "/usr/lib/postgresql/${PG_MAJOR}/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.dump.outputs.artifact }}
+          path: backup/
+
+      - name: Restore and compare row counts
+        env:
+          BACKUP_AGE_IDENTITY: ${{ secrets.BACKUP_AGE_IDENTITY }}
+          RESTORE_DATABASE_URL: postgresql://postgres:restore@localhost:5432/postgres
+        run: |
+          set -euo pipefail
+          bash scripts/db/restore-check.sh backup/live-*.dump.age backup/counts-*.json.age
+
+      - name: Open an issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "ops: live-database restore check failed ($(date -u +%F))" \
+            --body "The weekly restore check of the live-database backup failed. Run: $RUN_URL"

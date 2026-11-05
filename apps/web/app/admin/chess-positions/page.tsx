@@ -200,6 +200,7 @@ function LegendSearchDropdown({
           {selectedLegend.profilePhotoUrl ? (
             <Image
               src={selectedLegend.profilePhotoUrl}
+              unoptimized
               alt={selectedLegend.name}
               width={32}
               height={32}
@@ -288,6 +289,7 @@ function LegendSearchDropdown({
                     {legend.profilePhotoUrl ? (
                       <Image
                         src={legend.profilePhotoUrl}
+                        unoptimized
                         alt={legend.name}
                         width={32}
                         height={32}
@@ -1690,6 +1692,7 @@ export default function ChessPositionsAdmin() {
                             {position.whiteLegend?.profilePhotoUrl ? (
                               <Image
                                 src={position.whiteLegend.profilePhotoUrl}
+                                unoptimized
                                 alt={displayName}
                                 width={24}
                                 height={24}
@@ -1721,6 +1724,7 @@ export default function ChessPositionsAdmin() {
                             {position.blackLegend?.profilePhotoUrl ? (
                               <Image
                                 src={position.blackLegend.profilePhotoUrl}
+                                unoptimized
                                 alt={opponentName}
                                 width={24}
                                 height={24}

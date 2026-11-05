@@ -1,5 +1,6 @@
 import { Chess, Color, Move, Square } from "chess.js";
 import { Socket } from "socket.io";
+import * as Sentry from "@sentry/node";
 import { ClockManager } from "./ClockManager";
 import {
   GameData,
@@ -18,6 +19,107 @@ import {
 import { persistMove, completeGame, updateGameState } from "./utils/apiClient";
 import { logger } from "./utils/logger";
 import { trackGameDuration } from "./utils/sentry";
+
+// ============================================
+// ERROR CODES (plan §7.5 #3, protocol v1)
+// ============================================
+
+/**
+ * Codes sent as `error { code, message }`. Messages never carry user or game ids. The web
+ * client maps codes, not message text (`GamePageContent.tsx`). The messages keep the old
+ * wording fragments ("not part of", "status: COMPLETED") so clients built before the code
+ * mapping still behave until the web deploy lands (deploy order: socket first).
+ */
+export type SocketErrorCode =
+  | "unauthorized"
+  | "bad_request"
+  | "not_player"
+  | "not_found"
+  | "game_completed"
+  | "game_unavailable"
+  | "no_pending_offer"
+  | "restore_failed"
+  | "internal";
+
+export class SocketError extends Error {
+  constructor(
+    readonly code: SocketErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "SocketError";
+  }
+}
+
+/** Payload of the `error` event. */
+export function errorPayload(code: SocketErrorCode, message: string): { code: SocketErrorCode; message: string } {
+  return { code, message };
+}
+
+// ============================================
+// RESTORE BY REPLAY (plan §7.5 #12, §8.8)
+// ============================================
+
+const UCI_MOVE = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/;
+
+type ReplayableMove = { from: string; to: string; promotion?: string } | string;
+
+/** Normalises one stored `moveHistory` entry (verbose chess.js move, SAN or UCI string). */
+function toReplayableMove(entry: unknown): ReplayableMove | null {
+  if (typeof entry === "string") {
+    const uci = UCI_MOVE.exec(entry);
+    if (uci) return { from: uci[1]!, to: uci[2]!, promotion: uci[3] };
+    return entry;
+  }
+  if (entry && typeof entry === "object") {
+    const { from, to, promotion, san } = entry as { from?: unknown; to?: unknown; promotion?: unknown; san?: unknown };
+    if (typeof from === "string" && typeof to === "string") {
+      return { from, to, promotion: typeof promotion === "string" ? promotion : undefined };
+    }
+    if (typeof san === "string") return san;
+  }
+  return null;
+}
+
+/** Thrown when a stored history cannot be replayed from the starting FEN. */
+export class RestoreError extends SocketError {
+  constructor(readonly ply: number) {
+    super("restore_failed", `The saved moves of this game could not be restored (ply ${ply}).`);
+    this.name = "RestoreError";
+  }
+}
+
+/**
+ * Rebuilds a game by replaying `moveHistory` from `startingFen` (never by loading a FEN, so
+ * repetition detection keeps working). Throws `RestoreError` at the first illegal or
+ * unreadable entry; the caller then refuses the restore instead of starting over.
+ */
+export function replayMoveHistory(startingFen: string, history: readonly unknown[]): Chess {
+  const chess = new Chess(startingFen);
+  history.forEach((entry, index) => {
+    const move = toReplayableMove(entry);
+    if (move === null) throw new RestoreError(index + 1);
+    try {
+      chess.move(move);
+    } catch {
+      throw new RestoreError(index + 1);
+    }
+  });
+  return chess;
+}
+
+// ============================================
+// SESSION
+// ============================================
+
+export interface GameSessionOptions {
+  /** Time a disconnected player has to come back before forfeiting. Default 30 s. */
+  disconnectGraceMs?: number;
+  /** Replaces the 15/20/30 s study phase (tests only). */
+  analysisSecondsOverride?: number;
+  /** Called once when the game ends by any path (GameManager evicts the session later). */
+  onEnded?: (gameReferenceId: string) => void;
+}
 
 /**
  * GameSession manages the state and logic for a single chess game
@@ -46,7 +148,7 @@ export class GameSession {
 
   // Disconnect handling
   private disconnectTimers: Map<string, NodeJS.Timeout> = new Map();
-  private readonly DISCONNECT_GRACE_PERIOD = 30000; // 30 seconds
+  private readonly DISCONNECT_GRACE_PERIOD: number; // default 30 seconds
 
   // Spectators
   private spectators: Set<Socket> = new Set();
@@ -59,11 +161,46 @@ export class GameSession {
   private analysisRemainingSeconds: number = 0;
   private analysisTotalSeconds: number = 0;
 
-  constructor(gameData: GameData) {
-    this.gameData = gameData;
+  // Draw offer (plan §8.8): the userReferenceId of the player with a pending offer.
+  // Cleared by any move, a decline, or the end of the game.
+  private drawOfferBy: string | null = null;
 
-    // Initialize chess instance with the starting FEN from database
-    this.chess = new Chess(gameData.startingFen);
+  // Plies replayed from the stored history at creation (H6 #12). A restored game skips the
+  // study phase and resumes play as soon as its players are back.
+  private readonly restoredPlies: number;
+
+  // Web writes still in flight (moves, clock flushes, the result), awaited before the result
+  // is sent and on drain (H6 #7, #13).
+  private pendingWrites: Set<Promise<unknown>> = new Set();
+
+  // Set by beginDrain() when the server is shutting down.
+  private draining: boolean = false;
+
+  private readonly options: GameSessionOptions;
+
+  constructor(gameData: GameData, options: GameSessionOptions = {}) {
+    this.gameData = gameData;
+    this.options = options;
+    this.DISCONNECT_GRACE_PERIOD = options.disconnectGraceMs ?? 30000;
+
+    // Initialize chess instance with the starting FEN from database, replaying the stored
+    // moves of a game that is already in progress (restart, deploy, eviction).
+    const storedHistory = gameData.gameData?.moveHistory;
+    if (gameData.status === "IN_PROGRESS" && Array.isArray(storedHistory) && storedHistory.length > 0) {
+      this.chess = replayMoveHistory(gameData.startingFen, storedHistory);
+      this.restoredPlies = storedHistory.length;
+      const storedFen = gameData.gameData?.fen;
+      if (storedFen && storedFen !== this.chess.fen()) {
+        logger.warn(`Restored position differs from the stored FEN; the replay wins`, {
+          game: gameData.referenceId,
+          plies: String(this.restoredPlies),
+        });
+      }
+      logger.info(`Restored game by replaying ${this.restoredPlies} plies`, { game: gameData.referenceId });
+    } else {
+      this.chess = new Chess(gameData.startingFen);
+      this.restoredPlies = 0;
+    }
 
     // Detect AI game from gameData
     logger.debug("GameSession constructor - detecting game mode", { game: this.gameData.referenceId, gameMode: gameData.gameData?.gameMode || "unknown" });
@@ -136,7 +273,8 @@ export class GameSession {
     logger.debug(`Attempting to add player: ${userReferenceId}, isCreator=${isCreator}, isOpponent=${isOpponent}, isAIGame=${this.isAIGame}`, { game: this.gameData.referenceId });
 
     if (!isCreator && !isOpponent) {
-      throw new Error(`User ${userReferenceId} is not part of game ${this.gameData.referenceId}. Creator: ${this.gameData.creator.userReferenceId}, Opponent: ${this.gameData.opponent?.userReferenceId || 'null'}`);
+      logger.info(`Join refused: user is not a player`, { game: this.gameData.referenceId, user: userReferenceId });
+      throw new SocketError("not_player", "You are not part of this game.");
     }
 
     // Store creator or opponent
@@ -194,9 +332,10 @@ export class GameSession {
       throw new Error("Both players must be present to start game");
     }
 
-    // Randomly assign colors to players
-    const creatorGetsWhite = Math.random() < 0.5;
-    if (creatorGetsWhite) {
+    // Colours were fixed by the web at creation (`gameData.creatorColor`, H6 #11); never
+    // randomise here. Games created before that field existed: the creator plays White, which
+    // is what quick, tournament and AI games always did.
+    if (this.creatorPlaysWhite()) {
       this.whitePlayer = this.creatorPlayer;
       this.blackPlayer = this.opponentPlayer;
     } else {
@@ -205,6 +344,15 @@ export class GameSession {
     }
     this.whitePlayer.color = "w";
     this.blackPlayer.color = "b";
+
+    // A restored game resumes play directly (no second study phase).
+    if (this.restoredPlies > 0) {
+      logger.info(`Resuming restored game after ${this.restoredPlies} plies`, { game: this.gameData.referenceId });
+      this.endAnalysisPhase();
+      // The stored moves already end the game (the result call was lost): finish it now.
+      if (this.chess.isGameOver()) await this.handleGameOver();
+      return;
+    }
 
     // Enter analysis phase instead of starting immediately
     this.isAnalysisPhase = true;
@@ -296,6 +444,14 @@ export class GameSession {
       this.opponentPlayer = humanPlayer;
     }
 
+    // A restored game resumes play directly (no second study phase).
+    if (this.restoredPlies > 0) {
+      logger.info(`Resuming restored AI game after ${this.restoredPlies} plies`, { game: this.gameData.referenceId });
+      this.endAnalysisPhaseForAI();
+      if (this.chess.isGameOver()) await this.handleGameOver();
+      return;
+    }
+
     // Enter analysis phase instead of starting immediately
     this.isAnalysisPhase = true;
 
@@ -340,6 +496,11 @@ export class GameSession {
   ): Promise<void> {
     if (this.gameEnded) {
       socket.emit("move_error", { message: "Game has ended", fen: this.chess.fen() });
+      return;
+    }
+
+    if (this.draining) {
+      socket.emit("move_error", { message: "The server is restarting. Your game will resume.", fen: this.chess.fen() });
       return;
     }
 
@@ -397,6 +558,9 @@ export class GameSession {
 
     logger.info(`Move made: ${move.san}${this.isAIGame ? " (AI game)" : ""}`, { game: this.gameData.referenceId });
 
+    // Any move clears a pending draw offer (plan §8.8).
+    this.drawOfferBy = null;
+
     // Stop current player's clock and add increment
     this.clockManager.stopClock();
     this.clockManager.addIncrement(currentTurn);
@@ -425,21 +589,23 @@ export class GameSession {
     }
     this.broadcastToSpectators("move_made", moveMadePayload);
 
-    // Check for game end conditions
-    if (this.chess.isGameOver()) {
-      await this.handleGameOver();
-      return;
-    }
-
-    // Persist move to database (async, non-blocking)
-    // For AI games, use the appropriate player reference ID
+    // Persist the move (async, non-blocking for play). For AI games, use the appropriate
+    // player reference ID. The final move is persisted too, before the result (H6 #7):
+    // endGame() waits for every in-flight write before it calls game-over.
     const movePlayerId = this.isAIGame && currentTurn === this.botColor
       ? this.gameData.gameData?.botReferenceId || player.userReferenceId
       : player.userReferenceId;
 
-    this.persistMoveToDb(movePlayerId, move).catch((error) => {
-      logger.error("Error persisting move to DB", error, { game: this.gameData.referenceId });
-    });
+    this.trackWrite(
+      this.persistMoveToDb(movePlayerId, move).catch((error) => {
+        logger.error("Error persisting move to DB", error, { game: this.gameData.referenceId });
+      })
+    );
+
+    // Check for game end conditions
+    if (this.chess.isGameOver()) {
+      await this.handleGameOver();
+    }
   }
 
   /**
@@ -474,6 +640,14 @@ export class GameSession {
       return;
     }
 
+    // Bots never accept a draw (the client declines locally), and one offer may be pending
+    // at a time.
+    if (this.isAIGame || this.drawOfferBy !== null) {
+      return;
+    }
+
+    this.drawOfferBy = player.userReferenceId;
+
     // Notify opponent
     const opponent = player.color === "w" ? this.blackPlayer : this.whitePlayer;
     if (opponent) {
@@ -482,18 +656,34 @@ export class GameSession {
   }
 
   /**
-   * Handle draw acceptance
+   * Handle draw acceptance (plan §7.5 #1, AS F-01): valid only from a player, and only when the
+   * other player has a pending offer. Anything else is rejected and the game continues.
+   * Returns true when the game ended in a draw.
    */
-  public async handleDrawAcceptance(socket: Socket): Promise<void> {
+  public async handleDrawAcceptance(socket: Socket): Promise<boolean> {
     if (this.gameEnded) {
-      return;
+      return false;
+    }
+
+    const player = this.getPlayerBySocket(socket);
+    const offerBy = this.drawOfferBy;
+    if (!player || offerBy === null || offerBy === player.userReferenceId) {
+      const reason = !player ? "not_player" : offerBy === null ? "no_offer" : "own_offer";
+      logger.warn(`draw_rejected (${reason})`, { game: this.gameData.referenceId, socket: socket.id });
+      Sentry.captureMessage("draw_rejected", {
+        level: "warning",
+        tags: { "game.referenceId": this.gameData.referenceId, reason },
+      });
+      socket.emit("error", errorPayload("no_pending_offer", "There is no draw offer to accept."));
+      return false;
     }
 
     await this.endGame("DRAW", null, "draw_agreement");
+    return true;
   }
 
   /**
-   * Handle draw decline
+   * Handle draw decline: only the receiver of a pending offer can decline it.
    */
   public handleDrawDecline(socket: Socket): void {
     if (this.gameEnded) {
@@ -504,6 +694,11 @@ export class GameSession {
     if (!player) {
       return;
     }
+
+    if (this.drawOfferBy === null || this.drawOfferBy === player.userReferenceId) {
+      return;
+    }
+    this.drawOfferBy = null;
 
     // Notify the opponent who offered the draw that it was declined
     const opponent = player.color === "w" ? this.blackPlayer : this.whitePlayer;
@@ -527,6 +722,11 @@ export class GameSession {
       return;
     }
 
+    // During a shutdown drain every socket disconnects; nobody forfeits for that.
+    if (this.draining) {
+      return;
+    }
+
     logger.info(`Player ${player.userReferenceId} disconnected`, { game: this.gameData.referenceId });
 
     // In AI games, if the human disconnects, end the game (bot wins)
@@ -537,8 +737,8 @@ export class GameSession {
         // Start disconnect timer - if human doesn't reconnect, bot wins
         const timer = setTimeout(async () => {
           logger.info("Human player did not reconnect to AI game - bot wins", { game: this.gameData.referenceId });
-          const result: GameResult = this.botColor === "w" ? "CREATOR_WON" : "OPPONENT_WON";
-          await this.endGame(result, this.botColor, "timeout");
+          const botColor = this.botColor ?? (this.humanPlayerColor === "w" ? "b" : "w");
+          await this.endGame(this.getGameResult(botColor), botColor, "timeout");
         }, this.DISCONNECT_GRACE_PERIOD);
         this.disconnectTimers.set(player.userReferenceId, timer);
       }
@@ -555,10 +755,9 @@ export class GameSession {
       // Start disconnect timer
       const timer = setTimeout(async () => {
         logger.info(`Player ${player.userReferenceId} did not reconnect in time`, { game: this.gameData.referenceId });
-        // Player forfeits
-        const result: GameResult =
-          player.color === "w" ? "OPPONENT_WON" : "CREATOR_WON";
-        await this.endGame(result, opponent.color, "timeout");
+        // Player forfeits: the connected player wins. The result comes from who is creator,
+        // not from the colour (H6 #6, AS F-10); the method stays `timeout` until protocol v2.
+        await this.endGame(this.getGameResult(opponent.color), opponent.color, "timeout");
       }, this.DISCONNECT_GRACE_PERIOD);
 
       this.disconnectTimers.set(player.userReferenceId, timer);
@@ -615,9 +814,10 @@ export class GameSession {
         logger.info("Notified opponent of reconnection", { game: this.gameData.referenceId });
       }
 
-      // Send current game state to reconnected player
+      // Send current game state to reconnected player. Bot games need isAIGame/difficulty or
+      // the client never plays the bot's moves after a refresh (H6 #10, AS F-11).
       const positionInfo = this.gameData.gameData?.positionInfo;
-      socket.emit("game_started", {
+      const reconnectPayload: GameStartedPayload = {
         gameReferenceId: this.gameData.referenceId,
         yourColor:
           this.whitePlayer?.userReferenceId === userReferenceId ? "w" : "b",
@@ -626,8 +826,11 @@ export class GameSession {
         blackTime: this.clockManager.getTimeInSeconds("b"),
         whitePlayer: this.whitePlayer!.playerInfo,
         blackPlayer: this.blackPlayer!.playerInfo,
+        isAIGame: this.isAIGame || undefined,
+        difficulty: this.isAIGame ? this.aiDifficulty : undefined,
         positionInfo: positionInfo || undefined,
-      });
+      };
+      socket.emit("game_started", reconnectPayload);
       logger.info("Sent game state to reconnected player", { game: this.gameData.referenceId });
     } else if (this.isAnalysisPhase) {
       // Reconnecting during analysis phase — send analysis state + current tick
@@ -690,12 +893,72 @@ export class GameSession {
    */
   public async flushStateToDb(): Promise<void> {
     if (!this.gameStarted || this.gameEnded) return;
-    await updateGameState({
-      gameReferenceId: this.gameData.referenceId,
-      whiteTime: this.clockManager.getTimeInSeconds("w"),
-      blackTime: this.clockManager.getTimeInSeconds("b"),
-      lastMoveAt: new Date(),
+    await this.trackWrite(
+      updateGameState({
+        gameReferenceId: this.gameData.referenceId,
+        whiteTime: this.clockManager.getTimeInSeconds("w"),
+        blackTime: this.clockManager.getTimeInSeconds("b"),
+        lastMoveAt: new Date(),
+      })
+    );
+  }
+
+  /**
+   * Waits for every web write still in flight (moves, clock flush, result), up to
+   * `timeoutMs`. Returns false when the deadline passed first.
+   */
+  public async flushPendingWrites(timeoutMs: number): Promise<boolean> {
+    if (this.pendingWrites.size === 0) return true;
+    let timer: NodeJS.Timeout | undefined;
+    const deadline = new Promise<false>((resolve) => {
+      timer = setTimeout(() => resolve(false), timeoutMs);
     });
+    const settled = Promise.allSettled(Array.from(this.pendingWrites)).then(() => true as const);
+    try {
+      return await Promise.race([settled, deadline]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /**
+   * Shutdown drain (H6 #13): stop the clocks and the study countdown, cancel forfeit timers,
+   * and refuse further moves. The next server restores the game from the stored moves.
+   */
+  public beginDrain(): void {
+    this.draining = true;
+    this.clearAnalysisTimers();
+    this.clockManager.stopClock();
+    this.disconnectTimers.forEach((timer) => clearTimeout(timer));
+    this.disconnectTimers.clear();
+  }
+
+  /** True once the game has ended by any path. */
+  public isEnded(): boolean {
+    return this.gameEnded;
+  }
+
+  /**
+   * What a client joining an ended session receives (H6 #8, AS F-09): the `game_over`
+   * payload plus the final move list, instead of a live `game_started`.
+   */
+  public getGameOverSnapshot(): (GameOverPayload & { gameReferenceId: string; moveHistory: Array<{ from: string; to: string; san: string; promotion?: string }> }) | null {
+    if (!this.lastGameOverPayload) return null;
+    return {
+      ...this.lastGameOverPayload,
+      gameReferenceId: this.gameData.referenceId,
+      moveHistory: this.chess.history({ verbose: true }).map((m) => ({
+        from: m.from,
+        to: m.to,
+        san: m.san,
+        promotion: m.promotion || undefined,
+      })),
+    };
+  }
+
+  /** Number of plies replayed from the stored history when the session was created. */
+  public getRestoredPlies(): number {
+    return this.restoredPlies;
   }
 
   /**
@@ -812,6 +1075,22 @@ export class GameSession {
       : "OPPONENT_WON";
   }
 
+  /** `gameData.creatorColor` written by the web at creation; absent → creator plays White. */
+  private creatorPlaysWhite(): boolean {
+    const creatorColor = (this.gameData.gameData as { creatorColor?: unknown } | undefined)?.creatorColor;
+    return creatorColor !== "black";
+  }
+
+  /** Remembers an in-flight web write until it settles. */
+  private trackWrite<T>(write: Promise<T>): Promise<T> {
+    this.pendingWrites.add(write);
+    const forget = () => {
+      this.pendingWrites.delete(write);
+    };
+    write.then(forget, forget);
+    return write;
+  }
+
   private getPlayerBySocket(socket: Socket): PlayerConnection | null {
     // In AI games, both players share the human's socket.
     // Any action from this socket belongs to the human player.
@@ -849,6 +1128,7 @@ export class GameSession {
    * Bullet (<3min): 15s, Blitz (<10min): 20s, Rapid: 30s
    */
   private getAnalysisTime(): number {
+    if (this.options.analysisSecondsOverride !== undefined) return this.options.analysisSecondsOverride;
     const initialTime = this.gameData.initialTimeSeconds;
     if (initialTime < 180) return 15;      // Bullet: 15s
     else if (initialTime < 600) return 20; // Blitz: 20s
@@ -1050,9 +1330,12 @@ export class GameSession {
     }
 
     this.gameEnded = true;
+    this.drawOfferBy = null;
     this.clearAnalysisTimers();
     this.isAnalysisPhase = false;
     this.clockManager.stopClock();
+    this.disconnectTimers.forEach((timer) => clearTimeout(timer));
+    this.disconnectTimers.clear();
 
     // Track game duration
     const durationSeconds = Math.round((Date.now() - this.sessionCreatedAt) / 1000);
@@ -1073,6 +1356,13 @@ export class GameSession {
 
     logger.info(`Game ended: ${result} by ${method}`, { game: this.gameData.referenceId });
 
+    // The manager evicts the session after the rematch window (H6 #8).
+    try {
+      this.options.onEnded?.(this.gameData.referenceId);
+    } catch (error) {
+      logger.error("onEnded callback failed", error, { game: this.gameData.referenceId });
+    }
+
     // Persist game result to database
     const winnerId =
       winner === "w"
@@ -1081,7 +1371,8 @@ export class GameSession {
         ? this.blackPlayer?.userReferenceId
         : undefined;
 
-    await completeGame({
+    // Snapshot now: the result request carries the final position and move list (H6 #7).
+    const gameOverRequest = {
       gameReferenceId: this.gameData.referenceId,
       result,
       winnerId,
@@ -1089,9 +1380,21 @@ export class GameSession {
       fen: this.chess.fen(),
       whiteTime: this.clockManager.getTimeInSeconds("w"),
       blackTime: this.clockManager.getTimeInSeconds("b"),
-    }).catch((error) => {
-      logger.error("Error completing game in DB", error, { game: this.gameData.referenceId });
-    });
+      moveHistory: this.chess.history({ verbose: true }),
+    };
+
+    // Let in-flight move writes land first: the move route only accepts IN_PROGRESS games,
+    // so a move persisted after game-over would be lost. The whole tail is one tracked write
+    // so a drain waits for the result too.
+    const earlierWrites = Array.from(this.pendingWrites);
+    await this.trackWrite(
+      (async () => {
+        await Promise.allSettled(earlierWrites);
+        await completeGame(gameOverRequest).catch((error) => {
+          logger.error("Error completing game in DB", error, { game: this.gameData.referenceId });
+        });
+      })()
+    );
   }
 
   private async persistMoveToDb(

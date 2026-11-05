@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/app/generated/prisma";
 import { logger } from "@/lib/logger";
+import { requireAdmin } from "@/lib/auth/require-admin";
 
 // Schema for updating chess position (all fields optional for partial updates)
 const updateChessPositionSchema = z.object({
@@ -97,6 +98,62 @@ async function findPosition(id: string) {
   return position;
 }
 
+const LEGEND_SUMMARY_SELECT = {
+  id: true,
+  referenceId: true,
+  name: true,
+  era: true,
+  profilePhotoUrl: true,
+} as const;
+
+/**
+ * Columns GET returns (plan A11): an explicit select without `explanation` (and its audio URL),
+ * `sourceMetadata` or the white/black player metadata. Unlike the list route, nothing reads this
+ * endpoint back into the admin edit form, so those fields have no consumer here.
+ */
+const POSITION_DETAIL_SELECT = {
+  id: true,
+  referenceId: true,
+  fen: true,
+  sideToMove: true,
+  pgn: true,
+  moveNumber: true,
+  whitePlayerName: true,
+  blackPlayerName: true,
+  whitePlayerId: true,
+  blackPlayerId: true,
+  tournamentName: true,
+  eventDate: true,
+  gameMetadata: true,
+  positionType: true,
+  positionContext: true,
+  sourceType: true,
+  timesPlayed: true,
+  popularityScore: true,
+  featured: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+  whiteLegend: { select: LEGEND_SUMMARY_SELECT },
+  blackLegend: { select: LEGEND_SUMMARY_SELECT },
+} satisfies Prisma.ChessPositionSelect;
+
+// GET's lookup: referenceId (CUID) first, then the BigInt id, with the A11 projection.
+async function findPositionDetail(id: string) {
+  const byRef = await prisma.chessPosition.findUnique({
+    where: { referenceId: id },
+    select: POSITION_DETAIL_SELECT,
+  });
+  if (byRef) return byRef;
+  let bigIntId: bigint;
+  try {
+    bigIntId = BigInt(id);
+  } catch {
+    return null; // not a CUID we know and not a numeric id
+  }
+  return prisma.chessPosition.findUnique({ where: { id: bigIntId }, select: POSITION_DETAIL_SELECT });
+}
+
 // Helper to resolve legend referenceId to BigInt id
 async function resolveLegendId(
   referenceId: string | null | undefined
@@ -116,9 +173,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const admin = await requireAdmin();
+  if (admin.error) return admin.error;
+
   try {
     const { id } = await params;
-    const position = await findPosition(id);
+    const position = await findPositionDetail(id);
 
     if (!position) {
       return NextResponse.json(
@@ -156,7 +216,6 @@ export async function GET(
     return NextResponse.json(
       {
         error: "Failed to fetch chess position",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );
@@ -168,6 +227,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const admin = await requireAdmin();
+  if (admin.error) return admin.error;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -337,7 +399,6 @@ export async function PUT(
     return NextResponse.json(
       {
         error: "Failed to update chess position",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );
@@ -349,6 +410,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const admin = await requireAdmin();
+  if (admin.error) return admin.error;
+
   try {
     const { id } = await params;
     const position = await findPosition(id);
@@ -381,7 +445,6 @@ export async function DELETE(
     return NextResponse.json(
       {
         error: "Failed to delete chess position",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

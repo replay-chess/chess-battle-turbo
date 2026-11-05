@@ -46,6 +46,12 @@ model User {
   // has been used, even if it was cancelled.
   trialStartedAt        DateTime?
   trialEndsAt           DateTime?
+  /// M1 (P1). Provider-side time of the snapshot last applied (Dodo webhook timestamp or the API object's own
+  /// timestamp). The billing compare-and-set key. Never set from now().
+  subscriptionSourceAt  DateTime?
+  /// M1 (P1). Bumped by every write that changes the member's game list (P2 finish, P3 analysis and review
+  /// completion, P4 import and purge). P3's archive ETag reads it from the viewer row.
+  gamesVersion          Int       @default(0)
   chessComProfile     ChessComProfile?
   gamesAsCreator       Game[]             @relation("CreatorGames")
   gamesAsOpponent      Game[]             @relation("OpponentGames")
@@ -431,4 +437,45 @@ model TournamentParticipant {
   @@index([tournamentId, points(sort: Desc)])
   @@index([userId])
   @@map("tournament_participants")
+}
+
+/// M1 (P1). Webhook idempotency for Dodo and Clerk. Clerk rows never store the payload (PII).
+/// Dodo payloads are kept 180 days, Clerk rows 30 days, then deleted by the daily cron (webhook-retention).
+model WebhookEvent {
+  provider    String    @db.VarChar(16) // "dodo" | "clerk"
+  eventId     String    @db.VarChar(100) // Dodo `webhook-id`, Clerk `svix-id`
+  type        String    @db.VarChar(64) // "subscription.active", "user.created", …
+  eventTime   DateTime? // provider timestamp
+  userId      BigInt? // users.id once resolved; no FK (rows outlive deleted users)
+  status      String?   @db.VarChar(16) // "applied" | "ignored" | "stale" | "unmatched" | "error"
+  error       String?   @db.VarChar(500) // safe message, never a stack
+  payload     Json? // Dodo only
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@id([provider, eventId])
+  @@map("webhook_events")
+}
+
+/// M1 (P1). Fixed-window counters for BURST limits only (window ≤ 300 s). Created UNLOGGED by hand in the
+/// migration SQL: no WAL; Neon empties it when the compute restarts or scales to zero. A window ≤ 300 s cannot be
+/// reset early by a suspend, because Neon suspends only after 300 s without queries.
+/// Never store daily or monthly budgets here (use RateLimitWindow or count the source rows).
+/// Never recreate this table with `prisma db push`: it would come back LOGGED.
+model RateLimitBucket {
+  key     String   @id @db.VarChar(120) // "rl:<bucket>:c:<clerkUserId>" | "rl:<bucket>:ip:<sha256(pepper‖ip)[0:16]>"
+  count   Int
+  resetAt DateTime
+
+  @@map("rate_limit_buckets")
+}
+
+/// M1 (P1). The same counters for DURABLE limits (window > 300 s). Logged, so they survive a compute restart.
+/// Same statement as the burst store; swept daily (rate-limit-sweep).
+model RateLimitWindow {
+  key     String   @id @db.VarChar(120)
+  count   Int
+  resetAt DateTime
+
+  @@map("rate_limit_windows")
 }

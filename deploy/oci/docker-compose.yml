@@ -10,6 +10,9 @@ services:
       - NODE_ENV=production
       - PORT=3002
     restart: unless-stopped
+    # On SIGTERM the server tells clients it is restarting, saves clocks and pending moves
+    # (at most 20 s), then closes. Give it that time before Docker sends SIGKILL (H6 #13).
+    stop_grace_period: 30s
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3002/health"]
       interval: 30s

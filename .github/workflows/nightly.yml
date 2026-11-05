@@ -1,0 +1,391 @@
+# Nightly regression (phase-01 plan §12.6, §13.4; CT X2, X8, X11, X14).
+#
+# Scheduled workflows run from the default branch, so this file is committed to
+# `main` (workflow-only commit) and to `dev`; every job checks out `ref: dev`.
+# Later phases append jobs (P2 resilience, P3 arm64 goldens, P4 provider canary,
+# P6 weakness recompute).
+#
+# Secrets (owner adds; names only): E2E_TEST_TOKEN, VERCEL_AUTOMATION_BYPASS_SECRET,
+# NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY (development instance),
+# E2E_USER_{A..P,R}_{EMAIL,PASSWORD}, DEV_DATABASE_URL (Neon dev branch, used by
+# the dev-url job's global setup only), DODO_* test-mode keys.
+name: Nightly
+
+on:
+  schedule:
+    - cron: "30 21 * * *"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or SHA to test"
+        default: dev
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  REF: ${{ inputs.ref || 'dev' }}
+  NODE_VERSION: 22
+
+jobs:
+  e2e-full:
+    name: e2e-full (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    services:
+      db:
+        image: postgres:17-alpine
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: replay }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      CI: "1"
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/replay
+      BILLING_PAYWALL: "on"
+      NEXT_PUBLIC_APP_ENV: test
+      ALLOW_TEST_HOOKS: "1"
+      NEXT_PUBLIC_TELEMETRY_SINK: "1"
+      POSTHOG_HOST: http://127.0.0.1:4011
+      NEXT_PUBLIC_POSTHOG_KEY: ""
+      NEXT_PUBLIC_SENTRY_DSN: ""
+      SENTRY_DSN: ""
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
+      E2E_INCLUDE_QUARANTINED: "1"
+      E2E_TEST_TOKEN: ${{ secrets.E2E_TEST_TOKEN }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+      NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:3002
+      DODO_PAYMENTS_ENVIRONMENT: test_mode
+      DODO_PAYMENTS_API_KEY: ${{ secrets.DODO_PAYMENTS_API_KEY }}
+      DODO_PAYMENTS_WEBHOOK_KEY: ${{ secrets.DODO_PAYMENTS_WEBHOOK_KEY }}
+      DODO_PRODUCT_ID_MONTHLY: ${{ secrets.DODO_PRODUCT_ID_MONTHLY }}
+      DODO_PRODUCT_ID_YEARLY: ${{ secrets.DODO_PRODUCT_ID_YEARLY }}
+      DODO_PAYMENTS_RETURN_URL: http://localhost:3000/pricing?checkout=success
+      INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
+      E2E_USER_A_EMAIL: ${{ secrets.E2E_USER_A_EMAIL }}
+      E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
+      E2E_USER_B_EMAIL: ${{ secrets.E2E_USER_B_EMAIL }}
+      E2E_USER_B_PASSWORD: ${{ secrets.E2E_USER_B_PASSWORD }}
+      E2E_USER_C_EMAIL: ${{ secrets.E2E_USER_C_EMAIL }}
+      E2E_USER_C_PASSWORD: ${{ secrets.E2E_USER_C_PASSWORD }}
+      E2E_USER_D_EMAIL: ${{ secrets.E2E_USER_D_EMAIL }}
+      E2E_USER_D_PASSWORD: ${{ secrets.E2E_USER_D_PASSWORD }}
+      E2E_USER_E_EMAIL: ${{ secrets.E2E_USER_E_EMAIL }}
+      E2E_USER_E_PASSWORD: ${{ secrets.E2E_USER_E_PASSWORD }}
+      E2E_USER_F_EMAIL: ${{ secrets.E2E_USER_F_EMAIL }}
+      E2E_USER_F_PASSWORD: ${{ secrets.E2E_USER_F_PASSWORD }}
+      E2E_USER_G_EMAIL: ${{ secrets.E2E_USER_G_EMAIL }}
+      E2E_USER_G_PASSWORD: ${{ secrets.E2E_USER_G_PASSWORD }}
+      E2E_USER_H_EMAIL: ${{ secrets.E2E_USER_H_EMAIL }}
+      E2E_USER_H_PASSWORD: ${{ secrets.E2E_USER_H_PASSWORD }}
+      E2E_USER_I_EMAIL: ${{ secrets.E2E_USER_I_EMAIL }}
+      E2E_USER_I_PASSWORD: ${{ secrets.E2E_USER_I_PASSWORD }}
+      E2E_USER_J_EMAIL: ${{ secrets.E2E_USER_J_EMAIL }}
+      E2E_USER_J_PASSWORD: ${{ secrets.E2E_USER_J_PASSWORD }}
+      E2E_USER_K_EMAIL: ${{ secrets.E2E_USER_K_EMAIL }}
+      E2E_USER_K_PASSWORD: ${{ secrets.E2E_USER_K_PASSWORD }}
+      E2E_USER_L_EMAIL: ${{ secrets.E2E_USER_L_EMAIL }}
+      E2E_USER_L_PASSWORD: ${{ secrets.E2E_USER_L_PASSWORD }}
+      E2E_USER_M_EMAIL: ${{ secrets.E2E_USER_M_EMAIL }}
+      E2E_USER_M_PASSWORD: ${{ secrets.E2E_USER_M_PASSWORD }}
+      E2E_USER_N_EMAIL: ${{ secrets.E2E_USER_N_EMAIL }}
+      E2E_USER_N_PASSWORD: ${{ secrets.E2E_USER_N_PASSWORD }}
+      E2E_USER_O_EMAIL: ${{ secrets.E2E_USER_O_EMAIL }}
+      E2E_USER_O_PASSWORD: ${{ secrets.E2E_USER_O_PASSWORD }}
+      E2E_USER_P_EMAIL: ${{ secrets.E2E_USER_P_EMAIL }}
+      E2E_USER_P_PASSWORD: ${{ secrets.E2E_USER_P_PASSWORD }}
+      E2E_USER_R_EMAIL: ${{ secrets.E2E_USER_R_EMAIL }}
+      E2E_USER_R_PASSWORD: ${{ secrets.E2E_USER_R_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.REF }}" }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium
+      - name: Migrate and seed the Docker database
+        run: |
+          pnpm --filter web exec prisma migrate deploy
+          pnpm --filter web prisma:seed
+          pnpm --filter web prisma:seed:openings
+      - name: Build (test app env, hooks on, sinks on)
+        run: pnpm --filter web build
+      - name: Playwright (main config, quarantined tests included)
+        run: pnpm --filter web exec playwright test --project=chromium --project=play-queue --shard=${{ matrix.shard }}/4
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-full-${{ matrix.shard }}
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/results.json
+          retention-days: 14
+
+  devices-full:
+    name: devices-full (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      CI: "1"
+      NEXT_PUBLIC_APP_ENV: test
+      NEXT_PUBLIC_POSTHOG_KEY: ""
+      NEXT_PUBLIC_SENTRY_DSN: ""
+      SENTRY_DSN: ""
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.REF }}" }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium webkit
+      - run: pnpm --filter web exec prisma generate
+      - name: All 40 layout projects + UI + motion (builds .next-devices, serves :3100)
+        run: pnpm --filter web test:devices --shard=${{ matrix.shard }}/4
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: devices-full-${{ matrix.shard }}
+          path: apps/web/playwright-report-devices/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  visual:
+    # Visual baselines (1Q·2) run in the official image so fonts match the baselines.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container: mcr.microsoft.com/playwright:v1.58.2-noble
+    env:
+      CI: "1"
+      NEXT_PUBLIC_APP_ENV: test
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.REF }}" }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec prisma generate
+      - name: toHaveScreenshot specs (@visual)
+        run: pnpm --filter web test:devices --grep @visual --pass-with-no-tests
+
+  state-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.REF }}" }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Design-state coverage (missing states fail)
+        run: pnpm exec tsx scripts/qa/state-coverage.ts --markdown "$GITHUB_STEP_SUMMARY"
+
+  flags-off:
+    # The flags-off project (1Q·2) runs the earlier phases' @smoke specs with the
+    # open phase's flags off. Skips cleanly until the project exists.
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      db:
+        image: postgres:17-alpine
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: replay }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      CI: "1"
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/replay
+      BILLING_PAYWALL: "on"
+      NEXT_PUBLIC_APP_ENV: test
+      ALLOW_TEST_HOOKS: "1"
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:3002
+      E2E_TEST_TOKEN: ${{ secrets.E2E_TEST_TOKEN }}
+      E2E_USER_A_EMAIL: ${{ secrets.E2E_USER_A_EMAIL }}
+      E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
+      E2E_USER_B_EMAIL: ${{ secrets.E2E_USER_B_EMAIL }}
+      E2E_USER_B_PASSWORD: ${{ secrets.E2E_USER_B_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.REF }}" }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - id: has
+        working-directory: apps/web
+        run: |
+          if pnpm exec playwright test --list --project=flags-off > /dev/null 2>&1; then echo "project=1" >> "$GITHUB_OUTPUT";
+          else echo "project=0" >> "$GITHUB_OUTPUT"; echo "::notice::flags-off project not defined yet (1Q·2)"; fi
+      - if: steps.has.outputs.project == '1'
+        run: |
+          pnpm --filter web exec playwright install --with-deps chromium
+          pnpm --filter web exec prisma migrate deploy
+          pnpm --filter web prisma:seed
+          pnpm --filter web exec playwright test --project=flags-off
+
+  quarantine-report:
+    needs: e2e-full
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.REF }}" }
+      - uses: actions/download-artifact@v4
+        with: { pattern: "e2e-full-*", path: results }
+      - name: Restore the flaky history
+        uses: actions/cache/restore@v4
+        with:
+          path: .flaky-history.json
+          key: flaky-history-${{ github.run_id }}
+          restore-keys: flaky-history-
+      - name: Report quarantine and flaky tests
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const q = JSON.parse(fs.readFileSync("apps/web/e2e/quarantine.json", "utf8")).entries ?? [];
+            const today = new Date().toISOString().slice(0, 10);
+            const expired = q.filter((e) => !(e.expires >= today));
+            // Flaky = passed only on retry (status "flaky" in the JSON reporter).
+            const flaky = new Set();
+            const walk = (suite, titles) => {
+              for (const s of suite.suites ?? []) walk(s, [...titles, s.title]);
+              for (const spec of suite.specs ?? []) {
+                for (const t of spec.tests ?? []) {
+                  if (t.status === "flaky") flaky.add([...titles, spec.title].filter(Boolean).join(" › "));
+                }
+              }
+            };
+            for (const dir of fs.existsSync("results") ? fs.readdirSync("results") : []) {
+              const file = path.join("results", dir, "test-results", "results.json");
+              if (fs.existsSync(file)) for (const s of JSON.parse(fs.readFileSync(file, "utf8")).suites ?? []) walk(s, []);
+            }
+            const history = fs.existsSync(".flaky-history.json") ? JSON.parse(fs.readFileSync(".flaky-history.json", "utf8")) : {};
+            const yesterday = new Set(history.last ?? []);
+            const twice = [...flaky].filter((t) => yesterday.has(t));
+            fs.writeFileSync(".flaky-history.json", JSON.stringify({ date: today, last: [...flaky] }));
+            const lines = [
+              `### Quarantine (${q.length} entr${q.length === 1 ? "y" : "ies"})`,
+              ...q.map((e) => `- ${e.testId} — ${e.reason} (owner ${e.owner}, expires ${e.expires})`),
+              `### Flaky tonight (${flaky.size})`,
+              ...[...flaky].map((t) => `- ${t}`),
+            ];
+            await core.summary.addRaw(lines.join("\n")).write();
+            for (const t of twice) {
+              const title = `quarantine: ${t}`.slice(0, 250);
+              const { data: open } = await github.rest.search.issuesAndPullRequests({
+                q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:title "${title.replace(/"/g, "")}"`,
+              });
+              if (open.total_count) continue;
+              const expires = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+              await github.rest.issues.create({
+                ...context.repo,
+                title,
+                labels: ["quarantine", "flaky"],
+                body: [
+                  "Flaky on two consecutive nightly runs (passed only on retry).",
+                  "Add this entry to `apps/web/e2e/quarantine.json` and fix the test within 14 days:",
+                  "```json",
+                  JSON.stringify({ testId: t, reason: "flaky two nights in a row", owner: "TBD", expires, issue: "#<this issue>" }, null, 2),
+                  "```",
+                ].join("\n"),
+              });
+            }
+            if (expired.length) core.setFailed(`expired quarantine entries: ${expired.map((e) => e.testId).join("; ")}`);
+      - name: Save the flaky history
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .flaky-history.json
+          key: flaky-history-${{ github.run_id }}
+
+  dev-url:
+    # The @smoke subset against the deployed dev site, with the Vercel bypass header.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency: { group: e2e-dev-shared, cancel-in-progress: false }
+    env:
+      CI: "1"
+      E2E_BASE_URL: https://replay-chess-dev-replaychess007-1069.vercel.app
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DEV_DATABASE_URL }}
+      E2E_TEST_TOKEN: ${{ secrets.E2E_TEST_TOKEN }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      E2E_USER_A_EMAIL: ${{ secrets.E2E_USER_A_EMAIL }}
+      E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
+      E2E_USER_B_EMAIL: ${{ secrets.E2E_USER_B_EMAIL }}
+      E2E_USER_B_PASSWORD: ${{ secrets.E2E_USER_B_PASSWORD }}
+      E2E_USER_C_EMAIL: ${{ secrets.E2E_USER_C_EMAIL }}
+      E2E_USER_C_PASSWORD: ${{ secrets.E2E_USER_C_PASSWORD }}
+      E2E_USER_D_EMAIL: ${{ secrets.E2E_USER_D_EMAIL }}
+      E2E_USER_D_PASSWORD: ${{ secrets.E2E_USER_D_PASSWORD }}
+      E2E_USER_E_EMAIL: ${{ secrets.E2E_USER_E_EMAIL }}
+      E2E_USER_E_PASSWORD: ${{ secrets.E2E_USER_E_PASSWORD }}
+      E2E_USER_F_EMAIL: ${{ secrets.E2E_USER_F_EMAIL }}
+      E2E_USER_F_PASSWORD: ${{ secrets.E2E_USER_F_PASSWORD }}
+      E2E_USER_G_EMAIL: ${{ secrets.E2E_USER_G_EMAIL }}
+      E2E_USER_G_PASSWORD: ${{ secrets.E2E_USER_G_PASSWORD }}
+      E2E_USER_H_EMAIL: ${{ secrets.E2E_USER_H_EMAIL }}
+      E2E_USER_H_PASSWORD: ${{ secrets.E2E_USER_H_PASSWORD }}
+      E2E_USER_I_EMAIL: ${{ secrets.E2E_USER_I_EMAIL }}
+      E2E_USER_I_PASSWORD: ${{ secrets.E2E_USER_I_PASSWORD }}
+      E2E_USER_J_EMAIL: ${{ secrets.E2E_USER_J_EMAIL }}
+      E2E_USER_J_PASSWORD: ${{ secrets.E2E_USER_J_PASSWORD }}
+      E2E_USER_K_EMAIL: ${{ secrets.E2E_USER_K_EMAIL }}
+      E2E_USER_K_PASSWORD: ${{ secrets.E2E_USER_K_PASSWORD }}
+      E2E_USER_L_EMAIL: ${{ secrets.E2E_USER_L_EMAIL }}
+      E2E_USER_L_PASSWORD: ${{ secrets.E2E_USER_L_PASSWORD }}
+      E2E_USER_M_EMAIL: ${{ secrets.E2E_USER_M_EMAIL }}
+      E2E_USER_M_PASSWORD: ${{ secrets.E2E_USER_M_PASSWORD }}
+      E2E_USER_N_EMAIL: ${{ secrets.E2E_USER_N_EMAIL }}
+      E2E_USER_N_PASSWORD: ${{ secrets.E2E_USER_N_PASSWORD }}
+      E2E_USER_O_EMAIL: ${{ secrets.E2E_USER_O_EMAIL }}
+      E2E_USER_O_PASSWORD: ${{ secrets.E2E_USER_O_PASSWORD }}
+      E2E_USER_P_EMAIL: ${{ secrets.E2E_USER_P_EMAIL }}
+      E2E_USER_P_PASSWORD: ${{ secrets.E2E_USER_P_PASSWORD }}
+      E2E_USER_R_EMAIL: ${{ secrets.E2E_USER_R_EMAIL }}
+      E2E_USER_R_PASSWORD: ${{ secrets.E2E_USER_R_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.REF }}" }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium
+      - run: pnpm --filter web exec prisma generate
+      - name: "@smoke against the dev URL (@local-only skipped by the config)"
+        run: pnpm --filter web exec playwright test --project=chromium --grep @smoke
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-url-report
+          path: apps/web/playwright-report/
+          retention-days: 14

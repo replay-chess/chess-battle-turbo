@@ -1,13 +1,14 @@
 {
+  "id": "/",
   "name": "ReplayChess - Master Chess Through Legendary Games",
   "short_name": "ReplayChess",
   "description": "Replay iconic chess positions from history's greatest games. Study grandmaster moves, challenge friends, and master the classics.",
-  "start_url": "/",
+  "start_url": "/play",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#171717",
-  "theme_color": "#171717",
-  "orientation": "portrait-primary",
+  "background_color": "#FAF9F6",
+  "theme_color": "#FAF9F6",
+  "orientation": "any",
   "icons": [
     {
       "src": "/icons/icon-72x72.png",

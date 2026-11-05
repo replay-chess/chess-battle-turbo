@@ -1,0 +1,28 @@
+/*
+ * Toast extras (SPEC 7.2). Plain CSS, unlayered, imported by
+ * app/components/ThemeAwareToaster.tsx. Attribute names checked against
+ * sonner 2.0.7 dist/index.mjs: the close button carries data-close-button,
+ * action and cancel buttons carry data-button.
+ */
+
+/* The timer bar: scaleX 1 → 0 over the toast's duration (set inline by ToastBody). */
+@keyframes rc-toast-timer {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+.rc-toast-timer {
+  animation-name: rc-toast-timer;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+/* sonner pauses its JS timer on hover, focus and a hidden document; the bar follows. */
+:where([data-sonner-toaster]:hover, [data-sonner-toaster]:focus-within, html[data-rc-doc-hidden]) .rc-toast-timer {
+  animation-play-state: paused;
+}
+
+/* Phones and tablet portrait (TABBAR_MQ): no close button; in a game, text only. */
+@media (max-width: 600px), (max-width: 900px) and (orientation: portrait) {
+  [data-sonner-toast] [data-close-button] { display: none; }
+  html:has([data-rc-controls]) [data-sonner-toast] [data-button] { display: none; }
+}

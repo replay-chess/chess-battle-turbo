@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { X, Link, Swords, Clock, Share2, Copy, Check, MessageCircle, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
-import { ShareLinkModal } from "@/app/play/ShareLinkModal";
+import { ShareLinkModal } from "@/app/components/ShareLinkModal";
 
 interface AnalysisShareModalProps {
   isOpen: boolean;

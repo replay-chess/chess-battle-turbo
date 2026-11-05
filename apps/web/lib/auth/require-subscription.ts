@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isEntitled } from "@/lib/billing/entitlement-rules";
 import { isInternalServiceRequest, resolveUser } from "@/lib/auth/resolve-user";
+import { isPerfBypassRequest } from "@/lib/auth/secrets";
 
 /** HTTP status returned when a signed-in user has no active plan. */
 export const SUBSCRIPTION_REQUIRED_STATUS = 402;
@@ -24,7 +25,7 @@ export function isPaywallEnabled(): boolean {
  * Resolves the caller like `resolveUser`, then requires an active Coaching membership (or trial).
  *
  * Bypassed for: internal service calls (the socket server persisting moves),
- * the perf-test auth bypass, admins, and when the paywall is switched off.
+ * the fenced perf-test bypass (test hooks on + `x-perf-token`, AA F-11), admins, and when the paywall is switched off.
  * Everyone else gets a 402 with a machine-readable code the client can act on.
  */
 export async function requireSubscribedUser(
@@ -38,7 +39,7 @@ export async function requireSubscribedUser(
   const bypass =
     !isPaywallEnabled() ||
     isInternalServiceRequest(request) ||
-    process.env.PERF_AUTH_BYPASS === "true" ||
+    isPerfBypassRequest(request) ||
     user.role === "ADMIN";
 
   if (bypass || isEntitled(user)) {

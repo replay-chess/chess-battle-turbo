@@ -1,0 +1,61 @@
+# gitleaks configuration (phase-01 plan §11.2 H5, 1B·H).
+#
+# CI (1B·F7, ci.yml) scans the full history against the baseline:
+#   docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 git /repo \
+#     --log-opts=--all --redact --no-banner \
+#     --config /repo/.gitleaks.toml --baseline-path /repo/.gitleaks-baseline.json
+#
+# `--redact` is required: the committed baseline is redacted (it never holds a secret
+# value), and gitleaks compares a finding's Secret and Match with the baseline only when
+# redaction is off. Any finding that is not in the baseline fails the job.
+#
+# The baseline records the historical leaks in the deleted k8s/secrets.yaml (two Clerk
+# development secret keys and a live database URL). Deleting the file does not remove them
+# from history: the owner rotates those credentials (Q-02); the baseline only keeps the
+# scan green for commits that cannot change.
+
+title = "Replay Chess"
+
+[extend]
+useDefault = true
+
+# The default rules have no PostgreSQL rule, so a connection string with an inline password
+# passed the old scans unnoticed. This one flags any non-local one.
+[[rules]]
+id = "postgres-url-with-password"
+description = "PostgreSQL connection string with an inline password"
+regex = '''postgres(?:ql)?://[^:@\s/'"`]+:([^@\s'"`]+)@([A-Za-z0-9.-]+)'''
+secretGroup = 1
+keywords = ["postgres://", "postgresql://"]
+
+  [[rules.allowlists]]
+  description = "Local, Docker and CI databases"
+  regexTarget = "match"
+  regexes = ['''@(localhost|127\.0\.0\.1|0\.0\.0\.0|db|postgres|shadow|host\.docker\.internal)$''']
+
+  [[rules.allowlists]]
+  description = "Placeholders and variable references"
+  regexTarget = "secret"
+  regexes = [
+    '''^(password|passwd|pass|pw|secret|changeme|PASSWORD|\*+|x+|X+)$''',
+    '''^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$''',
+    '''^<[^>]*>$''',
+    '''^\[[^\]]*\]$''',
+  ]
+
+[[allowlists]]
+description = "Clerk publishable keys are public by design (they ship in the browser bundle)"
+regexTarget = "secret"
+regexes = ['''^pk_(test|live)_[A-Za-z0-9]+$''']
+
+[[allowlists]]
+description = "IndexNow keys are public by protocol (served at /<key>.txt)"
+paths = ['''^apps/web/scripts/indexnow\.mjs$''', '''^apps/web/lib/indexnow\.ts$''']
+
+[[allowlists]]
+description = "Generated, vendored and lock files"
+paths = [
+  '''(^|/)pnpm-lock\.yaml$''',
+  '''^apps/web/public/workers/''',
+  '''^apps/web/app/generated/''',
+]

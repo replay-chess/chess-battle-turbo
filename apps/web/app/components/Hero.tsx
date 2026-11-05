@@ -152,7 +152,7 @@ export default function Hero() {
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-cb-gradient-from to-transparent" />
 
       {/* Sticky mobile CTA */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 p-3 bg-cb-backdrop backdrop-blur-sm border-t border-cb-border">
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 p-3 pb-[max(0.75rem,var(--safe-bottom,0px))] bg-cb-backdrop backdrop-blur-sm border-t border-cb-border">
         {isSignedIn ? (
           <Link href="/play" className="block">
             <button

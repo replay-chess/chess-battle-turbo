@@ -1,14 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { requireAdmin } from "@/lib/auth/require-admin";
+
+const MAX_LIMIT = 50;
+
+/** Parses an integer query value and clamps it to [min, max]; missing or invalid → fallback. */
+function clampInt(raw: string | null, fallback: number, min: number, max: number): number {
+  const value = raw === null ? Number.NaN : Number.parseInt(raw, 10);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
+/**
+ * Columns the admin list needs (plan A11). `explanation` and `explanationAudioUrl` (large,
+ * unused by the list) are left out. The player, game, context and source metadata stay:
+ * the admin edit form (`app/admin/chess-positions/page.tsx`) loads them from this list and
+ * sends them back on save, so leaving them out would erase them.
+ */
+const POSITION_LIST_SELECT = {
+  id: true,
+  referenceId: true,
+  fen: true,
+  sideToMove: true,
+  pgn: true,
+  moveNumber: true,
+  whitePlayerName: true,
+  blackPlayerName: true,
+  whitePlayerMetadata: true,
+  blackPlayerMetadata: true,
+  whitePlayerId: true,
+  blackPlayerId: true,
+  tournamentName: true,
+  eventDate: true,
+  gameMetadata: true,
+  positionType: true,
+  positionContext: true,
+  sourceType: true,
+  sourceMetadata: true,
+  featured: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 export async function GET(request: NextRequest) {
+  const admin = await requireAdmin();
+  if (admin.error) return admin.error;
+
   try {
     const { searchParams } = new URL(request.url);
     const isActive = searchParams.get("isActive");
     const featured = searchParams.get("featured");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const page = clampInt(searchParams.get("page"), 1, 1, 100_000);
+    const limit = clampInt(searchParams.get("limit"), 50, 1, MAX_LIMIT);
 
     // Build where clause
     const where: {
@@ -31,7 +76,8 @@ export async function GET(request: NextRequest) {
     const [positions, total] = await Promise.all([
       prisma.chessPosition.findMany({
         where,
-        include: {
+        select: {
+          ...POSITION_LIST_SELECT,
           whiteLegend: {
             select: {
               id: true,
@@ -97,7 +143,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to fetch chess positions",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

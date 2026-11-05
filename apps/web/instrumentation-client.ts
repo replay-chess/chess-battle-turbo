@@ -4,6 +4,8 @@
 
 import * as Sentry from "@sentry/nextjs";
 import posthog from "posthog-js";
+import type { NavigationType } from "./lib/shell/nav-history";
+import "./lib/shell/nav-history";
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -31,7 +33,16 @@ Sentry.init({
   sendDefaultPii: true,
 });
 
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+/**
+ * Records the Sentry navigation span, then tells the app shell a navigation
+ * started (SPEC 3.10): the route hairline and the in-app history counter
+ * (lib/shell/nav-history.ts, imported above so it counts from the first load)
+ * listen for `rc:navigation-start`.
+ */
+export function onRouterTransitionStart(url: string, navigationType: NavigationType) {
+  Sentry.captureRouterTransitionStart(url, navigationType);
+  window.dispatchEvent(new CustomEvent("rc:navigation-start", { detail: { url, navigationType } }));
+}
 
 // PostHog product analytics. Events go through the /ingest proxy in
 // next.config.js; nothing is sent when the key is unset (local dev, CI).

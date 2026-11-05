@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/app/generated/prisma";
 import { logger } from "@/lib/logger";
+import { requireAdmin } from "@/lib/auth/require-admin";
 
 const createLegendSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -24,6 +25,9 @@ const createLegendSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const admin = await requireAdmin();
+  if (admin.error) return admin.error;
+
   try {
     const body = await request.json();
     logger.debug("Received legend data: " + JSON.stringify(body));
@@ -95,8 +99,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to create legend",
-        details: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
       },
       { status: 500 }
     );

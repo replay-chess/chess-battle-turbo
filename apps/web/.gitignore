@@ -59,3 +59,9 @@ next-env.d.ts
 /blob-report/
 /playwright/.cache/
 .env*.local
+
+# Phase 1 (SPEC 5.2): extra build dirs, seed cache, report variants, worker maps
+/.next-*/
+/prisma/.seed-cache/
+/playwright-report*/
+/public/swe-worker-*.js.map

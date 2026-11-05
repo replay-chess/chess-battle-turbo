@@ -4,7 +4,9 @@
     "baseUrl": ".",
     "jsx": "preserve",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     },
     "plugins": [
       {
@@ -15,9 +17,11 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    ".next-devices/types/**/*.ts",
+    ".next-prodcheck/types/**/*.ts",
+    ".next/types/**/*.ts",
     "next-env.d.ts",
-    "next.config.js",
-    ".next/types/**/*.ts"
+    "next.config.js"
   ],
   "exclude": [
     "node_modules"

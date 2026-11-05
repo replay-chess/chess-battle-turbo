@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useRef, useState, useEffect } from "react";
 import { cn } from "../../lib/utils";
 import { Chess, Color, PieceSymbol, Square } from "chess.js";
@@ -85,6 +87,9 @@ const sizeConfig = {
   // Responsive: fills container width on phones (<640px), fixed on sm+
   "responsive-lg": "flex-1 aspect-square sm:flex-none sm:aspect-auto sm:w-13 sm:h-13 md:w-20 md:h-20 lg:w-17 lg:h-17 xl:w-18 xl:h-18",
   "responsive-md": "flex-1 aspect-square sm:flex-none sm:aspect-auto sm:w-12 sm:h-12 md:w-18 md:h-18",
+  // Fill: squares are grid cells and the board is as wide as its parent
+  // (BoardStage's slot is var(--rc-board) wide). Decorations scale in cqw of the board.
+  fill: "min-w-0 min-h-0",
 } as const;
 
 // Static arrays for square notation conversion
@@ -153,17 +158,28 @@ const ChessBoard = ({
     x: number;
     y: number;
   } | null>(null);
-  // Measure the board container for SVG arrows and piece animation overlay
+  const isFill = squareSize === "fill";
+
+  // Measure the board container for SVG arrows and piece animation overlay.
+  // In fill mode this is the grid's content width.
   useEffect(() => {
     if (!boardContainerRef.current) return;
+    let warned = false;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setBoardPixelSize(entry.contentRect.width);
+        const width = entry.contentRect.width;
+        if (isFill && width === 0 && !warned && process.env.NODE_ENV !== "production") {
+          warned = true;
+          console.warn(
+            'ChessBoard squareSize="fill" measured 0px: its parent must give it a definite width (BoardStage does).',
+          );
+        }
+        setBoardPixelSize(width);
       }
     });
     observer.observe(boardContainerRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [isFill]);
 
   // Animate the overlay piece from source to destination square
   useEffect(() => {
@@ -398,21 +414,28 @@ const ChessBoard = ({
   return (
     <div className="flex items-center justify-center w-full select-none">
       {/* Board with outer frames */}
-      <div className={cn("relative", isResponsive && "w-full sm:w-auto")}>
-        {/* Outer decorative frame — hidden on mobile for responsive sizes */}
-        <div className={cn(
-          "absolute -inset-4 border border-white/10",
-          isResponsive && "hidden sm:block"
-        )} />
+      <div className={cn("relative", isResponsive && "w-full sm:w-auto", isFill && "w-full")}>
+        {/* Outer decorative frame — hidden on mobile for responsive sizes. Fill mode has
+            none: it draws 16px outside the box, so a board sized to its region would overflow. */}
+        {!isFill && (
+          <div className={cn(
+            "absolute -inset-4 border border-white/10",
+            isResponsive && "hidden sm:block"
+          )} />
+        )}
 
         {/* Main board container */}
         <div
           ref={boardContainerRef}
+          data-testid="chess-board"
+          data-size={squareSize}
           onPointerMove={handleBoardPointerMove}
           onPointerUp={handleBoardPointerUp}
           onLostPointerCapture={handleLostPointerCapture}
           className={cn(
             "relative border border-white/20 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]",
+            // Fill: an 8x8 grid as wide as its parent; the rows below become display:contents.
+            isFill && "@container/board grid w-full aspect-square grid-cols-8 grid-rows-8",
             gameEndState === "defeat" && "transition-all duration-1000"
           )}
           style={isInteractive ? { touchAction: "none" } : undefined}
@@ -423,7 +446,7 @@ const ChessBoard = ({
           <GameResultBanner gameEndState={gameEndState} />
           {/* The board itself */}
           {displayBoard.map((row, rowIndex) => (
-            <div key={rowIndex} className={cn("flex", isResponsive && "w-full")}>
+            <div key={rowIndex} className={cn(isFill ? "contents" : "flex", isResponsive && "w-full")}>
               {row.map((square, columnIndex) => {
                 const squareNotation = getSquareNotation(rowIndex, columnIndex);
                 const isSelected = isSquareSelected(rowIndex, columnIndex);
@@ -462,7 +485,11 @@ const ChessBoard = ({
                     {showRank && (
                       <span
                         className={cn(
-                          "absolute top-0.5 left-0.5 text-[7px] sm:text-[8px] font-medium leading-none select-none",
+                          // Size classes come before leading-none: cn() lets a later font-size drop it.
+                          isFill
+                            ? "absolute top-[0.6cqw] left-[0.6cqw] text-[length:clamp(7px,2cqw,12px)]"
+                            : "absolute top-0.5 left-0.5 text-[7px] sm:text-[8px]",
+                          "font-medium leading-none select-none",
                           isLight ? "text-neutral-500/70" : "text-neutral-400/70"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
@@ -475,7 +502,11 @@ const ChessBoard = ({
                     {showFile && (
                       <span
                         className={cn(
-                          "absolute bottom-0.5 right-0.5 text-[7px] sm:text-[8px] font-medium leading-none select-none",
+                          // Size classes come before leading-none: cn() lets a later font-size drop it.
+                          isFill
+                            ? "absolute bottom-[0.6cqw] right-[0.6cqw] text-[length:clamp(7px,2cqw,12px)]"
+                            : "absolute bottom-0.5 right-0.5 text-[7px] sm:text-[8px]",
+                          "font-medium leading-none select-none",
                           isLight ? "text-neutral-500/70" : "text-neutral-400/70"
                         )}
                         style={{ fontFamily: "'Geist', sans-serif" }}
@@ -526,11 +557,17 @@ const ChessBoard = ({
                           // Capture indicator - subtle corner triangles (same color on all squares)
                           <>
                             <div
-                              className="absolute top-0 left-0 w-0 h-0 border-[8px] sm:border-[10px] border-r-transparent border-b-transparent"
+                              className={cn(
+                                "absolute top-0 left-0 w-0 h-0 border-r-transparent border-b-transparent",
+                                isFill ? "border-[length:clamp(6px,1.6cqw,14px)]" : "border-[8px] sm:border-[10px]"
+                              )}
                               style={{ borderTopColor: 'rgba(220, 80, 80, 0.45)', borderLeftColor: 'rgba(220, 80, 80, 0.45)' }}
                             />
                             <div
-                              className="absolute bottom-0 right-0 w-0 h-0 border-[8px] sm:border-[10px] border-l-transparent border-t-transparent"
+                              className={cn(
+                                "absolute bottom-0 right-0 w-0 h-0 border-l-transparent border-t-transparent",
+                                isFill ? "border-[length:clamp(6px,1.6cqw,14px)]" : "border-[8px] sm:border-[10px]"
+                              )}
                               style={{ borderBottomColor: 'rgba(220, 80, 80, 0.45)', borderRightColor: 'rgba(220, 80, 80, 0.45)' }}
                             />
                           </>
@@ -538,7 +575,8 @@ const ChessBoard = ({
                           // Move indicator - elegant dot
                           <div
                             className={cn(
-                              "w-3 h-3 sm:w-4 sm:h-4 rounded-full",
+                              isFill ? "size-[clamp(10px,3cqw,18px)]" : "w-3 h-3 sm:w-4 sm:h-4",
+                              "rounded-full",
                               isLight
                                 ? "bg-neutral-900/25"
                                 : "bg-white/25"
@@ -593,9 +631,19 @@ const ChessBoard = ({
                     {/* Annotation badge */}
                     {annotationMap.has(squareNotation) && (() => {
                       const ann = annotationMap.get(squareNotation)!;
+                      // Fill: 34% of a square, offset 9% up and right; no offset on the
+                      // top rank or the right-most file (as displayed), so a full-bleed
+                      // board's badge never pokes past the screen edge.
+                      const fillBadge = isFill
+                        ? cn(
+                            "size-[4.25cqw]",
+                            rowIndex === 0 ? "top-0" : "top-[-1.1cqw]",
+                            columnIndex === 7 ? "right-0" : "right-[-1.1cqw]"
+                          )
+                        : null;
                       if (ann.icon) {
                         return (
-                          <div className="absolute -top-1.5 -right-1.5 z-40 w-5 h-5 sm:w-6 sm:h-6">
+                          <div className={cn("absolute z-40", fillBadge ?? "-top-1.5 -right-1.5 w-5 h-5 sm:w-6 sm:h-6")}>
                             <Image
                               src={`/board_icons/128x/${ann.icon}`}
                               alt={ann.symbol}
@@ -611,13 +659,17 @@ const ChessBoard = ({
                       return (
                         <div
                           className={cn(
-                            "absolute -top-1 -right-1 z-40 flex items-center justify-center",
-                            "w-4 h-4 sm:w-5 sm:h-5 rounded-full shadow-md shadow-black/40",
+                            "absolute z-40 flex items-center justify-center",
+                            fillBadge ?? "-top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5",
+                            "rounded-full shadow-md shadow-black/40",
                             style.bg, style.text
                           )}
                           style={{ fontFamily: "'Geist', sans-serif" }}
                         >
-                          <span className="text-[8px] sm:text-[10px] font-bold leading-none">
+                          <span className={cn(
+                            isFill ? "text-[length:clamp(6px,2.2cqw,12px)]" : "text-[8px] sm:text-[10px]",
+                            "font-bold leading-none"
+                          )}>
                             {style.label}
                           </span>
                         </div>

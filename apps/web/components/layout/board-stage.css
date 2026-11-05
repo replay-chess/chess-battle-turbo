@@ -1,0 +1,101 @@
+/*
+ * BoardStage and ScrollRegion (SPEC 10.2; 04 §4.3, §4.4).
+ *
+ * The board edge is computed from the stage's own size with container-query
+ * units, so nav width, banners, top bars, safe areas, the iOS toolbar and browser
+ * zoom are absorbed without subtraction constants. Gotchas (04 §5.2):
+ * - --rc-board is unregistered on purpose; don't add an @property for it.
+ * - .rc-stage needs a definite size from its parent (a minmax(0,1fr) track).
+ * - ChessBoard never reads --rc-board; it fills the width of its slot.
+ *
+ * Deviations from 04, all additive:
+ * - In stack mode the aside clips its overflow (overflow: clip, not a scroll
+ *   container), so a strip that folds to 0px at <=620px tall can't push main
+ *   into its safety scroll. Put scrolling content in a ScrollRegion.
+ * - [data-rc-side-only] marks aside rows (headers, action rows) that only show
+ *   in side mode; in stack mode the control bar carries those actions.
+ */
+@layer components {
+  .rc-scroll {
+    min-width: 0; min-height: 0;
+    overflow-y: auto; overflow-x: hidden;
+    overscroll-behavior: contain;       /* never chains into the root */
+    scrollbar-gutter: stable;           /* Windows: no width jump when the list grows past the fold */
+    scrollbar-width: thin;
+  }
+  .rc-scroll:focus-visible { outline: 2px solid var(--cb-text); outline-offset: -2px; }
+
+  /* The container. Its size comes from ViewportStage's minmax(0,1fr) track, never from its content. */
+  .rc-stage {
+    container: rc-stage / size;
+    min-width: 0;
+    min-height: 18.5rem;     /* 296px = 192 board (24px squares) + 88 bars + 16 padding; below this, main scrolls */
+    position: relative;
+  }
+
+  .rc-stage__in {
+    /* side mode (desktop, iPad landscape): V3Game / V3PlayHub values */
+    --rc-mode: side;
+    --rc-px: 24px; --rc-py: 16px; --rc-gap: 20px;
+    --rc-bar-h: 48px; --rc-bar-gap: 6px;
+    --rc-aside-min: 300px; --rc-aside-max: 360px; --rc-aside-room: 0px;
+    --rc-board-max: 880px;
+    --rc-strip-min: 0px; --rc-foot: 0px;
+    --rc-bars: calc(var(--rc-nbars, 2) * (var(--rc-bar-h) + var(--rc-bar-gap)));   /* 108 = V3Game's +108 */
+    --rc-board: min(
+      100cqw - 2 * var(--rc-px) - var(--rc-aside-room),
+      100cqh - 2 * var(--rc-py) - var(--rc-bars),
+      var(--rc-board-max)
+    );
+    box-sizing: border-box;
+    height: 100%;
+    padding: var(--rc-py) var(--rc-px);
+    display: flex; align-items: center; justify-content: center; gap: var(--rc-gap);
+  }
+  .rc-stage__in[data-aside]         { --rc-aside-room: calc(var(--rc-aside-min) + var(--rc-gap)); }
+  .rc-stage__in[data-aside-w="hub"] { --rc-aside-max: 400px; }
+
+  .rc-stage__col   { flex: none; width: var(--rc-board); display: flex; flex-direction: column; gap: var(--rc-bar-gap); }
+  .rc-stage__bar   { flex: none; height: var(--rc-bar-h); min-width: 0; display: flex; align-items: center; }
+  .rc-stage__board { flex: none; width: var(--rc-board); aspect-ratio: 1; }
+  .rc-stage__aside {
+    flex: 0 1 var(--rc-aside-max); min-width: var(--rc-aside-min);
+    height: calc(var(--rc-board) + var(--rc-bars));    /* edges line up with the bars (V3Game l.124) */
+    min-height: 0; display: flex; flex-direction: column;
+  }
+  .rc-stage__foot  { display: none; }
+
+  /* density step: the design's max-height:620px, measured on the stage so a banner also triggers it */
+  @container rc-stage (height <= 620px) {
+    .rc-stage__in { --rc-px: 16px; --rc-py: 8px; --rc-bar-h: 40px; --rc-bar-gap: 4px; }
+  }
+
+  /* stack mode: phones, iPad portrait, or too narrow for 220 board + 300 aside */
+  @container rc-stage (orientation: portrait) or (width < 590px) {
+    .rc-stage__in {
+      --rc-mode: stack;
+      --rc-px: 0px; --rc-py: 0px; --rc-gap: 0px; --rc-bar-gap: 0px; --rc-aside-room: 0px;
+      --rc-bar-h: 44px;                 /* V3iPhoneGame bars */
+      --rc-board-max: 760px;            /* V3iPadPGame board */
+      --rc-strip-min: 64px;             /* the move strip under the board keeps at least 64px */
+      --rc-board: min(100cqw, var(--rc-board-max),
+                      100cqh - var(--rc-bars) - var(--rc-strip-min) - var(--rc-foot));
+      flex-direction: column; align-items: stretch; justify-content: flex-start;
+    }
+    .rc-stage__in:not([data-aside]) { --rc-strip-min: 0px; }
+    .rc-stage__in[data-footer]      { --rc-foot: calc(56px + var(--safe-bottom)); }
+    .rc-stage__col   { width: 100%; }
+    .rc-stage__board { margin-inline: auto; }
+    .rc-stage__bar   { padding-inline: max(16px, (100% - var(--rc-board)) / 2); }   /* bar text aligns with board edges (iPad 37px) */
+    .rc-stage__aside { flex: 1 1 0; width: 100%; min-width: 0; min-height: var(--rc-strip-min); height: auto; overflow: clip; }
+    .rc-stage__aside [data-rc-side-only] { display: none !important; }   /* !important: must beat display utilities (utilities layer) */
+    .rc-stage__foot  { display: flex; flex: none; height: var(--rc-foot); padding-bottom: var(--safe-bottom); }
+  }
+  @container rc-stage (orientation: portrait) and (width >= 600px) {
+    .rc-stage__in { --rc-bar-h: 48px; }                                   /* iPad portrait */
+    .rc-stage__in[data-footer] { --rc-foot: calc(64px + var(--safe-bottom)); }
+  }
+  @container rc-stage ((orientation: portrait) or (width < 590px)) and (height <= 620px) {
+    .rc-stage__in { --rc-bar-h: 40px; --rc-strip-min: 0px; }              /* phone at 150% zoom: the strip folds into the sheet */
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$comment": "Legacy specs whose console problems are reported, not failed (CT X7). This list may only shrink: fix a spec's console errors, then remove it here.",
+  "specs": [
+    "e2e/specs/membership.spec.ts",
+    "e2e/specs/paid-only.spec.ts",
+    "e2e/specs/play-with-bot.spec.ts",
+    "e2e/specs/play-with-friend.spec.ts",
+    "e2e/specs/pricing.spec.ts",
+    "e2e/specs/quick-match.spec.ts",
+    "e2e/specs/tournament.spec.ts"
+  ]
+}

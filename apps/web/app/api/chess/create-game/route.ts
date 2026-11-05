@@ -115,6 +115,12 @@ export async function POST(request: NextRequest) {
         extraGameData.creatorColor = "black";
       }
     }
+    // Colours are fixed here, once (H6 #11, plan §8.8): any game without a side chosen above
+    // gets a random one now. The socket reads `creatorColor` and never re-randomises, and the
+    // analysis route grades the side the creator really played.
+    if (extraGameData.creatorColor !== "white" && extraGameData.creatorColor !== "black") {
+      extraGameData.creatorColor = Math.random() < 0.5 ? "white" : "black";
+    }
 
     // 6. Create the game
     const expiresAt = calculateExpirationTime(1);
@@ -200,7 +206,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to create game",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

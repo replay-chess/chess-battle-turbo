@@ -1,0 +1,142 @@
+# Weekly usage report (phase-01 plan §7.8, §9.6; CF F-VER-2, CA AP-01).
+#
+# Committed to `main` (scheduled workflows run from the default branch) and to
+# `dev`. Reads Neon and Vercel usage, writes ops/usage-<date>.json as an
+# artifact, and opens or updates the issue "ops: weekly usage". It adds the
+# label `quota-alert` when any Vercel Hobby metric passes 60 % of its monthly
+# allowance or Neon compute (CU-h) passes 50 %. At the alert, test traffic
+# against the dev URL stops until the period resets.
+#
+# Secrets (owner adds; names only): NEON_API_KEY (read-only), VERCEL_TOKEN (read
+# scope). Repository variables (optional): NEON_PROJECT_IDS (comma-separated;
+# default withered-cake-82837167 until H10 creates the dev project),
+# VERCEL_PROJECT (default replay-chess-dev), VERCEL_TEAM_ID.
+# [V14] The Vercel usage endpoint and field names need confirming; until then
+# the Vercel rows read "unavailable" and never fail the job.
+name: Ops weekly
+
+on:
+  schedule:
+    - cron: "30 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  usage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Collect usage and update the issue
+        uses: actions/github-script@v7
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          NEON_PROJECT_IDS: ${{ vars.NEON_PROJECT_IDS || 'withered-cake-82837167' }}
+          VERCEL_PROJECT: ${{ vars.VERCEL_PROJECT || 'replay-chess-dev' }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+        with:
+          script: |
+            const fs = require("fs");
+            const now = new Date();
+            const date = now.toISOString().slice(0, 10);
+            const daysInMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
+            const elapsed = (now.getUTCDate() - 1 + now.getUTCHours() / 24) / daysInMonth || 1 / daysInMonth;
+
+            // Free / Hobby allowances per month [V: re-check against the current plan pages].
+            const NEON = { cu_hours: 100, storage_gb: 0.5, egress_gb: 5 };
+            const HOBBY = {
+              edge_requests: 1_000_000,
+              function_invocations: 1_000_000,
+              fast_data_transfer_gb: 100,
+              image_transformations: 5_000,
+              speed_insights_events: 10_000,
+              edge_config_reads: 100_000,
+            };
+            const rows = [];
+            const add = (service, metric, used, limit, alertAt) => {
+              if (used == null) { rows.push({ service, metric, used: null, limit, pct: null, prorataPct: null, alert: false, note: "unavailable" }); return; }
+              const pct = (used / limit) * 100;
+              const prorataPct = (used / (limit * elapsed)) * 100;
+              rows.push({ service, metric, used: Math.round(used * 100) / 100, limit, pct: Math.round(pct), prorataPct: Math.round(prorataPct), alert: pct >= alertAt });
+            };
+
+            // ── Neon (project consumption for the current billing period) ──
+            for (const id of process.env.NEON_PROJECT_IDS.split(",").map((s) => s.trim()).filter(Boolean)) {
+              let p = null;
+              if (process.env.NEON_API_KEY) {
+                try {
+                  const res = await fetch(`https://console.neon.tech/api/v2/projects/${id}`, {
+                    headers: { Authorization: `Bearer ${process.env.NEON_API_KEY}`, Accept: "application/json" },
+                  });
+                  if (res.ok) p = (await res.json()).project;
+                  else core.warning(`Neon ${id}: HTTP ${res.status}`);
+                } catch (e) { core.warning(`Neon ${id}: ${e.message}`); }
+              }
+              add(`neon:${id}`, "compute CU-h", p ? (p.compute_time_seconds ?? 0) / 3600 : null, NEON.cu_hours, 50);
+              add(`neon:${id}`, "storage GB", p ? (p.synthetic_storage_size ?? 0) / 1e9 : null, NEON.storage_gb, 60);
+              add(`neon:${id}`, "egress GB", p ? (p.data_transfer_bytes ?? 0) / 1e9 : null, NEON.egress_gb, 60);
+            }
+
+            // ── Vercel (Hobby usage for the project) [V14] ──
+            let vercel = null;
+            if (process.env.VERCEL_TOKEN) {
+              try {
+                const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+                const qs = new URLSearchParams({ from, to: now.toISOString(), projectId: process.env.VERCEL_PROJECT });
+                if (process.env.VERCEL_TEAM_ID) qs.set("teamId", process.env.VERCEL_TEAM_ID);
+                const res = await fetch(`https://api.vercel.com/v1/usage?${qs}`, {
+                  headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` },
+                });
+                if (res.ok) vercel = await res.json();
+                else core.warning(`Vercel usage: HTTP ${res.status} (endpoint unconfirmed, V14)`);
+              } catch (e) { core.warning(`Vercel usage: ${e.message}`); }
+            }
+            const pick = (...keys) => {
+              for (const k of keys) {
+                const v = k.split(".").reduce((o, part) => (o == null ? o : o[part]), vercel);
+                if (typeof v === "number") return v;
+              }
+              return null;
+            };
+            add("vercel", "edge requests", pick("edgeRequests", "requests"), HOBBY.edge_requests, 60);
+            add("vercel", "function invocations", pick("functionInvocations", "serverlessFunctionInvocations"), HOBBY.function_invocations, 60);
+            const fdt = pick("fastDataTransfer", "bandwidth");
+            add("vercel", "fast data transfer GB", fdt == null ? null : fdt / 1e9, HOBBY.fast_data_transfer_gb, 60);
+            add("vercel", "image transformations", pick("imageTransformations", "imageOptimizations"), HOBBY.image_transformations, 60);
+            add("vercel", "speed insights events", pick("speedInsightsEvents", "speedInsights.events"), HOBBY.speed_insights_events, 60);
+            add("vercel", "edge config reads", pick("edgeConfigReads"), HOBBY.edge_config_reads, 60);
+            // Anthropic usage joins in P7.
+
+            const report = { date, monthElapsed: Math.round(elapsed * 100) / 100, rows };
+            fs.mkdirSync("ops", { recursive: true });
+            fs.writeFileSync(`ops/usage-${date}.json`, JSON.stringify(report, null, 2));
+
+            const alert = rows.some((r) => r.alert);
+            const table = [
+              `Week of ${date} (month ${Math.round(elapsed * 100)} % elapsed). Alert at 60 % of a Hobby allowance, 50 % of Neon CU-h.`,
+              "",
+              "| Service | Metric | Used | Monthly limit | % of limit | % of pro-rata | |",
+              "|---|---|---|---|---|---|---|",
+              ...rows.map((r) => `| ${r.service} | ${r.metric} | ${r.used ?? "—"} | ${r.limit} | ${r.pct ?? "—"} | ${r.prorataPct ?? "—"} | ${r.alert ? "**ALERT**" : r.note ?? ""} |`),
+            ].join("\n");
+            await core.summary.addRaw(table).write();
+
+            const title = "ops: weekly usage";
+            const { data: found } = await github.rest.issues.listForRepo({ ...context.repo, state: "open", per_page: 100, labels: "ops" });
+            const existing = found.find((i) => i.title === title);
+            const labels = ["ops", ...(alert ? ["quota-alert"] : [])];
+            if (existing) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body: table });
+              await github.rest.issues.update({ ...context.repo, issue_number: existing.number, body: table, labels });
+            } else {
+              await github.rest.issues.create({ ...context.repo, title, body: table, labels });
+            }
+            if (alert) core.warning("quota-alert: stop test traffic against the dev URL until the period resets");
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ops-usage
+          path: ops/
+          retention-days: 90

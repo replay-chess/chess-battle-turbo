@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/app/generated/prisma";
 import { logger } from "@/lib/logger";
+import { requireAdmin } from "@/lib/auth/require-admin";
 
 const createChessPositionSchema = z.object({
   // Required fields
@@ -42,6 +43,9 @@ const createChessPositionSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const admin = await requireAdmin();
+  if (admin.error) return admin.error;
+
   try {
     const body = await request.json();
     logger.debug("Received chess position data: " + JSON.stringify(body));
@@ -130,7 +134,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to create chess position",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

@@ -1,0 +1,107 @@
+/*
+ * Viewport shell (SPEC 2.2, 2.3, 5.2). Flow mode by default: the document scrolls
+ * and the bars stick. Lock mode when the page contains [data-rc-lock]: 100dvh and
+ * the document never scrolls. Media-query strings must match
+ * lib/layout/media-queries.ts exactly (checked by media-queries.test.ts).
+ */
+@layer components {
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --hit: max(44px, 2.75rem);
+    --rc-top-bar: 44px;
+    --rc-bottom-bar: 56px;
+    --rc-nav-w: 0px;
+    --rc-fixed-bottom: 0px;
+    --rc-fixed-pad-bottom: var(--safe-bottom);
+    --rc-overlay-bottom: calc(16px + var(--safe-bottom));
+  }
+  @media (min-width: 601px) and (max-width: 900px) and (orientation: portrait) {
+    :root { --rc-top-bar: 52px; --rc-bottom-bar: 64px; }
+  }
+
+  html:has(.rc-vs[data-has-nav]) { --rc-nav-w: 220px; }
+  @media (max-width: 1100px), (hover: none) and (pointer: coarse) { html:has(.rc-vs[data-has-nav]) { --rc-nav-w: 64px; } }
+  @media (max-width: 600px), (max-width: 900px) and (orientation: portrait) {
+    html:has(.rc-vs[data-has-nav]) { --rc-nav-w: 0px; }   /* same specificity as the 220/64 rules, later in source, so it wins */
+    html:has(.rc-vs > [data-rc-tabbar]), html:has(.rc-vs [data-rc-controls]) {
+      --rc-fixed-bottom: calc(var(--rc-bottom-bar) + var(--safe-bottom));
+      --rc-fixed-pad-bottom: 0px;
+      --rc-overlay-bottom: calc(var(--rc-bottom-bar) + var(--safe-bottom) + 8px);
+    }
+    html:has(.rc-vs > [data-rc-topbar]) { scroll-padding-top: calc(var(--rc-top-bar) + var(--safe-top)); }
+  }
+
+  /* Lock mode (D15): a one-viewport page is present, so the document never scrolls. Flow pages still scroll. */
+  html:has(.rc-vs [data-rc-lock]), html:has(.rc-vs [data-rc-lock]) body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+
+  /* Flow mode is the default. */
+  .rc-vs {
+    --nav: 220px; --topbar: 0px; --tabbar: 0px;
+    box-sizing: border-box; position: relative; width: 100%;
+    min-height: 100dvh;
+    display: grid;
+    grid-template-areas: "nav top" "nav main" "nav tab";
+    grid-template-columns: var(--nav) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+    overflow-x: clip;                     /* clip, not hidden: no scroll container, so sticky still works */
+    background: var(--cb-bg); color: var(--cb-text);
+  }
+  .rc-vs__nav  { grid-area: nav; position: sticky; top: var(--safe-top); align-self: start;
+                 height: calc(100dvh - var(--safe-top) - var(--safe-bottom)); min-height: 0;
+                 overflow-y: auto; overscroll-behavior: contain; z-index: var(--cb-z-nav); }
+  .rc-vs__top  { grid-area: top; min-width: 0; display: none; height: var(--topbar);
+                 position: sticky; top: 0; z-index: var(--cb-z-nav); }
+  .rc-vs__main { grid-area: main; min-width: 0; position: relative; display: block; }
+  .rc-vs__main:focus { outline: none; }
+  .rc-vs__banner { min-width: 0; }
+  .rc-vs__page { min-width: 0; }
+  .rc-vs__tab  { grid-area: tab; display: none; position: sticky; bottom: 0; z-index: var(--cb-z-nav); }
+
+  /* Lock mode. */
+  .rc-vs:has([data-rc-lock]) { height: 100dvh; min-height: 0; overflow: clip; }
+  .rc-vs:has([data-rc-lock]) > .rc-vs__main {
+    min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr);
+    overflow: auto; overscroll-behavior: contain; }
+  .rc-vs:has([data-rc-lock]) .rc-vs__page { min-height: 0; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
+  .rc-vs:has([data-rc-lock]) .rc-vs__page > * { min-width: 0; }
+
+  .rc-skip { position: absolute; left: 8px; top: calc(8px + var(--safe-top)); z-index: 70; transform: translateY(-200%);
+             padding: 0 14px; min-height: 44px; display: inline-flex; align-items: center;
+             background: var(--cb-accent); color: var(--cb-accent-fg); font-size: 0.875rem; }
+  .rc-skip:focus { transform: none; }
+
+  @media (max-width: 1100px), (hover: none) and (pointer: coarse) { .rc-vs { --nav: 64px; } }
+  .rc-vs--topbar-always { --topbar: 64px; }
+  .rc-vs--topbar-always > .rc-vs__top { display: block; }
+  @media (max-height: 640px) { .rc-vs--topbar-always { --topbar: 48px; } }
+
+  @media (max-width: 600px), (max-width: 900px) and (orientation: portrait) {
+    .rc-vs { --nav: 0px; --topbar: 44px; --tabbar: 56px;
+             grid-template-areas: "top" "main" "tab"; grid-template-columns: minmax(0, 1fr);
+             padding-top: 0; padding-bottom: 0; }
+    .rc-vs__nav { display: none; }
+    .rc-vs__top { display: block; height: calc(var(--topbar) + var(--safe-top)); padding-top: var(--safe-top); }
+    .rc-vs__tab { display: block; height: calc(var(--tabbar) + var(--safe-bottom)); padding-bottom: var(--safe-bottom); }
+  }
+  @media (min-width: 601px) and (max-width: 900px) and (orientation: portrait) { .rc-vs { --topbar: 52px; --tabbar: 64px; } }
+
+  /*
+   * Short tab-bar screens showing a game (the BoardStage control bar replaces the tab bar): the payment banner
+   * gives way to the board. Under the 44px top bar a game needs 356px (220px board floor + 2 x 40px bars + 56px
+   * control bar), and the banner wraps to ~102px on a phone, so below ~500px of height both can't fit
+   * (iPhone Safari at 150% zoom is 262x439). The banner still shows on every other shell page, so the
+   * member sees it as soon as they leave the game. !important: Banner's `flex` utility is in a later layer.
+   */
+  @media (max-width: 600px) and (max-height: 520px) {
+    .rc-vs:has([data-rc-controls]) .rc-shell-banner { display: none !important; }
+  }
+
+  /* Slots render only when passed (M10). These selectors are 0,2,0, so they beat the 0,1,0 media rules above. */
+  .rc-vs:not([data-has-nav]) { --nav: 0px; }
+  .rc-vs:not(:has(> .rc-vs__top)) { --topbar: 0px; }
+  .rc-vs:not(:has(> .rc-vs__tab)) { --tabbar: 0px; }
+}

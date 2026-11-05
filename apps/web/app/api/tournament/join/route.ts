@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
@@ -70,15 +70,17 @@ export async function POST(request: NextRequest) {
 
     logger.info(`User ${dbUser.referenceId} joined tournament ${tournament.referenceId}`);
 
-    notifyTournamentEvent({
-      event: "player_joined",
-      tournamentReferenceId: tournament.referenceId,
-      data: {
-        referenceId: dbUser.referenceId,
-        name: dbUser.name,
-        profilePictureUrl: dbUser.profilePictureUrl,
-      },
-    });
+    after(() =>
+      notifyTournamentEvent({
+        event: "player_joined",
+        tournamentReferenceId: tournament.referenceId,
+        data: {
+          referenceId: dbUser.referenceId,
+          name: dbUser.name,
+          profilePictureUrl: dbUser.profilePictureUrl,
+        },
+      })
+    );
 
     return NextResponse.json(
       { success: true, message: "Joined tournament" },

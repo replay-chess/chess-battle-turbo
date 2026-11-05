@@ -271,6 +271,8 @@ async function tryFindMatch(params: {
         startedAt: new Date(),
         gameData: {
           gameMode: "quick",
+          // The creator is the White player (H6 #11): the socket reads this, never randomises.
+          creatorColor: "white",
           playAsLegend: !!params.legendReferenceId || !!opponent.legendReferenceId,
           player1Legend: params.legendReferenceId,
           player2Legend: opponent.legendReferenceId,

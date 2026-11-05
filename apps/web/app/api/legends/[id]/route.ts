@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/app/generated/prisma";
 import { logger } from "@/lib/logger";
+import { requireAdmin } from "@/lib/auth/require-admin";
 
 const updateLegendSchema = z.object({
   name: z.string().min(1, "Name is required").optional(),
@@ -28,6 +29,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const admin = await requireAdmin();
+  if (admin.error) return admin.error;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -124,7 +128,6 @@ export async function PUT(
     return NextResponse.json(
       {
         error: "Failed to update legend",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );
@@ -180,7 +183,6 @@ export async function GET(
     return NextResponse.json(
       {
         error: "Failed to fetch legend",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );
@@ -192,6 +194,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const admin = await requireAdmin();
+  if (admin.error) return admin.error;
+
   try {
     const { id } = await params;
 
@@ -261,7 +266,6 @@ export async function DELETE(
     return NextResponse.json(
       {
         error: "Failed to delete legend",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

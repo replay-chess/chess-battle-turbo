@@ -1,50 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "../../../../../lib/prisma";
-import { ValidationError } from "@/lib/errors/validation-error";
+import { auth } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 
+// DEPRECATED (plan §3.2 H3, A15, AA F-03). 1B·F4d deletes this route once its two callers
+// (`lib/stores/useUserStore.ts` fetchUserByEmail, `lib/hooks/useRequireAuth.ts`) read
+// `GET /api/me` instead.
+//
+// Until then it answers only the signed-in caller about their own row: any other email,
+// a signed-out request, a missing row and an inactive row are all the same 404, so the route
+// can no longer confirm whether an address has an account. `dateOfBirth` and `role` are no
+// longer returned.
+
+const NOT_FOUND = () =>
+  NextResponse.json(
+    { error: "User not found" },
+    { status: 404, headers: { "Cache-Control": "private, no-store" } },
+  );
+
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ email: string }> }
 ) {
   try {
-    // 1. Get email from params
     const { email } = await params;
+    const { userId: clerkUserId } = await auth();
+    if (!clerkUserId || !email) return NOT_FOUND();
 
-    if (!email) {
-      throw new ValidationError("User email is required", 400);
-    }
-
-    // 2. Validate email format (basic validation)
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      throw new ValidationError("Invalid email format", 400);
-    }
-
-    // 3. Fetch user with stats
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { googleId: clerkUserId },
       include: {
         stats: true,
       },
     });
 
-    // 4. Validate user exists
-    if (!user) {
-      throw new ValidationError("User not found", 404);
+    const requested = email.trim().toLowerCase();
+    if (!user || !user.isActive || user.email.toLowerCase() !== requested) {
+      return NOT_FOUND();
     }
 
-    // 5. Check if user is active
-    if (!user.isActive) {
-      throw new ValidationError("User account is not active", 400);
-    }
-
-    // 6. Calculate win rate if stats exist
     const winRate = user.stats && user.stats.totalGamesPlayed > 0
       ? ((user.stats.gamesWon / user.stats.totalGamesPlayed) * 100).toFixed(2)
       : "0.00";
 
-    // 7. Return user details
     return NextResponse.json(
       {
         success: true,
@@ -55,10 +53,8 @@ export async function GET(
             name: user.name,
             email: user.email,
             profilePictureUrl: user.profilePictureUrl,
-            dateOfBirth: user.dateOfBirth,
             isActive: user.isActive,
             createdAt: user.createdAt,
-            role: user.role,
           },
           stats: user.stats
             ? {
@@ -76,28 +72,15 @@ export async function GET(
             : null,
         },
       },
-      { status: 200 }
+      { status: 200, headers: { "Cache-Control": "private, no-store" } }
     );
   } catch (error) {
-    // Handle custom validation errors
-    if (error instanceof ValidationError) {
-      return NextResponse.json(
-        {
-          error: error.message,
-          ...(error.details && { details: error.details }),
-        },
-        { status: error.statusCode }
-      );
-    }
-
-    // Handle unexpected errors
     logger.error("Error fetching user by email", error);
     return NextResponse.json(
       {
         error: "Failed to fetch user details",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500, headers: { "Cache-Control": "private, no-store" } }
     );
   }
 }

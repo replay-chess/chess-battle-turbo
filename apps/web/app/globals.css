@@ -1,4 +1,24 @@
 @import "tailwindcss";
+@import "../components/layout/viewport.css";
+
+/* Theme follows next-themes' .dark class, not the OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+/* Height steps: browser zoom shrinks the CSS viewport. */
+@custom-variant vh760 { @media (max-height: 760px) { @slot; } }
+@custom-variant vh700 { @media (max-height: 700px) { @slot; } }
+@custom-variant vh640 { @media (max-height: 640px) { @slot; } }
+@custom-variant vh620 { @media (max-height: 620px) { @slot; } }
+/* Width step: the sidebar collapses to the 64px rail. */
+@custom-variant narrow { @media (max-width: 1100px) { @slot; } }
+/* Rail mode. The gallery forces a form with [data-shell-form="sidebar" | "rail"] (SPEC 3.3). */
+@custom-variant rail {
+  @media (max-width: 1100px), (hover: none) and (pointer: coarse) {
+    &:not(:where([data-shell-form="sidebar"], [data-shell-form="sidebar"] *)) { @slot; }
+  }
+  &:where([data-shell-form="rail"], [data-shell-form="rail"] *) { @slot; }
+}
+@custom-variant tabbar { @media (max-width: 600px), (max-width: 900px) and (orientation: portrait) { @slot; } }
+@custom-variant tablet-portrait { @media (min-width: 601px) and (max-width: 900px) and (orientation: portrait) { @slot; } }
 
 *,
 *::before,
@@ -22,15 +42,6 @@ body {
     color: inherit;
     text-decoration: none;
   }
-}
-
-/* Pointer cursor for clickable elements */
-a,
-button,
-[role="button"],
-.cursor-pointer,
-[onclick] {
-  cursor: pointer;
 }
 
 /* Custom Scrollbar Styles */
@@ -123,12 +134,141 @@ button,
   --color-amber-200: var(--cb-amber-200);
   --color-amber-400: var(--cb-amber-400);
   --color-amber-500: var(--cb-amber-500);
+
+  /* Fonts. var() fallbacks keep the stack valid if a next/font class is missing. */
+  --font-sans: var(--font-geist-sans, "Geist"), system-ui, -apple-system, sans-serif;
+  --font-serif: var(--font-instrument-serif, "Instrument Serif"), Georgia, serif;
+  --font-mono: var(--font-geist-mono, "Geist Mono"), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* v3 neutrals */
+  --color-cb-text-soft: var(--cb-text-soft);
+  --color-cb-text-disabled: var(--cb-text-disabled);
+  --color-cb-border-subtle: var(--cb-border-subtle);
+  --color-cb-border-input: var(--cb-border-input);
+  --color-cb-border-dashed: var(--cb-border-dashed);
+  --color-cb-fill: var(--cb-fill);
+  --color-cb-accent-hover: var(--cb-accent-hover);
+  --color-cb-scrim: var(--cb-scrim);
+  --color-cb-scrim-modal: var(--cb-scrim-modal);
+  --color-cb-skeleton-shine: var(--cb-skeleton-shine);
+  --color-cb-overlay-scrim: var(--cb-overlay-scrim);
+
+  /* status */
+  --color-cb-good: var(--cb-good);
+  --color-cb-good-bg: var(--cb-good-bg);
+  --color-cb-warn: var(--cb-warn);
+  --color-cb-warn-bg: var(--cb-warn-bg);
+  --color-cb-bad: var(--cb-bad);
+  --color-cb-bad-bg: var(--cb-bad-bg);
+  --color-cb-danger: var(--cb-danger);
+  --color-cb-danger-hover: var(--cb-danger-hover);
+
+  /* result plates (already defined as vars) */
+  --color-cb-result-victory-bg: var(--cb-result-victory-bg);
+  --color-cb-result-defeat-bg: var(--cb-result-defeat-bg);
+  --color-cb-result-draw-bg: var(--cb-result-draw-bg);
+
+  /* chess */
+  --color-board-light-edge: var(--board-light-edge);
+  --color-board-light-center: var(--board-light-center);
+  --color-board-dark-edge: var(--board-dark-edge);
+  --color-board-dark-center: var(--board-dark-center);
+  --color-board-coordinate-light: var(--board-coordinate-light);
+  --color-board-coordinate-dark: var(--board-coordinate-dark);
+  --color-board-capture: var(--board-capture);
+  --color-board-last-move: var(--board-last-move);
+  --color-board-last-move-dark: var(--board-last-move-dark);
+  --color-article-board-light: var(--article-board-light);
+  --color-article-board-dark: var(--article-board-dark);
+  --color-article-board-last: var(--article-board-last);
+  --color-article-board-selected: var(--article-board-selected);
+  --color-highlight-green: var(--highlight-green);
+  --color-highlight-red: var(--highlight-red);
+  --color-highlight-blue: var(--highlight-blue);
+  --color-highlight-orange: var(--highlight-orange);
+  --color-highlight-purple: var(--highlight-purple);
+  --color-highlight-yellow: var(--highlight-yellow);
+  --color-pv-1: var(--pv-1);
+  --color-pv-2: var(--pv-2);
+  --color-pv-3: var(--pv-3);
+  --color-pv-4: var(--pv-4);
+  --color-pv-5: var(--pv-5);
+  --color-arrow-default: var(--arrow-default);
+  --color-mq-brilliant: var(--mq-brilliant);
+  --color-mq-great: var(--mq-great);
+  --color-mq-best: var(--mq-best);
+  --color-mq-excellent: var(--mq-excellent);
+  --color-mq-good: var(--mq-good);
+  --color-mq-book: var(--mq-book);
+  --color-mq-forced: var(--mq-forced);
+  --color-mq-interesting: var(--mq-interesting);
+  --color-mq-inaccuracy: var(--mq-inaccuracy);
+  --color-mq-mistake: var(--mq-mistake);
+  --color-mq-miss: var(--mq-miss);
+  --color-mq-blunder: var(--mq-blunder);
+
+  /* radius: tokens.json radius-xs (move cells); Tailwind's default is 2px */
+  --radius-xs: 0.25rem;
+
+  /* shadows (themed through :root / .dark) */
+  --shadow-pop: var(--cb-shadow-pop);
+  --shadow-toast: var(--cb-shadow-toast);
+  --shadow-dialog: var(--cb-shadow-dialog);
+  --shadow-modal: var(--cb-shadow-modal);
+  --shadow-board: var(--cb-shadow-board);
+  --shadow-square-light: inset 1px 1px 2px rgba(0,0,0,0.08), inset -1px -1px 1px rgba(255,255,255,0.9);
+  --shadow-square-dark: inset 1px 1px 3px rgba(0,0,0,0.4), inset -1px -1px 2px rgba(255,255,255,0.05);
+  --shadow-badge: 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -2px rgba(0,0,0,0.4);
+  --shadow-mq: 0 1px 0 rgba(0,0,0,0.18), inset 0 -1px 0 rgba(0,0,0,0.12);
+  --shadow-promo: 0 6px 20px rgba(0,0,0,0.25);
+}
+
+@theme {
+  --text-2xs: 0.625rem;   --text-2xs--line-height: 1.4;
+  --text-label: 0.6875rem; --text-label--line-height: 1.3; --text-label--letter-spacing: 0.12em; --text-label--font-weight: 500;
+  --text-ui: 0.8125rem;   --text-ui--line-height: 1.4;
+  --text-body: 0.9375rem; --text-body--line-height: 1.5;
+  --text-heading: clamp(1.75rem, 3.6vh, 2rem); --text-heading--line-height: 1.1; --text-heading--letter-spacing: -0.01em;
+  --text-title: clamp(1.75rem, 4.9vh, 2.75rem); --text-title--line-height: 1.05; --text-title--letter-spacing: -0.01em;
+  --text-wordmark: 1.25rem; --text-wordmark--line-height: 1.75rem; --text-wordmark--letter-spacing: -0.025em;
+
+  --tracking-label: 0.12em;
+  --tracking-eyebrow: 0.4em;
+  --tracking-display: -0.01em;
+  --tracking-wordmark: -0.025em;
+
+  --ease-rc: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-rc-spin: rc-spin 0.8s linear infinite;
+  --animate-rc-shimmer: rc-shimmer 1.6s ease-in-out infinite;
+  --animate-rc-fade: rc-fade 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-rc-pop: rc-pop 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-rc-in-top: rc-in-top 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-rc-in-bottom: rc-in-bottom 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-rc-sheet: rc-sheet 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-rc-pulse: rc-pulse 1.2s ease-in-out infinite;
+  --animate-rc-glow: rc-glow 1.6s ease-in-out infinite;
+  --animate-rc-hair: rc-hair 2.6s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+
+  @keyframes rc-spin { to { transform: rotate(360deg); } }
+  @keyframes rc-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+  @keyframes rc-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @keyframes rc-pop { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: none; } }
+  @keyframes rc-in-top { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  @keyframes rc-in-bottom { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes rc-sheet { from { transform: translateY(100%); } to { transform: none; } }
+  @keyframes rc-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  @keyframes rc-glow { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--cb-accent) 18%, transparent); } }
+  @keyframes rc-hair {
+    0% { width: 0; opacity: 0; } 8% { width: 0; opacity: 1; } 70% { width: 82%; opacity: 1; }
+    92% { width: 100%; opacity: 1; } 100% { width: 100%; opacity: 0; }
+  }
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* shadcn names point at the brand tokens, so .dark needs no copies. */
+  --background: var(--cb-bg);
+  --foreground: var(--cb-text);
   /* Chess Battle light theme */
   --cb-bg: #FAF9F6;
   --cb-bg-pure: #FFFFFF;
@@ -175,10 +315,10 @@ button,
   --cb-amber-200: #b45309;
   --cb-amber-400: #d97706;
   --cb-amber-500: #b45309;
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --card: var(--cb-surface);
+  --card-foreground: var(--cb-text);
+  --popover: var(--cb-surface);
+  --popover-foreground: var(--cb-text);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
@@ -188,9 +328,9 @@ button,
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: var(--cb-border);
+  --input: var(--cb-border-input);
+  --ring: var(--cb-text);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -204,11 +344,59 @@ button,
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* v3 neutrals */
+  --cb-text-soft: rgba(0,0,0,0.62);
+  --cb-text-disabled: rgba(0,0,0,0.4);
+  --cb-border-subtle: rgba(0,0,0,0.06);
+  --cb-border-input: rgba(0,0,0,0.45);     /* D9: the design draws 0.15 (1.41:1) */
+  --cb-border-dashed: rgba(0,0,0,0.22);
+  --cb-fill: #f5f3f0;
+  --cb-accent-hover: #1a1a1a;
+  --cb-scrim: rgba(26,26,26,0.32);
+  --cb-scrim-modal: rgba(26,26,26,0.4);
+  --cb-skeleton-shine: rgba(255,255,255,0.7);
+  /* status */
+  --cb-good: #4f6b3a;  --cb-good-bg: #f3f6ef;
+  --cb-warn: #8a5a12;  --cb-warn-bg: #fbf6ec;
+  --cb-bad:  #a3412e;  --cb-bad-bg:  #fbf1ee;
+  --cb-danger: #a3412e; --cb-danger-hover: #7f3123;
+  /* elevation */
+  --cb-shadow-pop: 0 6px 20px rgba(0,0,0,0.10);
+  --cb-shadow-toast: 0 4px 14px rgba(0,0,0,0.08);
+  --cb-shadow-dialog: 0 12px 40px rgba(0,0,0,0.16);
+  --cb-shadow-modal: 0 20px 60px rgba(0,0,0,0.18);
+  --cb-shadow-board: 0 1px 3px rgba(0,0,0,0.04);
+  /* board (both themes unless overridden in .dark) */
+  --board-light-edge: oklch(0.922 0 0);
+  --board-light-center: oklch(0.97 0 0);
+  --board-dark-edge: oklch(0.269 0 0);
+  --board-dark-center: oklch(0.205 0 0);
+  --board-coordinate-light: oklch(0.556 0 0 / 0.7);
+  --board-coordinate-dark: oklch(0.708 0 0 / 0.7);
+  --board-capture: rgba(220,80,80,0.45);
+  --board-last-move: oklch(0.879 0.169 91.605 / 0.3);
+  --board-last-move-dark: color-mix(in srgb, var(--cb-amber-500) 25%, transparent);
+  --board-legal-dot: rgba(23,23,23,0.25);
+  --board-legal-dot-on-dark: rgba(255,255,255,0.25);
+  --article-board-coord-on-light: #6f5c4c;
+  --article-board-coord-on-dark: #e9e2d4;
+  --highlight-green: rgba(110,187,140,0.40);
+  --highlight-red: rgba(210,120,110,0.38);
+  --highlight-blue: rgba(120,160,210,0.38);
+  --highlight-orange: rgba(220,170,100,0.40);
+  --highlight-purple: rgba(170,130,200,0.35);
+  --highlight-yellow: rgba(235,185,60,0.38);
+  --pv-1: #6ebb8c; --pv-2: #78a0d2; --pv-3: #dcaa64; --pv-4: #aa82c8; --pv-5: #d2786e;
+  --arrow-default: rgba(251,191,36,0.45);
+  --arrow-default-head: rgba(251,191,36,0.55);
+  --mq-brilliant: #19a69f; --mq-great: #5b8bb5; --mq-best: #7d9d3e; --mq-excellent: #7d9d3e;
+  --mq-good: #83997a; --mq-book: #a88865; --mq-forced: #83997a; --mq-interesting: #5b8bb5;
+  --mq-inaccuracy: #b68e33; --mq-mistake: #ce8025; --mq-miss: #e06b4f; --mq-blunder: #ca3431;
+  /* layers */
+  --cb-z-nav: 10; --cb-z-popover: 40; --cb-z-dialog: 50; --cb-z-toast: 60;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
   /* Chess Battle dark theme */
   --cb-bg: #000000;
   --cb-bg-pure: #000000;
@@ -255,10 +443,6 @@ button,
   --cb-amber-200: #fde68a;
   --cb-amber-400: #fbbf24;
   --cb-amber-500: #f59e0b;
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
@@ -268,9 +452,6 @@ button,
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -284,12 +465,49 @@ button,
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --cb-text-soft: rgba(255,255,255,0.62);
+  --cb-text-disabled: rgba(255,255,255,0.35);
+  --cb-border-subtle: rgba(255,255,255,0.07);
+  --cb-border-input: rgba(255,255,255,0.4);
+  --cb-border-dashed: rgba(255,255,255,0.22);
+  --cb-fill: #161616;
+  --cb-accent-hover: #d4d4d4;
+  --cb-scrim: rgba(0,0,0,0.6);
+  --cb-scrim-modal: rgba(0,0,0,0.7);
+  --cb-skeleton-shine: rgba(255,255,255,0.06);
+  --cb-good: #8fae74;  --cb-good-bg: #1a1e17;
+  --cb-warn: #d39b45;  --cb-warn-bg: #221b11;
+  --cb-bad:  #e07b63;  --cb-bad-bg:  #241815;
+  --cb-shadow-pop: 0 6px 20px rgba(0,0,0,0.6);
+  --cb-shadow-toast: 0 4px 14px rgba(0,0,0,0.5);
+  --cb-shadow-dialog: 0 12px 40px rgba(0,0,0,0.7);
+  --cb-shadow-modal: 0 20px 60px rgba(0,0,0,0.7);
+  --cb-shadow-board: 0 1px 3px rgba(0,0,0,0.2);
+  --highlight-green: rgba(110,187,140,0.30);
+  --highlight-red: rgba(210,120,110,0.28);
+  --highlight-blue: rgba(120,160,210,0.28);
+  --highlight-orange: rgba(220,170,100,0.30);
+  --highlight-purple: rgba(170,130,200,0.25);
+  --highlight-yellow: rgba(235,185,60,0.28);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  /* README "Focus": solid 2px cb-text, offset 2px. Overrides outline-ring/50 above. */
+  :focus-visible { outline: 2px solid var(--cb-text); outline-offset: 2px; }
+  ::placeholder { color: var(--cb-text-soft); opacity: 1; }
+  /* Pointer cursor for clickable elements. Layered, so utilities such as
+     disabled:cursor-not-allowed still win over it. */
+  a,
+  button,
+  [role="button"],
+  .cursor-pointer,
+  [onclick] {
+    cursor: pointer;
+  }
+  :disabled, [aria-disabled="true"] { cursor: not-allowed; }
   body {
     @apply bg-background text-foreground;
   }
@@ -303,6 +521,34 @@ button,
   }
 }
 
+/* .lbl: the v3 label (11px mono, uppercase, soft). It carries its own colour:
+   never combine it with a text-cb-* colour class. */
+@utility text-overline {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem; line-height: 1.3; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--cb-text-soft);
+}
+/* .eyebrow: marketing only (the README forbids divider-plus-eyebrow stacks on app screens). */
+@utility text-eyebrow {
+  display: flex; align-items: center; gap: 14px;
+  font-family: var(--font-mono); font-size: 0.6875rem; font-weight: 500;
+  letter-spacing: 0.4em; text-transform: uppercase; color: var(--cb-text-soft);
+  &::before, &::after { content: ""; width: 48px; height: 1px; background: var(--cb-border-strong); }
+}
+/* Grows the hit area to at least var(--hit) without changing the drawn size
+   (36/38/40px dense controls, 32px avatar links). Caveats: it uses ::after, so it
+   can't be combined with another ::after use (Tabs' bold-width reservation,
+   Skeleton shimmer), and an overflow:hidden ancestor clips the hit box. */
+@utility tap-target {
+  position: relative;
+  &::after {
+    content: ""; position: absolute;
+    inset-block: min(0px, calc((100% - max(44px, 2.75rem)) / 2));
+    inset-inline: min(0px, calc((100% - max(44px, 2.75rem)) / 2));
+  }
+}
+
 /* Dynamic viewport height for mobile Safari */
 @supports (min-height: 100dvh) {
   .min-h-screen {
@@ -312,6 +558,10 @@ button,
     height: 100dvh;
   }
 }
+
+/* Inside the app shell, a legacy full-height root fills the space between the bars. */
+.rc-vs .min-h-screen { min-height: calc(100dvh - var(--topbar) - var(--tabbar) - var(--safe-top) - var(--safe-bottom)); }
+.rc-vs .h-screen { height: calc(100dvh - var(--topbar) - var(--tabbar) - var(--safe-top) - var(--safe-bottom)); }
 
 /* Hide scrollbar utility */
 .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -349,4 +599,11 @@ button,
 @media (prefers-reduced-motion: reduce) {
   .rc-marquee { overflow-x: auto; mask-image: none; -webkit-mask-image: none; }
   .rc-marquee-track { animation: none; }
+}
+
+/* Accessibility preferences. */
+@media (prefers-reduced-motion: reduce) { html, body { scroll-behavior: auto; } }
+@media (prefers-contrast: more) {
+  :root { --cb-border: rgba(0, 0, 0, 0.3); }
+  .dark { --cb-border: rgba(255, 255, 255, 0.35); }
 }

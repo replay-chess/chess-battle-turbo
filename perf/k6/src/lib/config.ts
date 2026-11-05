@@ -6,6 +6,10 @@ export const CONFIG = {
   WEB_APP_URL: __ENV.WEB_APP_URL || 'https://chess-battle-perf.vercel.app',
   WS_URL: __ENV.WS_URL || 'wss://ws-perf.playchess.tech',
 
+  // Second secret for the server's PERF_AUTH_BYPASS (dev and test only; plan H9).
+  // The server ignores the bypass unless x-perf-token equals its PERF_TOKEN.
+  PERF_TOKEN: __ENV.PERF_TOKEN || '',
+
   // Game settings
   INITIAL_TIME_SECONDS: 60,
   INCREMENT_SECONDS: 0,
@@ -44,4 +48,17 @@ export function wsUrl(): string {
 
 export function apiUrl(path: string): string {
   return `${CONFIG.WEB_APP_URL}${path}`;
+}
+
+/** Headers every k6 request sends: the perf-bypass token (when set) plus `extra`. */
+export function perfHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return CONFIG.PERF_TOKEN ? { 'x-perf-token': CONFIG.PERF_TOKEN, ...extra } : { ...extra };
+}
+
+/** JSON request params with the perf-bypass token, for `http.post(url, body, jsonParams(...))`. */
+export function jsonParams(tags?: Record<string, string>): {
+  headers: Record<string, string>;
+  tags?: Record<string, string>;
+} {
+  return { headers: perfHeaders({ 'Content-Type': 'application/json' }), ...(tags ? { tags } : {}) };
 }

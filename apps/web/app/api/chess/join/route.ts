@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { ValidationError } from "@/lib/errors/validation-error";
 import { requireSubscribedUser } from "@/lib/auth/require-subscription";
-import { logger } from "@/lib/sentry/logger";
+import { logger } from "@/lib/logger";
 import { trackUserAction } from "@/lib/metrics";
 
 const joinGameSchema = z.object({
@@ -175,7 +175,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to join game",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

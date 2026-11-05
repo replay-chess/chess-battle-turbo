@@ -1,4 +1,5 @@
 import { Webhooks } from "@dodopayments/nextjs"
+import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { logger } from "@/lib/logger"
@@ -30,8 +31,8 @@ const subscriptionSnapshotSchema = z.object({
  * it is newer than what is stored, which makes redeliveries and out-of-order
  * events safe.
  */
-export const POST = Webhooks({
-  webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY!,
+const createHandler = (webhookKey: string) => Webhooks({
+  webhookKey,
 
   onPayload: async (payload) => {
     if (payload.type.startsWith("subscription.")) {
@@ -70,3 +71,23 @@ export const POST = Webhooks({
     logger.debug(`[Dodo] Unhandled webhook ${payload.type}`)
   },
 })
+
+let handler: ReturnType<typeof createHandler> | null = null
+
+/**
+ * The handler is built on the first request, not at module load: `next build` imports this module to collect page
+ * data, and the Standard Webhooks constructor throws on an empty secret, so a build without
+ * DODO_PAYMENTS_WEBHOOK_KEY (local test builds, CI) used to fail. Without the key every delivery is refused.
+ */
+export async function POST(req: NextRequest) {
+  const webhookKey = process.env.DODO_PAYMENTS_WEBHOOK_KEY
+  if (!webhookKey) {
+    logger.error("[Dodo] DODO_PAYMENTS_WEBHOOK_KEY is not set; refusing the webhook")
+    return Response.json(
+      { error: { code: "unavailable", message: "Webhook is not configured" } },
+      { status: 503, headers: { "Cache-Control": "private, no-store" } },
+    )
+  }
+  handler ??= createHandler(webhookKey)
+  return handler(req)
+}

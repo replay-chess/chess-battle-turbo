@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
@@ -158,6 +158,8 @@ export async function POST(request: NextRequest) {
             tournamentId: tournament.id,
             gameData: {
               gameMode: "tournament",
+              // The creator is the White player (H6 #11): the socket reads this, never randomises.
+              creatorColor: "white",
               tournamentReferenceId: tournament.referenceId,
               positionInfo: positionData.positionInfo,
               ...(positionData.openingInfo && {
@@ -183,15 +185,17 @@ export async function POST(request: NextRequest) {
     );
 
     if (result.status === "MATCHED") {
-      notifyTournamentEvent({
-        event: "game_started",
-        tournamentReferenceId: data.tournamentReferenceId,
-        data: {
-          gameReferenceId: result.gameReferenceId,
-          white: { name: "", referenceId: "" },
-          black: { name: "", referenceId: "" },
-        },
-      });
+      after(() =>
+        notifyTournamentEvent({
+          event: "game_started",
+          tournamentReferenceId: data.tournamentReferenceId,
+          data: {
+            gameReferenceId: result.gameReferenceId,
+            white: { name: "", referenceId: "" },
+            black: { name: "", referenceId: "" },
+          },
+        })
+      );
     }
 
     return NextResponse.json({ success: true, data: result });

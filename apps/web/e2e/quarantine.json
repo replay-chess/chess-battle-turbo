@@ -1,0 +1,4 @@
+{
+  "$comment": "Quarantined tests (CT X14). Each entry: testId '<spec path> › <describe> › <title>', reason, owner, expires (YYYY-MM-DD, at most 14 days after it was added), issue. PR CI skips them through grepInvert; nightly runs and reports them; an expired entry fails the run. Empty at P13.",
+  "entries": []
+}
