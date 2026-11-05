@@ -7,7 +7,7 @@ On 2026-03-08 we ran `prisma migrate dev --name add-tournament-description` on a
 
 **Rules to prevent this from ever happening again:**
 
-1. **Schema changes on prod/shared databases**: Use `prisma db push` — it applies additive changes without resetting.
+1. **Never use `prisma db push`, on any database.** It changes the schema without a migration file, and that drift is what caused the 2026-03-08 wipe. Every schema change is a migration file in `prisma/migrations/`, committed to git and applied with `prisma migrate deploy`.
 2. **`prisma migrate dev`**: ONLY for local development databases that can be safely reset. NEVER on prod, staging, or any database with real data.
 3. **`prisma migrate deploy`**: The safe command for applying pending migrations to prod. It never resets.
 4. **Syncing migration history**: If migrations are out of sync with the actual schema, use `prisma migrate resolve --applied <name>` to mark them as applied — never `migrate dev`.
@@ -16,7 +16,7 @@ On 2026-03-08 we ran `prisma migrate dev --name add-tournament-description` on a
 ### Neon Database Details
 **New account (replaychess007@gmail.com), project `replay-chess` (`withered-cake-82837167`, AWS us-east-1)** — the database Replay Chess is moving to:
 - `production` branch (`br-shiny-shape-b8lvr0f5`, default): the future prod database. All migrations applied with `prisma migrate deploy`. Empty of user data until the old prod data is copied over.
-- `dev` branch (`br-misty-dew-b8wy3a8w`, child of production): local development and E2E. Seeded with `prisma/seed.ts` and `prisma/opening-seed.ts`. Safe to change; `prisma db push` / `migrate dev` are allowed here only.
+- `dev` branch (`br-misty-dew-b8wy3a8w`, child of production): local development and E2E. Seeded with `prisma/seed.ts` and `prisma/opening-seed.ts`. Safe to change; `prisma migrate dev` is allowed here only (to create migration files). Never `db push`.
 - MCP: `neon-replaychess` (local scope, project-scoped API key "claude-code-mcp").
 
 **Old account (pandit.rohit0007@gmail.com), project `chess_battle`** — still serves the live site today:

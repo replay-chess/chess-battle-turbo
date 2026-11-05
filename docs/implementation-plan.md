@@ -1,5 +1,7 @@
 # Replay Chess: coaching app implementation plan
 
+> **Superseded by the detailed plan (2026-11-02).** The detailed, authoritative plan now lives in [`docs/plan/README.md`](plan/README.md): 13 phases (P1–P13) with per-phase specs, the cross-cutting architecture, data model, API, client data layer and optimisation documents, and the owner's decision register [`docs/plan/99-open-decisions.md`](plan/99-open-decisions.md). It replaces §2 "Phases", §3 "Order and timeline" and §4 "Decisions needed from you" below; the phase numbers here map to the new ones through `docs/plan/01-architecture.md` §6.1. §1 (the paid-only model) still applies and is done (Phase 0, commit `8514fea`). The rest of this file is kept for history.
+
 Status: draft, 2026-11-01. Branch `hetzner-deploy`.
 Design source: Claude Design canvas https://claude.ai/artifact/KdJ3TDSaXSSsW3K8e8B8y9 (v3 pages plus the design system).
 Product rule: **there is no free tier.** Every logged-in feature needs an active Coaching membership (or an active 7-day trial).
