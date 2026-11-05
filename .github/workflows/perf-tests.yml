@@ -15,7 +15,7 @@ on:
 jobs:
   perf:
     if: inputs.suite == 'legacy'
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 45
     env:
       # k6 reads system env into __ENV: the scenarios send it as x-perf-token (plan H9; the server
@@ -214,7 +214,7 @@ jobs:
   # E2E_USER_A..D_EMAIL (existing dev users), VERCEL_AUTOMATION_BYPASS_SECRET (after Q-16, optional).
   me:
     if: inputs.suite == 'me'
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
     env:
       WEB_APP_URL: ${{ inputs.web_app_url }}

@@ -31,7 +31,7 @@ env:
 jobs:
   e2e-full:
     name: e2e-full (${{ matrix.shard }}/4)
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -133,7 +133,7 @@ jobs:
 
   devices-full:
     name: devices-full (${{ matrix.shard }}/4)
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -169,7 +169,7 @@ jobs:
 
   visual:
     # Visual baselines (1Q·2) run in the official image so fonts match the baselines.
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
     container: mcr.microsoft.com/playwright:v1.58.2-noble
     env:
@@ -189,7 +189,7 @@ jobs:
         run: pnpm --filter web test:devices --grep @visual --pass-with-no-tests
 
   state-coverage:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -204,7 +204,7 @@ jobs:
   flags-off:
     # The flags-off project (1Q·2) runs the earlier phases' @smoke specs with the
     # open phase's flags off. Skips cleanly until the project exists.
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 45
     services:
       db:
@@ -251,7 +251,7 @@ jobs:
   quarantine-report:
     needs: e2e-full
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ env.REF }}" }
@@ -327,7 +327,7 @@ jobs:
 
   dev-url:
     # The @smoke subset against the deployed dev site, with the Vercel bypass header.
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
     concurrency: { group: e2e-dev-shared, cancel-in-progress: false }
     env:

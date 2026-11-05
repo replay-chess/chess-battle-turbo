@@ -42,7 +42,7 @@ jobs:
       (github.event.deployment_status.state == 'success' &&
        contains(github.event.deployment.environment, 'replay-chess-dev') &&
        !contains(github.event.deployment.environment, 'Preview'))
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 30
     env:
       DEPLOY_URL: ${{ inputs.url || github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}

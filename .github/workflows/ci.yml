@@ -34,7 +34,7 @@ env:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 40
     services:
       shadow:
@@ -144,7 +144,7 @@ jobs:
 
   integration:
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
     services:
       db:
@@ -177,7 +177,7 @@ jobs:
 
   e2e-smoke:
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 45
     services:
       db:

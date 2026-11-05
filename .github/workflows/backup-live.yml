@@ -40,7 +40,7 @@ env:
 
 jobs:
   dump:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 30
     outputs:
       artifact: ${{ steps.names.outputs.artifact }}
@@ -120,7 +120,7 @@ jobs:
     if: >-
       (github.event_name == 'schedule' && github.event.schedule == '0 22 * * 0') ||
       (github.event_name == 'workflow_dispatch' && inputs.restore_check)
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 30
     permissions:
       contents: read
