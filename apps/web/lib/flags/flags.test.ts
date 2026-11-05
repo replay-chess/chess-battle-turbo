@@ -191,8 +191,16 @@ test("unknown key in the override is ignored; known keys still apply", async () 
 
 test("PostHog timeout → defaults, within the cap", async () => {
   const never: PostHogFlagEvaluator = () => new Promise(() => {});
+  // The cap timer is unref'd (it must never hold a serverless instance open), and `never` holds no handle,
+  // so without a ref'd handle the test process may see an empty event loop and cancel the test (seen on CI).
+  const keepAlive = setInterval(() => {}, 1_000);
   const started = performance.now();
-  const flags = await evaluateFlags(member, deps({ appEnv: "production", posthog: never, timeoutMs: 40 }));
+  let flags;
+  try {
+    flags = await evaluateFlags(member, deps({ appEnv: "production", posthog: never, timeoutMs: 40 }));
+  } finally {
+    clearInterval(keepAlive);
+  }
   const elapsed = performance.now() - started;
   assert.deepEqual(flags, defaultFlags("production"));
   assert.ok(elapsed < 40 + 200, `took ${elapsed} ms`);
