@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { classifyConsole, classifyResponse } from "./console-guard";
+import { CLERK_CHUNK_ABORT, classifyConsole, classifyResponse } from "./console-guard";
 import { auditEvents, matchesProps } from "./telemetry";
 
 describe("console guard rules", () => {
@@ -33,6 +33,19 @@ describe("console guard rules", () => {
       classifyConsole("error", "Button failed to load, iconName = pip-placard, layoutTraits = [MacOSLayoutTraits Inline], src = blob:x", []),
       null,
     );
+  });
+
+  it("regression: clerk-chunk-abort: a Clerk CDN chunk aborted by navigation is not a problem; our own chunks still are", () => {
+    const clerk =
+      "ChunkLoadError: Loading chunk 2270 failed.\n(error: https://loving-martin-7959.clerk.accounts.dev/npm/@clerk/clerk-js@5.128.0/dist/userbutton_clerk.browser_70f75e_5.128.0.js)";
+    assert.equal(classifyConsole("error", clerk, []), null);
+    // The uncaught page error carries the same text without the "ChunkLoadError: " prefix.
+    assert.ok(CLERK_CHUNK_ABORT.test(clerk.replace("ChunkLoadError: ", "")));
+    // The production instance serves its chunks from clerk.<domain>.
+    assert.ok(CLERK_CHUNK_ABORT.test("Loading chunk 12 failed.\n(error: https://clerk.playchess.tech/npm/@clerk/clerk-js@5/dist/x.js)"));
+    const own = "ChunkLoadError: Loading chunk 812 failed.\n(error: http://localhost:3000/_next/static/chunks/812.js)";
+    assert.equal(classifyConsole("error", own, [])?.kind, "console");
+    assert.equal(CLERK_CHUNK_ABORT.test("Loading chunk 9 failed.\n(error: https://evil.example/npm/@clerk/x.js)"), false);
   });
 
   it("still fails on a blocked same-origin load and on other RSC fetch errors", () => {

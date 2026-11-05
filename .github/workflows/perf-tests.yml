@@ -23,11 +23,11 @@ jobs:
       PERF_TOKEN: ${{ secrets.PERF_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -176,7 +176,7 @@ jobs:
 
       - name: Upload results as artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: perf-results-${{ github.sha }}
           path: |
@@ -222,9 +222,9 @@ jobs:
       ME_USER_EMAILS: ${{ secrets.E2E_USER_A_EMAIL }},${{ secrets.E2E_USER_B_EMAIL }},${{ secrets.E2E_USER_C_EMAIL }},${{ secrets.E2E_USER_D_EMAIL }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -264,7 +264,7 @@ jobs:
             echo "Commit \`${{ steps.me.outputs.file }}\` to record the result (plan §12.8)."
           } >> "$GITHUB_STEP_SUMMARY"
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: perf-me-${{ github.sha }}
           path: |

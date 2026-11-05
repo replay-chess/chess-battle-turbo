@@ -49,7 +49,7 @@ jobs:
       EXPECTED_SHA: ${{ inputs.sha || github.event.deployment.sha || github.sha }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: { ref: "${{ github.event.deployment.sha || 'dev' }}" }
 
       - name: /api/health buildId equals the deployed SHA
@@ -81,8 +81,8 @@ jobs:
           fi
           grep -q '"sid"' /tmp/handshake.txt || { echo "::error::no Engine.IO open packet"; exit 1; }
 
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium
@@ -133,7 +133,7 @@ jobs:
           E2E_USER_R_PASSWORD: ${{ secrets.E2E_USER_R_PASSWORD }}
         run: pnpm --filter web exec playwright test --project=chromium --grep @smoke
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: post-deploy-dev-report
           path: apps/web/playwright-report/

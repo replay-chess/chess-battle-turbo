@@ -105,10 +105,10 @@ jobs:
       E2E_USER_R_EMAIL: ${{ secrets.E2E_USER_R_EMAIL }}
       E2E_USER_R_PASSWORD: ${{ secrets.E2E_USER_R_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: { ref: "${{ env.REF }}" }
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium
@@ -123,7 +123,7 @@ jobs:
       - name: Playwright (main config, quarantined tests included)
         run: pnpm --filter web exec playwright test --project=chromium --project=play-queue --shard=${{ matrix.shard }}/4
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: e2e-full-${{ matrix.shard }}
           path: |
@@ -149,10 +149,10 @@ jobs:
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: { ref: "${{ env.REF }}" }
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium webkit
@@ -160,7 +160,7 @@ jobs:
       - name: All 40 layout projects + UI + motion (builds .next-devices, serves :3100)
         run: pnpm --filter web test:devices --shard=${{ matrix.shard }}/4
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: devices-full-${{ matrix.shard }}
           path: apps/web/playwright-report-devices/
@@ -178,10 +178,10 @@ jobs:
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: { ref: "${{ env.REF }}" }
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec prisma generate
@@ -192,10 +192,10 @@ jobs:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: { ref: "${{ env.REF }}" }
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - name: Design-state coverage (missing states fail)
@@ -229,10 +229,10 @@ jobs:
       E2E_USER_B_EMAIL: ${{ secrets.E2E_USER_B_EMAIL }}
       E2E_USER_B_PASSWORD: ${{ secrets.E2E_USER_B_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: { ref: "${{ env.REF }}" }
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - id: has
@@ -253,18 +253,18 @@ jobs:
     if: always()
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: { ref: "${{ env.REF }}" }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with: { pattern: "e2e-full-*", path: results }
       - name: Restore the flaky history
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .flaky-history.json
           key: flaky-history-${{ github.run_id }}
           restore-keys: flaky-history-
       - name: Report quarantine and flaky tests
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require("fs");
@@ -320,7 +320,7 @@ jobs:
             if (expired.length) core.setFailed(`expired quarantine entries: ${expired.map((e) => e.testId).join("; ")}`);
       - name: Save the flaky history
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .flaky-history.json
           key: flaky-history-${{ github.run_id }}
@@ -375,10 +375,10 @@ jobs:
       E2E_USER_R_EMAIL: ${{ secrets.E2E_USER_R_EMAIL }}
       E2E_USER_R_PASSWORD: ${{ secrets.E2E_USER_R_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: { ref: "${{ env.REF }}" }
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium
@@ -386,7 +386,7 @@ jobs:
       - name: "@smoke against the dev URL (@local-only skipped by the config)"
         run: pnpm --filter web exec playwright test --project=chromium --grep @smoke
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dev-url-report
           path: apps/web/playwright-report/

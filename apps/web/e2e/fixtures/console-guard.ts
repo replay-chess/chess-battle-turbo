@@ -52,6 +52,16 @@ const WEBKIT_NETWORK_NOISE = [
   /^Button failed to load, iconName = [\w-]+-placard, /,
 ];
 
+/**
+ * Clerk loads its UI (UserButton, SignIn, …) as lazy chunks from its own CDN on the Frontend API host. When a
+ * spec navigates while such a chunk is still loading, the browser aborts it and Clerk's loader logs and throws
+ * "ChunkLoadError: Loading chunk N failed. (error: https://<instance>.clerk.accounts.dev/npm/@clerk/…)". WebKit
+ * reports the abort this way; Chrome cancels silently. Only Clerk's CDN chunks are excused: a chunk of our own
+ * (`/_next/static/…`) that fails to load still fails the test.
+ */
+export const CLERK_CHUNK_ABORT =
+  /^(?:ChunkLoadError: )?Loading chunk [\w-]+ failed\.\s*\(error: https:\/\/(?:[a-z0-9-]+\.clerk\.accounts\.dev|clerk\.[a-z0-9.-]+)\/npm\/@clerk\//;
+
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const BASELINE_FILE = path.join(WEB_DIR, "e2e/console-baseline.json");
 
@@ -76,6 +86,7 @@ export type ConsoleProblem = { kind: "pageerror" | "console" | "hydration" | "ap
 export function classifyConsole(type: string, text: string, allow: RegExp[]): ConsoleProblem | null {
   if (allow.some((r) => r.test(text)) || RESOURCE_STATUS.test(text)) return null;
   if (WEBKIT_NETWORK_NOISE.some((r) => r.test(text))) return null;
+  if (CLERK_CHUNK_ABORT.test(text)) return null;
   if (HYDRATION.test(text)) return { kind: "hydration", text };
   if (type === "error") return { kind: "console", text };
   return null;
@@ -110,7 +121,8 @@ export function guardContext(context: BrowserContext, allow: RegExp[] = []): Con
   problemsByContext.set(context, problems);
   context.on("weberror", (err) => {
     const text = err.error().message;
-    if (!allow.some((r) => r.test(text))) problems.push({ kind: "pageerror", text, url: err.page()?.url() });
+    if (!allow.some((r) => r.test(text)) && !CLERK_CHUNK_ABORT.test(text))
+      problems.push({ kind: "pageerror", text, url: err.page()?.url() });
   });
   context.on("console", (msg) => {
     const problem = classifyConsole(msg.type(), msg.text(), allow);

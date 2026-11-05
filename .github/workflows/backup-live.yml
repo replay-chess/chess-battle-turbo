@@ -108,7 +108,7 @@ jobs:
           # Refuse an empty or suspiciously small dump.
           [ "$(stat -c %s "out/live-$DAY.dump.age")" -gt 10240 ]
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.names.outputs.artifact }}
           path: out/
@@ -134,7 +134,7 @@ jobs:
         options: >-
           --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           sparse-checkout: scripts/db
 
@@ -149,7 +149,7 @@ jobs:
           sudo apt-get install -y -qq "postgresql-client-${PG_MAJOR}" age jq
           echo "/usr/lib/postgresql/${PG_MAJOR}/bin" >> "$GITHUB_PATH"
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: ${{ needs.dump.outputs.artifact }}
           path: backup/

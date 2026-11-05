@@ -48,10 +48,10 @@ jobs:
       DATABASE_URL: postgresql://postgres:shadow@localhost:5432/postgres
       DIRECT_URL: postgresql://postgres:shadow@localhost:5432/postgres
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: { fetch-depth: 0 }
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
 
@@ -133,7 +133,7 @@ jobs:
         run: node scripts/qa/check-owners.mjs --report --base "$BASE_SHA" --head "$HEAD_SHA" --labels "$PR_LABELS"
 
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: verify-reports
           path: |
@@ -157,9 +157,9 @@ jobs:
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/replay
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec prisma generate
@@ -248,9 +248,9 @@ jobs:
       E2E_USER_R_EMAIL: ${{ secrets.E2E_USER_R_EMAIL }}
       E2E_USER_R_PASSWORD: ${{ secrets.E2E_USER_R_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium webkit
@@ -290,7 +290,7 @@ jobs:
         # starts `pnpm start`, the socket server from source and the PostHog sink (POSTHOG_HOST above).
         run: pnpm --filter web exec playwright test --project=chromium --project=webkit-iphone --grep @smoke
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: e2e-smoke-report
           path: |
