@@ -12,6 +12,9 @@
  * docs/qa/design-states.overrides.json holds the reviewed exceptions:
  *   ignore    { "<Board>" | "<Board>.<prop>" | "<Board>.<value>": reason }  not a state
  *   demoOnly  { "<Board>.<value>": reason }                                  demo is enough
+ *   deferred  { "<Board>.<value>": { phase, reason } }                       the state ships in a later
+ *             phase than its board; it is not counted while phase.txt < phase, and is due (missing
+ *             unless tagged) from that phase on, so the entry can stay until someone tags it.
  *
  * A state with no tag is MISSING; a state reached only by a demo route without
  * a demoOnly reason is UNEXPLAINED. Either fails (exit 1).
@@ -32,12 +35,17 @@ import type { DesignStates } from "./extract-design-states";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const WEB = path.join(ROOT, "apps/web");
 
-export type Overrides = { ignore?: Record<string, string>; demoOnly?: Record<string, string> };
+export type Deferral = { phase: number; reason: string };
+export type Overrides = {
+  ignore?: Record<string, string>;
+  demoOnly?: Record<string, string>;
+  deferred?: Record<string, Deferral>;
+};
 export type StateRow = {
   board: string;
   phase: number;
   key: string;
-  status: "real" | "demo" | "demo-unexplained" | "missing" | "ignored";
+  status: "real" | "demo" | "demo-unexplained" | "missing" | "ignored" | "deferred";
   reason?: string;
 };
 
@@ -81,6 +89,7 @@ export function computeCoverage(
   const rows: StateRow[] = [];
   const ignore = overrides.ignore ?? {};
   const demoOnly = overrides.demoOnly ?? {};
+  const deferred = overrides.deferred ?? {};
   for (const b of manifest.boards) {
     if (b.phase > maxPhase || (onlyPhase !== undefined && b.phase !== onlyPhase)) continue;
     for (const [prop, values] of Object.entries(b.props)) {
@@ -98,7 +107,12 @@ export function computeCoverage(
           const why = keys.map((k) => demoOnly[k]).find(Boolean);
           rows.push({ board: b.board, phase: b.phase, key: label, status: why ? "demo" : "demo-unexplained", reason: why });
         } else {
-          rows.push({ board: b.board, phase: b.phase, key: label, status: "missing" });
+          const later = keys.map((k) => deferred[k]).find((d) => d && d.phase > maxPhase);
+          rows.push(
+            later
+              ? { board: b.board, phase: b.phase, key: label, status: "deferred", reason: `P${later.phase}: ${later.reason}` }
+              : { board: b.board, phase: b.phase, key: label, status: "missing" },
+          );
         }
       }
     }
@@ -106,22 +120,27 @@ export function computeCoverage(
   return rows;
 }
 
+function deferredList(r: StateRow[]): string {
+  const d = r.filter((x) => x.status === "deferred");
+  return d.map((x) => `${x.key.replace(`${x.board}.`, "")} (${x.reason?.split(":")[0]})`).join(", ") || "—";
+}
+
 export function toMarkdown(rows: StateRow[]): string {
   const boards = [...new Set(rows.map((r) => r.board))];
   const lines = [
-    "| Board | Phase | Real data | Demo only | Missing | Ignored |",
-    "|---|---|---|---|---|---|",
+    "| Board | Phase | Real data | Demo only | Missing | Deferred | Ignored |",
+    "|---|---|---|---|---|---|---|",
   ];
   for (const board of boards) {
     const r = rows.filter((x) => x.board === board);
     const list = (s: StateRow["status"][]) =>
       r.filter((x) => s.includes(x.status)).map((x) => x.key.replace(`${board}.`, "") + (x.status === "demo-unexplained" ? " (no reason)" : "")).join(", ") || "—";
-    lines.push(`| ${board} | P${r[0]!.phase} | ${list(["real"])} | ${list(["demo", "demo-unexplained"])} | ${list(["missing"])} | ${list(["ignored"])} |`);
+    lines.push(`| ${board} | P${r[0]!.phase} | ${list(["real"])} | ${list(["demo", "demo-unexplained"])} | ${list(["missing"])} | ${deferredList(r)} | ${list(["ignored"])} |`);
   }
   const count = (s: StateRow["status"]) => rows.filter((x) => x.status === s).length;
   lines.push(
     "",
-    `Real ${count("real")} · demo ${count("demo")} · demo without reason ${count("demo-unexplained")} · missing ${count("missing")} · ignored ${count("ignored")}`,
+    `Real ${count("real")} · demo ${count("demo")} · demo without reason ${count("demo-unexplained")} · missing ${count("missing")} · deferred ${count("deferred")} · ignored ${count("ignored")}`,
   );
   return lines.join("\n");
 }

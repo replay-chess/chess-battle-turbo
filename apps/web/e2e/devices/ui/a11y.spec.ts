@@ -3,9 +3,10 @@
 import { expectNoAxeViolations } from "../a11y";
 import { test, waitForStable } from "../helpers";
 
-const ROUTES: { id: string; path: string }[] = [
+// `tags`: design states (docs/qa/design-states.json) the route shows, for scripts/qa/state-coverage.ts.
+const ROUTES: { id: string; path: string; tags?: string }[] = [
   { id: "foundations", path: "/dev/ui/sections/foundations" },
-  { id: "controls", path: "/dev/ui/sections/controls" },
+  { id: "controls", path: "/dev/ui/sections/controls", tags: " @demo:V3EmptyStates" },
   { id: "overlays", path: "/dev/ui/sections/overlays" },
   { id: "shell", path: "/dev/ui/sections/shell" },
   { id: "layout", path: "/dev/ui/sections/layout" },
@@ -13,9 +14,9 @@ const ROUTES: { id: string; path: string }[] = [
   { id: "stage-demo", path: "/dev/ui/stage" },
 ];
 
-for (const { id, path } of ROUTES) {
+for (const { id, path, tags = "" } of ROUTES) {
   for (const theme of ["light", "dark"] as const) {
-    test(`a11y ${id} ${theme}`, async ({ page }) => {
+    test(`a11y ${id} ${theme} @p1${tags}`, async ({ page }) => {
       const res = await page.goto(path);
       test.skip(res?.status() === 404, `${path} returns 404 (not built yet)`);
       await waitForStable(page);

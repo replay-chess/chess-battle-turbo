@@ -13,8 +13,6 @@ import {
   type WindowRow,
 } from "./rate-limit-db";
 
-// TEST_DATABASE_URL joins REPO/turbo.json `globalEnv` with 1B·F7 (plan §7.9); drop this disable then.
-// eslint-disable-next-line turbo/no-undeclared-env-vars
 const url = process.env.TEST_DATABASE_URL;
 
 describe("rate-limit-db (Postgres)", { skip: url ? false : "TEST_DATABASE_URL not set" }, () => {

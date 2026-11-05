@@ -108,6 +108,11 @@ describe("findPii", () => {
     assert.deepEqual(kinds({ a: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1" }), ["fen"]);
     assert.deepEqual(kinds({ a: "1. e4 e5 2. Nf3" }), ["pgn"]);
     assert.deepEqual(kinds({ a: "12...Nf6" }), ["pgn"]);
+    assert.deepEqual(kinds({ a: "3.Bxf7+" }), ["pgn"]);
+    assert.deepEqual(kinds({ a: "9. O-O" }), ["pgn"]);
+    assert.deepEqual(kinds({ a: "23. exd8=Q#" }), ["pgn"]);
+    // Version strings and dotted numbers are not moves (posthog-node sends $lib_version "5.56.4").
+    assert.deepEqual(kinds({ $lib_version: "5.56.4", b: "1.2.3", c: "2026.11.05", d: "v1.58.2" }), []);
     assert.deepEqual(kinds({ nested: ["Paul Morphy"] }, ["morphy"]), ["forbidden"]);
   });
 

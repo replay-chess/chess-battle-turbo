@@ -12,7 +12,7 @@ const CASES = [
 ];
 
 for (const c of CASES) {
-  test(`reflow ${c.viewport.width}x${c.viewport.height}`, async ({ browser }, testInfo) => {
+  test(`reflow ${c.viewport.width}x${c.viewport.height} @p1`, async ({ browser }, testInfo) => {
     test.skip(testInfo.project.name !== c.project, `runs once, on ${c.project}`);
     const ctx = await browser.newContext({
       viewport: c.viewport,

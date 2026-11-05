@@ -6,7 +6,7 @@ import { NAV_WIDTH } from "./modes";
 import { ROUTES, isGameRoute } from "./routes";
 
 for (const route of ROUTES) {
-  test(`one viewport ${route.path}`, async ({ page }) => {
+  test(`one viewport ${route.path} @p1`, async ({ page }) => {
     await gotoStable(page, route.path);
     const mode = await shellModeFor(page);
     const gameInTabbar = isGameRoute(route.path) && mode === "tabbar";

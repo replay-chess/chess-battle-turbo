@@ -63,7 +63,7 @@ The conflicts found while assembling this folder, and the ruling for each, are i
 | `REPO` | `/Users/rohitpandit/open_source/chess-battle-turbo` |
 | `WEB`, `WS`, `WK` | `apps/web`, `apps/web-socket`, `apps/analysis-worker` (created in P3) |
 | `PKG`, `CT`, `DB`, `TRN`, `CA`, `CF`, `DOM` | `packages`, `packages/contracts/src`, `packages/db`, `packages/chess-training`, `packages/chess-analysis`, `packages/chess-fixtures`, `packages/domain` (P9) |
-| `SP` | the planning session's scratchpad, `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad`. **It is temporary and can be wiped on reboot** (see [99-open-decisions.md](99-open-decisions.md) A12). |
+| `SP` | the planning session's scratchpad (archived scratch inputs: the design canvas, inventories, audits, critiques and research reports; not in the repo). **It was temporary and may no longer exist** (see [99-open-decisions.md](99-open-decisions.md) A12). |
 | `DR`, `DS` | `SP/design-ref/project/v2` (the `.dc.html` boards) and `SP/design-ref/ds/project` (design-system README, tokens, component READMEs); the board index is `SP/design-ref/INDEX.md` |
 | ALLOC | [allocation.md](allocation.md) (copied here from `SP/plan/allocation.md`) |
 | SPEC | [phase-01a-spec.md](phase-01a-spec.md) (copied here from `SP/phase1/SPEC.md`) |
@@ -86,6 +86,7 @@ The conflicts found while assembling this folder, and the ruling for each, are i
 | [05-optimization.md](05-optimization.md) | SLOs and how each is measured, database work (indexes, HOT updates, connection use, wake sources), the caching layers, payload budgets, compute offload, cold starts and bundles, rate limiting on free tiers, observability, the prioritised optimisation backlog by phase | Before each phase's §9 |
 | [06-codebase-audit.md](06-codebase-audit.md) | Today's code: 172 findings (14 critical, 59 high) with `file:line` evidence, duplicates across audits, keep/rework/remove verdicts, and the phase that fixes each finding | Before touching legacy code |
 | [07-design-coverage.md](07-design-coverage.md) | Every v3 board → phase → feature (314 boards, 2,983 state values), the 24 cross-phase gaps and their owners, the 105 flow-map edges, the documented deviations from the boards | Before each phase's §4 |
+| [../route-map.md](../route-map.md) | The canonical route table: route → boards → phase → flag → auth class, the Phase 1 middleware class lists that `route-classes.test.ts` reads, the class changes each later phase must make, redirects | Whenever a phase adds, moves or reclassifies a route |
 | [99-open-decisions.md](99-open-decisions.md) | Every open owner question across all documents, deduplicated, with a recommended answer and the phase and date it is needed by; the destructive steps that need confirmation; facts to verify; document conflicts and their rulings | Weekly, and at every phase entry |
 
 ### 3.2 Phase documents

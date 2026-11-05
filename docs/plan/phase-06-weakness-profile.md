@@ -37,7 +37,7 @@ Status: plan, revised after the five critiques, 2026-11-02. Written against bran
 | `DB` | `PKG/db` (P2 moved the Prisma schema here) |
 | `AN` | `PKG/analytics/src` (P1 event registry, testing X6) |
 | `FX` | `PKG/chess-fixtures` |
-| `SP` | `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad` |
+| `SP` | the planning session's scratchpad, archived scratch inputs that are not in the repo and may no longer exist (see [99-open-decisions.md](99-open-decisions.md) A12) |
 | `DR` | `SP/design-ref/project/v2` (board files `*.dc.html`) |
 | `EX` | `SP/extract` (parsed board markup and DCLogic, one `.txt` per board) |
 

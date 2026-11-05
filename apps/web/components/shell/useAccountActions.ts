@@ -20,7 +20,9 @@ import {
 } from "lucide-react";
 import { usePWAInstall } from "@/lib/hooks/usePWAInstall";
 import { membershipHref } from "@/lib/nav/destinations";
-import { purgeRuntimeCaches } from "@/lib/shell/pwa";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { getQueryClient } from "@/lib/api/query-client";
+import { signOutEverywhere, type SignOutClerk } from "@/lib/auth/sign-out";
 import type { ShellUser } from "@/lib/shell/types";
 import { trackShell, type AccountActionId } from "@/lib/analytics/shell-events";
 
@@ -46,16 +48,13 @@ export type AccountItem = {
   separatorBefore?: boolean;
 };
 
-type SignOutClient = { signOut: (options: { redirectUrl: string }) => Promise<unknown> };
-
 /**
- * Sign Out lives in this one function so 1B·J can swap its body for
- * `signOutEverywhere()` (plan 13.2). The existing UserSync and PostHogIdentify
- * cleanup runs on sign-out; no second reset here.
+ * Sign Out (account menu, sheet and command palette): `signOutEverywhere()` (plan 8.6, 1B·J). It clears the
+ * query cache, the user store and the SW runtime caches, calls POST /api/session/clear, resets analytics, tells
+ * other tabs, then signs out of Clerk. `queryClient` defaults to the tab's singleton, the one <Providers> uses.
  */
-export async function runSignOut(clerk: SignOutClient): Promise<void> {
-  await purgeRuntimeCaches();
-  await clerk.signOut({ redirectUrl: "/" });
+export async function runSignOut(clerk: SignOutClerk, queryClient: QueryClient = getQueryClient()): Promise<void> {
+  await signOutEverywhere(clerk, { queryClient });
 }
 
 /**
@@ -91,6 +90,7 @@ function scrollToMembershipIfPresent(): void {
 export function useAccountActions(user: ShellUser, { demo = false }: { demo?: boolean } = {}) {
   const router = useRouter();
   const clerk = useClerk();
+  const queryClient = useQueryClient();
   // `useClerk().loaded` does not re-render when Clerk finishes loading; `useAuth().isLoaded` does.
   const { isLoaded: clerkLoaded } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
@@ -171,7 +171,7 @@ export function useAccountActions(user: ShellUser, { demo = false }: { demo?: bo
       disabled: demo,
       run: () => {
         track("signout");
-        void runSignOut(clerk);
+        void runSignOut(clerk, queryClient);
       },
     },
   );

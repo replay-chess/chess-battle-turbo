@@ -11,7 +11,7 @@ Budget in the allocation: **8 dev-days** (allocation §0, §3 P13). This spec me
 | `REPO` | `/Users/rohitpandit/open_source/chess-battle-turbo` |
 | `WEB`, `WS`, `WK` | `REPO/apps/web`, `REPO/apps/web-socket`, `REPO/apps/analysis-worker` (P3) |
 | `PKG`, `DB`, `CT` | `REPO/packages`, `REPO/packages/db` (schema moved there in P2), `REPO/packages/contracts/src` (imported as `@repo/contracts/{http,socket,internal}/<file>`, consistency R-10) |
-| `SP` | `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad` |
+| `SP` | the planning session's scratchpad, archived scratch inputs that are not in the repo and may no longer exist (see [99-open-decisions.md](99-open-decisions.md) A12) |
 | `DR` | `SP/design-ref/project/v2` (board files `*.dc.html`) |
 | ALLOC, ARCH, DM, API, CDL, OPT | `SP/plan/allocation.md`, `architecture.md`, `data-model.md`, `api-design.md`, `client-data-layer.md`, `optimization.md` |
 | ADB, AQ, AS, AA, AC | `SP/plan/audit-db.md`, `audit-quality.md`, `audit-socket.md`, `audit-api.md`, `audit-client.md` |

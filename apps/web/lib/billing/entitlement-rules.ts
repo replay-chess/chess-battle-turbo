@@ -27,8 +27,20 @@ export interface EntitlementRecord {
   subscriptionProductId: string | null;
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
+  /** When the row's billing columns were last written (any source). Not an ordering key since M1. */
   subscriptionUpdatedAt: Date | null;
+  /**
+   * M1 (P1). Provider-side time of the snapshot last applied: the Dodo webhook timestamp, or the API
+   * object's own update time. Never `now()`. The compare-and-set key of `applySubscriptionSnapshot`.
+   */
+  subscriptionSourceAt?: Date | null;
 }
+
+/** The columns `isEntitled` reads. */
+export type EntitlementCore = Pick<EntitlementRecord, "subscriptionStatus" | "cancelAtPeriodEnd" | "currentPeriodEnd">;
+
+/** What a Dodo snapshot sets on the user row. Timestamps are added by the writer (`entitlement.ts`). */
+export type SnapshotFields = Omit<EntitlementRecord, "subscriptionUpdatedAt" | "subscriptionSourceAt">;
 
 /**
  * Statuses that keep access until the paid period runs out. A failed renewal
@@ -53,7 +65,7 @@ export const TERMINAL_STATUSES: readonly SubscriptionStatus[] = [
   "failed",
 ];
 
-export function isEntitled(record: EntitlementRecord, now: Date = new Date()): boolean {
+export function isEntitled(record: EntitlementCore & Partial<EntitlementRecord>, now: Date = new Date()): boolean {
   const status = record.subscriptionStatus as SubscriptionStatus | null;
   if (!status) return false;
   if (status === "active") return true;
@@ -98,23 +110,37 @@ function intervalFromSnapshot(snapshot: SubscriptionSnapshot): BillingInterval {
 }
 
 /**
+ * The stored row's ordering key: the provider time of the snapshot last applied, falling back to
+ * `subscriptionUpdatedAt` for rows written before M1 (plan §8.11).
+ */
+export function storedSourceTime(current: Pick<EntitlementRecord, "subscriptionUpdatedAt" | "subscriptionSourceAt">): Date | null {
+  return current.subscriptionSourceAt ?? current.subscriptionUpdatedAt ?? null;
+}
+
+/**
  * Decides whether an incoming snapshot should overwrite what is stored.
  * Webhooks are not ordered, and a customer can hold more than one
  * subscription over time, so we keep whichever record grants the most access.
+ *
+ * `sourceAt` is the provider time of the snapshot (webhook timestamp), or null when the source has
+ * none (an API read): a snapshot without a time is never treated as stale; the compare-and-set in
+ * `entitlement.ts` still guards the write.
  */
 export function shouldApplySnapshot(
   current: EntitlementRecord,
   snapshot: SubscriptionSnapshot,
-  eventTime: Date | null,
+  sourceAt: Date | null,
   now: Date = new Date(),
 ): boolean {
   // Nothing stored yet: always apply.
   if (!current.subscriptionId) return true;
 
-  // Same subscription: apply unless the event is older than what we have.
+  const storedAt = storedSourceTime(current);
+
+  // Same subscription: apply unless the snapshot is older than what we have.
   if (current.subscriptionId === snapshot.subscription_id) {
-    if (!eventTime || !current.subscriptionUpdatedAt) return true;
-    return eventTime.getTime() >= current.subscriptionUpdatedAt.getTime();
+    if (!sourceAt || !storedAt) return true;
+    return sourceAt.getTime() >= storedAt.getTime();
   }
 
   // Different subscription. Prefer the one that grants access.
@@ -127,16 +153,15 @@ export function shouldApplySnapshot(
 
   // Both entitled or both not: the newer subscription wins.
   const incomingCreated = toDate(snapshot.created_at)?.getTime() ?? 0;
-  const currentUpdated = current.subscriptionUpdatedAt?.getTime() ?? 0;
-  return incomingCreated >= currentUpdated || !currentEntitled;
+  const currentAt = storedAt?.getTime() ?? 0;
+  return incomingCreated >= currentAt || !currentEntitled;
 }
 
-/** Converts a Dodo subscription into the user-row fields we persist. */
-export function fieldsFromSnapshot(
-  snapshot: SubscriptionSnapshot,
-  catalog: ProductCatalog,
-  eventTime: Date | null = null,
-): EntitlementRecord {
+/**
+ * Converts a Dodo subscription into the user-row fields we persist. No timestamps: the writer sets
+ * `subscriptionUpdatedAt` (write time) and `subscriptionSourceAt` (provider time, never `now()`).
+ */
+export function fieldsFromSnapshot(snapshot: SubscriptionSnapshot, catalog: ProductCatalog): SnapshotFields {
   const resolved: ResolvedPlan | null = resolvePlanFromProductId(snapshot.product_id, catalog);
   const status = snapshot.status as SubscriptionStatus;
   const cancelAtPeriodEnd = Boolean(snapshot.cancel_at_next_billing_date);
@@ -153,8 +178,17 @@ export function fieldsFromSnapshot(
     subscriptionProductId: snapshot.product_id,
     currentPeriodEnd: toDate(snapshot.next_billing_date),
     cancelAtPeriodEnd,
-    subscriptionUpdatedAt: eventTime ?? new Date(),
   };
+}
+
+/**
+ * Provider time of an API-read subscription object, or null. Dodo's `Subscription` carries
+ * `created_at` and billing dates but no update time, so an API read has no provider time today and
+ * never advances `subscriptionSourceAt` (plan §8.11). Kept as the one place to change if the SDK
+ * gains `updated_at`.
+ */
+export function providerTimeOf(snapshot: SubscriptionSnapshot & { updated_at?: string | Date | null }): Date | null {
+  return toDate(snapshot.updated_at ?? null);
 }
 
 /**

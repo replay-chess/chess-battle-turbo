@@ -126,8 +126,8 @@ function insideViewport(b: Box, innerHeight: number) {
 }
 
 // 1–7, 9, 13, 15, 16: desktop (Desktop Chrome from the config: sidebar mode).
-test.describe("App shell for members", () => {
-  test("1. /play renders inside the shell", async ({ authedPage: page }) => {
+test.describe("App shell for members @p1", () => {
+  test("1. /play renders inside the shell @state:V3Nav.play", async ({ authedPage: page }) => {
     await gotoApp(page, "/play");
     await expectShell(page);
     await expect(page.getByTestId("nav-item-play")).toHaveAttribute("aria-current", "page");
@@ -144,14 +144,14 @@ test.describe("App shell for members", () => {
     await expect(page.getByTestId("nav-item-tournaments")).toHaveAttribute("aria-current", "page");
   });
 
-  test("3. /legends marks Learn current", async ({ authedPage: page }) => {
+  test("3. /legends marks Learn current @state:V3Nav.learn", async ({ authedPage: page }) => {
     await gotoApp(page, "/legends");
     await expectShell(page);
     await expect(page.getByTestId("nav-item-learn")).toHaveAttribute("aria-current", "page");
     await expect(page.getByTestId("nav-item-legends")).toBeVisible();
   });
 
-  test("4. Profile nav item and the membership anchor", async ({ authedPage: page }) => {
+  test("4. Profile nav item and the membership anchor @state:V3Nav.profile", async ({ authedPage: page }) => {
     await gotoApp(page, "/play");
     await expectShell(page);
     await page.getByTestId("nav-item-profile").click();
@@ -199,7 +199,7 @@ test.describe("App shell for members", () => {
     await expect(button).toBeFocused();
   });
 
-  test("6. Palette, chords and the shortcuts dialog", async ({ authedPage: page }) => {
+  test("6. Palette, chords and the shortcuts dialog @state:V3CommandPalette.open @state:V3CommandPalette.closed @state:V3Shortcuts.open @state:V3Shortcuts.closed", async ({ authedPage: page }) => {
     await gotoApp(page, "/play");
     await expectShell(page);
 
@@ -327,7 +327,7 @@ test.describe("App shell for members", () => {
   });
 });
 
-test.describe("Phone shell (Pixel 7)", () => {
+test.describe("Phone shell (Pixel 7) @p1", () => {
   test.use({ ...pixel7 });
 
   test("8. Tab bar, account sheet, SubNav and Back", async ({ authedPage: page }) => {
@@ -379,7 +379,7 @@ test.describe("Phone shell (Pixel 7)", () => {
   });
 });
 
-test.describe("Marketing chrome for everyone else", () => {
+test.describe("Marketing chrome for everyone else @p1", () => {
   test("10. A non-member keeps the marketing Navbar on /legends", async ({ nonMemberPage: page }) => {
     await gotoApp(page, "/legends");
     await expect(page.getByTestId("marketing-navbar")).toBeVisible({ timeout: 30_000 });
@@ -404,7 +404,7 @@ const scrollProjects = [
 ] as const;
 
 for (const project of scrollProjects) {
-  test.describe(`12. Scroll and clip on ${project.name}`, () => {
+  test.describe(`12. Scroll and clip on ${project.name} @p1`, () => {
     test.use({ ...project.use });
 
     test("member pages scroll to their last element", async ({ authedPage: page }) => {

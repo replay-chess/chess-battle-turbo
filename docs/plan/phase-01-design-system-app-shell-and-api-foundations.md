@@ -17,7 +17,7 @@ Status: **final phase plan, revision 2**, 2026-11-02, branch `dev` @ `0848b76`. 
 | `REPO` | `/Users/rohitpandit/open_source/chess-battle-turbo` |
 | `WEB` | `/Users/rohitpandit/open_source/chess-battle-turbo/apps/web` (a relative path in this document is relative to `WEB` unless it starts with `REPO/`, `WS/` or `SP/`) |
 | `WS` | `/Users/rohitpandit/open_source/chess-battle-turbo/apps/web-socket` |
-| `SP` | `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad` |
+| `SP` | the planning session's scratchpad, archived scratch inputs that are not in the repo and may no longer exist (see [99-open-decisions.md](99-open-decisions.md) A12) |
 | `DR` | `SP/design-ref/project/v2` (the `.dc.html` boards) |
 | `DS` | `SP/design-ref/ds/project` (design system README, tokens, component READMEs) |
 | SPEC | `SP/phase1/SPEC.md` |

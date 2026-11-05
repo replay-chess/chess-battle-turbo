@@ -13,7 +13,7 @@ The final copy of this spec lives at `REPO/docs/plan/phase-09-play-hub-matchmaki
 | `REPO` | `/Users/rohitpandit/open_source/chess-battle-turbo` |
 | `WEB`, `WS`, `WK` | `REPO/apps/web`, `REPO/apps/web-socket`, `REPO/apps/analysis-worker` |
 | `PKG` | `REPO/packages`. `contracts` and `game-core` are created in P1–P2, `db` in P2. **`domain` is created by this phase** (WP-A) |
-| `SP` | `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad` |
+| `SP` | the planning session's scratchpad, archived scratch inputs that are not in the repo and may no longer exist (see [99-open-decisions.md](99-open-decisions.md) A12) |
 | `DR` | `SP/design-ref/project/v2` (board files `*.dc.html`) |
 | `DS` | `SP/design-ref/ds/project` (design-system README, tokens, components) |
 

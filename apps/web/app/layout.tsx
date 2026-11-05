@@ -10,9 +10,12 @@ import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { ThemeAwareClerkProvider } from "./components/ThemeAwareClerkProvider";
 import { ThemeAwareToaster } from "./components/ThemeAwareToaster";
-import { SpeedInsights } from "@vercel/speed-insights/next";
+import { SampledSpeedInsights } from "./components/SampledSpeedInsights";
+import { vercelAnalyticsEnabled } from "@/lib/analytics/vercel";
 import { ThemeColorSync } from "./components/ThemeColorSync";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SessionWatcher } from "@/components/system/SessionWatcher";
+import { Providers } from "./providers";
 
 // next/font/google names the families literally 'Geist' and 'Geist Mono', so the
 // existing inline fontFamily: "'Geist'" styles resolve (SPEC D8). app/fonts/*.woff
@@ -156,14 +159,22 @@ export default function RootLayout({
       <body className="bg-cb-bg">
         <ThemeProvider>
           <ThemeAwareClerkProvider>
-            <GoogleAnalytics />
-            <Analytics />
-            <SpeedInsights />
-            <UserSync />
-            <PostHogIdentify />
-            <ThemeAwareToaster />
-            <ThemeColorSync />
-            <TooltipProvider>{children}</TooltipProvider>
+            {/* The tab's QueryClient (plan 5.4). Inside Clerk: SessionWatcher and UserSync read the session. */}
+            <Providers sessionWatcher={<SessionWatcher />}>
+              <GoogleAnalytics />
+              {/* /_vercel/* scripts exist only on Vercel deployments (lib/analytics/vercel.ts). */}
+              {vercelAnalyticsEnabled() && (
+                <>
+                  <Analytics />
+                  <SampledSpeedInsights />
+                </>
+              )}
+              <UserSync />
+              <PostHogIdentify />
+              <ThemeAwareToaster />
+              <ThemeColorSync />
+              <TooltipProvider>{children}</TooltipProvider>
+            </Providers>
           </ThemeAwareClerkProvider>
         </ThemeProvider>
       </body>

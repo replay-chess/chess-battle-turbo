@@ -236,11 +236,17 @@ export type ApiErrorCapture = {
   breadcrumb: (message: string, data?: Record<string, unknown>) => void;
 };
 
+/** Telemetry for a shown error toast (`api_error_toast`, plan §10.1). Only HTTP errors (status 400–599) reach it. */
+export type ApiErrorTelemetry = {
+  errorToast: (err: ApiError) => void;
+};
+
 export type ApiErrorDeps = {
   sessionGuard: SessionGuard;
   navigation: ApiErrorNavigation;
   notify: ApiErrorNotify;
   capture: ApiErrorCapture;
+  telemetry: ApiErrorTelemetry;
   currentPath: () => string;
 };
 
@@ -265,6 +271,17 @@ const lazyCapture: ApiErrorCapture = {
   },
 };
 
+// Loaded lazily like the toast and Sentry, so this module keeps no UI or analytics imports.
+const lazyTelemetry: ApiErrorTelemetry = {
+  errorToast: (err) => {
+    void import("@/lib/analytics/system-events")
+      .then((m) =>
+        m.trackSystem("api_error_toast", { route_id: m.routeIdForPath(err.path), code: err.code, status: err.status }),
+      )
+      .catch(() => {});
+  },
+};
+
 function defaultDeps(): ApiErrorDeps {
   return {
     sessionGuard: { onUnauthorized: () => undefined },
@@ -275,6 +292,7 @@ function defaultDeps(): ApiErrorDeps {
     },
     notify: lazyNotify,
     capture: lazyCapture,
+    telemetry: lazyTelemetry,
     currentPath: currentAppPath,
   };
 }
@@ -405,4 +423,6 @@ function react(err: unknown, ctx: ReactionContext): void {
     id: `err:${typeof meta?.object === "string" ? meta.object : "action"}`,
     action: retry ? { label: "Retry", onClick: retry } : undefined,
   });
+  // Client-only codes (network, timeout, offline: status 0) have no HTTP status, so the event schema excludes them.
+  if (err.status >= 400 && err.status <= 599) deps.telemetry.errorToast(err);
 }

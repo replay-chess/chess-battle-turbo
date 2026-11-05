@@ -8,7 +8,7 @@ import { ROUTES, isGameRoute } from "./routes";
 const PROJECTS = ["desktop-1440@100", "iphone@100", "ipad-portrait@100"];
 
 for (const route of ROUTES) {
-  test(`text zoom 20px ${route.path}`, async ({ page }, testInfo) => {
+  test(`text zoom 20px ${route.path} @p1`, async ({ page }, testInfo) => {
     test.skip(!PROJECTS.includes(testInfo.project.name), "text zoom runs on three projects only");
     await gotoStable(page, route.path);
     await page.addStyleTag({ content: "html{font-size:20px}" });

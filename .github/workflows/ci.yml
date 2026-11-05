@@ -1,0 +1,297 @@
+# CI on the dev branch (phase-01 plan §13.4, 1B·F7; CT X1, X2, X16).
+#
+# verify       gitleaks (full history + baseline), types, orphan-test guard, unit tests, lint delta,
+#              Prisma drift gate, OpenAPI diff, test-mode build, bundle budget (blocking), OWNERS report
+# integration  Docker Postgres: migrate deploy + seeds, then every *.int.test.ts and the Postgres part of
+#              lib/webhooks/record.test.ts
+# e2e-smoke    paywall on, test hooks on, local socket from source with SOCKET_AUTH_REQUIRED=true:
+#              the authz walker over HTTP, then Playwright @smoke on chromium + webkit-iphone
+#
+# CI never touches Neon: every database here is a service container. `main` has its own guard
+# (main-guard.yml); this workflow does not run there, because main has none of the new packages until P13.
+#
+# Secrets (owner adds; names only): E2E_TEST_TOKEN, NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY
+# (Clerk development instance), INTERNAL_API_SECRET, E2E_USER_{A..P,R}_{EMAIL,PASSWORD}. The verify and
+# integration jobs need none.
+name: CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 22
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      shadow:
+        image: postgres:17
+        env: { POSTGRES_PASSWORD: shadow }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      # Prisma reads these from schema.prisma even for `generate` and `migrate diff`; nothing connects to them
+      # except the drift gate's shadow database and the build (which must not need a database).
+      DATABASE_URL: postgresql://postgres:shadow@localhost:5432/postgres
+      DIRECT_URL: postgresql://postgres:shadow@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+
+      - name: gitleaks (full history, redacted, against the baseline)
+        # `--redact` is required: the committed baseline is redacted, and gitleaks matches a finding against it
+        # only when redaction is on. The :v8 tag does not exist; pin the version.
+        run: >-
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 git /repo
+          --log-opts=--all --redact --no-banner
+          --config /repo/.gitleaks.toml --baseline-path /repo/.gitleaks-baseline.json
+
+      - run: pnpm --filter web exec prisma generate
+
+      - name: Type check (web, contracts, analytics)
+        run: |
+          pnpm --filter web check-types
+          pnpm --filter @repo/contracts check-types
+          pnpm --filter @repo/analytics check-types
+
+      - name: Orphan-test guard
+        run: node scripts/qa/check-test-globs.mjs
+
+      - name: Unit tests (web, contracts, analytics, socket)
+        run: |
+          pnpm --filter web test:unit
+          pnpm --filter @repo/contracts test
+          pnpm --filter @repo/analytics test
+          pnpm --filter web-socket test
+
+      - name: Lint delta (warnings ≤ baseline, 0 errors; SPEC D19)
+        run: node apps/web/scripts/lint-delta.mjs --all
+
+      - name: Prisma drift gate (migrations == schema.prisma)
+        # ADB §4.3 step 6. P2 replaces this step with scripts/db/check-drift.ts + packages/db/prisma/protected-indexes.txt,
+        # because a raw diff fails once partial indexes exist (CC 1.7). The shadow database is reset by Prisma.
+        run: >-
+          pnpm --filter web exec prisma migrate diff
+          --from-migrations prisma/migrations
+          --to-schema-datamodel prisma/schema.prisma
+          --shadow-database-url postgresql://postgres:shadow@localhost:5432/postgres
+          --exit-code
+
+      - name: OpenAPI is regenerated
+        run: |
+          pnpm --filter @repo/contracts openapi
+          git diff --exit-code docs/api/openapi.json
+
+      - name: Build (test app env, hooks on, blank telemetry, dummy keys)
+        # Dummy keys only: the build must not need a real Clerk instance, Dodo account or database.
+        # (/api/checkout constructs the Dodo client at module load, so the build needs some API key.)
+        env:
+          NEXT_PUBLIC_APP_ENV: test
+          ALLOW_TEST_HOOKS: "1"
+          ROUTE_VALIDATE_RESPONSES: "1"
+          NEXT_PUBLIC_POSTHOG_KEY: ""
+          NEXT_PUBLIC_SENTRY_DSN: ""
+          SENTRY_DSN: ""
+          NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
+          CLERK_SECRET_KEY: sk_test_ci_dummy_not_a_real_key
+          NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:3002
+          DODO_PAYMENTS_API_KEY: ci-dummy-dodo-key
+          DODO_PAYMENTS_ENVIRONMENT: test_mode
+        run: |
+          set -o pipefail
+          pnpm --filter web build 2>&1 | tee next-build.log
+
+      - name: Bundle budget (blocking; +25 kB shared, no zod or Query devtools in client chunks)
+        run: node apps/web/scripts/check-bundle-budgets.mjs --json bundle-report.json
+
+      - name: OWNERS report (report-only until P4)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: node scripts/qa/check-owners.mjs --report --base "$BASE_SHA" --head "$HEAD_SHA" --labels "$PR_LABELS"
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-reports
+          path: |
+            next-build.log
+            bundle-report.json
+          retention-days: 14
+          if-no-files-found: ignore
+
+  integration:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      db:
+        image: postgres:17-alpine
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: replay }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/replay
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec prisma generate
+      - name: Migrate and seed
+        # prisma/seed-content.ts refuses every host but the Neon dev endpoint (prisma/seed-guards.ts), so CI
+        # databases get seed.ts and opening-seed.ts only (1Q·1 open issue 7).
+        run: |
+          pnpm --filter web exec prisma migrate deploy
+          pnpm --filter web prisma:seed
+          pnpm --filter web prisma:seed:openings
+      - name: Integration tests (every *.int.test.ts in every package)
+        run: pnpm -r test:int
+      - name: Postgres part of the webhook claim test
+        run: pnpm --filter web exec tsx --test lib/webhooks/record.test.ts
+
+  e2e-smoke:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      db:
+        image: postgres:17-alpine
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: replay }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      CI: "1"
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/replay
+      BILLING_PAYWALL: "on"
+      NEXT_PUBLIC_APP_ENV: test
+      ALLOW_TEST_HOOKS: "1"
+      ROUTE_VALIDATE_RESPONSES: "1"
+      NEXT_PUBLIC_TELEMETRY_SINK: "1"
+      POSTHOG_HOST: http://127.0.0.1:4011
+      NEXT_PUBLIC_POSTHOG_KEY: ""
+      NEXT_PUBLIC_SENTRY_DSN: ""
+      SENTRY_DSN: ""
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
+      # The local socket server (Playwright webServer, from source) requires the signed handshake token.
+      SOCKET_AUTH_REQUIRED: "true"
+      NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:3002
+      INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
+      E2E_TEST_TOKEN: ${{ secrets.E2E_TEST_TOKEN }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+      # No real Dodo traffic reaches CI: test-mode env with a dummy API key. The webhook signing keys are
+      # random per run (below) and shared by the web server and the Playwright process (webhooks.spec).
+      DODO_PAYMENTS_ENVIRONMENT: test_mode
+      DODO_PAYMENTS_API_KEY: ci-dummy-dodo-key
+      DODO_PAYMENTS_RETURN_URL: http://localhost:3000/pricing?checkout=success
+      E2E_USER_A_EMAIL: ${{ secrets.E2E_USER_A_EMAIL }}
+      E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
+      E2E_USER_B_EMAIL: ${{ secrets.E2E_USER_B_EMAIL }}
+      E2E_USER_B_PASSWORD: ${{ secrets.E2E_USER_B_PASSWORD }}
+      E2E_USER_C_EMAIL: ${{ secrets.E2E_USER_C_EMAIL }}
+      E2E_USER_C_PASSWORD: ${{ secrets.E2E_USER_C_PASSWORD }}
+      E2E_USER_D_EMAIL: ${{ secrets.E2E_USER_D_EMAIL }}
+      E2E_USER_D_PASSWORD: ${{ secrets.E2E_USER_D_PASSWORD }}
+      E2E_USER_E_EMAIL: ${{ secrets.E2E_USER_E_EMAIL }}
+      E2E_USER_E_PASSWORD: ${{ secrets.E2E_USER_E_PASSWORD }}
+      E2E_USER_F_EMAIL: ${{ secrets.E2E_USER_F_EMAIL }}
+      E2E_USER_F_PASSWORD: ${{ secrets.E2E_USER_F_PASSWORD }}
+      E2E_USER_G_EMAIL: ${{ secrets.E2E_USER_G_EMAIL }}
+      E2E_USER_G_PASSWORD: ${{ secrets.E2E_USER_G_PASSWORD }}
+      E2E_USER_H_EMAIL: ${{ secrets.E2E_USER_H_EMAIL }}
+      E2E_USER_H_PASSWORD: ${{ secrets.E2E_USER_H_PASSWORD }}
+      E2E_USER_I_EMAIL: ${{ secrets.E2E_USER_I_EMAIL }}
+      E2E_USER_I_PASSWORD: ${{ secrets.E2E_USER_I_PASSWORD }}
+      E2E_USER_J_EMAIL: ${{ secrets.E2E_USER_J_EMAIL }}
+      E2E_USER_J_PASSWORD: ${{ secrets.E2E_USER_J_PASSWORD }}
+      E2E_USER_K_EMAIL: ${{ secrets.E2E_USER_K_EMAIL }}
+      E2E_USER_K_PASSWORD: ${{ secrets.E2E_USER_K_PASSWORD }}
+      E2E_USER_L_EMAIL: ${{ secrets.E2E_USER_L_EMAIL }}
+      E2E_USER_L_PASSWORD: ${{ secrets.E2E_USER_L_PASSWORD }}
+      E2E_USER_M_EMAIL: ${{ secrets.E2E_USER_M_EMAIL }}
+      E2E_USER_M_PASSWORD: ${{ secrets.E2E_USER_M_PASSWORD }}
+      E2E_USER_N_EMAIL: ${{ secrets.E2E_USER_N_EMAIL }}
+      E2E_USER_N_PASSWORD: ${{ secrets.E2E_USER_N_PASSWORD }}
+      E2E_USER_O_EMAIL: ${{ secrets.E2E_USER_O_EMAIL }}
+      E2E_USER_O_PASSWORD: ${{ secrets.E2E_USER_O_PASSWORD }}
+      E2E_USER_P_EMAIL: ${{ secrets.E2E_USER_P_EMAIL }}
+      E2E_USER_P_PASSWORD: ${{ secrets.E2E_USER_P_PASSWORD }}
+      E2E_USER_R_EMAIL: ${{ secrets.E2E_USER_R_EMAIL }}
+      E2E_USER_R_PASSWORD: ${{ secrets.E2E_USER_R_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium webkit
+      - name: Random webhook signing keys for this run
+        run: |
+          dodo="whsec_$(openssl rand -base64 32)"
+          clerk="whsec_$(openssl rand -base64 32)"
+          echo "::add-mask::$dodo"
+          echo "::add-mask::$clerk"
+          echo "DODO_PAYMENTS_WEBHOOK_KEY=$dodo" >> "$GITHUB_ENV"
+          echo "CLERK_WEBHOOK_SIGNING_SECRET=$clerk" >> "$GITHUB_ENV"
+      - name: Migrate and seed the Docker database
+        run: |
+          pnpm --filter web exec prisma migrate deploy
+          pnpm --filter web prisma:seed
+          pnpm --filter web prisma:seed:openings
+      - name: Build (test app env, hooks on, sinks on)
+        run: pnpm --filter web build
+      - name: Authz walker over HTTP (signed out, against next start)
+        working-directory: apps/web
+        run: |
+          pnpm start > ../../next-start.log 2>&1 &
+          echo $! > ../../next-start.pid
+          for _ in $(seq 1 60); do curl -fsS http://localhost:3000/api/health > /dev/null && break; sleep 1; done
+          AUTHZ_BASE_URL=http://localhost:3000 pnpm exec tsx --test test/authz/walker.test.ts
+      - name: Stop next start
+        if: always()
+        # `pnpm start` forks next-server; stop both so Playwright's webServer gets port 3000.
+        run: |
+          if [ -f next-start.pid ]; then kill "$(cat next-start.pid)" 2>/dev/null || true; fi
+          pkill -f "next-server" 2>/dev/null || true
+          pkill -f "next start" 2>/dev/null || true
+          for _ in $(seq 1 20); do curl -fsS -o /dev/null http://localhost:3000 2>/dev/null || break; sleep 1; done
+      - name: Playwright @smoke (chromium + webkit-iphone; quarantine excluded)
+        # Global setup provisions the users rows, entitles A–P and runs the fixture health check. The config
+        # starts `pnpm start`, the socket server from source and the PostHog sink (POSTHOG_HOST above).
+        run: pnpm --filter web exec playwright test --project=chromium --project=webkit-iphone --grep @smoke
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-smoke-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/results.json
+            next-start.log
+          retention-days: 14
+          if-no-files-found: ignore

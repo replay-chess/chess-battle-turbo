@@ -83,7 +83,11 @@ const defaultDeps: ReconcileDeps = {
       )
       .catch(() => {});
   },
-  // syncClaims: wired to `syncClerkClaims` from lib/auth/claims.ts once 1B·F4b lands.
+  // 1B·F4b: Clerk claims after a changed row (runs in ctx.after()).
+  async syncClaims(userId) {
+    const { syncClerkClaims } = await import("@/lib/auth/claims");
+    await syncClerkClaims(userId);
+  },
 };
 
 export function createMembershipReconcile(overrides: Partial<ReconcileDeps> = {}): CronTask {

@@ -139,9 +139,6 @@ export async function evaluateFlags(viewer: FlagViewer | null, deps: FlagDeps): 
 
 // ── Production wiring ────────────────────────────────────────────────────────────────────────────
 
-// These server vars join REPO/turbo.json `globalEnv` with 1B·F7 (plan §7.9); drop this disable then.
-/* eslint-disable turbo/no-undeclared-env-vars */
-
 // Module scope: one client per server instance, created on first use. Definitions are polled every 30 s.
 let posthogClient: PostHog | null | undefined;
 
@@ -219,4 +216,3 @@ export const getFlags = cache(async (viewer: FlagViewer | null): Promise<FlagVal
     reportIgnoredOverride,
   });
 });
-/* eslint-enable turbo/no-undeclared-env-vars */

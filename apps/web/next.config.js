@@ -3,6 +3,19 @@ import withPWAInit from "@ducanh2912/next-pwa";
 import createMDX from "@next/mdx";
 import { withSentryConfig } from "@sentry/nextjs";
 import remarkGfm from "remark-gfm";
+import { allRedirects, mediaUrlOf } from "./config/redirects/index.mjs";
+
+// Deployed builds must say which environment they are (phase-01 plan 7.9, 10.7.1): flags, test hooks, the
+// noindex header and the telemetry tag all read NEXT_PUBLIC_APP_ENV, and unset fails closed at runtime. On
+// Vercel an unset or unknown value fails the build instead. Dev branch only; not cherry-picked to main.
+const APP_ENVS = ["dev", "test", "production"];
+if (process.env.VERCEL === "1" && !APP_ENVS.includes(process.env.NEXT_PUBLIC_APP_ENV ?? "")) {
+  throw new Error(
+    `NEXT_PUBLIC_APP_ENV must be one of ${APP_ENVS.join(", ")} on Vercel builds (got ${
+      process.env.NEXT_PUBLIC_APP_ENV ? JSON.stringify(process.env.NEXT_PUBLIC_APP_ENV) : "unset"
+    }). Set it in the project's environment variables.`,
+  );
+}
 
 const withMDX = createMDX({
   extension: /\.mdx?$/,
@@ -53,10 +66,9 @@ const withPWA = withPWAInit({
   },
 });
 
-// Base URL of the R2 media bucket (see lib/media.ts). When set, these public/
-// files redirect to the bucket so links from other sites stop pulling
-// bandwidth from Vercel.
-const MEDIA_URL = (process.env.NEXT_PUBLIC_MEDIA_URL ?? "").replace(/\/+$/, "");
+// Base URL of the R2 media bucket (see lib/media.ts). Its host is allowed for
+// next/image; the public/ media redirects live in config/redirects/p00-legacy.mjs.
+const MEDIA_URL = mediaUrlOf(process.env);
 const MEDIA_HOST = (() => {
   try {
     return MEDIA_URL ? new URL(MEDIA_URL).hostname : null;
@@ -64,12 +76,6 @@ const MEDIA_HOST = (() => {
     return null;
   }
 })();
-const MEDIA_PATHS = [
-  "/ReplayChessTrailer.mp4",
-  "/Kings_Gambit_Chess_Board_Animation.mp4",
-  "/video_clip.webm",
-  "/sounds/:file*",
-];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -111,26 +117,9 @@ const nextConfig = {
       ...(MEDIA_HOST ? [{ protocol: "https", hostname: MEDIA_HOST }] : []),
     ],
   },
+  // One file per phase in config/redirects/ (registries as directories, plan 13.3 1B·J).
   async redirects() {
-    return [
-      {
-        source: "/:path*",
-        has: [{ type: "host", value: "playchess.tech" }],
-        destination: "https://www.playchess.tech/:path*",
-        permanent: true,
-      },
-      // The free guest demo is gone (paid-only, 7-day trial). Keep old links
-      // and their search ranking pointing somewhere useful.
-      { source: "/try", destination: "/pricing", permanent: true },
-      { source: "/try/:path*", destination: "/pricing", permanent: true },
-      ...(MEDIA_URL
-        ? MEDIA_PATHS.map((source) => ({
-            source,
-            destination: `${MEDIA_URL}${source}`,
-            permanent: false,
-          }))
-        : []),
-    ];
+    return allRedirects(process.env);
   },
   async headers() {
     return [

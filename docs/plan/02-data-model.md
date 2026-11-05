@@ -2595,10 +2595,10 @@ Each persona puts a v3 board in its designed state with real data. Personas sign
 
 | Path | Purpose |
 |---|---|
-| `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad/plan/schema.target.prisma` | Full target schema (2027 lines, 49 models, 51 enums), formatted, valid with Prisma 6.17.1 |
-| `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad/plan/schema.target.diff.sql` | Generated DDL from today's schema to the target (1359 lines) |
-| `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad/plan/schema.target.raw.sql` | Hand-written SQL (partial indexes, storage settings) |
-| `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad/sizes/gen2.sql`, `measure2.sql`, `c1.sql`, `moveeval.sql` | Size measurement scripts (§10.1) |
+| `SP/plan/schema.target.prisma` (archived scratch input, not in the repo) | Full target schema (2027 lines, 49 models, 51 enums), formatted, valid with Prisma 6.17.1 |
+| `SP/plan/schema.target.diff.sql` (archived scratch input, not in the repo) | Generated DDL from today's schema to the target (1359 lines) |
+| `SP/plan/schema.target.raw.sql` (archived scratch input, not in the repo) | Hand-written SQL (partial indexes, storage settings) |
+| `SP/sizes/gen2.sql` (archived scratch input, not in the repo), `measure2.sql`, `c1.sql`, `moveeval.sql` | Size measurement scripts (§10.1) |
 
 **Checks that were run (2026-11-02):**
 

@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { hashKey } from "@tanstack/react-query";
+import type { MeData } from "@repo/contracts/http/me";
+import { meQuery } from "@/lib/api/queries/me";
+import { getQueryClient } from "@/lib/api/query-client";
 import { logger } from "@/lib/logger";
 import { trackApiResponseTime } from "@/lib/metrics";
 import { useUserStore } from "@/lib/stores";
@@ -45,115 +49,108 @@ function onboardingHref(): string {
   return isPlanKey(plan) ? `/onboarding?plan=${plan}` : "/onboarding";
 }
 
+const ME_HASH = hashKey(meQuery.queryKey);
+
 /**
- * UserSync Component
+ * UserSync (plan §5.2, 1B·F4d)
  *
- * Automatically syncs the authenticated user's data from Clerk to our database.
- * Populates the Zustand user store with user data + subscription.
- * Redirects new users (onboarded === false) to the onboarding page, unless
- * they are on a page that should stay reachable without onboarding.
- * Runs once per session.
+ * Fills the legacy Zustand store (user + subscription mirror) from the viewer,
+ * `qk.me()`:
+ * - when the cache is seeded (the (app) layout after 1B·J), it makes no request;
+ * - otherwise exactly one GET /api/me per page load (it also provisions a
+ *   first-time user).
+ * Later changes to `qk.me()` (focus refetch, a billing refresh, a re-seed) are
+ * mirrored into the store. A failed read keeps whatever the store had and is
+ * retried on the next focus, reconnect or navigation; it never redirects.
+ * New users (onboarded === false) are sent to onboarding unless the page is
+ * exempt.
  */
 export const UserSync = () => {
   const { isSignedIn, user, isLoaded } = useUser();
   const router = useRouter();
+  // A navigation re-runs the sync effect, which retries a failed read (a synced viewer returns early).
   const pathname = usePathname();
-  const hasSynced = useRef(false);
+  const clerkUserId = user?.id;
+  const syncedFor = useRef<string | null>(null);
+  const inFlight = useRef(false);
   const prevSignedIn = useRef<boolean | undefined>(undefined);
   const prevUserId = useRef<string | undefined>(undefined);
+  const [failedAt, setFailedAt] = useState<number | null>(null);
+  const [retryTick, setRetryTick] = useState(0);
 
-  const setUser = useUserStore((s) => s.setUser);
   const clearStore = useUserStore((s) => s.clearStore);
-  const fetchSubscription = useUserStore((s) => s.fetchSubscription);
+  const loadViewer = useUserStore((s) => s.loadViewer);
+  const applyMe = useUserStore((s) => s.applyMe);
 
-  // Sign-out detection: clear store when user signs out
+  // Sign-out and account-switch detection: drop the old viewer from the store and the query cache.
   useEffect(() => {
     if (!isLoaded) return;
 
-    // Detect sign-out: was signed in, now not
-    if (prevSignedIn.current === true && !isSignedIn) {
-      clearStore();
-      hasSynced.current = false;
-    }
+    const signedOut = prevSignedIn.current === true && !isSignedIn;
+    const switched = Boolean(clerkUserId && prevUserId.current && prevUserId.current !== clerkUserId);
+    // A persisted user from another Clerk account (signed out in another tab, then someone else signed in).
+    const stored = useUserStore.getState().user;
+    const foreign = Boolean(clerkUserId && stored && stored.clerkUserId !== clerkUserId);
 
-    // Detect user switch: different Clerk user ID
-    if (
-      user?.id &&
-      prevUserId.current &&
-      prevUserId.current !== user.id
-    ) {
+    if (signedOut || switched || foreign) {
       clearStore();
-      hasSynced.current = false;
+      getQueryClient().removeQueries({ queryKey: meQuery.queryKey, exact: true });
+      syncedFor.current = null;
     }
 
     prevSignedIn.current = isSignedIn;
-    prevUserId.current = user?.id;
-  }, [isLoaded, isSignedIn, user?.id, clearStore]);
+    prevUserId.current = clerkUserId;
+  }, [isLoaded, isSignedIn, clerkUserId, clearStore]);
+
+  // Mirror later qk.me() updates (focus refetch, setMeEntitlement, HydrationBoundary re-seed) into the store.
+  useEffect(() => {
+    if (!isSignedIn || !clerkUserId) return;
+    return getQueryClient()
+      .getQueryCache()
+      .subscribe((event) => {
+        if (event.type !== "updated" || event.action.type !== "success") return;
+        if (event.query.queryHash !== ME_HASH) return;
+        const me = event.query.state.data as MeData | undefined;
+        if (me) applyMe(me, clerkUserId);
+      });
+  }, [isSignedIn, clerkUserId, applyMe]);
 
   useEffect(() => {
-    const syncUser = async () => {
-      if (!isLoaded || !isSignedIn || !user || hasSynced.current) {
+    if (!isLoaded || !isSignedIn || !clerkUserId) return;
+    if (syncedFor.current === clerkUserId || inFlight.current) return;
+
+    inFlight.current = true;
+    const start = Date.now();
+    void loadViewer(clerkUserId).then((me) => {
+      inFlight.current = false;
+      trackApiResponseTime("me.get", Date.now() - start);
+      if (!me) {
+        logger.warn("Viewer read failed; keeping the stored user");
+        setFailedAt(Date.now());
         return;
       }
+      syncedFor.current = clerkUserId;
+      setFailedAt(null);
 
-      try {
-        hasSynced.current = true;
-
-        const start = Date.now();
-        const response = await fetch("/api/user/sync", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        trackApiResponseTime("user.sync", Date.now() - start);
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          logger.error("Failed to sync user:", errorData);
-          hasSynced.current = false;
-          return;
-        }
-
-        const data = await response.json();
-
-        logger.debug("User synced successfully: " + data.message);
-
-        // Populate Zustand store with synced user data
-        if (data.user) {
-          setUser({
-            referenceId: data.user.referenceId,
-            code: data.user.code,
-            email: data.user.email,
-            name: data.user.name,
-            profilePictureUrl: data.user.profilePictureUrl,
-            onboarded: data.user.onboarded ?? false,
-            role: data.user.role ?? "USER",
-            clerkUserId: data.user.clerkUserId ?? user.id,
-            stats: data.user.stats ?? null,
-            chessComProfile: data.user.chessComProfile ?? null,
-          });
-
-          // Fetch subscription data into store
-          fetchSubscription();
-        }
-
-        // Redirect new users to onboarding if they haven't completed it
-        if (
-          data.user &&
-          !data.user.onboarded &&
-          !isOnboardingExemptPath(pathname)
-        ) {
-          router.push(onboardingHref());
-        }
-      } catch (error) {
-        logger.error("Error syncing user:", error);
-        hasSynced.current = false;
+      // Redirect new users to onboarding if they haven't completed it.
+      const current = typeof window === "undefined" ? null : window.location.pathname;
+      if (!me.user.onboarded && !isOnboardingExemptPath(current)) {
+        router.push(onboardingHref());
       }
-    };
+    });
+  }, [isLoaded, isSignedIn, clerkUserId, loadViewer, router, pathname, retryTick]);
 
-    syncUser();
-  }, [isLoaded, isSignedIn, user, router, pathname, setUser, fetchSubscription]);
+  // After a failure, try again when the tab regains focus or the network comes back.
+  useEffect(() => {
+    if (failedAt === null) return;
+    const retry = () => setRetryTick((n) => n + 1);
+    window.addEventListener("focus", retry);
+    window.addEventListener("online", retry);
+    return () => {
+      window.removeEventListener("focus", retry);
+      window.removeEventListener("online", retry);
+    };
+  }, [failedAt]);
 
   return null;
 };

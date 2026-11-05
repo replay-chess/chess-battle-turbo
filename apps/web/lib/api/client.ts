@@ -1,12 +1,14 @@
 // api(): the one fetch wrapper for /api/* (plan §7.12, CDL §4.3).
 //
-//   const { data } = await api(endpoints.me, { schema: devSchema(MeData), signal });
+//   const schema = process.env.NODE_ENV === "production" ? undefined : MeData;   // client code (lib/api/schema.ts)
+//   const { data } = await api(endpoints.me, { schema, signal });
 //
 // - Throws ApiError for every failure: server codes from the envelope (or mapped from legacy bodies) and the
 //   client-only codes network, timeout, offline, aborted, contract_mismatch.
 // - 304s are handled by the browser HTTP cache (`private, no-cache` + ETag), so there is no ifNoneMatch option and
 //   a query never receives `undefined` data.
-// - The schema is parsed only when given, and it is only ever given through devSchema() (dev and test builds).
+// - The schema is parsed only when given, and it is only ever given in dev and test builds: the inline
+//   NODE_ENV check in client code, devSchema() on dev-only pages (eslint.config.js enforces the two forms).
 // - `fault` (dev/test only) asks the route wrapper to answer with a test status; production bundles drop it.
 import type { OkMeta } from "@repo/contracts/http/envelope";
 import { onlineManager } from "@tanstack/react-query";
@@ -21,7 +23,7 @@ export type ApiQuery = Record<string, string | number | boolean | null | undefin
 export type ApiFault = 401 | 402 | 429 | 500 | 503;
 
 export type ApiInit<S extends z.ZodType = z.ZodType<unknown>> = {
-  /** Pass `devSchema(Schema)`: parsed in dev/test only, `undefined` in production builds. */
+  /** `process.env.NODE_ENV === "production" ? undefined : Schema` (or devSchema() on dev pages): dev/test only. */
   schema?: S;
   method?: ApiMethod;
   query?: ApiQuery;

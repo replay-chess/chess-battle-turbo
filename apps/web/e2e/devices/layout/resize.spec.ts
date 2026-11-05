@@ -42,7 +42,7 @@ async function settle(page: Page) {
 const onlyOnResizeProjects = (testInfo: TestInfo) =>
   test.skip(!PROJECTS.includes(testInfo.project.name), "resize runs on three projects only");
 
-test("Safari toolbar collapse 393x659 → 393x745 keeps the board inside", async ({ page }, testInfo) => {
+test("Safari toolbar collapse 393x659 → 393x745 keeps the board inside @p1", async ({ page }, testInfo) => {
   onlyOnResizeProjects(testInfo);
   await page.setViewportSize({ width: 393, height: 659 });
   await gotoStable(page, GAME_ROUTE);
@@ -59,7 +59,7 @@ test("Safari toolbar collapse 393x659 → 393x745 keeps the board inside", async
   expect(after.board!.width).toBeLessThanOrEqual(393.5);
 });
 
-test("desktop 1440x900 → 960x600 resizes the board", async ({ page }, testInfo) => {
+test("desktop 1440x900 → 960x600 resizes the board @p1", async ({ page }, testInfo) => {
   onlyOnResizeProjects(testInfo);
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoStable(page, GAME_ROUTE);
@@ -74,7 +74,7 @@ test("desktop 1440x900 → 960x600 resizes the board", async ({ page }, testInfo
   expect(after.board!.width, "board shrinks with the viewport").toBeLessThan(before.board!.width - 50);
 });
 
-test("banner=payment shrinks a height-limited board", async ({ page }, testInfo) => {
+test("banner=payment shrinks a height-limited board @p1", async ({ page }, testInfo) => {
   onlyOnResizeProjects(testInfo);
   await gotoStable(page, GAME_ROUTE);
   const plain = await stageGeometry(page);

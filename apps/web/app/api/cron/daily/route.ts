@@ -27,8 +27,6 @@ export async function GET(req: Request): Promise<Response> {
   const requestId = req.headers.get("x-request-id") || randomUUID();
   const headers = { "Cache-Control": NO_STORE, "x-request-id": requestId };
 
-  // CRON_SECRET joins REPO/turbo.json `globalEnv` with 1B·F7 (plan §7.9); drop this disable then.
-  // eslint-disable-next-line turbo/no-undeclared-env-vars
   if (!cronAuthorized(req.headers.get("authorization"), process.env.CRON_SECRET)) {
     return NextResponse.json(
       { error: { code: "unauthorized", message: "Unauthorized", requestId } },

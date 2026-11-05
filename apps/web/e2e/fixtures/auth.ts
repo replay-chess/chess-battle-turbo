@@ -25,6 +25,35 @@ type AuthFixtures = {
   playerP: PlayerFixture;
 };
 
+/**
+ * GET /api/me (it provisions a first-time user, plan §8.5) and, for a user who
+ * has not finished onboarding, POST /api/user/onboarding-skip (stays until P4).
+ * Retries 5xx and 429 a few times: a busy `next dev` or Neon wake-up answers
+ * 500/502/503 now and then. Replaces the Phase 0 POST /api/user/sync (CT X17).
+ */
+export async function ensureViewerOnboarded(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    let last = 0;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const meRes = await fetch("/api/me", { headers: { Accept: "application/json" }, cache: "no-store" });
+      last = meRes.status;
+      if (meRes.status >= 500 || meRes.status === 429) {
+        await delay(1000 * (attempt + 1));
+        continue;
+      }
+      if (!meRes.ok) throw new Error(`GET /api/me failed: ${meRes.status}`);
+      const body = (await meRes.json()) as { data?: { user?: { onboarded?: boolean } } };
+      if (body.data?.user?.onboarded === false) {
+        const skipRes = await fetch("/api/user/onboarding-skip", { method: "POST" });
+        if (!skipRes.ok) throw new Error(`Onboarding skip failed: ${skipRes.status}`);
+      }
+      return;
+    }
+    throw new Error(`GET /api/me failed after 4 attempts (last status ${last})`);
+  });
+}
+
 export async function signIn(page: Page, email: string, password: string) {
   await setupClerkTestingToken({ page });
   // Retry goto once — dev server may be compiling
@@ -41,28 +70,9 @@ export async function signIn(page: Page, email: string, password: string) {
   void password;
   await clerk.signIn({ page, emailAddress: email });
 
-  // Ensure user is synced to local DB and onboarding is completed via API.
-  // This is far more reliable than waiting for UI redirects, especially under
-  // parallel load where the dev server is slower. Retry up to 3 times for
-  // transient 500s caused by DB contention.
-  await page.evaluate(async () => {
-    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const syncRes = await fetch("/api/user/sync", { method: "POST" });
-      if (syncRes.status === 500) {
-        await delay(1000 * (attempt + 1));
-        continue;
-      }
-      if (!syncRes.ok) throw new Error(`User sync failed: ${syncRes.status}`);
-      const syncData = await syncRes.json();
-      if (syncData.user && !syncData.user.onboarded) {
-        const skipRes = await fetch("/api/user/onboarding-skip", { method: "POST" });
-        if (!skipRes.ok) throw new Error(`Onboarding skip failed: ${skipRes.status}`);
-      }
-      return;
-    }
-    throw new Error("User sync failed after 3 retries");
-  });
+  // Make sure the users row exists and onboarding is done, through the API:
+  // far more reliable than waiting for UI redirects under parallel load.
+  await ensureViewerOnboarded(page);
 
   // If we landed on onboarding page, navigate away now that it's been skipped via API
   if (page.url().includes("/onboarding")) {

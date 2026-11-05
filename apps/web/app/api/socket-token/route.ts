@@ -1,37 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
-import { resolveUser } from "@/lib/auth/resolve-user";
-import { signSocketToken } from "@/lib/socket-token";
+// GET /api/socket-token (plan §7.4 A5). Issues the short-lived token the browser passes to the WebSocket server in
+// the socket.io `auth` handshake. Body `{ data: { token, expiresAt } }` plus a top-level `token`/`expiresAt` mirror
+// for one release (old bundles read the bare shape). expiresAt is unix seconds (lib/socket-token.ts).
+import { realtimeEndpoints } from "@repo/contracts/http/registry";
+import { ApiError } from "@/lib/api/api-error";
+import { respondWith } from "@/lib/api/respond";
+import { route } from "@/lib/api/route";
 import { logger } from "@/lib/logger";
+import { signSocketToken } from "@/lib/socket-token";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Issues a short-lived token the browser passes to the WebSocket server in the
- * socket.io `auth` handshake so the server can tie the socket to a user.
- *
- * Auth goes through `resolveUser` (Clerk session, or the perf bypass for k6
- * runs). The internal service token is not honoured here since this is not
- * one of the socket-server routes.
- */
-export async function GET(request: NextRequest) {
-  const user = await resolveUser(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = route(realtimeEndpoints.socketToken, async (ctx) => {
   const secret = process.env.INTERNAL_API_SECRET;
   if (!secret) {
     logger.error(
       "GET /api/socket-token: INTERNAL_API_SECRET is not set; cannot sign socket tokens. " +
         "Set the same value in apps/web and apps/web-socket.",
     );
-    return NextResponse.json({ error: "Socket auth is not configured" }, { status: 500 });
+    throw new ApiError("not_configured", { message: "Socket auth is not configured." });
   }
-
-  const { token, expiresAt } = signSocketToken({ userReferenceId: user.referenceId, secret });
-
-  return NextResponse.json(
-    { token, expiresAt },
-    { headers: { "Cache-Control": "no-store" } },
-  );
-}
+  // auth "user": route() answered 401 already when there is no viewer.
+  const { token, expiresAt } = signSocketToken({ userReferenceId: ctx.viewer!.ref, secret });
+  return respondWith({ token, expiresAt }, { legacyMirror: { token, expiresAt } });
+});

@@ -26,6 +26,31 @@ const PROD_GUARD_PORT = 3200;
 const SINK_PORT = Number(process.env.POSTHOG_SINK_PORT ?? 4011);
 const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 
+// ── flags-off (plan §12.3, CT X13; 1Q·2) ─────────────────────────────────────
+// `--project=flags-off` (or E2E_FLAGS_OFF=1) switches to the flags-off mode: one project, served by its
+// own web server with FLAGS_OVERRIDE=shell-v3:off, that runs flags-off.spec.ts and the Phase 0 specs.
+// The mode is read from argv once and pinned in the env, so worker processes (which re-read this
+// config with other argv) see the same projects. Port 3110, not the plan's 3100: the devices suite
+// builds and reuses a server on 3100 and must never reuse this one.
+const argv = process.argv;
+const FLAGS_OFF =
+  process.env.E2E_FLAGS_OFF === "1" ||
+  argv.some((a, i) => a === "--project=flags-off" || (a === "--project" && argv[i + 1] === "flags-off"));
+if (FLAGS_OFF) process.env.E2E_FLAGS_OFF = "1";
+const FLAGS_OFF_PORT = Number(process.env.FLAGS_OFF_PORT ?? 3110);
+/** The open phase's flags, switched off. Every later phase appends its own `<key>:off`. */
+const FLAGS_OFF_OVERRIDE = "shell-v3:off";
+// Phase 0 has no @smoke tags, so its specs are listed by file. quick-match (the serial queue) and
+// tournament (≈ 10 min) stay in the main run; the bot and friend games cover the game flow here.
+const FLAGS_OFF_SPECS = [
+  "**/flags-off.spec.ts",
+  "**/membership.spec.ts",
+  "**/paid-only.spec.ts",
+  "**/pricing.spec.ts",
+  "**/play-with-bot.spec.ts",
+  "**/play-with-friend.spec.ts",
+];
+
 // ── Quarantine (CT X14) ─────────────────────────────────────────────────────
 // PR CI skips quarantined tests; nightly sets E2E_INCLUDE_QUARANTINED=1 and
 // reports them. An expired entry fails the run in CI.
@@ -81,6 +106,7 @@ const grepInvert = [
 // project until P2's token-based isolation (plan §12.0).
 const QUEUE_SPECS = ["**/quick-match.spec.ts", "**/queue-*.spec.ts"];
 const PROD_GUARD_SPEC = "**/prod-guard.spec.ts";
+const FLAGS_OFF_SPEC = "**/flags-off.spec.ts";
 
 const blankTelemetry = {
   NEXT_PUBLIC_POSTHOG_KEY: "",
@@ -89,33 +115,72 @@ const blankTelemetry = {
   NEXT_PUBLIC_GA_MEASUREMENT_ID: "",
 };
 
+// The web servers Playwright starts are test builds with the sinks on (plan §10.1, §11.6): client events
+// go to window.__rcTelemetry, server events to the local PostHog sink (any project key makes posthog-node
+// send; POSTHOG_HOST keeps it local), and the fault hooks answer. Real telemetry keys stay blank.
+// In CI the NEXT_PUBLIC_* values must also be set for `pnpm build` (ci.yml does); a reused server
+// (PW_REUSE_SERVER=1) must have been started with the same values.
+const testServerEnv = {
+  ...blankTelemetry,
+  NEXT_PUBLIC_DEV_WIDGETS: "0",
+  NEXT_PUBLIC_APP_ENV: "test",
+  NEXT_PUBLIC_TELEMETRY_SINK: "1",
+  ALLOW_TEST_HOOKS: "1",
+  POSTHOG_HOST: `http://127.0.0.1:${SINK_PORT}`,
+  POSTHOG_PROJECT_KEY: process.env.POSTHOG_PROJECT_KEY || "phc_e2e_local_sink",
+};
+
+const sinkServer = {
+  // Server-side PostHog sink (plan §10.1). The web server reaches it through POSTHOG_HOST.
+  command: `npx tsx e2e/mocks/posthog-sink.ts --port ${SINK_PORT}`,
+  url: `http://127.0.0.1:${SINK_PORT}/__health`,
+  reuseExistingServer: true,
+  timeout: 15_000,
+};
+
+/** The local socket server; apps/web-socket/.env holds production values, so the origins are set here. */
+const socketServer = (webAppUrl: string) => ({
+  command: "pnpm --filter web-socket dev",
+  port: 3002,
+  env: {
+    WEB_APP_URL: webAppUrl,
+    ALLOWED_ORIGINS: `http://localhost:3000,http://localhost:${FLAGS_OFF_PORT}`,
+    SENTRY_DSN: "",
+  },
+  reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
+  timeout: 30_000,
+});
+
 const localServers: NonNullable<PlaywrightTestConfig["webServer"]> = [
   {
     command: process.env.CI ? "pnpm start" : "pnpm dev",
     port: 3000,
+    env: testServerEnv,
     reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
     timeout: process.env.CI ? 30_000 : 60_000,
   },
+  socketServer("http://localhost:3000"),
+  sinkServer,
+];
+
+// flags-off: the same test-build env plus the override, in its own dist dir (a `next dev` and a
+// `next build` must not share `.next` with the main server). CI has no build for it, so it builds.
+const flagsOffServers: NonNullable<PlaywrightTestConfig["webServer"]> = [
   {
-    command: "pnpm --filter web-socket dev",
-    port: 3002,
-    // apps/web-socket/.env holds production values; the local socket server
-    // must call back into and accept connections from the local web app.
+    command: process.env.CI
+      ? `pnpm build && pnpm start --port ${FLAGS_OFF_PORT}`
+      : `pnpm exec next dev --port ${FLAGS_OFF_PORT}`,
+    port: FLAGS_OFF_PORT,
     env: {
-      WEB_APP_URL: "http://localhost:3000",
-      ALLOWED_ORIGINS: "http://localhost:3000",
+      ...testServerEnv,
+      FLAGS_OVERRIDE: FLAGS_OFF_OVERRIDE,
+      NEXT_DIST_DIR: ".next-flagsoff",
     },
     reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
-    timeout: 30_000,
+    timeout: process.env.CI ? 600_000 : 120_000,
   },
-  {
-    // Server-side PostHog sink (plan §10.1). The web server reaches it when it
-    // runs with POSTHOG_HOST=http://127.0.0.1:4011 (CI); otherwise it idles.
-    command: `npx tsx e2e/mocks/posthog-sink.ts --port ${SINK_PORT}`,
-    url: `http://127.0.0.1:${SINK_PORT}/__health`,
-    reuseExistingServer: true,
-    timeout: 15_000,
-  },
+  socketServer(`http://localhost:${FLAGS_OFF_PORT}`),
+  sinkServer,
 ];
 
 const prodGuardServer: NonNullable<PlaywrightTestConfig["webServer"]> = [
@@ -137,7 +202,11 @@ export default defineConfig<ConsoleGuardOptions & TelemetryOptions>({
   expect: { timeout: 15_000 },
   reporter: process.env.CI ? [["html"], ["json", { outputFile: "test-results/results.json" }], ["list"]] : "list",
   use: {
-    baseURL: PROD_GUARD ? `http://localhost:${PROD_GUARD_PORT}` : (BASE_URL ?? "http://localhost:3000"),
+    baseURL: PROD_GUARD
+      ? `http://localhost:${PROD_GUARD_PORT}`
+      : FLAGS_OFF
+        ? `http://localhost:${FLAGS_OFF_PORT}`
+        : (BASE_URL ?? "http://localhost:3000"),
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "on-first-retry",
@@ -156,31 +225,33 @@ export default defineConfig<ConsoleGuardOptions & TelemetryOptions>({
   grepInvert: grepInvert.length ? grepInvert : undefined,
   projects: PROD_GUARD
     ? [{ name: "prod-guard", testMatch: PROD_GUARD_SPEC, use: { ...devices["Desktop Chrome"] } }]
-    : [
-        {
-          name: "chromium",
-          testIgnore: [...QUEUE_SPECS, PROD_GUARD_SPEC],
-          use: { ...devices["Desktop Chrome"] },
-        },
-        {
-          name: "play-queue",
-          testMatch: QUEUE_SPECS,
-          workers: 1,
-          use: { ...devices["Desktop Chrome"] },
-        },
-        // The ci.yml e2e-smoke job runs `--project=chromium --project=webkit-iphone --grep @smoke`.
-        // Only in CI (or E2E_WEBKIT=1), so a plain local run stays chromium-only.
-        ...(process.env.CI || process.env.E2E_WEBKIT === "1"
-          ? [
-              {
-                name: "webkit-iphone",
-                testIgnore: [...QUEUE_SPECS, PROD_GUARD_SPEC],
-                grep: grepFor(["@smoke\\b"]),
-                grepInvert: grepInvert.length ? grepInvert : undefined,
-                use: { ...devices["iPhone 15"] },
-              },
-            ]
-          : []),
-      ],
-  webServer: PROD_GUARD ? prodGuardServer : BASE_URL ? undefined : localServers,
+    : FLAGS_OFF
+      ? [{ name: "flags-off", testMatch: FLAGS_OFF_SPECS, use: { ...devices["Desktop Chrome"] } }]
+      : [
+          {
+            name: "chromium",
+            testIgnore: [...QUEUE_SPECS, PROD_GUARD_SPEC, FLAGS_OFF_SPEC],
+            use: { ...devices["Desktop Chrome"] },
+          },
+          {
+            name: "play-queue",
+            testMatch: QUEUE_SPECS,
+            workers: 1,
+            use: { ...devices["Desktop Chrome"] },
+          },
+          // The ci.yml e2e-smoke job runs `--project=chromium --project=webkit-iphone --grep @smoke`.
+          // Only in CI (or E2E_WEBKIT=1), so a plain local run stays chromium-only.
+          ...(process.env.CI || process.env.E2E_WEBKIT === "1"
+            ? [
+                {
+                  name: "webkit-iphone",
+                  testIgnore: [...QUEUE_SPECS, PROD_GUARD_SPEC, FLAGS_OFF_SPEC],
+                  grep: grepFor(["@smoke\\b"]),
+                  grepInvert: grepInvert.length ? grepInvert : undefined,
+                  use: { ...devices["iPhone 15"] },
+                },
+              ]
+            : []),
+        ],
+  webServer: PROD_GUARD ? prodGuardServer : BASE_URL ? undefined : FLAGS_OFF ? flagsOffServers : localServers,
 });

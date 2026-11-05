@@ -23,7 +23,7 @@ This file is the single source for what P3 builds. Where it differs from a sibli
 | `FX` | `PKG/chess-fixtures` (created by P2; P3 adds `grades/`) |
 | `DB` | `PKG/db` (created by P2; holds `prisma/schema.prisma`, `prisma/migrations`, `prisma/protected-indexes.txt`, `src/live/finish.ts`, `src/json/*`, `src/jobs.ts`) |
 | `CT` | `PKG/contracts/src` (P1 `http/`, P2 `socket/`, P3 adds `internal/`), imported as `@repo/contracts/{http,socket,internal}/<file>` |
-| `SP` | `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad` |
+| `SP` | the planning session's scratchpad, archived scratch inputs that are not in the repo and may no longer exist (see [99-open-decisions.md](99-open-decisions.md) A12) |
 | `DR` | `SP/design-ref/project/v2` (board files `*.dc.html`) |
 | `DS` | `SP/design-ref/ds/project` (design-system README, tokens, component READMEs) |
 

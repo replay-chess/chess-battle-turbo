@@ -30,7 +30,7 @@ Status: plan, revision 2, 2026-11-02. Written against branch `dev` at `0848b76` 
 | `CT` | `PKG/contracts/src` (imported as `@repo/contracts/http/<file>`) |
 | `GC` | `PKG/game-core/src` |
 | `TRN` | `PKG/chess-training/src` |
-| `SP` | `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad` |
+| `SP` | the planning session's scratchpad, archived scratch inputs that are not in the repo and may no longer exist (see [99-open-decisions.md](99-open-decisions.md) A12) |
 | `DR` | `SP/design-ref/project/v2` (board files `*.dc.html`) |
 | `PLAN` | `SP/plan` (`allocation`, `architecture`, `data-model`, `api-design`, `client-data-layer`, `optimization`, the phase specs and the critiques); P5 final is `REPO/docs/plan/phase-05-mistake-bank-puzzles-train-and-home.md` |
 | inventories | `PLAN/inv-play-b.md` (legend practice, F2–F5), `PLAN/inv-rct-b.md` (Learn, L1–L9), `PLAN/inv-pub.md` (public catalogues, §1.3, §1.10, §2.2–2.3, §2.29–2.33) |

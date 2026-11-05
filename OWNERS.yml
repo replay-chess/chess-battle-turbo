@@ -1,0 +1,230 @@
+# Which phase owns which paths while it runs (phase-01 plan §13.5, P1-16; critique-feasibility §7).
+#
+# scripts/qa/check-owners.mjs lists, for a PR or push, every changed file that another ACTIVE phase owns.
+# Report-only in P1 (one stream of feature work). From `enforce_from_phase` on (P4, when two streams run) it
+# blocks, and a PR that touches another active phase's globs needs the label `owner-ok:<phase id>`.
+#
+# Format (a small YAML subset that check-owners.mjs parses without dependencies):
+#   - `key: value` scalars, nested maps by two-space indentation, `- item` lists of scalars, `#` comments.
+#   - globs use node:path matchesGlob syntax, relative to the repo root.
+#   - `status`: planned | active | done. Only `active` phases own anything for the check; set a phase to
+#     active when its first PR opens and to done at sign-off. `weeks` are calendar estimates (allocation.md
+#     §0, P1 starting 2026-11-02), for planning only.
+#   - `shared_add_only`: registry directories (registries are directories, CF §7). Any phase may ADD a file
+#     there; changing an existing file is a cross-phase touch when another active phase owns it. Barrel files
+#     (`index.ts`) take one appended line per phase and are reported, never blocked.
+version: 1
+enforce_from_phase: 4
+calendar_start: 2026-11-02
+
+shared_add_only:
+  - apps/web/lib/api/keys/
+  - apps/web/lib/flags/registry/
+  - apps/web/lib/auth/route-classes/
+  - apps/web/lib/cron/tasks/
+  - packages/contracts/src/http/registry/
+  - apps/web/e2e/personas/
+  - apps/web/config/redirects/
+  - apps/web/lib/seo/robots-rules/
+  - apps/web/lib/realtime/handlers/
+
+phases:
+  p01:
+    name: Design system, app shell, API foundations
+    status: active
+    weeks: 1-3
+    globs:
+      - apps/web/components/ui/**
+      - apps/web/components/shell/**
+      - apps/web/components/layout/**
+      - apps/web/components/system/**
+      - apps/web/components/data/**
+      - apps/web/app/dev/**
+      - apps/web/app/too-many-requests/**
+      - apps/web/app/(app)/layout.tsx
+      - apps/web/app/providers.tsx
+      - apps/web/middleware.ts
+      - apps/web/lib/api/*.ts
+      - apps/web/lib/api/queries/**
+      - apps/web/lib/api/keys/me.ts
+      - apps/web/lib/api/keys/catalog.ts
+      - apps/web/lib/api/keys/billing.ts
+      - apps/web/lib/api/keys/system.ts
+      - apps/web/lib/auth/**
+      - apps/web/lib/shell/**
+      - apps/web/lib/layout/**
+      - apps/web/lib/nav/**
+      - apps/web/lib/flags/*.ts
+      - apps/web/lib/flags/registry/p01.ts
+      - apps/web/lib/test-hooks/**
+      - apps/web/lib/rate-limit-db*.ts
+      - apps/web/lib/webhooks/**
+      - apps/web/lib/billing/entitlement*.ts
+      - apps/web/lib/cron/tasks/@(rate-limit-sweep|webhook-retention|membership-reconcile).ts
+      - apps/web/app/api/@(me|health|session|cron)/**
+      - apps/web/app/api/billing/refresh/**
+      - apps/web/app/api/webhook/**
+      - apps/web/test/**
+      - apps/web/e2e/fixtures/**
+      - apps/web/e2e/devices/**
+      - apps/web/e2e/personas/p01.ts
+      - apps/web/scripts/@(lint-delta|check-bundle-budgets).mjs
+      - apps/web/.lint-baseline.json
+      - packages/contracts/src/http/*.ts
+      - packages/analytics/**
+      - scripts/qa/**
+      - scripts/db/**
+      - .github/workflows/@(ci|main-guard|nightly|post-deploy-dev|ops-weekly|backup-live).yml
+      - OWNERS.yml
+      - turbo.json
+
+  p02:
+    name: Board and live game
+    status: planned
+    weeks: 4-9
+    globs:
+      - apps/web/features/game/**
+      - apps/web/features/engine/**
+      - apps/web/components/board/**
+      - apps/web/app/game/**
+      - apps/web/lib/realtime/*.ts
+      - apps/web/lib/realtime/handlers/game.ts
+      - apps/web/lib/games/**
+      - apps/web/lib/api/keys/game.ts
+      - apps/web-socket/**
+      - packages/game-core/**
+      - .github/workflows/deploy-oci.yml
+
+  p03:
+    name: Server analysis and Game Review
+    status: planned
+    weeks: 10-15
+    globs:
+      - apps/web/features/review/**
+      - apps/web/app/analysis/**
+      - apps/web/app/(app)/games/**
+      - apps/web/app/(app)/review/**
+      - apps/web/app/r/**
+      - apps/web/lib/og/**
+      - apps/web/lib/api/keys/review.ts
+      - packages/chess-analysis/**
+      - apps/analysis-worker/**
+
+  p04:
+    name: Game import and onboarding v3
+    status: planned
+    weeks: 16-19
+    globs:
+      - apps/web/app/onboarding/**
+      - apps/web/lib/onboarding/**
+      - apps/web/lib/accounts/**
+      - apps/web/lib/chess-com.ts
+      - apps/web/app/api/accounts/**
+      - apps/web/app/api/import/**
+      - apps/web/lib/api/keys/account.ts
+
+  p05:
+    name: Mistake Bank, puzzles, Train and Home
+    status: planned
+    weeks: 20-25
+    globs:
+      - apps/web/features/train/**
+      - apps/web/components/train/**
+      - apps/web/lib/train/**
+      - apps/web/lib/home/**
+      - apps/web/app/(app)/home/**
+      - apps/web/app/(app)/train/**
+      - apps/web/app/(app)/mistakes/**
+      - apps/web/app/api/train/**
+      - apps/web/lib/api/keys/train.ts
+
+  p06:
+    name: Weakness Profile
+    status: planned
+    weeks: 26-27
+    globs:
+      - apps/web/lib/weakness/**
+      - apps/web/app/(app)/weakness/**
+      - apps/web/app/api/weakness/**
+
+  p07:
+    name: AI coach
+    status: planned
+    weeks: 28-31
+    globs:
+      - apps/web/lib/coach/**
+      - apps/web/features/coach/**
+      - apps/web/lib/sse.ts
+      - apps/web/app/api/coach/**
+      - apps/web/lib/api/keys/coach.ts
+
+  p08:
+    name: Learn (legends, legend practice, openings, lessons)
+    status: planned
+    weeks: 16-21
+    globs:
+      - apps/web/lib/catalog/**
+      - apps/web/lib/learn/**
+      - apps/web/components/learn/**
+      - apps/web/app/(marketing)/@(legends|openings|learn|lessons)/**
+      - apps/web/app/api/@(legends|openings|lessons)/**
+      - apps/web/lib/api/keys/learn.ts
+
+  p09:
+    name: Play hub, matchmaking, challenges, ratings
+    status: planned
+    weeks: 22-25
+    globs:
+      - apps/web/features/play/**
+      - apps/web/app/(shared)/**
+      - apps/web/app/play/**
+      - apps/web/app/queue/**
+      - apps/web/app/og/**
+      - apps/web/app/api/@(matchmaking|challenges)/**
+      - apps/web/lib/api/keys/play.ts
+
+  p10:
+    name: Profile, settings, membership, notifications
+    status: planned
+    weeks: 32-36
+    globs:
+      - apps/web/lib/profile/**
+      - apps/web/lib/notify/**
+      - apps/web/lib/prefs/**
+      - apps/web/lib/r2/**
+      - apps/web/worker/push.ts
+      - apps/web/app/(app)/@(settings|membership|profile)/**
+      - apps/web/app/api/@(profile|settings|notifications)/**
+
+  p11:
+    name: Public site, auth, system screens, PWA
+    status: planned
+    weeks: 32-36
+    globs:
+      - apps/web/app/(marketing)/page.tsx
+      - apps/web/app/(marketing)/@(pricing|blog|help|contact|legal|about)/**
+      - apps/web/app/(auth)/**
+      - apps/web/lib/pwa/**
+      - apps/web/lib/system/**
+      - apps/web/lib/offline/**
+      - apps/web/worker/index.ts
+
+  p12:
+    name: Tournaments and admin
+    status: planned
+    weeks: 26-29
+    globs:
+      - apps/web/features/tournaments/**
+      - apps/web/app/(admin)/**
+      - apps/web/lib/admin/**
+      - apps/web/lib/milestones/**
+      - apps/web/app/api/@(tournament|admin)/**
+      - apps/web/lib/api/keys/@(tournament|admin).ts
+
+  p13:
+    name: Production launch
+    status: planned
+    weeks: 37-38
+    globs:
+      - apps/web/lib/launch/**
+      - apps/web/lib/storage/**

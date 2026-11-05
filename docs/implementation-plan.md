@@ -1,6 +1,8 @@
 # Replay Chess: coaching app implementation plan
 
 > **Superseded by the detailed plan (2026-11-02).** The detailed, authoritative plan now lives in [`docs/plan/README.md`](plan/README.md): 13 phases (P1–P13) with per-phase specs, the cross-cutting architecture, data model, API, client data layer and optimisation documents, and the owner's decision register [`docs/plan/99-open-decisions.md`](plan/99-open-decisions.md). It replaces §2 "Phases", §3 "Order and timeline" and §4 "Decisions needed from you" below; the phase numbers here map to the new ones through `docs/plan/01-architecture.md` §6.1. §1 (the paid-only model) still applies and is done (Phase 0, commit `8514fea`). The rest of this file is kept for history.
+>
+> **Phase 1 (in progress on `dev`)** is specified by two documents: [`docs/plan/phase-01-design-system-app-shell-and-api-foundations.md`](plan/phase-01-design-system-app-shell-and-api-foundations.md) (the phase plan: tracks 1B security hotfixes and API/data-layer foundations, 1Q test and ops plumbing, the work packages in §13.3 and the Definition of Done in §15) and [`docs/plan/phase-01a-spec.md`](plan/phase-01a-spec.md) (SPEC, track 1A: UI kit, app shell, one-viewport layout). The canonical route table (route → boards → phase → flag → auth class), which the middleware route classes are tested against, is [`docs/route-map.md`](route-map.md). The old "Phase 1: Design system and app shell" section below is history only.
 
 Status: draft, 2026-11-01. Branch `hetzner-deploy`.
 Design source: Claude Design canvas https://claude.ai/artifact/KdJ3TDSaXSSsW3K8e8B8y9 (v3 pages plus the design system).

@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { Page, Browser } from "@playwright/test";
-import { signIn } from "./auth";
+import { ensureViewerOnboarded, signIn } from "./auth";
 
 /**
  * Create a tournament via the authenticated API from a signed-in page context.
@@ -33,30 +33,6 @@ export async function createTournamentViaApi(
   }, name);
 
   return result;
-}
-
-/**
- * Ensure the user is synced to the local DB and onboarding is skipped.
- * Calls the sync + onboarding-skip APIs directly — far more reliable
- * than waiting for the UI onboarding flow for temp users.
- */
-async function ensureUserSyncedAndOnboarded(page: Page): Promise<void> {
-  await page.evaluate(async () => {
-    // Sync user to local DB (creates the user if it doesn't exist)
-    const syncRes = await fetch("/api/user/sync", { method: "POST" });
-    if (!syncRes.ok) {
-      throw new Error(`User sync failed: ${syncRes.status}`);
-    }
-    const syncData = await syncRes.json();
-
-    // Skip onboarding if not already done
-    if (syncData.user && !syncData.user.onboarded) {
-      const skipRes = await fetch("/api/user/onboarding-skip", { method: "POST" });
-      if (!skipRes.ok) {
-        throw new Error(`Onboarding skip failed: ${skipRes.status}`);
-      }
-    }
-  });
 }
 
 /**
@@ -115,9 +91,9 @@ export async function createTempUsersAndJoin(
     try {
       await signIn(page, email, password);
 
-      // Ensure the user is synced to local DB and onboarding is completed
-      // before navigating away. This avoids the onboarding redirect race.
-      await ensureUserSyncedAndOnboarded(page);
+      // signIn already did this; repeating it (idempotent, one GET /api/me)
+      // guards the onboarding redirect race before navigating away.
+      await ensureViewerOnboarded(page);
 
       await page.goto(`/join-tournament/${tournamentRefId}`, {
         timeout: 60_000,

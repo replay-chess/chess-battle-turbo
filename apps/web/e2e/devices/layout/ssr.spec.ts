@@ -5,7 +5,7 @@ import { expect, gotoStable, hasInsets, test } from "./fixtures";
 import { isChromium } from "../helpers";
 import { GAME_ROUTE } from "./routes";
 
-test("board box without JavaScript equals the hydrated box", async ({ page, browser }, testInfo) => {
+test("board box without JavaScript equals the hydrated box @p1", async ({ page, browser }, testInfo) => {
   test.skip(hasInsets(testInfo), "inset emulation needs an init script, which can't run without JavaScript");
   await gotoStable(page, GAME_ROUTE);
   const hydrated = await page.getByTestId("chess-board").boundingBox();
@@ -37,7 +37,7 @@ test("board box without JavaScript equals the hydrated box", async ({ page, brow
   }
 });
 
-test("no layout shift on load (Chromium)", async ({ page }, testInfo) => {
+test("no layout shift on load (Chromium) @p1", async ({ page }, testInfo) => {
   test.skip(hasInsets(testInfo), "projects without insets only");
   test.skip(!isChromium(testInfo), "layout-shift entries are Chromium-only");
   await page.goto(GAME_ROUTE);

@@ -44,8 +44,6 @@ The platform features 50+ chess legends organized by era (Romantic, Classical, H
 - [Legends List](https://www.playchess.tech/docs/api): `GET /api/legends` — All chess legends with bios, eras, and famous games
 - [Legend Detail](https://www.playchess.tech/docs/api): `GET /api/legends/[id]` — Individual legend profile and positions
 - [Openings List](https://www.playchess.tech/docs/api): `GET /api/openings` — All ECO-coded openings with PGN data
-- [User Profile](https://www.playchess.tech/docs/api): `GET /api/user/[referenceId]` — User profile, stats, and game history
-- [User Sync](https://www.playchess.tech/docs/api): `POST /api/user/sync` — Sync authenticated user from Clerk to database
 - [Tournaments](https://www.playchess.tech/docs/api): `GET /api/tournament` — List and manage tournaments
 - [Health Check](https://www.playchess.tech/docs/api): `GET /api/healthcheck` — Server health status
 

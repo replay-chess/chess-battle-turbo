@@ -4,9 +4,12 @@ import {
   ACTIVATION_POLL_ATTEMPTS,
   ACTIVATION_POLL_MS,
   SUBSCRIPTION_REQUIRED_CODE,
+  SESSION_RELOAD_CAP_MS,
   checkoutReturnPath,
   isEntitledClient,
+  isSubscriptionRequiredBody,
   isSubscriptionRequiredResponse,
+  reloadClerkSession,
   needsPaymentUpdate,
   paywallUrl,
   stripCheckoutParams,
@@ -153,6 +156,81 @@ describe("waitForEntitlement", () => {
     assert.equal(refreshes, 1);
   });
 
+  it("reloads the Clerk session once on success, before resolving", async () => {
+    const order: string[] = [];
+    let refreshes = 0;
+    const entitled = await waitForEntitlement({
+      refresh: async () => {
+        refreshes += 1;
+        order.push(`refresh ${refreshes}`);
+      },
+      isEntitled: () => refreshes >= 2,
+      wait: noWait,
+      reloadSession: async () => {
+        order.push("reload");
+      },
+    });
+    order.push("resolved");
+    assert.equal(entitled, true);
+    assert.deepEqual(order, ["refresh 1", "refresh 2", "reload", "resolved"]);
+  });
+
+  it("never reloads the session when entitlement does not appear or the wait is cancelled", async () => {
+    let reloads = 0;
+    const reloadSession = async () => {
+      reloads += 1;
+    };
+    assert.equal(
+      await waitForEntitlement({ refresh: async () => {}, isEntitled: () => false, attempts: 2, wait: noWait, reloadSession }),
+      false,
+    );
+    let cancelled = false;
+    assert.equal(
+      await waitForEntitlement({
+        refresh: async () => {},
+        isEntitled: () => false,
+        isCancelled: () => cancelled,
+        wait: async () => {
+          cancelled = true;
+        },
+        reloadSession,
+      }),
+      false,
+    );
+    assert.equal(reloads, 0);
+  });
+
+  it("still resolves true when the session reload fails or hangs (capped)", async () => {
+    assert.equal(
+      await waitForEntitlement({
+        refresh: async () => {},
+        isEntitled: () => true,
+        wait: noWait,
+        reloadSession: async () => {
+          throw new Error("clerk offline");
+        },
+      }),
+      true,
+    );
+    const waits: number[] = [];
+    assert.equal(
+      await waitForEntitlement({
+        refresh: async () => {},
+        isEntitled: () => true,
+        wait: async (ms) => {
+          waits.push(ms);
+        },
+        reloadSession: () => new Promise(() => {}),
+      }),
+      true,
+    );
+    assert.deepEqual(waits, [SESSION_RELOAD_CAP_MS]);
+  });
+
+  it("reloadClerkSession is a no-op without a browser", async () => {
+    await reloadClerkSession();
+  });
+
   it("does not swallow a refresh that rejects", async () => {
     await assert.rejects(
       waitForEntitlement({
@@ -247,6 +325,20 @@ describe("isSubscriptionRequiredResponse", () => {
     assert.equal(await isSubscriptionRequiredResponse(json({ error: "nope" }, 400)), false);
     assert.equal(await isSubscriptionRequiredResponse(json({ success: true }, 200)), false);
     assert.equal(await isSubscriptionRequiredResponse(new Response("boom", { status: 500 })), false);
+  });
+
+  it("recognises the envelope's error.code (route() bodies)", async () => {
+    const res = json({ error: { code: SUBSCRIPTION_REQUIRED_CODE, message: "Members only" } }, 403);
+    assert.equal(await isSubscriptionRequiredResponse(res), true);
+  });
+
+  it("isSubscriptionRequiredBody reads both shapes and nothing else", () => {
+    assert.equal(isSubscriptionRequiredBody({ code: SUBSCRIPTION_REQUIRED_CODE }), true);
+    assert.equal(isSubscriptionRequiredBody({ error: { code: SUBSCRIPTION_REQUIRED_CODE } }), true);
+    assert.equal(isSubscriptionRequiredBody({ error: { code: "rate_limited" } }), false);
+    assert.equal(isSubscriptionRequiredBody({ error: SUBSCRIPTION_REQUIRED_CODE }), false);
+    assert.equal(isSubscriptionRequiredBody(null), false);
+    assert.equal(isSubscriptionRequiredBody("subscription_required"), false);
   });
 
   it("leaves the body readable for the caller", async () => {

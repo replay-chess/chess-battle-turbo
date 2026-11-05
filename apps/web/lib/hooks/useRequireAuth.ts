@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter, usePathname } from "next/navigation";
 import { CompleteUserObject } from "../types/user";
 import { useUserStore } from "@/lib/stores";
-import { trackApiResponseTime } from "@/lib/metrics";
-import { logger } from "@/lib/logger";
 
 export interface UseRequireAuthReturn {
   isLoaded: boolean;
@@ -16,120 +14,81 @@ export interface UseRequireAuthReturn {
   userId: string | null | undefined;
   userObject: CompleteUserObject | null;
   isLoadingUserData: boolean;
+  /** Re-reads the viewer from the server (GET /api/me) into the store. */
   refetchUserData: () => Promise<void>;
 }
 
+/**
+ * Requires a signed-in user (plan §3.2, 1B·F4d; AC #5).
+ *
+ * The only redirect is to /sign-in, and only when Clerk itself says the visitor
+ * is signed out. The user record comes from the store, which UserSync fills from
+ * the viewer (`qk.me()`); the hook makes no request of its own. While the store
+ * has no user for this Clerk account (first load, or GET /api/me failing),
+ * `isReady` stays false and the page keeps its loading state.
+ */
 export function useRequireAuth(): UseRequireAuthReturn {
   const { isLoaded: authLoaded, userId } = useAuth();
   const { isLoaded: userLoaded, isSignedIn, user } = useUser();
-  const email = user?.emailAddresses[0]?.emailAddress;
   const router = useRouter();
   const pathname = usePathname();
+  const redirectedRef = useRef(false);
 
-  // Read from Zustand store (used when already populated by UserSync)
   const storeUser = useUserStore((s) => s.user);
   const isSyncing = useUserStore((s) => s.isSyncing);
 
-  // Local state as direct fallback — ensures this hook is self-sufficient
-  const [localUser, setLocalUser] = useState<CompleteUserObject | null>(null);
-  const [isLoadingLocal, setIsLoadingLocal] = useState(false);
-  const fetchedEmailRef = useRef<string | null>(null);
-  const isFetchingRef = useRef(false);
-
   const isLoaded = authLoaded && userLoaded;
 
-  // Build CompleteUserObject from store data
-  const storeUserObject: CompleteUserObject | null = storeUser
+  // A persisted user that belongs to another Clerk account is not this visitor.
+  const ownUser = storeUser && userId && storeUser.clerkUserId === userId ? storeUser : null;
+
+  const userObject: CompleteUserObject | null = ownUser
     ? {
         user: {
-          referenceId: storeUser.referenceId,
-          code: storeUser.code,
-          name: storeUser.name,
-          email: storeUser.email,
-          profilePictureUrl: storeUser.profilePictureUrl,
+          referenceId: ownUser.referenceId,
+          code: ownUser.code,
+          name: ownUser.name,
+          email: ownUser.email,
+          profilePictureUrl: ownUser.profilePictureUrl,
           dateOfBirth: null,
           isActive: true,
           createdAt: "",
         },
-        stats: storeUser.stats
+        stats: ownUser.stats
           ? {
-              referenceId: storeUser.stats.referenceId,
-              totalGamesPlayed: storeUser.stats.totalGamesPlayed,
-              gamesWon: storeUser.stats.gamesWon,
-              gamesLost: storeUser.stats.gamesLost,
-              gamesDrawn: storeUser.stats.gamesDrawn,
-              winRate: storeUser.stats.totalGamesPlayed > 0
-                ? ((storeUser.stats.gamesWon / storeUser.stats.totalGamesPlayed) * 100).toFixed(1)
+              referenceId: ownUser.stats.referenceId,
+              totalGamesPlayed: ownUser.stats.totalGamesPlayed,
+              gamesWon: ownUser.stats.gamesWon,
+              gamesLost: ownUser.stats.gamesLost,
+              gamesDrawn: ownUser.stats.gamesDrawn,
+              winRate: ownUser.stats.totalGamesPlayed > 0
+                ? ((ownUser.stats.gamesWon / ownUser.stats.totalGamesPlayed) * 100).toFixed(1)
                 : "0.0",
-              currentWinStreak: storeUser.stats.currentWinStreak,
-              longestWinStreak: storeUser.stats.longestWinStreak,
-              averageGameDuration: storeUser.stats.averageGameDuration,
-              lastPlayedAt: storeUser.stats.lastPlayedAt,
+              currentWinStreak: ownUser.stats.currentWinStreak,
+              longestWinStreak: ownUser.stats.longestWinStreak,
+              averageGameDuration: ownUser.stats.averageGameDuration,
+              lastPlayedAt: ownUser.stats.lastPlayedAt,
             }
           : null,
       }
     : null;
 
-  // Prefer store data, fall back to locally fetched data
-  const userObject = storeUserObject ?? localUser;
+  const signedIn = isLoaded && Boolean(isSignedIn && userId);
+  const isReady = signedIn && userObject !== null;
 
-  const isReady = isLoaded && userObject !== null;
-
-  // Refetch: update the store by fetching user by email
   const refetchUserData = async (): Promise<void> => {
-    if (!email) return;
-    await useUserStore.getState().fetchUserByEmail(email);
+    if (!userId) return;
+    await useUserStore.getState().loadViewer(userId, { force: true });
   };
 
   useEffect(() => {
     if (!isLoaded) return;
-
-    // Redirect if not signed in
-    if (!isSignedIn || !userId || !email) {
-      router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
-      return;
-    }
-
-    // If store already has user data, nothing to do
-    if (storeUser) return;
-
-    // Already fetched for this email
-    if (fetchedEmailRef.current === email) return;
-
-    // Already fetching
-    if (isFetchingRef.current) return;
-
-    // Direct fetch as fallback — doesn't depend on Zustand hydration
-    isFetchingRef.current = true;
-    setIsLoadingLocal(true);
-
-    const start = Date.now();
-    fetch(`/api/user/email/${encodeURIComponent(email)}`)
-      .then((response) => {
-        trackApiResponseTime("user.fetchByEmail", Date.now() - start);
-        if (!response.ok) {
-          router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
-          return null;
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (data?.success && data?.data) {
-          setLocalUser(data.data);
-          fetchedEmailRef.current = email;
-        } else if (data !== null) {
-          router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
-        }
-      })
-      .catch((error) => {
-        logger.error("Error fetching user data:", error);
-        router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
-      })
-      .finally(() => {
-        isFetchingRef.current = false;
-        setIsLoadingLocal(false);
-      });
-  }, [isLoaded, isSignedIn, userId, email, router, pathname, storeUser]);
+    // Only Clerk's own "signed out" sends the visitor to sign-in; a failed data read never does.
+    if (isSignedIn && userId) return;
+    if (redirectedRef.current) return;
+    redirectedRef.current = true;
+    router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
+  }, [isLoaded, isSignedIn, userId, router, pathname]);
 
   return {
     isLoaded,
@@ -138,7 +97,7 @@ export function useRequireAuth(): UseRequireAuthReturn {
     clerkUser: user,
     userId,
     userObject,
-    isLoadingUserData: isSyncing || isLoadingLocal,
+    isLoadingUserData: isSyncing || (signedIn && userObject === null),
     refetchUserData,
   };
 }

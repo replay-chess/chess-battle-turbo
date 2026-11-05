@@ -40,7 +40,7 @@ async function openDialogIds(page: Page): Promise<string[]> {
     .evaluateAll((els) => els.map((el) => el.getAttribute("data-testid") ?? "?"));
 }
 
-test.describe("desktop sidebar", () => {
+test.describe("desktop sidebar @p1", () => {
   test.beforeEach(() => only(test.info(), ["ui-desktop"]));
 
   test("220px sidebar with Play, Tournaments, Learn and Profile only", async ({ page }) => {
@@ -59,7 +59,7 @@ test.describe("desktop sidebar", () => {
     await expect(page.getByTestId("subnav")).toBeHidden();
   });
 
-  test("Learn subs show only while Learn is current", async ({ page }) => {
+  test("Learn subs show only while Learn is current @demo:V3Nav.learn", async ({ page }) => {
     await open(page, "?current=legends");
     expect((await visibleTestIds(page, '[data-testid="shell-sidebar"] [data-testid^="nav-item-"]')).sort()).toEqual([
       "nav-item-learn",
@@ -135,7 +135,7 @@ test.describe("desktop sidebar", () => {
     await expect(page.locator("html")).toHaveClass(wasDark ? /(^|\s)dark(\s|$)/ : /(^|\s)light(\s|$)/);
   });
 
-  test("dark theme: the current item fills with the dark accent", async ({ page }) => {
+  test("dark theme: the current item fills with the dark accent @demo:V3Nav.play", async ({ page }) => {
     await open(page, "?current=play");
     await setTheme(page, "dark");
     const { bg, accent } = await sidebar(page)
@@ -167,7 +167,7 @@ test.describe("desktop sidebar", () => {
   });
 });
 
-test.describe("time zone", () => {
+test.describe("time zone @p1", () => {
   test.use({ timezoneId: "America/Los_Angeles" });
 
   test("no hydration warnings outside UTC", async ({ page }, testInfo) => {
@@ -180,14 +180,14 @@ test.describe("time zone", () => {
   });
 });
 
-test.describe("keyboard", () => {
+test.describe("keyboard @p1", () => {
   test.beforeEach(() => {
     const testInfo = test.info();
     only(testInfo, ["ui-desktop"], "keyboard checks run on desktop Chromium");
     test.skip(!isChromium(testInfo), "keyboard checks run on Chromium only");
   });
 
-  test("ControlOrMeta+K opens the palette; 'tour' filters to Tournaments; Enter navigates", async ({ page }) => {
+  test("ControlOrMeta+K opens the palette; 'tour' filters to Tournaments; Enter navigates @demo:V3CommandPalette.open @demo:V3CommandPalette.closed", async ({ page }) => {
     await open(page);
     await page.keyboard.press("ControlOrMeta+K");
     const palette = page.getByTestId("command-palette");
@@ -222,7 +222,7 @@ test.describe("keyboard", () => {
     await expect(page.getByTestId("command-palette")).toBeVisible();
   });
 
-  test("'?' opens shortcuts; ControlOrMeta+K swaps to the palette (no stacking)", async ({ page }) => {
+  test("'?' opens shortcuts; ControlOrMeta+K swaps to the palette (no stacking) @demo:V3Shortcuts.open @demo:V3Shortcuts.closed", async ({ page }) => {
     await open(page);
     await page.keyboard.press("?");
     await expect(page.getByTestId("shortcuts-dialog")).toBeVisible();
@@ -283,7 +283,7 @@ test.describe("keyboard", () => {
   });
 });
 
-test.describe("phones", () => {
+test.describe("phones @p1", () => {
   test.beforeEach(() => only(test.info(), PHONES));
 
   test("top bar and tab bar; no sidebar, no search button", async ({ page }) => {
@@ -329,7 +329,7 @@ test.describe("phones", () => {
   });
 });
 
-test.describe("iPad", () => {
+test.describe("iPad @p1", () => {
   test.beforeEach(() => only(test.info(), ["ui-ipad"]));
 
   test("coarse pointer: rail, SubNav, ⌘K, no search button, no '/'", async ({ page }) => {
@@ -352,7 +352,7 @@ test.describe("iPad", () => {
   });
 });
 
-test("offline chip, then Back online without a reload", async ({ page, context }) => {
+test("offline chip, then Back online without a reload @p1", async ({ page, context }) => {
   await open(page);
   await page.evaluate(() => ((window as unknown as { __rcMarker: number }).__rcMarker = 42));
   const tabbar = await page.getByTestId("shell-tabbar").isVisible();
@@ -364,7 +364,7 @@ test("offline chip, then Back online without a reload", async ({ page, context }
   expect(await page.evaluate(() => (window as unknown as { __rcMarker?: number }).__rcMarker)).toBe(42);
 });
 
-test.describe("palette legend search", () => {
+test.describe("palette legend search @p1", () => {
   test.beforeEach(() => only(test.info(), ["ui-desktop"]));
 
   test("'morphy' finds Paul Morphy (needs the P6 seed)", async ({ page, request }) => {
@@ -387,7 +387,7 @@ test.describe("palette legend search", () => {
   });
 });
 
-test("no dead links in the nav, SubNav, account menu or Back", async ({ page }, testInfo) => {
+test("no dead links in the nav, SubNav, account menu or Back @p1", async ({ page }, testInfo) => {
   only(testInfo, ["ui-desktop"]);
   await open(page, "?user=admin&current=play&back=legends");
   await page.getByTestId("shell-account-button").click();

@@ -143,11 +143,12 @@ export async function refreshEntitlement(owned: OwnedSubscription): Promise<{
   subscription: Subscription;
 }> {
   const subscription = await dodo.subscriptions.retrieve(owned.subscription.subscription_id);
+  const outcome = await applySubscriptionSnapshot(subscription, {
+    source: "api",
+    userId: owned.user.id,
+  });
   const entitlement =
-    (await applySubscriptionSnapshot(subscription, {
-      source: "api",
-      userId: owned.user.id,
-    })) ??
+    ("entitlement" in outcome ? outcome.entitlement : null) ??
     summarizeUserEntitlement(
       await prisma.user.findUniqueOrThrow({
         where: { id: owned.user.id },

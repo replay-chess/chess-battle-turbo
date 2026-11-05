@@ -5,14 +5,15 @@ import { queryOptions } from "@tanstack/react-query";
 import { api } from "../client";
 import { endpoints } from "../endpoints";
 import { qk } from "../keys";
-import { devSchema } from "../schema";
 
 const DAY_MS = 24 * 60 * 60_000;
 
 export const openingsIndexQuery = queryOptions({
   queryKey: qk.catalog.openingsIndex(),
   queryFn: async ({ signal }): Promise<OpeningsIndexData> => {
-    const { data } = await api(endpoints.openings, { schema: devSchema(OpeningsIndexData), signal });
+    // devSchema written inline (lib/api/schema.ts): only then does webpack drop the schema, and zod, from production chunks.
+    const schema = process.env.NODE_ENV === "production" ? undefined : OpeningsIndexData;
+    const { data } = await api(endpoints.openings, { schema, signal });
     return data;
   },
   staleTime: DAY_MS,

@@ -5,6 +5,13 @@ export type DestinationKey =
 
 export type ChromeMode = "shell" | "marketing";
 
+/**
+ * V3PaymentFailed state (plan §4.5, §8.2): `banner` while access lasts more than 36 h, `last_day` within 36 h,
+ * `expired` once the grace period has ended (a non-member, so only the demo user reaches the shell with it).
+ * Same thresholds as `/api/me` `entitlement.paymentIssue.state`.
+ */
+export type PaymentIssueState = "banner" | "last_day" | "expired";
+
 export type ShellUser = {
   referenceId: string;
   name: string;
@@ -20,6 +27,11 @@ export type ShellUser = {
   paymentFailedUntil: string | null;
   /** The same date preformatted on the server in UTC ("Nov 12"), so SSR and hydration agree. */
   paymentFailedUntilLabel: string | null;
+  /**
+   * Which payment banner to show (1A·P7). Optional for older callers: when absent, `paymentFailed` means `banner`.
+   * null: no payment issue.
+   */
+  paymentIssueState?: PaymentIssueState | null;
   /** The user has a Dodo customer id, so "Manage Billing" (/api/customer-portal) works. */
   hasBillingPortal: boolean;
 };

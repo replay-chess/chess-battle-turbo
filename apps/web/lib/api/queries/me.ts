@@ -5,13 +5,14 @@ import { queryOptions, useQuery, type QueryClient } from "@tanstack/react-query"
 import { api } from "../client";
 import { endpoints } from "../endpoints";
 import { qk } from "../keys";
-import { devSchema } from "../schema";
 
 export const ME_STALE_TIME_MS = 5 * 60_000;
 export const ME_GC_TIME_MS = 30 * 60_000;
 
 export async function fetchMe(signal?: AbortSignal): Promise<MeData> {
-  const { data } = await api(endpoints.me, { schema: devSchema(MeData), signal });
+  // devSchema written inline (lib/api/schema.ts): only then does webpack drop MeData, and zod, from production chunks.
+  const schema = process.env.NODE_ENV === "production" ? undefined : MeData;
+  const { data } = await api(endpoints.me, { schema, signal });
   return data;
 }
 

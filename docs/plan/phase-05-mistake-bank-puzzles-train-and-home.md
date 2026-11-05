@@ -13,7 +13,7 @@ Revision 2 applies every finding about P5 in the five critiques (`PLAN/critique-
 | `PKG` | `REPO/packages` |
 | `CT` | `REPO/packages/contracts/src` (consistency R-10; imported as `@repo/contracts/{http,socket,internal}/<file>`) |
 | `TRN` | `REPO/packages/chess-training` (created by P5) |
-| `SP` | `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad` |
+| `SP` | the planning session's scratchpad, archived scratch inputs that are not in the repo and may no longer exist (see [99-open-decisions.md](99-open-decisions.md) A12) |
 | `DR` | `SP/design-ref/project/v2` (board files `*.dc.html`) |
 | `DS` | `SP/design-ref/ds/project` (design-system README, tokens, component READMEs) |
 | `PLAN` | `SP/plan` (allocation, architecture, data-model, api-design, client-data-layer, optimization, inventories, audits) |

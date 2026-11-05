@@ -8,8 +8,11 @@ export const PII_PATTERNS = {
   email: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,
   /** Seven ranks of a FEN board followed by a slash. */
   fen: /^([prnbqkPRNBQK1-8]{1,8}\/){7}/,
-  /** A move-number run such as "1. e4", "12...Nf6" or "3.Bxf7+". */
-  pgn: /\b\d+\.(\.\.)?\s?[KQRBNO]?[a-h1-8x=+#-]{2,}/,
+  /**
+   * A move number followed by a SAN move: "1. e4", "12...Nf6", "3.Bxf7+", "9. O-O". The move must name a
+   * destination square (or castle), so version strings such as posthog-node's `$lib_version` "5.56.4" pass.
+   */
+  pgn: /\b\d+\.(\.\.)?\s?(?:[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?|O-O(?:-O)?)[+#]?/,
 } as const;
 
 export type PiiFinding = { path: string; kind: "email" | "fen" | "pgn" | "forbidden"; value: string };

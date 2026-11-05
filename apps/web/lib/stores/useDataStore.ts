@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { logger } from "@/lib/logger";
-import { trackApiResponseTime } from "@/lib/metrics";
 
 export interface StoreLegend {
   id: string;
@@ -58,13 +57,13 @@ export const useDataStore = create<DataState>()(
 
           set({ legendsLoading: true });
           try {
-            const start = Date.now();
             const res = await fetch("/api/legends?isVisible=true&isActive=true");
-            trackApiResponseTime("legends.fetch", Date.now() - start);
-            const data = await res.json();
-            if (data.success && data.data?.legends) {
+            // Legacy `{ success, data: { legends } }` today; the `{ data }` envelope once the route moves to route().
+            const json = (await res.json().catch(() => null)) as { data?: { legends?: StoreLegend[] } } | null;
+            const legends = res.ok ? json?.data?.legends : undefined;
+            if (legends) {
               set({
-                legends: data.data.legends,
+                legends,
                 legendsFetchedAt: Date.now(),
                 legendsLoading: false,
               });
@@ -86,13 +85,13 @@ export const useDataStore = create<DataState>()(
 
           set({ openingsLoading: true });
           try {
-            const start = Date.now();
+            // `{ data: { openings } }` envelope (public, CDN-cached; plan §7.4 A4).
             const res = await fetch("/api/openings");
-            trackApiResponseTime("openings.fetch", Date.now() - start);
-            const data = await res.json();
-            if (data.success && data.data?.openings) {
+            const json = (await res.json().catch(() => null)) as { data?: { openings?: StoreOpening[] } } | null;
+            const openings = res.ok ? json?.data?.openings : undefined;
+            if (openings) {
               set({
-                openings: data.data.openings,
+                openings,
                 openingsFetchedAt: Date.now(),
                 openingsLoading: false,
               });

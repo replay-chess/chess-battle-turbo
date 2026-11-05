@@ -59,3 +59,13 @@ paths = [
   '''^apps/web/public/workers/''',
   '''^apps/web/app/generated/''',
 ]
+
+[[allowlists]]
+# Added by 1B·F7: the socket test harness (stage A, 9f2e480) holds a fixed, test-only
+# INTERNAL_API_SECRET that the generic-api-key rule flags. Both conditions must hold, so a
+# real secret pasted into the test tree is still reported.
+description = "Fixed test-only secrets in the socket test harness"
+condition = "AND"
+paths = ['''^apps/web-socket/test/''']
+regexTarget = "match"
+regexes = ['''test-internal-secret-[0-9a-f]+''']

@@ -9,7 +9,7 @@ Status: **final plan**, 2026-11-02, written against branch `dev` @ `0848b76` (Ph
 | `REPO` | `/Users/rohitpandit/open_source/chess-battle-turbo` |
 | `WEB`, `WS` | `REPO/apps/web`, `REPO/apps/web-socket` |
 | `PKG`, `CT` | `REPO/packages`, `REPO/packages/contracts/src` (imported as `@repo/contracts/{http,socket,internal}/<file>`, consistency R-10) |
-| `SP` | `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad` |
+| `SP` | the planning session's scratchpad, archived scratch inputs that are not in the repo and may no longer exist (see [99-open-decisions.md](99-open-decisions.md) A12) |
 | `DR` | `SP/design-ref/project/v2` (every board below is `DR/<file>.dc.html`) |
 | plan docs | `SP/plan/{allocation,architecture,data-model,api-design,client-data-layer,optimization}.md`; inventories `SP/plan/inv-pub.md` (pub), `SP/plan/inv-sys.md` (sys); audits `SP/plan/audit-*.md`; critiques `SP/plan/critique-*.md`; Phase 1 spec `SP/phase1/SPEC.md` |
 

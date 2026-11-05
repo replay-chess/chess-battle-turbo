@@ -1,0 +1,107 @@
+# Regenerate the visual baselines on a PR (phase-01 plan §12.4, CT X10; 1Q·2).
+#
+# Add the `update-snapshots` label to a PR: this job runs apps/web/e2e/devices/ui/visual.spec.ts (@visual) in
+# the official Playwright image with --update-snapshots, commits the changed PNGs under
+# apps/web/e2e/__screenshots__/ to the PR branch, comments the list and removes the label. Review the images
+# in the PR diff before merging. Only PRs from branches of this repository (a fork's token cannot push).
+#
+# The image tag must equal the @playwright/test version in apps/web/package.json (nightly.yml's visual job
+# uses the same image to compare). A push made with GITHUB_TOKEN starts no other workflow; push again (or
+# re-run CI) after reviewing.
+#
+# Secrets (owner adds; names only): NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY (development instance).
+name: Update visual snapshots
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-snapshots-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  update:
+    if: github.event.label.name == 'update-snapshots' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    container: mcr.microsoft.com/playwright:v1.58.2-noble
+    services:
+      db:
+        image: postgres:17-alpine
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: replay }
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      CI: "1"
+      # Inside a container job the service is reached by its name.
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/replay
+      DIRECT_URL: postgresql://postgres:postgres@db:5432/replay
+      NEXT_PUBLIC_APP_ENV: test
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NEXT_PUBLIC_POSTHOG_KEY: ""
+      NEXT_PUBLIC_SENTRY_DSN: ""
+      SENTRY_DSN: ""
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: The image matches @playwright/test
+        working-directory: apps/web
+        run: |
+          want="$(node -p "require('@playwright/test/package.json').version")"
+          case "$PLAYWRIGHT_BROWSERS_PATH" in /ms-playwright) ;; *) echo "::error::not the official image"; exit 1 ;; esac
+          grep -q "playwright:v${want}-noble" ../../.github/workflows/update-snapshots.yml \
+            || { echo "::error::@playwright/test is ${want}; update the image tag here and in nightly.yml"; exit 1; }
+      - name: Migrate and seed the database
+        run: |
+          pnpm --filter web exec prisma migrate deploy
+          pnpm --filter web prisma:seed
+      - name: Regenerate the @visual baselines (builds and serves on :3100)
+        run: pnpm --filter web test:devices --grep @visual --update-snapshots
+      - name: Commit the changed baselines
+        id: commit
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/e2e/__screenshots__
+          if git diff --cached --quiet; then
+            echo "changed=0" >> "$GITHUB_OUTPUT"
+            echo "No baseline changed."
+          else
+            git diff --cached --name-status > "$RUNNER_TEMP/snapshot-changes.txt"
+            git commit -m "test(visual): update baselines for #${PR_NUMBER}"
+            git push origin "HEAD:${HEAD_REF}"
+            echo "changed=1" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Report and remove the label
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const issue_number = context.payload.pull_request.number;
+            const changed = "${{ steps.commit.outputs.changed }}" === "1";
+            const file = `${process.env.RUNNER_TEMP}/snapshot-changes.txt`;
+            const list = changed && fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+            const body = "${{ job.status }}" !== "success"
+              ? `Visual baselines: the update job failed. See ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}.`
+              : changed
+                ? "Visual baselines updated (review the images in the diff):\n\n```\n" + list.slice(0, 6000) + "\n```"
+                : "Visual baselines: nothing changed.";
+            await github.rest.issues.createComment({ ...context.repo, issue_number, body });
+            await github.rest.issues.removeLabel({ ...context.repo, issue_number, name: "update-snapshots" }).catch(() => {});

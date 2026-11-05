@@ -34,6 +34,24 @@ export const HYDRATION = /Hydration failed|did not match|Text content does not m
  */
 const RESOURCE_STATUS = /^Failed to load resource: /;
 
+/**
+ * WebKit's wording for the same network outcomes, plus its headless media-control noise (CI runs the
+ * `webkit-iphone` smoke project):
+ * - a third-party resource blocked by its own CORP or CORS headers (a directory badge on the marketing
+ *   footer: "Cancelled load to https://… because it violates the resource's Cross-Origin-Resource-Policy",
+ *   "Cannot load image https://… due to access control checks");
+ * - an RSC prefetch aborted by the next navigation ("Failed to fetch RSC payload for … TypeError: Load
+ *   failed", Chrome's net::ERR_ABORTED); an RSC 5xx does not reject the fetch, so it never logs this;
+ * - "Button failed to load, iconName = …-placard": WebKit's built-in video controls in a headless run.
+ * Only other origins' resources are excused; a blocked same-origin load still fails the test.
+ */
+const WEBKIT_NETWORK_NOISE = [
+  /^Cancelled load to https?:\/\/(?!localhost[:/]|127\.0\.0\.1[:/])\S+ because it violates the resource's Cross-Origin-Resource-Policy/,
+  /^Cannot load image https?:\/\/(?!localhost[:/]|127\.0\.0\.1[:/])\S+ due to access control checks/,
+  /^Failed to fetch RSC payload for \S+\. Falling back to browser navigation\. TypeError: Load failed$/,
+  /^Button failed to load, iconName = [\w-]+-placard, /,
+];
+
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const BASELINE_FILE = path.join(WEB_DIR, "e2e/console-baseline.json");
 
@@ -57,6 +75,7 @@ export type ConsoleProblem = { kind: "pageerror" | "console" | "hydration" | "ap
 /** Pure decision for one console message; exported for unit tests. */
 export function classifyConsole(type: string, text: string, allow: RegExp[]): ConsoleProblem | null {
   if (allow.some((r) => r.test(text)) || RESOURCE_STATUS.test(text)) return null;
+  if (WEBKIT_NETWORK_NOISE.some((r) => r.test(text))) return null;
   if (HYDRATION.test(text)) return { kind: "hydration", text };
   if (type === "error") return { kind: "console", text };
   return null;

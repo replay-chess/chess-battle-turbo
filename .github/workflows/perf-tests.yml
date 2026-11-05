@@ -2,9 +2,19 @@ name: Performance Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      suite:
+        description: "legacy = the perf-environment game scenarios; me = GET /api/me against the dev deployment (phase-01 plan §9.7)"
+        type: choice
+        options: [legacy, me]
+        default: legacy
+      web_app_url:
+        description: "me only: deployment to test (never production)"
+        default: https://replay-chess-dev-replaychess007-1069.vercel.app
 
 jobs:
   perf:
+    if: inputs.suite == 'legacy'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -195,3 +205,70 @@ jobs:
             exit 1
           fi
           echo "All perf thresholds passed!"
+
+  # GET /api/me (phase-01 plan §9.1, §9.7, §12.8): 20 VUs × 2 min, then 1 min of If-None-Match.
+  # Thresholds: me p95 < 150 ms (abortOnFail), checks > 99 %, 304 rate > 95 %. The JSON summary is uploaded as
+  # perf/results/p01-me-<sha>.json; commit it to perf/results/ (the workflow cannot write to the repo), and
+  # perf/compare.ts compares it with the previous phase's file.
+  # Secrets: CLERK_SECRET_KEY (Clerk DEVELOPMENT instance: sessions are minted through its Backend API),
+  # E2E_USER_A..D_EMAIL (existing dev users), VERCEL_AUTOMATION_BYPASS_SECRET (after Q-16, optional).
+  me:
+    if: inputs.suite == 'me'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      WEB_APP_URL: ${{ inputs.web_app_url }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      ME_USER_EMAILS: ${{ secrets.E2E_USER_A_EMAIL }},${{ secrets.E2E_USER_B_EMAIL }},${{ secrets.E2E_USER_C_EMAIL }},${{ secrets.E2E_USER_D_EMAIL }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Refuse production
+        run: |
+          case "$WEB_APP_URL" in
+            *playchess.tech*|*replay-chess.vercel.app*) echo "::error::k6 never runs against production"; exit 1 ;;
+          esac
+      - name: Install k6
+        run: |
+          K6_VERSION="v1.6.0"
+          curl -sL "https://github.com/grafana/k6/releases/download/${K6_VERSION}/k6-${K6_VERSION}-linux-amd64.tar.gz" -o /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo mv /tmp/k6-${K6_VERSION}-linux-amd64/k6 /usr/local/bin/k6
+      - run: pnpm install --filter chess-battle-perf-k6 --filter . --frozen-lockfile
+      - run: cd perf/k6 && pnpm run build
+      - name: k6 me
+        id: me
+        run: |
+          mkdir -p perf/results
+          sha="$(git rev-parse --short=7 HEAD)"
+          echo "file=perf/results/p01-me-${sha}.json" >> "$GITHUB_OUTPUT"
+          cd perf/k6
+          k6 run dist/me.js -e RESULT_FILE="../results/p01-me-${sha}.json" 2>&1 | tee /tmp/me.log
+          exit "${PIPESTATUS[0]}"
+      - name: Compare with the previous phase (fails on a > 15 % regression)
+        if: always() && steps.me.outputs.file != ''
+        run: pnpm exec tsx perf/compare.ts --phase 1 --scenario me
+      - name: Post results to job summary
+        if: always()
+        run: |
+          {
+            echo "### k6 GET /api/me"
+            echo '```'
+            tail -12 /tmp/me.log 2>/dev/null
+            echo '```'
+            echo "Commit \`${{ steps.me.outputs.file }}\` to record the result (plan §12.8)."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-me-${{ github.sha }}
+          path: |
+            ${{ steps.me.outputs.file }}
+            /tmp/me.log
+          retention-days: 30
+          if-no-files-found: ignore

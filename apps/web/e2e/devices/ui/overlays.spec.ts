@@ -71,7 +71,7 @@ async function openOverlays(page: Page, query = "") {
 const VISIBLE_TOAST = '[data-sonner-toast][data-visible="true"]';
 const FRONT_TOAST = '[data-sonner-toast][data-front="true"]';
 
-test.describe("dialog", () => {
+test.describe("dialog @p1", () => {
   test("opens modal, traps focus, closes on Esc and returns focus", async ({ page }, ti) => {
     const warnings: string[] = [];
     page.on("console", (m) => {
@@ -115,7 +115,7 @@ test.describe("dialog", () => {
   });
 });
 
-test("alert dialog focuses the safe action", async ({ page }, ti) => {
+test("alert dialog focuses the safe action @p1", async ({ page }, ti) => {
   await openOverlays(page);
   const trigger = page.getByTestId("ui-alert-dialog-trigger");
   await press(trigger, ti);
@@ -129,7 +129,7 @@ test("alert dialog focuses the safe action", async ({ page }, ti) => {
   await expect(trigger).toBeFocused();
 });
 
-test("sheet sits on the bottom edge at 60% height and closes on Esc", async ({ page }, ti) => {
+test("sheet sits on the bottom edge at 60% height and closes on Esc @p1", async ({ page }, ti) => {
   await openOverlays(page);
   const trigger = page.getByTestId("ui-sheet-trigger");
   await press(trigger, ti);
@@ -148,7 +148,7 @@ test("sheet sits on the bottom edge at 60% height and closes on Esc", async ({ p
   await expect(trigger).toBeFocused();
 });
 
-test("responsive dialog is a sheet in tab-bar mode and a dialog otherwise", async ({ page }, ti) => {
+test("responsive dialog is a sheet in tab-bar mode and a dialog otherwise @p1", async ({ page }, ti) => {
   await openOverlays(page);
   await press(page.getByTestId("ui-responsive-dialog-trigger"), ti);
   const surface = page.getByTestId("ui-responsive-dialog");
@@ -162,7 +162,7 @@ test("responsive dialog is a sheet in tab-bar mode and a dialog otherwise", asyn
   await expect(surface).toBeHidden();
 });
 
-test.describe("menu", () => {
+test.describe("menu @p1", () => {
   test("keyboard: arrows move the highlight, disabled is skipped, Enter selects, Esc returns focus", async ({ page }, ti) => {
     test.skip(!isChromium(ti), "keyboard steps run on Chromium only");
     await openOverlays(page);
@@ -218,7 +218,7 @@ test.describe("menu", () => {
   });
 });
 
-test("tooltip shows on focus", async ({ page }) => {
+test("tooltip shows on focus @p1", async ({ page }) => {
   await openOverlays(page);
   await page.getByTestId("ui-tooltip-trigger").focus();
   const tip = page.getByTestId("ui-tooltip");
@@ -227,7 +227,7 @@ test("tooltip shows on focus", async ({ page }) => {
   await expect(page.getByRole("tooltip")).toHaveText("Flip Board");
 });
 
-test.describe("popovers", () => {
+test.describe("popovers @p1", () => {
   for (const { trigger, content, label, text } of [
     { trigger: "ui-popover-trigger", content: "ui-popover", label: "Display", text: "Show Coordinates" },
     { trigger: "ui-info-button", content: "ui-info-popover", label: "Positions", text: "Mistakes from your games, ready to replay." },
@@ -266,7 +266,7 @@ test.describe("popovers", () => {
   });
 });
 
-test("opening overlays never scrolls the page or shifts layout", async ({ page }, ti) => {
+test("opening overlays never scrolls the page or shifts layout @p1", async ({ page }, ti) => {
   await openOverlays(page);
   const doc = () => page.evaluate(() => document.scrollingElement!.scrollTop);
   for (const id of ["ui-dialog-trigger", "ui-sheet-trigger", "ui-popover-trigger", "ui-menu-trigger"]) {
@@ -283,8 +283,8 @@ test("opening overlays never scrolls the page or shifts layout", async ({ page }
   }
 });
 
-test.describe("toasts", () => {
-  test("desktop, shell placement: top-right, 3 visible, 380 wide", async ({ page }, ti) => {
+test.describe("toasts @p1", () => {
+  test("desktop, shell placement: top-right, 3 visible, 380 wide @demo:V3Toasts", async ({ page }, ti) => {
     test.skip(device(ti) !== "desktop-1440", "desktop geometry");
     await openOverlays(page);
     await expect(page.getByTestId("ui-toast-shell-toggle")).toHaveAttribute("aria-pressed", "true");
@@ -316,7 +316,7 @@ test.describe("toasts", () => {
       .toEqual({ centre: true, top: true });
   });
 
-  test("phones: one visible, centred above the bottom edge, text and action only", async ({ page }, ti) => {
+  test("phones: one visible, centred above the bottom edge, text and action only @demo:V3iPhoneToasts", async ({ page }, ti) => {
     test.skip(!["iphone", "android"].includes(device(ti)), "phone geometry");
     await openOverlays(page);
     await press(page.getByTestId("ui-toast-info"), ti);
@@ -341,7 +341,7 @@ test.describe("toasts", () => {
     await expect(retry).toBeHidden();
   });
 
-  test("iPad portrait: bottom-centre, 440 wide", async ({ page }, ti) => {
+  test("iPad portrait: bottom-centre, 440 wide @demo:V3iPadPToasts", async ({ page }, ti) => {
     test.skip(device(ti) !== "ipad-landscape", "tablet portrait geometry");
     await page.setViewportSize({ width: 834, height: 1194 });
     await openOverlays(page);
@@ -381,7 +381,7 @@ test.describe("toasts", () => {
   });
 });
 
-test("gallery overlays tap targets reach 44px", async ({ page }) => {
+test("gallery overlays tap targets reach 44px @p1", async ({ page }) => {
   await openOverlays(page);
   await expectTapTargets(page, { root: '[data-testid="gallery-overlays"]', all44: true });
 });

@@ -1,42 +1,25 @@
-// Server-only read of the viewer for the (app) layout (SPEC 9.3).
-// The Prisma read lives in `readShellRecord` and nowhere else, so 1B·J can swap
-// it for `getViewerRecord()` without touching the pure `toShellSession` mapping.
+// Server-only read of the viewer for the (app) layout (SPEC 9.3). Since 1B·J it reads the one viewer statement
+// (`getViewerRecord()`, lib/auth/viewer.ts, React cache()), so the layout, getViewer() and the qk.me() seed share a
+// single DB statement per render. `toShellSession` stays the pure mapping.
 import { cache } from "react";
-import { auth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
-import { isPaywallEnabled } from "@/lib/auth/require-subscription";
-import { ENTITLEMENT_SELECT } from "@/lib/billing/entitlement";
-import { getProductCatalog } from "@/lib/billing/products";
-import { toShellSession, type ShellSession, type ShellUserRecord } from "./shell-user";
-
-const SHELL_USER_SELECT = {
-  referenceId: true,
-  name: true,
-  profilePictureUrl: true,
-  role: true,
-  dodoCustomerId: true,
-  ...ENTITLEMENT_SELECT,
-  chessComProfile: { select: { blitzRating: true, rapidRating: true } },
-} as const;
-
-/** The one DB statement per render. Same lookup as `lib/auth/resolve-user.ts`: googleId = Clerk user id. */
-async function readShellRecord(clerkUserId: string): Promise<ShellUserRecord | null> {
-  return prisma.user.findUnique({ where: { googleId: clerkUserId }, select: SHELL_USER_SELECT });
-}
+import { getViewerRecord, toShellUserRecord, viewerOptions } from "@/lib/auth/viewer";
+import { toShellSession, type ShellSession } from "./shell-user";
+import type { ChromeMode } from "./types";
 
 /**
- * The signed-in viewer's shell data, or null when signed out or when the user
- * row doesn't exist yet (first sign-in, before UserSync). Null means marketing
- * chrome. Memoised per request with React `cache()`.
+ * The signed-in viewer's shell data, or null when signed out, inactive, or when Clerk can't provision the user
+ * yet. Null means marketing chrome. Memoised per request with React `cache()`; `now` is x-rc-now aware.
  */
 export const getShellSession = cache(async (): Promise<ShellSession | null> => {
-  const { userId } = await auth();
-  if (!userId) return null;
-  const record = await readShellRecord(userId);
+  const record = await getViewerRecord();
   if (!record) return null;
-  return toShellSession(record, {
-    now: new Date(),
-    paywallEnabled: isPaywallEnabled(),
-    catalog: getProductCatalog(),
-  });
+  return toShellSession(toShellUserRecord(record), await viewerOptions());
 });
+
+/**
+ * The (app) chrome (SPEC D2, plan §7.10): the app shell for members while the `shell-v3` flag is on, the page's
+ * own marketing Navbar and Footer otherwise (signed out, non-members, and everyone with the flag off).
+ */
+export function chromeModeFor(session: Pick<ShellSession, "member"> | null, flags: { "shell-v3": boolean }): ChromeMode {
+  return session?.member && flags["shell-v3"] ? "shell" : "marketing";
+}

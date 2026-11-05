@@ -1,144 +1,45 @@
-import { NextResponse } from "next/server"
-import { auth } from "@clerk/nextjs/server"
-import { prisma } from "@/lib/prisma"
-import { dodo } from "@/lib/dodo"
-import { logger } from "@/lib/logger"
-import {
-  ENTITLEMENT_SELECT,
-  applySubscriptionSnapshot,
-  summarizeUserEntitlement,
-  type EntitlementSummary,
-} from "@/lib/billing/entitlement"
-import { pickPrimarySubscription } from "@/lib/billing/entitlement-rules"
-import { isPaywallEnabled } from "@/lib/auth/require-subscription"
+// GET /api/subscription (plan §7.4 A6; legacy handler, not route() yet; deprecated). The Phase 0
+// `SubscriptionResponse` body, unchanged, for clients that still read it until P10.
+//
+// DB-only since P1: one statement (the viewer read), no Dodo call and no write. The Dodo self-heal and refresh moved
+// to POST /api/billing/refresh (A19), which useUserStore's fetchSubscription calls (1B·F4d). Errors use the
+// `{ error }` envelope.
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { NO_STORE } from "@/lib/api/cache";
+import { REQUEST_ID_HEADER, requestIdFrom } from "@/lib/api/request-id";
+import { errorResponse } from "@/lib/api/respond";
+import { isPaywallEnabled } from "@/lib/auth/membership";
+import { queryViewerRecord } from "@/lib/auth/viewer";
+import { toLegacySubscription } from "@/lib/auth/viewer-dto";
+import { summarizeEntitlement } from "@/lib/billing/entitlement-rules";
+import { getProductCatalog } from "@/lib/billing/products";
+import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
 
-const USER_SELECT = {
-  id: true,
-  email: true,
-  dodoCustomerId: true,
-  ...ENTITLEMENT_SELECT,
-} as const
+export type { SubscriptionResponse } from "@/lib/auth/viewer-dto";
 
-export interface SubscriptionResponse extends EntitlementSummary {
-  customerId?: string
-  /** False when BILLING_PAYWALL=off; clients then skip their own gate. */
-  paywall: boolean
-  /** True when the next checkout will include the 7-day free trial. */
-  trialEligible: boolean
-  /** Kept for older clients; mirrors `entitled` and `subscriptionId`. */
-  subscription?: {
-    id: string
-    status: string
-    productId: string | null
-    nextBillingDate: string | null
-    planKey: EntitlementSummary["planKey"]
-    interval: EntitlementSummary["interval"]
-    priceCents: number | null
-  }
-}
+export const dynamic = "force-dynamic";
 
-function toResponse(
-  summary: EntitlementSummary,
-  customerId: string | null | undefined,
-  productId: string | null,
-): SubscriptionResponse {
-  return {
-    ...summary,
-    customerId: customerId ?? undefined,
-    paywall: isPaywallEnabled(),
-    trialEligible: !summary.trial.used && !summary.subscriptionId,
-    subscription:
-      summary.subscriptionId && summary.status
-        ? {
-            id: summary.subscriptionId,
-            status: summary.status,
-            productId,
-            nextBillingDate: summary.currentPeriodEnd,
-            planKey: summary.planKey,
-            interval: summary.interval,
-            priceCents: summary.priceCents,
-          }
-        : undefined,
-  }
-}
-
-/**
- * Returns the signed-in user's entitlement.
- *
- * Dodo is the source of truth, so the route refreshes from the Dodo API and
- * persists the result on the user row. If Dodo is unreachable it falls back to
- * what is stored, so a billing outage never locks paying members out.
- */
-export async function GET() {
-  const { userId: clerkUserId } = await auth()
-  if (!clerkUserId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { googleId: clerkUserId },
-    select: USER_SELECT,
-  })
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 })
-  }
-
-  let customerId = user.dodoCustomerId
-
-  // Self-heal: link the Dodo customer by email when the webhook has not yet.
-  if (!customerId && user.email) {
-    try {
-      for await (const customer of dodo.customers.list({ email: user.email })) {
-        customerId = customer.customer_id
-        break
-      }
-      if (customerId) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { dodoCustomerId: customerId },
-        })
-      }
-    } catch (error) {
-      logger.warn(
-        `[subscription] Customer lookup failed: ${error instanceof Error ? error.message : String(error)}`,
-      )
-    }
-  }
-
-  const stored = toResponse(
-    summarizeUserEntitlement(user),
-    customerId,
-    user.subscriptionProductId,
-  )
-
-  if (!customerId) {
-    return NextResponse.json(stored)
-  }
-
+/** Returns the signed-in user's stored entitlement. */
+export async function GET(request: NextRequest) {
+  const requestId = requestIdFrom(request.headers);
   try {
-    const subscriptions = []
-    for await (const subscription of dodo.subscriptions.list({
-      customer_id: customerId,
-    })) {
-      subscriptions.push(subscription)
-    }
+    const { userId: clerkUserId } = await auth();
+    if (!clerkUserId) return errorResponse({ code: "unauthorized", requestId });
 
-    const primary = pickPrimarySubscription(subscriptions)
-    if (!primary) {
-      return NextResponse.json(stored)
-    }
+    const user = await queryViewerRecord(prisma, clerkUserId);
+    if (!user || !user.isActive) return errorResponse({ code: "not_found", message: "User not found.", requestId });
 
-    const summary = await applySubscriptionSnapshot(primary, {
-      source: "api",
-      userId: user.id,
-    })
-    return NextResponse.json(
-      toResponse(summary ?? stored, customerId, primary.product_id),
-    )
+    const summary = summarizeEntitlement(user, getProductCatalog());
+    const body = toLegacySubscription(summary, {
+      customerId: user.dodoCustomerId,
+      productId: user.subscriptionProductId,
+      paywall: isPaywallEnabled(),
+    });
+    return NextResponse.json(body, { headers: { "Cache-Control": NO_STORE, [REQUEST_ID_HEADER]: requestId } });
   } catch (error) {
-    logger.warn(
-      `[subscription] Dodo lookup failed, using stored entitlement: ${error instanceof Error ? error.message : String(error)}`,
-    )
-    return NextResponse.json(stored)
+    logger.error("GET /api/subscription failed", error);
+    return errorResponse({ code: "internal", requestId });
   }
 }

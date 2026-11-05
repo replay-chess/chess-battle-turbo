@@ -15,7 +15,7 @@ function rootScrolls(page: Page) {
   }));
 }
 
-test("tabbing through the aside scrolls the move list, never the page", async ({ page }) => {
+test("tabbing through the aside scrolls the move list, never the page @p1", async ({ page }) => {
   await gotoStable(page, GAME_ROUTE);
   const aside = page.locator("[data-rc-aside]");
   const asideBox = await aside.boundingBox();
@@ -41,7 +41,7 @@ test("tabbing through the aside scrolls the move list, never the page", async ({
   expect(inside(await last.boundingBox(), vp.width, vp.height), "the last control is on screen").toBe(true);
 });
 
-test("a ScrollRegion with no focusable content is keyboard-reachable", async ({ page }) => {
+test("a ScrollRegion with no focusable content is keyboard-reachable @p1", async ({ page }) => {
   await gotoStable(page, LIST_ROUTE);
   await page.getByRole("button", { name: "Filter" }).focus();
   await page.keyboard.press("Tab");

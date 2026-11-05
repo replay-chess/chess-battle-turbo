@@ -1,18 +1,13 @@
 {
-  "$comment": "Reviewed exceptions for scripts/qa/state-coverage.ts. ignore: not a state a route must reach (key = <Board>, <Board>.<prop> or <Board>.<value>). demoOnly: the state is proven on a demo route (/dev/ui/...) and the reason says why real data is not needed or not possible yet. Persona S 'banner' and the real 401/429 paths are @state (phase-01 plan §12.3); everything else in P1 is @demo with a reason here.",
+  "$comment": "Reviewed exceptions for scripts/qa/state-coverage.ts. ignore: not a state a route must reach (key = <Board>, <Board>.<prop> or <Board>.<value>). demoOnly: the state is proven on a demo route (/dev/ui/...) and the reason says why real data is not needed or not possible yet. deferred: the board is in this phase but the state ships later ({phase, reason}); it is not counted while docs/qa/phase.txt < phase and is due from that phase on. Persona S 'banner' and the real 401/429 paths are @state (phase-01 plan §12.3); V3Nav play/learn/profile, the palette and the shortcuts dialog are also reached on real routes by e2e/specs/shell.spec.ts; everything else in P1 is @demo with a reason here.",
   "ignore": {
     "V3FlowMap": "Reference board: the route map and navigation graph. It has no route (allocation.md row 284)."
   },
   "demoOnly": {
-    "V3Nav.home": "Home is built in P5; P1 shows the destination on /dev/ui/shell?current=home only.",
-    "V3Nav.play": "Real /play is covered by shell.spec.ts; the board state is the sidebar with Play current, shown on /dev/ui/shell?current=play.",
-    "V3Nav.train": "Train is built in P5; /dev/ui/shell renders the destination.",
-    "V3Nav.learn": "Learn is built in P8; /dev/ui/shell renders the destination.",
-    "V3Nav.review": "Review is built in P3; /dev/ui/shell renders the destination.",
-    "V3Nav.profile": "Profile v3 is built in P10; the legacy /profile keeps its own chrome in P1.",
-    "V3Nav.settings": "Settings is built in P10; /dev/ui/shell renders the destination.",
+    "V3Nav.play": "Also real (shell.spec.ts #1); /dev/ui/shell?current=play holds it for the device projects and the dark-theme check.",
+    "V3Nav.learn": "Also real (shell.spec.ts #3 on /legends); /dev/ui/shell?current=legends holds it for the device projects.",
+    "V3Nav.profile": "Also real (shell.spec.ts #4 on the legacy /profile inside the shell); Profile v3 is built in P10.",
     "V3CommandPalette.open": "The palette is a shell overlay; its content does not depend on account data (shell.spec.ts covers it on /play too).",
-    "V3CommandPalette.ask": "Ask mode lights up in P7 (AI coach); P1 shows the disabled entry on /dev/ui/shell.",
     "V3CommandPalette.closed": "Closed is the shell's resting state; no data involved.",
     "V3Shortcuts.open": "Static dialog; no account data.",
     "V3Shortcuts.closed": "Resting state; no account data.",
@@ -26,9 +21,37 @@
     "V3Skeletons.review": "Review is built in P3; /dev/ui/skeletons?variant=review.",
     "V3Skeletons.profile": "Transient; /dev/ui/skeletons?variant=profile.",
     "V3Skeletons.list": "Transient; /dev/ui/skeletons?variant=list.",
-    "V3EmptyStates.default": "Pattern specimen on /dev/ui/sections/controls; real empty states arrive with each phase's lists.",
-    "V3SessionExpired.signing_in": "Transient state between 'Sign In Again' and Clerk's page; /dev/ui/data holds it.",
-    "V3SessionExpired.in_game_refresh": "In-game silent refresh is built in P2 with the live game.",
-    "V3SessionExpired.in_game_ok": "In-game silent refresh is built in P2 with the live game."
+    "V3EmptyStates.default": "Pattern specimen on /dev/ui/sections/controls (axe and the visual baseline); real empty states arrive with each phase's lists.",
+    "V3SessionExpired.signing_in": "Transient state between 'Sign In Again' and Clerk's page; /dev/ui/data holds it."
+  },
+  "deferred": {
+    "V3Nav.home": {
+      "phase": 5,
+      "reason": "Home ships in P5. The P1 nav hides the item (ui/shell.spec.ts asserts no Home link), so there is no state to reach."
+    },
+    "V3Nav.train": {
+      "phase": 5,
+      "reason": "Train ships in P5. The P1 nav hides the item (ui/shell.spec.ts asserts no Train link)."
+    },
+    "V3Nav.review": {
+      "phase": 3,
+      "reason": "Review ships in P3. The P1 nav hides the item (ui/shell.spec.ts asserts no Review link)."
+    },
+    "V3Nav.settings": {
+      "phase": 10,
+      "reason": "Settings ships in P10. The P1 nav hides the item (ui/shell.spec.ts asserts no Settings link)."
+    },
+    "V3CommandPalette.ask": {
+      "phase": 7,
+      "reason": "Ask mode lights up with the AI coach (allocation §P7 '⌘K Ask works'); the P1 palette has no Ask row (lib/shell/palette.ts)."
+    },
+    "V3SessionExpired.in_game_refresh": {
+      "phase": 2,
+      "reason": "In-game silent refresh is built in P2 with the live game (allocation F8 row)."
+    },
+    "V3SessionExpired.in_game_ok": {
+      "phase": 2,
+      "reason": "In-game silent refresh is built in P2 with the live game (allocation F8 row)."
+    }
   }
 }

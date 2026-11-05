@@ -13,7 +13,7 @@ This file is the P10 spec in the sense of allocation §1.1 item 8. It refines al
 | `CT` | `REPO/packages/contracts/src` (B17; `http/`, `socket/`, `internal/`; imported as `@repo/contracts/{http,socket,internal}/<file>`) |
 | `DBP` | `REPO/packages/db` (`src/jobs.ts` = `JOB_PRIORITY`, `json/preferences.ts` = `PreferencesV1`, `src/live/finish.ts`) |
 | `SCHEMA` | `DBP/prisma/schema.prisma` (or `WEB/prisma/schema.prisma` if the package move in data-model §2.11 has not happened) |
-| `SP` | `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad` |
+| `SP` | the planning session's scratchpad, archived scratch inputs that are not in the repo and may no longer exist (see [99-open-decisions.md](99-open-decisions.md) A12) |
 | `DR` | `SP/design-ref/project/v2` (board files `*.dc.html`) |
 | `DS` | `SP/design-ref/ds/project` (`README.md`, `tokens.json`, `components/*/README.md`) |
 | inputs | `SP/plan/{allocation,architecture,data-model,api-design,client-data-layer,optimization,inv-acct,inv-sys,audit-*,critique-*}.md`, `SP/phase1/SPEC.md` |

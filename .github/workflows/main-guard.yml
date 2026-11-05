@@ -1,0 +1,89 @@
+# main guard (phase-01 plan §13.4, §6.4, 1B·F7).
+#
+# Lives on `main` only (committed with the first H-lane cherry-pick). Until Phase 13, `main` takes only:
+#   - the H-lane security hotfixes (plan §13.3 row 1B·H, plus the H-lane files the hand-backs added), and
+#   - workflow-only commits for the scheduled workflows (GitHub runs schedules from the default branch).
+# It fails when a pushed commit or a PR touches `prisma/**` (M1 and every later migration stay off `main`,
+# because e2e-tests.yml runs `migrate deploy` there), or any path outside the allow-list below.
+#
+# Paths are matched as bash extglob patterns against `git diff --name-only` (both sides of a rename).
+# Paths are given in both the pre-Phase-1 layout that `main` has today (app/join, app/profile, …) and the
+# (app) route group of `dev`, so a cherry-pick may carry either.
+name: main guard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Only H-lane paths and the allowed workflows reach main
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          shopt -s extglob
+          ALLOW=(
+            # workflow-only commits (scheduled workflows run from main) and this guard
+            ".github/workflows/@(backup-live|ops-weekly|nightly|main-guard).yml"
+            # H9 follow-up (PERF_TOKEN) and 1Q·1 (paywall on): the workflows that already run on main
+            ".github/workflows/@(perf-tests|e2e-tests).yml"
+            # H5 (secrets out of the repo), H11 (live backup), gitleaks
+            "k8s/*" "build-and-push.sh" "docker-compose.yml" "deploy/oci/docker-compose.yml"
+            "scripts/db/restore-check.sh" ".gitleaks.toml" ".gitleaks-baseline.json"
+            # H9 k6 perf token
+            "perf/k6/src/lib/config.ts" "perf/k6/src/scenarios/*.ts"
+            # H6 socket server
+            "apps/web-socket/@(GameSession|index|GameManager|instrument|spotInterruption).ts"
+            "apps/web-socket/utils/@(apiClient|internalAuth).ts" "apps/web-socket/package.json"
+            "apps/web-socket/test/**"
+            # shared H helpers
+            "apps/web/lib/auth/@(secrets|env-server|error-response|require-admin|resolve-user|api-key)?(.test).ts"
+            "apps/web/lib/env-server?(.test).ts"
+            "apps/web/lib/sentry/@(traces-sampler|logger)?(.test).ts" "apps/web/lib/logger.ts"
+            "apps/web/sentry.@(server|edge).config.ts" "apps/web/next.config.js"
+            "apps/web/e2e/specs/security.spec.ts"
+            "apps/web/lib/services/tournament/notify-websocket.ts"
+            "apps/web/lib/services/matchmaking/matchmaking.service.ts"
+            # H1–H4, H6 call sites and the 25 AA F-12 routes (5xx bodies)
+            "apps/web/app/api/@(legends|chess-positions|chess|matchmaking|position|profile|scraper|analysis)/**"
+            "apps/web/app/api/tournament/@(join|start|end|find-match|\[tournamentReferenceId\])/route.ts"
+            "apps/web/app/api/user/@(\[referenceId\]|email/\[email\]|sync)/route.ts"
+            "apps/web/app/?(\(app\)/)game/\[gameId\]/@(GamePageContent|PlayerInfoCard).tsx"
+            # H12 image call sites that switched to `unoptimized`
+            "apps/web/app/?(\(app\)/)join/\[gameReferenceId\]/page.tsx"
+            "apps/web/app/?(\(app\)/)profile/\[referenceId\]/@(GameHistory|ProfileHero).tsx"
+            "apps/web/app/?(\(app\)/)tournament/\[tournamentReferenceId\]/@(Leaderboard|ParticipantList).tsx"
+            "apps/web/app/admin/@(chess-positions|legends)/page.tsx"
+          )
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="$(git rev-parse "$HEAD_SHA~1")"
+          fi
+          bad=0
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            if [[ "$f" == apps/web/prisma/* || "$f" == prisma/* || "$f" == packages/db/prisma/* ]]; then
+              echo "::error file=$f::prisma/** must not reach main before Phase 13 (plan §6.4)"; bad=1; continue
+            fi
+            ok=0
+            for p in "${ALLOW[@]}"; do
+              # shellcheck disable=SC2053 # the right side is a pattern on purpose
+              if [[ "$f" == $p ]]; then ok=1; break; fi
+            done
+            if [ "$ok" = 0 ]; then echo "::error file=$f::not in the H-lane allow-list for main (plan §13.3, §13.4)"; bad=1; fi
+          done < <(git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA")
+          if [ "$bad" = 1 ]; then
+            echo "main takes only H-lane hotfixes and workflow-only commits until Phase 13. Land other work on dev."
+            exit 1
+          fi
+          echo "main guard: every changed path is allowed"

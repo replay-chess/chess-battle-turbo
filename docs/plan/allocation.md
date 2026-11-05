@@ -12,7 +12,7 @@ Status: plan, 2026-11-02, branch `dev` @ `0848b76`. Once the owner approves it, 
 |---|---|
 | `REPO` | `/Users/rohitpandit/open_source/chess-battle-turbo` |
 | `WEB`, `WS` | `REPO/apps/web`, `REPO/apps/web-socket` |
-| `SP` | `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad` |
+| `SP` | the planning session's scratchpad, archived scratch inputs that are not in the repo and may no longer exist (see [99-open-decisions.md](99-open-decisions.md) A12) |
 | `DR` | `SP/design-ref/project/v2` (board files `*.dc.html`) |
 | inventories | `SP/plan/inv-pub.md`, `inv-play-a.md`, `inv-play-b.md`, `inv-rct-a.md`, `inv-rct-b.md`, `inv-acct.md`, `inv-sys.md`, `inv-research.md` |
 | audits | `SP/plan/audit-api.md`, `audit-db.md`, `audit-client.md`, `audit-socket.md`, `audit-quality.md` |

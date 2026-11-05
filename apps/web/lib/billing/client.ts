@@ -78,11 +78,34 @@ export function currentAppPath(): string {
   return `${window.location.pathname}${window.location.search}`;
 }
 
+/** Longest the activation flow waits for Clerk to re-mint the session token. */
+export const SESSION_RELOAD_CAP_MS = 5000;
+
+type ClerkGlobal = { Clerk?: { session?: { reload?: () => Promise<unknown> } | null } };
+
+/**
+ * Re-mints the Clerk session token so its claims (`md.entitled`, read by the
+ * middleware member gate) reflect a plan that was just activated. A no-op
+ * without a browser or a loaded Clerk; never throws.
+ */
+export async function reloadClerkSession(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    await (window as unknown as ClerkGlobal).Clerk?.session?.reload?.();
+  } catch {
+    // A stale token only delays the claim gate; the API reads the database.
+  }
+}
+
 /**
  * Refreshes entitlement right away and then keeps re-checking on the
  * activation schedule until `isEntitled()` is true, the attempts run out, or
  * `isCancelled()` reports that nobody is waiting any more. Resolves to the
  * final entitlement answer (false when cancelled).
+ *
+ * On success the Clerk session is reloaded (at most `SESSION_RELOAD_CAP_MS`)
+ * before resolving, so a caller that navigates next reaches the middleware
+ * with fresh claims (plan §3.2, 1B·F4d).
  */
 export async function waitForEntitlement(options: {
   refresh: () => Promise<unknown>;
@@ -91,6 +114,8 @@ export async function waitForEntitlement(options: {
   attempts?: number;
   intervalMs?: number;
   wait?: (ms: number) => Promise<void>;
+  /** Defaults to `reloadClerkSession`. */
+  reloadSession?: () => Promise<unknown>;
 }): Promise<boolean> {
   const {
     refresh,
@@ -99,17 +124,41 @@ export async function waitForEntitlement(options: {
     attempts = ACTIVATION_POLL_ATTEMPTS,
     intervalMs = ACTIVATION_POLL_MS,
     wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    reloadSession = reloadClerkSession,
   } = options;
+
+  const succeed = async (): Promise<true> => {
+    await Promise.race([reloadSession().catch(() => undefined), wait(SESSION_RELOAD_CAP_MS)]);
+    return true;
+  };
 
   await refresh();
   for (let attempt = 0; attempt < attempts; attempt++) {
     if (isCancelled()) return false;
-    if (isEntitled()) return true;
+    if (isEntitled()) return succeed();
     await wait(intervalMs);
     if (isCancelled()) return false;
     await refresh();
   }
-  return !isCancelled() && isEntitled();
+  if (isCancelled() || !isEntitled()) return false;
+  return succeed();
+}
+
+/**
+ * True when a JSON error body carries the subscription_required code, either
+ * at the top level (Phase 0 bodies, and the `LEGACY_402_MIRROR` copy) or in the
+ * envelope's `error.code` (route() responses, plan §7.1).
+ */
+export function isSubscriptionRequiredBody(body: unknown): boolean {
+  if (typeof body !== "object" || body === null) return false;
+  const b = body as { code?: unknown; error?: unknown };
+  if (b.code === SUBSCRIPTION_REQUIRED_CODE) return true;
+  const error = b.error;
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: unknown }).code === SUBSCRIPTION_REQUIRED_CODE
+  );
 }
 
 /**
@@ -121,12 +170,7 @@ export async function isSubscriptionRequiredResponse(res: Response): Promise<boo
   if (res.status === SUBSCRIPTION_REQUIRED_STATUS) return true;
   if (res.ok) return false;
   try {
-    const body: unknown = await res.clone().json();
-    return (
-      typeof body === "object" &&
-      body !== null &&
-      (body as { code?: unknown }).code === SUBSCRIPTION_REQUIRED_CODE
-    );
+    return isSubscriptionRequiredBody(await res.clone().json());
   } catch {
     return false;
   }

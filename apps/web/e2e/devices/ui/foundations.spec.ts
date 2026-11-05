@@ -3,7 +3,7 @@ import { expect, expectTapTargets, gotoSection, isChromium, test, waitForStable 
 
 const SECTIONS = ["foundations", "controls", "overlays", "shell", "layout"] as const;
 
-test("/dev/ui renders every section and is noindex", async ({ page }) => {
+test("/dev/ui renders every section and is noindex @p1", async ({ page }) => {
   const res = await page.goto("/dev/ui");
   expect(res?.status()).toBe(200);
   await waitForStable(page);
@@ -11,14 +11,14 @@ test("/dev/ui renders every section and is noindex", async ({ page }) => {
   await expect(page.locator('meta[name="robots"][content*="noindex"]')).toHaveCount(1);
 });
 
-test("every section route returns 200", async ({ page }) => {
+test("every section route returns 200 @p1", async ({ page }) => {
   for (const id of SECTIONS) {
     await gotoSection(page, id);
     await expect(page.getByTestId(`gallery-${id}`)).toBeVisible();
   }
 });
 
-test("dark theme switch turns cb-bg black", async ({ page }) => {
+test("dark theme switch turns cb-bg black @p1", async ({ page }) => {
   await gotoSection(page, "foundations");
   await page.getByTestId("gallery-theme-dark").click();
   await expect(page.locator("html")).toHaveClass(/(^|\s)dark(\s|$)/);
@@ -30,7 +30,7 @@ test("dark theme switch turns cb-bg black", async ({ page }) => {
   await expect(page.locator('meta[name="theme-color"]').first()).toHaveAttribute("content", "#FAF9F6");
 });
 
-test("primary button is square, at least 44 tall and accent filled", async ({ page }) => {
+test("primary button is square, at least 44 tall and accent filled @p1", async ({ page }) => {
   await gotoSection(page, "foundations");
   const button = page.getByTestId("ui-button-primary").getByRole("button").first();
   await expect(button).toHaveCSS("border-radius", "0px");
@@ -47,12 +47,12 @@ test("primary button is square, at least 44 tall and accent filled", async ({ pa
   expect(bg).toBe(accent);
 });
 
-test("button sizes all reach a 44px hit box", async ({ page }) => {
+test("button sizes all reach a 44px hit box @p1", async ({ page }) => {
   await gotoSection(page, "foundations");
   await expectTapTargets(page, { root: '[data-testid="ui-button-sizes"]', all44: true });
 });
 
-test("focus ring is 2px solid", async ({ page }, testInfo) => {
+test("focus ring is 2px solid @p1", async ({ page }, testInfo) => {
   test.skip(!isChromium(testInfo), "keyboard focus checks run on Chromium only");
   await gotoSection(page, "foundations");
   const first = page.getByTestId("ui-focus-demo").getByRole("button").first();
@@ -65,7 +65,7 @@ test("focus ring is 2px solid", async ({ page }, testInfo) => {
   await expect(first).toHaveCSS("outline-width", "2px");
 });
 
-test("loading button is busy and ignores clicks", async ({ page }) => {
+test("loading button is busy and ignores clicks @p1", async ({ page }) => {
   await gotoSection(page, "foundations");
   const button = page.getByTestId("ui-button-loading").getByRole("button");
   await expect(button).toHaveAttribute("aria-busy", "true");
@@ -83,7 +83,7 @@ test("loading button is busy and ignores clicks", async ({ page }) => {
 });
 
 for (const route of ["/pricing", "/dev/ui"]) {
-  test(`Geist loads on ${route}`, async ({ page }) => {
+  test(`Geist loads on ${route} @p1`, async ({ page }) => {
     await page.goto(route);
     await waitForStable(page);
     const family = await page.evaluate(() => getComputedStyle(document.body).fontFamily);

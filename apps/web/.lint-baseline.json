@@ -1,0 +1,244 @@
+[
+  {
+    "filePath": "app/(app)/legends/[referenceId]/page.tsx",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "@next/next/no-img-element"
+    ]
+  },
+  {
+    "filePath": "app/(app)/legends/page.tsx",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "@next/next/no-img-element"
+    ]
+  },
+  {
+    "filePath": "app/analysis/[gameId]/AnalysisPageContent.tsx",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "react-hooks/exhaustive-deps"
+    ]
+  },
+  {
+    "filePath": "app/analysis/[gameId]/PracticeMoveList.tsx",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "@typescript-eslint/no-unused-vars"
+    ]
+  },
+  {
+    "filePath": "app/analysis/[gameId]/TwitterShareBanner.tsx",
+    "warningCount": 4,
+    "errorCount": 0,
+    "rules": [
+      "no-empty"
+    ]
+  },
+  {
+    "filePath": "app/api/chess/game-over/route.ts",
+    "warningCount": 2,
+    "errorCount": 0,
+    "rules": [
+      "@typescript-eslint/no-explicit-any",
+      "@typescript-eslint/no-unused-vars"
+    ]
+  },
+  {
+    "filePath": "app/api/chess/game-state/route.ts",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "@typescript-eslint/no-unused-vars"
+    ]
+  },
+  {
+    "filePath": "app/api/chess/move/route.ts",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "@typescript-eslint/no-unused-vars"
+    ]
+  },
+  {
+    "filePath": "app/api/healthcheck/route.ts",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "@typescript-eslint/no-unused-vars"
+    ]
+  },
+  {
+    "filePath": "app/api/tournament/[tournamentReferenceId]/route.ts",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "turbo/no-undeclared-env-vars"
+    ]
+  },
+  {
+    "filePath": "app/api/tournament/route.ts",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "@typescript-eslint/no-unused-vars"
+    ]
+  },
+  {
+    "filePath": "app/api/user/sync/route.ts",
+    "warningCount": 2,
+    "errorCount": 0,
+    "rules": [
+      "@typescript-eslint/no-explicit-any",
+      "@typescript-eslint/no-unused-vars"
+    ]
+  },
+  {
+    "filePath": "app/blog/[slug]/page.tsx",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "turbo/no-undeclared-env-vars"
+    ]
+  },
+  {
+    "filePath": "app/components/matchmaking/MatchFound.tsx",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "@next/next/no-img-element"
+    ]
+  },
+  {
+    "filePath": "app/game/[gameId]/GamePageContent.tsx",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "react-hooks/exhaustive-deps"
+    ]
+  },
+  {
+    "filePath": "app/global-error.tsx",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "@next/next/no-html-link-for-pages"
+    ]
+  },
+  {
+    "filePath": "app/layout.tsx",
+    "warningCount": 2,
+    "errorCount": 0,
+    "rules": [
+      "@next/next/no-sync-scripts"
+    ]
+  },
+  {
+    "filePath": "e2e/fixtures/auth.ts",
+    "warningCount": 2,
+    "errorCount": 0,
+    "rules": [
+      "react-hooks/rules-of-hooks"
+    ]
+  },
+  {
+    "filePath": "e2e/global-setup.ts",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "@typescript-eslint/no-unused-vars"
+    ]
+  },
+  {
+    "filePath": "e2e/scripts/provision-test-users.ts",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "eslint"
+    ]
+  },
+  {
+    "filePath": "instrumentation.ts",
+    "warningCount": 2,
+    "errorCount": 0,
+    "rules": [
+      "turbo/no-undeclared-env-vars"
+    ]
+  },
+  {
+    "filePath": "lib/auth/api-key.ts",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "turbo/no-undeclared-env-vars"
+    ]
+  },
+  {
+    "filePath": "lib/hooks/useChessSound.ts",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "react-hooks/exhaustive-deps"
+    ]
+  },
+  {
+    "filePath": "lib/hooks/useExplanationPlayer.ts",
+    "warningCount": 5,
+    "errorCount": 0,
+    "rules": [
+      "react-hooks/exhaustive-deps"
+    ]
+  },
+  {
+    "filePath": "lib/hooks/useMultiPvAnalysis.ts",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "react-hooks/exhaustive-deps"
+    ]
+  },
+  {
+    "filePath": "lib/types/chess-position.ts",
+    "warningCount": 5,
+    "errorCount": 0,
+    "rules": [
+      "@typescript-eslint/no-explicit-any"
+    ]
+  },
+  {
+    "filePath": "lib/types/socket-events.ts",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "@typescript-eslint/no-explicit-any"
+    ]
+  },
+  {
+    "filePath": "next-env.d.ts",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "@typescript-eslint/triple-slash-reference"
+    ]
+  },
+  {
+    "filePath": "prisma/opening-seed.ts",
+    "warningCount": 1,
+    "errorCount": 0,
+    "rules": [
+      "@typescript-eslint/no-unused-vars"
+    ]
+  },
+  {
+    "filePath": "scripts/indexnow.mjs",
+    "warningCount": 4,
+    "errorCount": 0,
+    "rules": [
+      "no-undef"
+    ]
+  }
+]

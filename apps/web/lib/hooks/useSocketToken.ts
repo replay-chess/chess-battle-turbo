@@ -47,7 +47,9 @@ async function fetchSocketToken(): Promise<string | null> {
       logger.warn(`Socket token request failed with status ${res.status}; connecting without a token`);
       return null;
     }
-    const data = (await res.json()) as Partial<SocketTokenResponse>;
+    // `{ data: { token, expiresAt } }` (plan §7.4 A5); the bare legacy shape is still read during the mirror release.
+    const json = (await res.json()) as { data?: Partial<SocketTokenResponse> } & Partial<SocketTokenResponse>;
+    const data: Partial<SocketTokenResponse> = json.data ?? json;
     if (typeof data.token !== "string" || typeof data.expiresAt !== "number") {
       logger.warn("Socket token response was malformed; connecting without a token");
       return null;

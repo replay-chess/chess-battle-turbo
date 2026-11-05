@@ -25,7 +25,7 @@
 Status: final spec for the implementing agents, revision 2 (2026-11-02), after the completeness and feasibility critiques. Branch `dev` @ `0848b76`.
 Scope: `docs/implementation-plan.md` Phase 1 (lines 74–80), a dev-only UI gallery and the dev-DB content seed.
 
-Paths: `WEB` = `/Users/rohitpandit/open_source/chess-battle-turbo/apps/web`. A path that isn't absolute is relative to `WEB`. `SP` = `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad`.
+Paths: `WEB` = `/Users/rohitpandit/open_source/chess-battle-turbo/apps/web`. A path that isn't absolute is relative to `WEB`. `SP` = the planning session's scratchpad, archived scratch inputs that are not in the repo and may no longer exist (see [99-open-decisions.md](99-open-decisions.md) A12).
 
 Research reports. Where they disagree with this spec, this spec wins.
 - `SP/phase1/01-code-map.md` (current code, line numbers)

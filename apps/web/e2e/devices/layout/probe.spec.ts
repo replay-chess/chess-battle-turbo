@@ -2,7 +2,7 @@
 // asserts only that the page loads; the attachment feeds SP/phase1/probe.json.
 import { expect, test, waitForStable } from "../helpers";
 
-test("probe", async ({ page }, testInfo) => {
+test("probe @p1", async ({ page }, testInfo) => {
   const res = await page.goto("/dev/ui");
   expect(res?.status()).toBe(200);
   await waitForStable(page);

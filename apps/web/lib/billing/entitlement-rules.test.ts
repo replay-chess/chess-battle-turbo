@@ -116,13 +116,14 @@ describe("fieldsFromSnapshot", () => {
     const fields = fieldsFromSnapshot(
       snapshot({ product_id: "pdt_y", payment_frequency_interval: "Year" }),
       catalog,
-      NOW,
     );
     assert.equal(fields.plan, "player");
     assert.equal(fields.planInterval, "year");
     assert.equal(fields.subscriptionStatus, "active");
     assert.equal(fields.currentPeriodEnd?.toISOString(), FUTURE.toISOString());
-    assert.equal(fields.subscriptionUpdatedAt, NOW);
+    // No timestamps: the writer stamps the write time and the provider time, never now() here.
+    assert.equal("subscriptionUpdatedAt" in fields, false);
+    assert.equal("subscriptionSourceAt" in fields, false);
   });
 
   it("falls back to the billing interval for unknown products", () => {
@@ -165,6 +166,15 @@ describe("shouldApplySnapshot", () => {
     assert.equal(shouldApplySnapshot(current, snapshot(), PAST, NOW), false);
     assert.equal(shouldApplySnapshot(current, snapshot(), FUTURE, NOW), true);
     assert.equal(shouldApplySnapshot(current, snapshot(), null, NOW), true);
+  });
+
+  it("orders by subscriptionSourceAt when set, falling back to subscriptionUpdatedAt", () => {
+    // Written by an API refresh after a webhook: updatedAt is the write time, sourceAt the webhook's time.
+    const current = record({ subscriptionId: "sub_1", subscriptionUpdatedAt: FUTURE, subscriptionSourceAt: PAST });
+    assert.equal(shouldApplySnapshot(current, snapshot(), NOW, NOW), true, "newer than sourceAt applies");
+    const older = new Date(PAST.getTime() - 1000);
+    assert.equal(shouldApplySnapshot(current, snapshot(), older, NOW), false, "older than sourceAt is stale");
+    assert.equal(shouldApplySnapshot(current, snapshot(), PAST, NOW), true, "equal time applies (no-op later)");
   });
 
   it("does not let an old expired subscription overwrite a new active one", () => {

@@ -189,6 +189,7 @@ describe("reactToApiError", () => {
     warnings: string[];
     exceptions: unknown[];
     breadcrumbs: string[];
+    toasts: { code: string; status: number; path?: string }[];
   };
   let calls: Calls;
   let path = "/play?tc=blitz";
@@ -199,7 +200,7 @@ describe("reactToApiError", () => {
     hadWindow = "window" in g;
     if (!hadWindow) g.window = {};
     path = "/play?tc=blitz";
-    calls = { guard: [], replace: [], errors: [], warnings: [], exceptions: [], breadcrumbs: [] };
+    calls = { guard: [], replace: [], errors: [], warnings: [], exceptions: [], breadcrumbs: [], toasts: [] };
     setApiErrorDeps({
       sessionGuard: { onUnauthorized: (ctx) => calls.guard.push(ctx) },
       navigation: { replace: (href) => calls.replace.push(href) },
@@ -212,6 +213,7 @@ describe("reactToApiError", () => {
         message: () => {},
         breadcrumb: (m) => calls.breadcrumbs.push(m),
       },
+      telemetry: { errorToast: (e) => calls.toasts.push({ code: e.code, status: e.status, path: e.path }) },
       currentPath: () => path,
     });
   });
@@ -293,6 +295,20 @@ describe("reactToApiError", () => {
   test("mutation network error without a request id → toast without the event suffix", () => {
     reactToApiError(err("network"), { kind: "mutation" });
     assert.equal(calls.errors[0]!.text, "Failed to save changes");
+  });
+
+  test("regression: api-error-toast-telemetry: a toasted HTTP error sends api_error_toast once", () => {
+    reactToApiError(err("internal", { status: 500, requestId: "abc", path: "/api/openings" }), { kind: "mutation" });
+    assert.deepEqual(calls.toasts, [{ code: "internal", status: 500, path: "/api/openings" }]);
+  });
+
+  test("api_error_toast: no event without a toast, and none for client-only codes (status 0)", () => {
+    reactToApiError(err("network"), { kind: "mutation" }); // toasted, but status 0 has no HTTP status
+    reactToApiError(err("internal", { status: 500 }), { kind: "query" }); // not toasted
+    reactToApiError(err("internal", { status: 500 }), { kind: "mutation", meta: { errorUi: "inline" } });
+    reactToApiError(err("rate_limited", { status: 429 }), { kind: "mutation" });
+    assert.equal(calls.errors.length, 1);
+    assert.deepEqual(calls.toasts, []);
   });
 
   test("meta.errorUi = inline → no toast", () => {

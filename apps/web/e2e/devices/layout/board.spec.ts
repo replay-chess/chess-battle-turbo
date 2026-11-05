@@ -16,7 +16,7 @@ const GOLDEN: Record<string, number> = {
 };
 
 for (const path of [GAME_ROUTE, HUB_ROUTE]) {
-  test(`board geometry ${path}`, async ({ page }, testInfo) => {
+  test(`board geometry ${path} @p1`, async ({ page }, testInfo) => {
     await gotoStable(page, path);
     const g = await stageGeometry(page);
     expect(g.stage && g.col && g.board && g.aside && g.bottomBar, "stage regions present").toBeTruthy();

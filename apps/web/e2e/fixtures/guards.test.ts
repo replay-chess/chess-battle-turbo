@@ -16,6 +16,37 @@ describe("console guard rules", () => {
     assert.equal(classifyConsole("error", "Failed to load resource: net::ERR_NAME_NOT_RESOLVED", []), null);
   });
 
+  it("regression: webkit-console-noise: WebKit's third-party, aborted-prefetch and media-control lines are not problems", () => {
+    const corp =
+      "Cancelled load to https://dailypings.com/badge.svg because it violates the resource's Cross-Origin-Resource-Policy response header.";
+    assert.equal(classifyConsole("error", corp, []), null);
+    assert.equal(classifyConsole("error", "Cannot load image https://dailypings.com/badge.svg due to access control checks.", []), null);
+    assert.equal(
+      classifyConsole(
+        "error",
+        "Failed to fetch RSC payload for http://localhost:3000/profile/abc. Falling back to browser navigation. TypeError: Load failed",
+        [],
+      ),
+      null,
+    );
+    assert.equal(
+      classifyConsole("error", "Button failed to load, iconName = pip-placard, layoutTraits = [MacOSLayoutTraits Inline], src = blob:x", []),
+      null,
+    );
+  });
+
+  it("still fails on a blocked same-origin load and on other RSC fetch errors", () => {
+    const own =
+      "Cancelled load to http://localhost:3000/x.svg because it violates the resource's Cross-Origin-Resource-Policy response header.";
+    assert.equal(classifyConsole("error", own, [])?.kind, "console");
+    assert.equal(classifyConsole("error", "Cannot load image http://127.0.0.1:3000/a.png due to access control checks.", [])?.kind, "console");
+    assert.equal(
+      classifyConsole("error", "Failed to fetch RSC payload for http://localhost:3000/play. Falling back to browser navigation. Error: boom", [])
+        ?.kind,
+      "console",
+    );
+  });
+
   it("fails on /api and page 5xx the spec did not inject", () => {
     assert.equal(classifyResponse("http://x/api/me", 500, {})?.kind, "api5xx");
     assert.equal(classifyResponse("http://x/api/me", 503, { "x-rc-fault": "503" }), null);

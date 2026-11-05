@@ -1,31 +1,27 @@
 // Shell telemetry (SPEC 3.10). Every shell event goes through trackShell, which
 // no-ops when PostHog isn't loaded (keys blanked locally and in CI) or on demo
 // routes. Query text is never sent: the palette sends only its length.
+//
+// The event shapes come from the one registry, @repo/analytics (plan §10.1,
+// packages/analytics/src/events/shell.ts). The import is type-only, so zod
+// never reaches the browser bundle; the e2e telemetry fixture parses what is
+// captured against the same schemas.
+import type { EventProps, ShellEventName } from "@repo/analytics";
 import posthog from "posthog-js";
 import type { DestinationKey } from "../shell/types";
 import { RAIL_MQ, TABBAR_MQ } from "../layout/media-queries";
 import { isTestBuild } from "../env";
 
-export type NavSurface = "sidebar" | "rail" | "tabbar" | "subnav" | "back" | "palette" | "chord";
-export type AccountActionId =
-  | "membership"
-  | "billing"
-  | "account"
-  | "theme"
-  | "install"
-  | "admin"
-  | "help"
-  | "privacy"
-  | "terms"
-  | "signout";
+/** One shell event: `{ name, ...props }`, with the props exactly as the registry declares them. */
+export type ShellEvent = { [N in ShellEventName]: { name: N } & EventProps<N> }[ShellEventName];
 
-export type ShellEvent =
-  | { name: "shell_nav_click"; dest: DestinationKey; surface: NavSurface }
-  | { name: "shell_palette_opened"; via: "shortcut" | "slash" | "button" }
-  | { name: "shell_palette_command"; id: string; group: "goto" | "actions" | "legends"; queryLength: number }
-  | { name: "shell_shortcuts_opened"; via: "key" | "palette" }
-  | { name: "shell_shortcuts_toggled"; enabled: boolean }
-  | { name: "shell_account_action"; action: AccountActionId };
+export type NavSurface = EventProps<"shell_nav_click">["surface"];
+export type AccountActionId = EventProps<"shell_account_action">["action"];
+
+// The registry mirrors DestinationKey (lib/shell/types.ts); a drift fails check-types here.
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+const destinationKeysMatch: Same<EventProps<"shell_nav_click">["dest"], DestinationKey> = true;
+void destinationKeysMatch;
 
 type SinkEntry = { event: string; props: Record<string, unknown>; ts: number };
 

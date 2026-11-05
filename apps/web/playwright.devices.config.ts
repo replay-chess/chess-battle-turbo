@@ -15,6 +15,21 @@
  * Without DEVICES_BASE_URL a production build runs on port 3100 with its own
  * dist dir. The blank telemetry keys stop test traffic from reaching the keys in
  * .env.local; .env.test (loaded with override) points at the dev database.
+ *
+ * Tiers (plan §12.4): DEVICES_TIER=pr keeps 4 layout projects (desktop-1440@100,
+ * desktop-1280@125, iphone@100, ipad-portrait@100) plus the UI and motion
+ * projects; unset runs the whole matrix (nightly).
+ *
+ * Real-route layer (1Q·2): layout/routes.real.ts runs on desktop-1440@100/150,
+ * iphone@100/125 and ipad-portrait@100, signed in as member A.
+ *
+ * Visual baselines (1Q·2, plan §12.4): ui/visual.spec.ts (@visual) compares
+ * screenshots with e2e/__screenshots__/<project>/<spec>/<name>.png. Baselines
+ * are made and checked only in the official image
+ * mcr.microsoft.com/playwright:v<@playwright/test version>-noble (fonts and
+ * rasterisation must match); elsewhere the spec skips. Regenerate with the
+ * `update-snapshots` PR label (.github/workflows/update-snapshots.yml) or
+ * locally through Docker (see the spec header).
  */
 import { defineConfig, type Project } from "@playwright/test";
 import { config as loadEnv } from "dotenv";
@@ -24,9 +39,18 @@ import { BASE_DEVICES, MOTION_PROJECTS, UI_PROJECTS, ZOOMS, baseDevice, projectN
 
 loadEnv({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env.test"), override: true });
 
+const PR_TIER = new Set(["desktop-1440@100", "desktop-1280@125", "iphone@100", "ipad-portrait@100"]);
+const tier = process.env.DEVICES_TIER === "pr" ? "pr" : "full";
+/** Mirrors REAL_ROUTE_PROJECTS in e2e/devices/layout/routes.real.ts. */
+const REAL_ROUTE_PROJECTS = new Set(["desktop-1440@100", "desktop-1440@150", "iphone@100", "iphone@125", "ipad-portrait@100"]);
+
 const layoutProjects: Project[] = BASE_DEVICES.flatMap((d) =>
-  ZOOMS.map((z) => ({ name: projectName(d, z), testMatch: "layout/**/*.spec.ts", ...zoomed(d, z) })),
-);
+  ZOOMS.map((z) => {
+    const name = projectName(d, z);
+    const testMatch = REAL_ROUTE_PROJECTS.has(name) ? ["layout/**/*.spec.ts", "layout/routes.real.ts"] : "layout/**/*.spec.ts";
+    return { name, testMatch, ...zoomed(d, z) };
+  }),
+).filter((p) => tier === "full" || PR_TIER.has(p.name!));
 
 const uiProjects: Project[] = UI_PROJECTS.map(({ name, device }) => ({
   name,
@@ -47,7 +71,14 @@ export default defineConfig({
   // (GATE-B, P1, P2 hand-backs); retry once there. Production builds (the default) get no retries.
   retries: process.env.DEVICES_BASE_URL ? 1 : 0,
   timeout: 30_000,
-  expect: { timeout: 10_000 },
+  expect: {
+    timeout: 10_000,
+    // Visual baselines (plan §12.4): 0.2 % of pixels may differ; CSS-pixel scale keeps the files small.
+    toHaveScreenshot: { maxDiffPixelRatio: 0.002, animations: "disabled", caret: "hide", scale: "css" },
+  },
+  snapshotPathTemplate: "{testDir}/../__screenshots__/{projectName}/{testFilePath}/{arg}{ext}",
+  // CI never writes a missing baseline (the update-snapshots workflow passes --update-snapshots itself).
+  updateSnapshots: process.env.CI ? "none" : "missing",
   reporter: process.env.CI ? [["html", { open: "never", outputFolder: "playwright-report-devices" }], ["list"]] : "list",
   use: {
     baseURL: process.env.DEVICES_BASE_URL ?? "http://localhost:3100",

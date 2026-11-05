@@ -1,17 +1,33 @@
+import { HydrationBoundary } from "@tanstack/react-query";
 import { AppShellView } from "@/components/shell/AppShellView";
 import { ChromeProvider } from "@/components/shell/chrome-context";
-import { getShellSession } from "@/lib/shell/get-shell-session";
-import type { ChromeMode } from "@/lib/shell/types";
+import { serverBuildId } from "@/lib/api/context";
+import { qk } from "@/lib/api/keys";
+import { getViewer } from "@/lib/auth/viewer";
+import { meDataOf } from "@/lib/auth/viewer-dto";
+import { getFlags } from "@/lib/flags";
+import { dehydrateFor, getServerQueryClient } from "@/lib/query/server";
+import { chromeModeFor, getShellSession } from "@/lib/shell/get-shell-session";
 
-// Picks the chrome once per render (SPEC D2): members get the app shell,
-// everyone else gets the page's own marketing Navbar and Footer. Never redirects:
-// the public catalogue pages (legends, openings, profile) live here too.
+// Picks the chrome once per render (SPEC D2): members get the app shell while `shell-v3` is on, everyone else
+// gets the page's own marketing Navbar and Footer. Never redirects: the public catalogue pages (legends, openings,
+// profile) live here too.
+//
+// It also seeds the viewer query, qk.me() (plan §5.3, 1B·J), so UserSync and useMe() make no GET /api/me on a hard
+// load. getViewer() and getShellSession() share one cached getViewerRecord(): one DB statement per render.
 export default async function AppGroupLayout({ children }: { children: React.ReactNode }) {
-  const session = await getShellSession();
-  const mode: ChromeMode = session?.member ? "shell" : "marketing";
+  const [viewer, session] = await Promise.all([getViewer(), getShellSession()]);
+  const flags = await getFlags(viewer);
+  const mode = chromeModeFor(session, flags);
+
+  const qc = getServerQueryClient();
+  if (viewer) qc.setQueryData(qk.me(), meDataOf(viewer, flags, serverBuildId()));
+
   return (
-    <ChromeProvider mode={mode}>
-      {mode === "shell" && session ? <AppShellView user={session.user}>{children}</AppShellView> : children}
-    </ChromeProvider>
+    <HydrationBoundary state={dehydrateFor(qc)}>
+      <ChromeProvider mode={mode}>
+        {mode === "shell" && session ? <AppShellView user={session.user}>{children}</AppShellView> : children}
+      </ChromeProvider>
+    </HydrationBoundary>
   );
 }

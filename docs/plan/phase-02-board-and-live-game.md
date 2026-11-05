@@ -11,7 +11,7 @@ Status: **final plan (revision 2)**, 2026-11-02, written against branch `dev` @ 
 | `REPO` | `/Users/rohitpandit/open_source/chess-battle-turbo` |
 | `WEB`, `WS` | `REPO/apps/web`, `REPO/apps/web-socket` |
 | `PKG` | `REPO/packages` |
-| `SP` | `/private/tmp/claude-501/-Users-rohitpandit-open-source-chess-battle-turbo/8433de47-73d2-466e-945c-3c2450748123/scratchpad` |
+| `SP` | the planning session's scratchpad, archived scratch inputs that are not in the repo and may no longer exist (see [99-open-decisions.md](99-open-decisions.md) A12) |
 | `DR` | `SP/design-ref/project/v2` (board files `*.dc.html`) |
 | `DS` | `SP/design-ref/ds/project` (design system README, tokens, component READMEs) |
 | docs | `SP/plan/{allocation,architecture,data-model,api-design,client-data-layer,optimization}.md` |
