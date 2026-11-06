@@ -6,6 +6,7 @@ import pluginReact from "eslint-plugin-react";
 import globals from "globals";
 import pluginNext from "@next/eslint-plugin-next";
 import { config as baseConfig } from "./base.js";
+import { replayPlugin } from "./replay-rules.js";
 
 /**
  * A custom ESLint configuration for libraries that use Next.js.
@@ -45,5 +46,18 @@ export const nextJsConfig = [
       // React scope no longer necessary with new JSX transform.
       "react/react-in-jsx-scope": "off",
     },
+  },
+  // @repo/contracts/internal (service HMAC keys) never reaches client code (phase-02 plan §7.5.1): any file with
+  // "use client", and every file under components/ and features/ except *.server.ts(x).
+  {
+    files: ["**/*.{ts,tsx,js,jsx}"],
+    plugins: { replay: replayPlugin },
+    rules: { "replay/no-internal-auth-in-client": "error" },
+  },
+  {
+    files: ["components/**/*.{ts,tsx,js,jsx}", "features/**/*.{ts,tsx,js,jsx}"],
+    ignores: ["**/*.server.ts", "**/*.server.tsx", "**/*.test.ts", "**/*.test.tsx"],
+    plugins: { replay: replayPlugin },
+    rules: { "replay/no-internal-auth-in-client": ["error", { always: true }] },
   },
 ];

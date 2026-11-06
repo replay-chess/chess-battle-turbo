@@ -14,9 +14,9 @@ const SKIP_DIRS = new Set(["node_modules", "generated", ".next"]);
  *   trackSystem("rate_limited_shown", { ... })        positional
  *   trackShell({ name: "shell_nav_click", ... })      object with `name` (SPEC §3.10 helper)
  */
-const CALL = /\b(trackShell|trackSystem|track)\(\s*(?:(["'`])([^"'`]+)\2|\{\s*name:\s*(["'`])([^"'`]+)\4)/g;
+const CALL = /\b(trackShell|trackSystem|trackGame|trackEngineEvent|track)\(\s*(?:(["'`])([^"'`]+)\2|\{\s*name:\s*(["'`])([^"'`]+)\4)/g;
 /** The same helpers called with neither form (a variable or computed name). */
-const DYNAMIC_CALL = /\b(trackShell|trackSystem|track)\(\s*(?!["'`)]|\{\s*name:\s*["'`])/g;
+const DYNAMIC_CALL = /\b(trackShell|trackSystem|trackGame|trackEngineEvent|track)\(\s*(?!["'`)]|\{\s*name:\s*["'`])/g;
 /** `track` is checked only where it is the registry-typed helper, imported from an analytics module. */
 const IMPORTS_TRACK = /import\s*\{[^}]*\btrack\b[^}]*\}\s*from\s*["'][^"']*analytics[^"']*["']/;
 

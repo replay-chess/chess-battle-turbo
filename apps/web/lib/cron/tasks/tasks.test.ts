@@ -41,10 +41,10 @@ function fakeCtx(start = Date.parse("2026-11-03T04:00:00Z"), budgetMs = 45_000) 
 }
 
 describe("runCronTasks", () => {
-  it("P1 task order", () => {
+  it("task order (P1, then P2)", () => {
     assert.deepEqual(
       CRON_TASKS.map((t) => t.name),
-      ["rate-limit-sweep", "webhook-retention", "membership-reconcile"],
+      ["rate-limit-sweep", "webhook-retention", "membership-reconcile", "stale-bot-games", "idempotency-prune"],
     );
   });
 

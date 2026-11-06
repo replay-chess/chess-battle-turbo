@@ -4,6 +4,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { Bot, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { engineIntentProps } from "@/features/engine/prefetch";
 
 interface NoOpponentPopupProps {
   isOpen: boolean;
@@ -106,6 +107,7 @@ export function NoOpponentPopup({
             <div className="space-y-3">
               {/* Primary: Play Against Bot */}
               <button
+                {...engineIntentProps()}
                 onClick={onPlayBot}
                 disabled={isDisabled}
                 className={cn(

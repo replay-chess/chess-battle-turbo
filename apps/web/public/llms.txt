@@ -34,7 +34,7 @@ The platform features 50+ chess legends organized by era (Romantic, Classical, H
 ## API
 
 - [Create Game](https://www.playchess.tech/docs/api): `POST /api/chess/create-game` — Create a multiplayer game with time controls and optional legend/opening
-- [Create AI Game](https://www.playchess.tech/docs/api): `POST /api/chess/create-ai-game` — Start a game against Stockfish at a chosen difficulty
+- [Create Bot Game](https://www.playchess.tech/docs/api): `POST /api/games` — Start a game against the engine (members; send an `Idempotency-Key`)
 - [Join Game](https://www.playchess.tech/docs/api): `POST /api/chess/join` — Join an existing game by reference ID
 - [Game State](https://www.playchess.tech/docs/api): `GET /api/chess/game-state` — Get current board state, clocks, and move history
 - [Make Move](https://www.playchess.tech/docs/api): `POST /api/chess/move` — Submit a move in algebraic notation

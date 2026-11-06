@@ -1,0 +1,206 @@
+/*
+ * The v3 game screen (P2 plan 4.2–4.4; boards V3Game*, V3iPhoneGame*, V3iPadPGame*). Sizes come from BoardStage
+ * (components/layout/board-stage.css); this file styles the bars, panel, zones, move list, offer bars, toasts and
+ * the phone control bar with the DS tokens. Mode switches use the same container queries as BoardStage, so the
+ * side panel (desktop, iPad landscape) and the stack layout (phones, iPad portrait) never need JS to pick.
+ * No transition-all; only opacity/transform animate; everything respects prefers-reduced-motion (plan 4.6.4).
+ */
+@layer components {
+  /* ── a game hides the phone tab bar (the control bar replaces it; plan 4.2). Fallback for (app)/layout passing
+        hideTabBar; selectors are 0,3,0+ so they beat viewport.css's slot rules. ── */
+  .rc-vs.rc-vs:has([data-rc-game]) { --tabbar: 0px; }
+  .rc-vs:has([data-rc-game]) > .rc-vs__tab { display: none !important; }
+
+  .g-lbl { font: 500 0.6875rem/1.3 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); }
+  .g-mono { font-family: var(--font-geist-mono, ui-monospace), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .g-serif { font-family: var(--font-instrument-serif, "Instrument Serif"), Georgia, serif; font-weight: 400; letter-spacing: -0.01em; }
+  .g-soft { color: var(--cb-text-soft); }
+  .g-body { margin: 0; font-size: 0.8125rem; color: var(--cb-text-soft); }
+
+  .g-root { display: contents; }
+
+  /* ── player bar ── */
+  .g-pchip { display: flex; align-items: center; gap: 10px; min-width: 0; width: 100%; height: 100%; box-sizing: border-box; border-color: transparent; border-style: solid; border-width: 0; }
+  .g-pchip[data-pos="top"] { border-bottom-width: 2px; }
+  .g-pchip[data-pos="bottom"] { border-top-width: 2px; }
+  .g-pchip[data-active] { border-color: var(--cb-accent); }
+  .g-pchip[data-dim] { opacity: 0.55; }
+  .g-nm { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; line-height: 1.25; }
+  .g-nm > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .g-sub { font-size: 0.75rem; color: var(--cb-text-soft); }
+  .g-sub[data-tone="warn"] { color: var(--cb-warn); }
+  .g-tag { display: inline-flex; align-items: center; padding: 2px 6px; border: 1px solid currentColor; font: 500 0.625rem/1.4 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
+  .g-tag[data-tone="win"] { color: var(--cb-good); }
+  .g-tag[data-tone="loss"] { color: var(--cb-bad); }
+  .g-tag[data-tone="draw"] { color: var(--cb-text-soft); }
+
+  .g-clk { flex: none; font: 500 1.25rem/1.3 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; font-variant-numeric: tabular-nums; text-align: center; box-sizing: border-box; min-width: 84px; padding: 4px 10px; border: 1px solid var(--cb-border-strong); background: var(--cb-surface); color: var(--cb-text); transition: background-color 200ms, color 200ms; }
+  .g-clk[data-idle] { color: var(--cb-text-soft); }
+  .g-clk[data-tone="zero"] { color: var(--cb-bad); border-color: color-mix(in srgb, var(--cb-bad) 50%, transparent); }
+  .g-clk[data-running] { background: var(--cb-accent); border-color: var(--cb-accent); color: var(--cb-accent-fg, #fff); }
+  .g-clk[data-running][data-tone="amber"] { background: var(--cb-warn); border-color: var(--cb-warn); color: #fff; }
+  .g-clk[data-running][data-tone="red"] { background: var(--cb-bad); border-color: var(--cb-bad); color: #fff; }
+
+  .g-ringchip { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px 2px 2px; border: 1px solid color-mix(in srgb, var(--cb-warn) 45%, transparent); background: var(--cb-surface); color: var(--cb-warn); font: 500 0.75rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; }
+
+  .g-dotp { display: inline-block; width: 7px; height: 7px; border-radius: 9999px; background: currentColor; margin-right: 6px; vertical-align: 1px; animation: g-pulse 1.2s ease-in-out infinite; }
+  @keyframes g-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  .g-sk { background: var(--cb-fill); position: relative; overflow: hidden; display: block; }
+  .g-sk::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--cb-skeleton-shine, rgba(255,255,255,0.7)), transparent); transform: translateX(-100%); animation: g-shine 1.6s ease-in-out infinite; }
+  @keyframes g-shine { to { transform: translateX(100%); } }
+
+  /* ── ring countdowns ── */
+  .g-ring { transform: rotate(-90deg); transform-origin: 18px 18px; }
+  .g-ring circle { fill: none; stroke-width: 3; }
+  .g-ring .g-ring__track { stroke: var(--cb-border); }
+  .g-ring .g-ring__bar { stroke: var(--cb-accent); transition: stroke-dashoffset 200ms linear; }
+  .g-ring[data-tone="warn"] .g-ring__bar { stroke: var(--cb-warn); }
+  .g-big5 { display: inline-block; transform-origin: left center; animation: g-big 1s ease-in-out infinite; color: var(--cb-bad); }
+  @keyframes g-big { 0% { transform: scale(1); } 20% { transform: scale(1.08); } 100% { transform: scale(1); } }
+
+  /* ── board area ── */
+  .g-boardarea { position: relative; width: 100%; height: 100%; }
+  /* The typed move input (plan 4.5.1): visually hidden until focused (board.css), then a strip over the board's
+     bottom edge, so focusing it never changes the board's size (one viewport, plan 4.2). */
+  .g-boardarea .rc-bd-moveinput:focus-within {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+    padding: 8px; background: var(--cb-surface); border-top: 1px solid var(--cb-border-strong);
+  }
+  .g-chips { position: absolute; top: 8px; right: 8px; z-index: 20; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; max-width: calc(100% - 16px); }
+  .g-chips > * { pointer-events: auto; }
+  .g-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; max-width: 100%; background: var(--cb-surface); border: 1px solid var(--cb-border-strong); box-shadow: var(--cb-shadow-pop, 0 6px 20px rgba(0,0,0,0.10)); font-size: 0.8125rem; line-height: 1.35; }
+  .g-chip[data-tone="warn"] { border-color: color-mix(in srgb, var(--cb-warn) 45%, transparent); }
+  .g-chip[data-tone="good"] { border-color: color-mix(in srgb, var(--cb-good) 45%, transparent); }
+  .g-spin { display: inline-block; width: 14px; height: 14px; flex: none; box-sizing: border-box; border: 2px solid currentColor; border-right-color: transparent; border-radius: 9999px; animation: g-spin 0.8s linear infinite; }
+  @keyframes g-spin { to { transform: rotate(360deg); } }
+
+  /* ── panel ── */
+  .g-side { position: relative; display: flex; flex-direction: column; min-height: 0; height: 100%; width: 100%; box-sizing: border-box; background: var(--cb-surface); border: 1px solid var(--cb-border); }
+  .g-head { flex: none; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 36px; box-sizing: border-box; border-bottom: 1px solid var(--cb-border); }
+  .g-head > :first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .g-head > :last-child { white-space: nowrap; }
+  .g-zone { flex: none; padding: 12px 14px; border-bottom: 1px solid var(--cb-border); display: flex; flex-direction: column; gap: 10px; }
+  .g-zone[data-variant="soft"] { background: var(--cb-bg); }
+  .g-zone[data-variant="row"] { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+  .g-zone[data-variant="dark"] { flex-direction: row; align-items: center; justify-content: space-between; background: var(--cb-accent); color: var(--cb-accent-fg, #fff); border-bottom-color: var(--cb-accent); }
+  .g-zone__row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .g-zone__col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .g-status { flex: none; padding: 8px 14px; border-bottom: 1px solid var(--cb-border); font-size: 0.9375rem; color: var(--cb-text-soft); }
+  .g-status[data-tone="bad"] { color: var(--cb-bad); }
+  .g-viewbtn { min-height: 36px; padding: 0 10px; border: 1px solid rgba(255,255,255,0.5); background: transparent; color: inherit; font: 500 0.6875rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+  .g-viewbtn[data-flash] { animation: g-flash 1s ease-in-out 2; }
+  @keyframes g-flash { 50% { background: rgba(255,255,255,0.25); } }
+
+  /* ── buttons ── */
+  .g-act { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 10px; border: 1px solid var(--cb-border-strong); background: var(--cb-surface); color: var(--cb-text); font: 0.8125rem var(--font-geist-sans, system-ui), system-ui, sans-serif; cursor: pointer; min-width: 0; white-space: nowrap; text-decoration: none; box-sizing: border-box; }
+  .g-act:hover { background: var(--cb-fill); }
+  .g-act:disabled, .g-act[aria-disabled="true"] { color: var(--cb-text-muted); cursor: not-allowed; background: var(--cb-surface); }
+  .g-act[aria-expanded="true"] { background: var(--cb-accent); color: var(--cb-accent-fg, #fff); border-color: var(--cb-accent); }
+  .g-act[data-tone="danger"] { background: var(--cb-danger); border-color: var(--cb-danger); color: #fff; }
+  .g-act[data-tone="danger"]:hover { background: var(--cb-danger-hover); }
+  .g-sq44 { width: 44px; padding: 0; flex: none; }
+  .g-btn-p { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border: 0; background: var(--cb-accent); color: var(--cb-accent-fg, #fff); font: 500 0.875rem var(--font-geist-sans, system-ui), system-ui, sans-serif; cursor: pointer; text-decoration: none; white-space: nowrap; box-sizing: border-box; }
+  .g-btn-p:hover { background: var(--cb-accent-hover, var(--cb-text)); }
+  .g-btn-p:disabled { opacity: 0.45; cursor: not-allowed; }
+  .g-btn-t { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 4px; border: 0; background: transparent; color: var(--cb-text); font: 0.875rem var(--font-geist-sans, system-ui), system-ui, sans-serif; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--cb-border-strong); }
+  .g-btn-t:disabled { color: var(--cb-text-muted); cursor: default; text-decoration: none; }
+  .g-inp { flex: 1 1 auto; min-width: 0; height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--cb-border-strong); background: var(--cb-surface); color: var(--cb-text); font: 0.8125rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; }
+
+  /* ── move list ── */
+  .g-moves { flex: 1 1 auto; min-height: 0; padding: 4px 6px; display: flex; flex-direction: column-reverse; }
+  .g-moves__grid { margin-bottom: auto; display: grid; grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr); align-items: center; }
+  .g-moves__no { font: 0.75rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; color: var(--cb-text-secondary); padding-left: 8px; }
+  .g-mv { border: 0; background: transparent; font: 0.875rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; text-align: left; padding: 0 8px; min-height: 32px; cursor: pointer; color: var(--cb-text); }
+  .g-mv:hover { background: var(--cb-hover); }
+  .g-mv[data-prefix] { color: var(--cb-sky-500); cursor: default; }
+  .g-mv[aria-current="true"] { background: var(--cb-accent); color: var(--cb-accent-fg, #fff); }
+  .g-mv:disabled { cursor: default; }
+  .g-divider { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin: 4px 0; font: 500 0.625rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--cb-warn); }
+  .g-divider::before, .g-divider::after { content: ""; flex: 1; border-top: 1px dashed color-mix(in srgb, var(--cb-warn) 50%, transparent); }
+  .g-empty { padding: 8px; font-size: 0.8125rem; color: var(--cb-text-soft); }
+
+  /* ── move strip (stack mode) ── */
+  .g-strip { flex: none; display: flex; align-items: center; gap: 2px; padding: 4px 10px; min-height: 40px; overflow: hidden; border-bottom: 1px solid var(--cb-border); }
+  .g-strip__cells { display: flex; gap: 2px; min-width: 0; flex: 1 1 auto; overflow: hidden; justify-content: flex-end; }
+  .g-strip .g-mv { flex: none; min-height: 36px; padding: 0 6px; }
+
+  /* ── offer bars and toasts ── */
+  .g-ibar { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 12px; background: var(--cb-fill); border-top: 1px solid var(--cb-border); animation: g-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .g-ibar > span:first-of-type { flex: 1 1 auto; font-size: 0.8125rem; min-width: 0; }
+  .g-ibar .g-act, .g-ibar .g-btn-p { min-height: 40px; }
+  .g-toastwrap { flex: none; padding: 0 8px 8px; }
+  .g-toast { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; background: var(--cb-surface); border: 1px solid var(--cb-border-strong); font-size: 0.875rem; line-height: 1.4; animation: g-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .g-tdot { width: 8px; height: 8px; border-radius: 9999px; flex: none; margin-top: 6px; background: var(--cb-accent); }
+  .g-tdot[data-kind="good"] { background: var(--cb-good); }
+  .g-tdot[data-kind="warn"] { background: var(--cb-warn); }
+  .g-tdot[data-kind="bad"] { background: var(--cb-bad); }
+  @keyframes g-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* ── action row (side mode) and control bar (stack mode) ── */
+  .g-actions { flex: none; position: relative; border-top: 1px solid var(--cb-border); padding: 8px; display: flex; gap: 6px; }
+  .g-actions > .g-grow { flex: 1 1 auto; }
+  .g-actions > .g-grow2 { flex: 1 1 0; }
+  .g-foot { display: flex; width: 100%; height: 100%; border-top: 1px solid var(--cb-border); background: var(--cb-bg); }
+  .g-foot__btn { flex: 1 1 0; border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font: 12px var(--font-geist-sans, system-ui), system-ui, sans-serif; color: var(--cb-text); cursor: pointer; min-height: 44px; min-width: 0; }
+  .g-foot__btn:disabled { color: var(--cb-text-muted); cursor: not-allowed; }
+  .g-foot__btn[aria-expanded="true"] { color: var(--cb-accent); font-weight: 600; }
+
+  /* ── popovers inside the panel (resign confirm on phones renders in a Sheet) ── */
+  .g-pop { display: flex; flex-direction: column; gap: 10px; }
+  .g-pop__title { font-weight: 600; }
+
+  /* ── result card ── */
+  .g-result { display: flex; flex-direction: column; gap: 10px; }
+  .g-result h2 { margin: 0; font-size: 2.25rem; line-height: 1.08; }
+  .g-result[data-kind="win"] .g-lbl { color: var(--cb-good); }
+  .g-result[data-kind="loss"] .g-lbl { color: var(--cb-bad); }
+  .g-cta { display: flex; flex-direction: column; gap: 6px; }
+  .g-cta__row { display: flex; gap: 6px; }
+  .g-cta__row > :not(.g-sq44) { flex: 1 1 0; }
+  .g-share { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; animation: g-in 160ms; }
+
+  /* ── layout switches: side vs stack follow BoardStage's container queries ── */
+  [data-g-stack] { display: none !important; }
+  @container rc-stage (orientation: portrait) or (width < 590px) {
+    [data-g-stack] { display: revert !important; }
+    [data-g-side] { display: none !important; }
+    .g-side { border: 0; background: transparent; }
+    .g-zone { padding: 10px 16px; gap: 8px; }
+    .g-tall, .g-short-hide { display: none !important; }
+    .g-result h2 { font-size: 1.75rem; }
+    .g-pchip { padding-inline: 0; }
+    .g-chips { top: 4px; right: 4px; }
+    /* The result card (title, CTAs: Analyse, Rematch, New game, Share) is taller than the strip BoardStage leaves
+       under the board on short phones; BoardStage clips its aside, so the CTAs were unreachable. The aside scrolls
+       inside itself here (the page still never scrolls). regression: REGRESSION-2 (webkit-iphone friend-full/
+       spectate could not reach share-button / watch-another; e2e/devices/game/one-viewport.spec.ts "over CTAs"). */
+    /* Every zone, not only the result card: on short phones and tablets at 125–150 % (393×659, 556×796) the waiting,
+       reconnecting, server-error and already-ended zones, the offer bars and the in-panel toast also outgrow the
+       strip. The panel takes its content height and the aside scrolls (plan 4.2: the zone is a ScrollRegion).
+       regression: FIX-A (REVIEW-UI reach: Reload Game, Cancel Challenge, Analyse Game were under the action bar). */
+    .rc-stage__aside { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+    .g-side { height: auto; min-height: 100%; }
+  }
+  [data-g-stack].g-strip, [data-g-stack].g-foot { display: none !important; }
+  @container rc-stage (orientation: portrait) or (width < 590px) {
+    [data-g-stack].g-strip, [data-g-stack].g-foot { display: flex !important; }
+  }
+  /* ResultSheet trigger: only on stages so short that the board takes all the height and the result card under it
+     gets no room (a phone at 150 % zoom: iphone-safari@150 is a ~400 px tall stage). Taller phones scroll the card
+     inside the aside (above). regression: REGRESSION-2. */
+  .g-foot__result { display: none; }
+  @container rc-stage ((orientation: portrait) or (width < 590px)) and (height <= 460px) {
+    .g-foot__result { display: flex; }
+  }
+  @container rc-stage (height <= 620px) {
+    .g-clk { font-size: 1.0625rem; padding: 2px 8px; }
+    .g-zone { padding: 8px 12px; gap: 6px; }
+    .g-short-hide { display: none !important; }
+  }
+  @media (max-height: 760px) { .g-tall { display: none !important; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .g-dotp, .g-big5, .g-toast, .g-ibar, .g-sk::after, .g-spin, .g-share, .g-viewbtn[data-flash] { animation: none; }
+    .g-ring .g-ring__bar, .g-clk { transition: none; }
+  }
+}

@@ -38,7 +38,7 @@
 import crypto from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import type { PrismaClient } from "../../app/generated/prisma";
+import type { PrismaClient } from "@repo/db";
 import {
   POOL_SIZE,
   SHARED_MEMBER_LETTERS,
@@ -265,7 +265,7 @@ async function main() {
   let db: PrismaClient | null = null;
   const getDb = async () => {
     if (!db) {
-      const { PrismaClient } = await import("../../app/generated/prisma/index.js");
+      const { PrismaClient } = await import("@repo/db");
       db = new PrismaClient();
     }
     return db;

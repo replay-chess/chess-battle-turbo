@@ -1849,4 +1849,4 @@ Every consumer also has a fallback for clients without a socket: an ETag-guarded
 | Rate limits | Postgres `RateLimitBucket`, only on lookups, search, coach, contact, feedback and creates. Never on hot read paths. |
 | Writes from OCI | Batched: one transaction per game end, per analysed game and per import month. Every OCI → Neon round trip costs ~200 ms. |
 | Neon wake-ups | No timer polling anywhere. Jobs are kicked; catalogues are ISR; matchmaking runs in memory. |
-| Bundles | Shared first load ≤ 200 kB gz; `/game` and `/review` ≤ 300 kB gz without the engine; marketing ≤ 180 kB gz (audit-client §11.14). The engine, palette, sheets and modals load through `next/dynamic`. |
+| Bundles | Shared first load ≤ 200 kB gz; `/game` ≤ 600 kB gz (owner-approved 2026-11-06) and `/review` ≤ 300 kB gz without the engine; marketing ≤ 180 kB gz (audit-client §11.14). The engine, palette, sheets and modals load through `next/dynamic`. |

@@ -1,0 +1,10 @@
+# Indexes created by hand-written SQL in a migration (Prisma does not model them: partial indexes, expression
+# indexes). scripts/db/check-drift.ts ignores a `DROP INDEX` of these names in the migrate diff; any other
+# difference fails the check. One name per line. Later phases append their names here (there is no
+# protected-indexes.json). Never recreate the database with `prisma db push`: it would drop these indexes.
+
+# M2 (P2, phase-02 plan 6.3)
+games_white_player_idx
+games_black_player_idx
+games_rematch_of_idx
+games_open_idx

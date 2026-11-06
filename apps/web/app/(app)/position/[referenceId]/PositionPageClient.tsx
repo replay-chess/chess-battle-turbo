@@ -13,6 +13,9 @@ import { chromeClass, useChrome } from "@/components/shell/chrome-context";
 import ChessBoard from "@/app/components/ChessBoard";
 import { ShareLinkModal } from "@/app/components/ShareLinkModal";
 import { Bot, Users, Clock } from "lucide-react";
+import { ApiError } from "@/lib/api/errors";
+import { useCreateBotGame } from "@/lib/api/mutations/games";
+import { engineIntentProps } from "@/features/engine/prefetch";
 
 interface PositionData {
   type: "position" | "opening";
@@ -43,6 +46,7 @@ export function PositionPageClient({
   const chrome = useChrome();
   const userReferenceId = userObject?.user?.referenceId;
   const router = useRouter();
+  const createBotGame = useCreateBotGame({ navigate: false });
   const { referenceId } = use(params);
 
   const [position, setPosition] = useState<PositionData | null>(null);
@@ -93,38 +97,23 @@ export function PositionPageClient({
     if (!userReferenceId || !position) return;
     setCreatingAiGame(true);
     try {
+      // POST /api/games (phase-02 plan §5.6): this position (or opening) vs the bot; colour "auto" = the side to move.
       const preset = TIME_PRESETS[selectedTimePreset] ?? TIME_PRESETS[1];
-      const body: Record<string, unknown> = {
-        userReferenceId,
-        initialTimeSeconds: preset.initialTime,
-        incrementSeconds: preset.increment,
-      };
-
-      if (position.type === "opening") {
-        body.selectedOpening = position.referenceId;
-      } else {
-        body.chessPositionReferenceId = position.referenceId;
-      }
-
-      const response = await fetch("/api/chess/create-ai-game", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+      const game = await createBotGame.mutateAsync({
+        mode: "BOT",
+        start:
+          position.type === "opening"
+            ? { kind: "opening", openingRef: position.referenceId }
+            : { kind: "position", positionRef: position.referenceId },
+        color: "auto",
+        tc: { initialSeconds: preset.initialTime, incrementSeconds: preset.increment },
       });
-      if (await isSubscriptionRequiredResponse(response)) {
-        router.push(paywallUrl(currentAppPath()));
-        return;
-      }
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || "Failed to create game");
-      }
-
-      router.push(`/game/${data.data.game.referenceId}`);
+      router.push(`/game/${game.ref}`);
     } catch (err) {
-      logger.error("Error creating AI game:", err);
       setCreatingAiGame(false);
+      // 402 is routed to /pricing by the QueryProvider.
+      if (err instanceof ApiError && err.code === "subscription_required") return;
+      logger.error("Error creating bot game:", err);
     }
   };
 
@@ -458,6 +447,7 @@ export function PositionPageClient({
 
               {/* Play vs Bot — secondary */}
               <button
+                {...engineIntentProps()}
                 onClick={handlePlayVsBot}
                 disabled={creatingAiGame || creatingFriendGame}
                 className={cn(

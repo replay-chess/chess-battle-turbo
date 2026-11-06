@@ -48,18 +48,27 @@ test.describe("data layer: request budget @p1 @smoke", () => {
     expect(count((p) => p === "/api/me"), "/api/me").toBeLessThanOrEqual(process.env.EXPECT_SEEDED_ME === "1" ? 0 : 1);
   });
 
-  // (2) Outside the (app) layout the viewer is one client read.
-  test("a hard load of a game page reads /api/me once", async ({ authedPage: page }) => {
+  // (2) Outside the (app) layout the viewer is one client read (UserSync). Since P2 the game page lives inside (app)
+  // (app/(app)/game/[ref]), so its layout seeds qk.me() and a hard load makes no client read at all.
+  // regression: REGRESSION-2 — the P1 step still expected one read on /game/<ref> after the route moved into (app).
+  test("a hard load outside (app) reads /api/me once; a game page (inside (app)) reads it none", async ({
+    authedPage: page,
+  }) => {
     test.setTimeout(240_000);
+    let me = 0;
+    page.on("request", (r) => {
+      if (isApi("/api/me")(r)) me++;
+    });
+    await page.goto("/help", { waitUntil: "load" });
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+    expect(me, "/api/me requests on a hard load of /help (outside (app))").toBe(1);
+
     await page.goto("/play");
     await page.locator('[data-testid="start-game-button"]').click();
     await page.waitForURL(/\/game\//, { timeout: 60_000, waitUntil: "commit" });
     const gameUrl = page.url();
 
-    let me = 0;
-    page.on("request", (r) => {
-      if (isApi("/api/me")(r)) me++;
-    });
+    me = 0;
     await page.goto(gameUrl, { waitUntil: "load" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
     const meCalls = me;
@@ -70,7 +79,7 @@ test.describe("data layer: request budget @p1 @smoke", () => {
     await board.waitForGameStarted().catch(() => {});
     await board.resign().catch(() => {});
 
-    expect(meCalls, "/api/me requests on a hard load of /game/<ref>").toBe(1);
+    expect(meCalls, "/api/me requests on a hard load of /game/<ref> (seeded by the (app) layout)").toBe(0);
   });
 });
 

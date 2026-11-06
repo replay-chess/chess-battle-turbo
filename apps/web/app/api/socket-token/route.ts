@@ -1,25 +1,27 @@
-// GET /api/socket-token (plan §7.4 A5). Issues the short-lived token the browser passes to the WebSocket server in
-// the socket.io `auth` handshake. Body `{ data: { token, expiresAt } }` plus a top-level `token`/`expiresAt` mirror
-// for one release (old bundles read the bare shape). expiresAt is unix seconds (lib/socket-token.ts).
+// GET /api/socket-token (phase-02 plan §7.1.7). Issues the short-lived v2 token the browser passes to the socket
+// server in the socket.io `auth` handshake: claims {v: 2, sub, iat, exp, env, ent, role, name, kid} signed with
+// SOCKET_TOKEN_SECRET (lib/socket-token.ts). Any signed-in user gets one (P4's activation screen needs the `user:`
+// room before entitlement); `ent` = 0 for a non-member. The viewer is already loaded by route(), so minting adds no
+// statement. Body `{ data: { token, expiresAt } }` plus the top-level legacy mirror for one release; expiresAt is
+// unix seconds.
 import { realtimeEndpoints } from "@repo/contracts/http/registry";
 import { ApiError } from "@/lib/api/api-error";
 import { respondWith } from "@/lib/api/respond";
 import { route } from "@/lib/api/route";
 import { logger } from "@/lib/logger";
-import { signSocketToken } from "@/lib/socket-token";
+import { SocketTokenConfigError, mintSocketTokenForViewer } from "@/lib/socket-token";
 
 export const dynamic = "force-dynamic";
 
 export const GET = route(realtimeEndpoints.socketToken, async (ctx) => {
-  const secret = process.env.INTERNAL_API_SECRET;
-  if (!secret) {
-    logger.error(
-      "GET /api/socket-token: INTERNAL_API_SECRET is not set; cannot sign socket tokens. " +
-        "Set the same value in apps/web and apps/web-socket.",
-    );
+  try {
+    // auth "user": route() answered 401 already when there is no viewer.
+    // Without SOCKET_TOKEN_SECRET, dev/test/local sign with the old shared secret (lib/socket-token.ts); production 503s.
+    const { token, expiresAt } = mintSocketTokenForViewer(ctx.viewer!, { nowMs: ctx.now.getTime() });
+    return respondWith({ token, expiresAt }, { legacyMirror: { token, expiresAt } });
+  } catch (err) {
+    if (!(err instanceof SocketTokenConfigError)) throw err;
+    logger.error(`GET /api/socket-token: ${err.message}. Set SOCKET_TOKEN_SECRET in apps/web and the socket server.`);
     throw new ApiError("not_configured", { message: "Socket auth is not configured." });
   }
-  // auth "user": route() answered 401 already when there is no viewer.
-  const { token, expiresAt } = signSocketToken({ userReferenceId: ctx.viewer!.ref, secret });
-  return respondWith({ token, expiresAt }, { legacyMirror: { token, expiresAt } });
 });

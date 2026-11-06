@@ -7,7 +7,10 @@
 //   2. any client chunk contains zod (the literal class name `ZodError`) — zod response schemas must stay
 //      dev/test-only (lib/api/schema.ts). Chunks loaded only by /dev/** routes are exempt: those pages are
 //      404 in production builds and never load on a user route;
-//   3. any client chunk contains the TanStack Query devtools (dev-only, plan §9.5).
+//   3. any client chunk contains the TanStack Query devtools (dev-only, plan §9.5);
+//   4. a route in ROUTE_BUDGETS is over its First Load JS (gzip, the page entry as `next build` prints it), or loads
+//      engine code it must not (phase-02 plan 12.8 / DoD: `/game/[ref]` ≤ 600 kB gz, owner-approved 2026-11-06, and
+//      no engine chunk on the PvP path; the bot screen and the engine stay lazy chunks).
 //
 //   node apps/web/scripts/check-bundle-budgets.mjs [--dist <dir>] [--markdown <file>] [--json <file>]
 //   node apps/web/scripts/check-bundle-budgets.mjs --record-baseline     prints a BASELINE literal for this file
@@ -42,6 +45,10 @@ const BUDGET_KB = 25;
 const isZod = (text) => text.includes("$ZodError") || (/ZodError(?![A-Za-z0-9_$])/.test(text) && text.includes("invalid_type"));
 const DEVTOOLS_MARKER = /ReactQueryDevtools|TanstackQueryDevtools/;
 const DEV_ONLY_ROUTE = /^\/dev(\/|$)/;
+// Engine glue (features/engine): the shim path, the Stockfish build and the UCI handshake. Only lazy chunks may hold it.
+const ENGINE_MARKER = /engine-shim|stockfish|sf18-|uciok/i;
+/** Per-route First Load budgets (app-build-manifest page entries). regression: REGRESSION-2 (the P2 row was missing). */
+const ROUTE_BUDGETS = [{ route: "/(app)/game/[ref]/page", label: "/game/[ref]", maxKB: 600, noEngine: true }];
 
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -134,6 +141,21 @@ for (const h of zodHits) {
 }
 for (const c of devtoolsHits) failures.push(`TanStack Query devtools in client chunk ${c} (must stay dev-only)`);
 
+// 4. Route budgets.
+const routeRows = [];
+for (const b of ROUTE_BUDGETS) {
+  const files = [...new Set(appManifest.pages[b.route] ?? [])].filter((f) => f.endsWith(".js"));
+  if (files.length === 0) {
+    failures.push(`route ${b.label} (${b.route}) is not in app-build-manifest.json`);
+    continue;
+  }
+  const bytes = files.reduce((n, f) => n + gzipBytes(f), 0);
+  const engine = b.noEngine ? files.filter((f) => ENGINE_MARKER.test(readFileSync(path.join(distDir, f), "utf8"))) : [];
+  routeRows.push({ ...b, gzipBytes: bytes, files: files.length, engine });
+  if (bytes > b.maxKB * 1000) failures.push(`${b.label} First Load JS ${kB(bytes)} kB is over its budget ${b.maxKB} kB`);
+  for (const f of engine) failures.push(`${b.label} loads engine code in ${f} (the engine must stay a lazy chunk)`);
+}
+
 // Report
 const sign = deltaBytes >= 0 ? "+" : "−";
 const lines = [
@@ -147,6 +169,9 @@ const lines = [
   `| Client chunks scanned | ${chunks.length} |`,
   `| zod in client chunks | ${zodHits.length ? `**${zodHits.length}**` : "0"}${zodExempt.length ? ` (+${zodExempt.length} on /dev/** only, exempt)` : ""} |`,
   `| Query devtools in client chunks | ${devtoolsHits.length} |`,
+  ...routeRows.map(
+    (r) => `| ${r.label} First Load JS | ${kB(r.gzipBytes)} kB (budget ${r.maxKB} kB${r.noEngine ? `, engine chunks ${r.engine.length}` : ""}) |`,
+  ),
   "",
   "<details><summary>Shared files</summary>",
   "",
@@ -179,6 +204,7 @@ if (jsonOut) {
         zod: zodHits,
         zodExemptDevOnly: zodExempt,
         devtools: devtoolsHits,
+        routes: routeRows,
         ok: failures.length === 0,
       },
       null,

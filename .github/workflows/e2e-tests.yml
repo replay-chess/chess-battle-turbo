@@ -1,5 +1,10 @@
 name: E2E Tests
 
+# Push/PR to main. Since Phase 2 the run is self-contained like ci.yml's e2e job (FIX-A): a Docker Postgres with
+# the socket role (packages/db/sql/roles.sql), random per-run socket keys, and Playwright's own :3000/:3002/:3102
+# servers plus the game-serial project. It never touches a hosted database: the e2e socket fixture refuses every host
+# but a local Postgres and the Neon dev endpoint (e2e/fixtures/socket-server.ts).
+
 on:
   push:
     branches: [main]
@@ -10,113 +15,117 @@ on:
 jobs:
   e2e:
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 25
-
+    timeout-minutes: 45
+    services:
+      db:
+        image: postgres:17-alpine
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: replay }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      CI: "1"
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/replay
+      BILLING_PAYWALL: "on"
+      NEXT_PUBLIC_APP_ENV: test
+      ALLOW_TEST_HOOKS: "1"
+      NEXT_PUBLIC_TELEMETRY_SINK: "1"
+      POSTHOG_HOST: http://127.0.0.1:4011
+      NEXT_PUBLIC_POSTHOG_KEY: ""
+      NEXT_PUBLIC_SENTRY_DSN: ""
+      SENTRY_DSN: ""
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
+      NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:3002
+      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on
+      E2E_TEST_TOKEN: ${{ secrets.E2E_TEST_TOKEN }}
+      E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+      DODO_PAYMENTS_ENVIRONMENT: test_mode
+      DODO_PAYMENTS_API_KEY: ci-dummy-dodo-key
+      DODO_PAYMENTS_RETURN_URL: http://localhost:3000/pricing?checkout=success
+      E2E_USER_A_EMAIL: ${{ secrets.E2E_USER_A_EMAIL }}
+      E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
+      E2E_USER_B_EMAIL: ${{ secrets.E2E_USER_B_EMAIL }}
+      E2E_USER_B_PASSWORD: ${{ secrets.E2E_USER_B_PASSWORD }}
+      E2E_USER_C_EMAIL: ${{ secrets.E2E_USER_C_EMAIL }}
+      E2E_USER_C_PASSWORD: ${{ secrets.E2E_USER_C_PASSWORD }}
+      E2E_USER_D_EMAIL: ${{ secrets.E2E_USER_D_EMAIL }}
+      E2E_USER_D_PASSWORD: ${{ secrets.E2E_USER_D_PASSWORD }}
+      E2E_USER_E_EMAIL: ${{ secrets.E2E_USER_E_EMAIL }}
+      E2E_USER_E_PASSWORD: ${{ secrets.E2E_USER_E_PASSWORD }}
+      E2E_USER_F_EMAIL: ${{ secrets.E2E_USER_F_EMAIL }}
+      E2E_USER_F_PASSWORD: ${{ secrets.E2E_USER_F_PASSWORD }}
+      E2E_USER_G_EMAIL: ${{ secrets.E2E_USER_G_EMAIL }}
+      E2E_USER_G_PASSWORD: ${{ secrets.E2E_USER_G_PASSWORD }}
+      E2E_USER_H_EMAIL: ${{ secrets.E2E_USER_H_EMAIL }}
+      E2E_USER_H_PASSWORD: ${{ secrets.E2E_USER_H_PASSWORD }}
+      E2E_USER_I_EMAIL: ${{ secrets.E2E_USER_I_EMAIL }}
+      E2E_USER_I_PASSWORD: ${{ secrets.E2E_USER_I_PASSWORD }}
+      E2E_USER_J_EMAIL: ${{ secrets.E2E_USER_J_EMAIL }}
+      E2E_USER_J_PASSWORD: ${{ secrets.E2E_USER_J_PASSWORD }}
+      E2E_USER_K_EMAIL: ${{ secrets.E2E_USER_K_EMAIL }}
+      E2E_USER_K_PASSWORD: ${{ secrets.E2E_USER_K_PASSWORD }}
+      E2E_USER_L_EMAIL: ${{ secrets.E2E_USER_L_EMAIL }}
+      E2E_USER_L_PASSWORD: ${{ secrets.E2E_USER_L_PASSWORD }}
+      E2E_USER_M_EMAIL: ${{ secrets.E2E_USER_M_EMAIL }}
+      E2E_USER_M_PASSWORD: ${{ secrets.E2E_USER_M_PASSWORD }}
+      E2E_USER_N_EMAIL: ${{ secrets.E2E_USER_N_EMAIL }}
+      E2E_USER_N_PASSWORD: ${{ secrets.E2E_USER_N_PASSWORD }}
+      E2E_USER_O_EMAIL: ${{ secrets.E2E_USER_O_EMAIL }}
+      E2E_USER_O_PASSWORD: ${{ secrets.E2E_USER_O_PASSWORD }}
+      E2E_USER_P_EMAIL: ${{ secrets.E2E_USER_P_EMAIL }}
+      E2E_USER_P_PASSWORD: ${{ secrets.E2E_USER_P_PASSWORD }}
+      E2E_USER_R_EMAIL: ${{ secrets.E2E_USER_R_EMAIL }}
+      E2E_USER_R_PASSWORD: ${{ secrets.E2E_USER_R_PASSWORD }}
     steps:
       - uses: actions/checkout@v5
-
       - uses: pnpm/action-setup@v5
-
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
       - name: Install Chromium
         run: pnpm --filter web exec playwright install --with-deps chromium
-
-      - name: Apply pending migrations
+      - name: Random webhook signing keys for this run
         run: |
-          export DIRECT_URL="${DATABASE_URL/-pooler/}"
-          pnpm --filter web exec prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ secrets.PERF_DATABASE_URL }}
-
-      - name: Build production app
+          dodo="whsec_$(openssl rand -base64 32)"
+          clerk="whsec_$(openssl rand -base64 32)"
+          echo "::add-mask::$dodo"
+          echo "::add-mask::$clerk"
+          echo "DODO_PAYMENTS_WEBHOOK_KEY=$dodo" >> "$GITHUB_ENV"
+          echo "CLERK_WEBHOOK_SIGNING_SECRET=$clerk" >> "$GITHUB_ENV"
+      - name: Random socket keys for this run (web ↔ socket token and HMAC rings)
+        run: |
+          tok="d1:$(openssl rand -base64 32)"
+          int="web:$(openssl rand -base64 32)"
+          echo "::add-mask::$tok"
+          echo "::add-mask::$int"
+          echo "SOCKET_TOKEN_SECRET=$tok" >> "$GITHUB_ENV"
+          echo "INTERNAL_API_SECRET=$int" >> "$GITHUB_ENV"
+      - name: Migrate and seed the Docker database
+        run: |
+          pnpm --filter @repo/db generate
+          pnpm --filter @repo/db migrate:deploy
+          pnpm --filter @repo/db seed
+          pnpm --filter @repo/db seed:openings
+      - name: Socket role (packages/db/sql/roles.sql), as on OCI
+        run: |
+          command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          RT_PW=$(openssl rand -hex 16)
+          echo "::add-mask::$RT_PW"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v rt_password="$RT_PW" -f packages/db/sql/roles.sql
+          echo "E2E_SOCKET_DATABASE_URL=postgresql://replay_realtime:$RT_PW@localhost:5432/replay" >> "$GITHUB_ENV"
+      - name: Build production app (test app env, hooks on, sinks on)
         run: pnpm --filter web build
-        env:
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          NEXT_PUBLIC_WEBSOCKET_URL: "ws://localhost:3002"
-          NEXT_PUBLIC_CLERK_SIGN_IN_URL: "/sign-in"
-          DODO_LEGACY_PLAYER_PRODUCT_ID: "pdt_0NYhwCW2cH6Rs73vtYwmW"
-          DODO_PRODUCT_ID_MONTHLY: ${{ secrets.DODO_PRODUCT_ID_MONTHLY }}
-          DODO_PRODUCT_ID_YEARLY: ${{ secrets.DODO_PRODUCT_ID_YEARLY }}
-          DATABASE_URL: ${{ secrets.PERF_DATABASE_URL }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          DODO_PAYMENTS_API_KEY: ${{ secrets.DODO_PAYMENTS_API_KEY }}
-          DODO_PAYMENTS_WEBHOOK_KEY: ${{ secrets.DODO_PAYMENTS_WEBHOOK_KEY }}
-          DODO_PAYMENTS_RETURN_URL: "http://localhost:3000/pricing?checkout=success"
-          DODO_PAYMENTS_ENVIRONMENT: "test_mode"
-          # Paywall ON (phase-01 plan §12.3, CT X3): global setup re-entitles
-          # the shared members A–P with the e2e-fixture product before every
-          # run, so the gameplay suites exercise the real member gate.
-          BILLING_PAYWALL: "on"
-          NEXT_PUBLIC_APP_ENV: "test"
-          E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
-
       - name: Run E2E tests
-        # chromium + play-queue (queue specs one at a time); the webkit-iphone
-        # smoke project belongs to ci.yml's e2e-smoke job on dev.
-        run: pnpm --filter web exec playwright test --project=chromium --project=play-queue
-        env:
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          DATABASE_URL: ${{ secrets.PERF_DATABASE_URL }}
-          NEXT_PUBLIC_WEBSOCKET_URL: "ws://localhost:3002"
-          NEXT_PUBLIC_CLERK_SIGN_IN_URL: "/sign-in"
-          DODO_PAYMENTS_API_KEY: ${{ secrets.DODO_PAYMENTS_API_KEY }}
-          DODO_PAYMENTS_WEBHOOK_KEY: ${{ secrets.DODO_PAYMENTS_WEBHOOK_KEY }}
-          DODO_LEGACY_PLAYER_PRODUCT_ID: "pdt_0NYhwCW2cH6Rs73vtYwmW"
-          DODO_PRODUCT_ID_MONTHLY: ${{ secrets.DODO_PRODUCT_ID_MONTHLY }}
-          DODO_PRODUCT_ID_YEARLY: ${{ secrets.DODO_PRODUCT_ID_YEARLY }}
-          DODO_PAYMENTS_RETURN_URL: "http://localhost:3000/pricing?checkout=success"
-          DODO_PAYMENTS_ENVIRONMENT: "test_mode"
-          # Same as the build step: paywall on; global setup entitles A–P
-          # and runs the fixture health check (e2e/fixtures/health.ts).
-          BILLING_PAYWALL: "on"
-          NEXT_PUBLIC_APP_ENV: "test"
-          INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
-          E2E_USER_A_EMAIL: ${{ secrets.E2E_USER_A_EMAIL }}
-          E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
-          E2E_USER_B_EMAIL: ${{ secrets.E2E_USER_B_EMAIL }}
-          E2E_USER_B_PASSWORD: ${{ secrets.E2E_USER_B_PASSWORD }}
-          E2E_USER_C_EMAIL: ${{ secrets.E2E_USER_C_EMAIL }}
-          E2E_USER_C_PASSWORD: ${{ secrets.E2E_USER_C_PASSWORD }}
-          E2E_USER_D_EMAIL: ${{ secrets.E2E_USER_D_EMAIL }}
-          E2E_USER_D_PASSWORD: ${{ secrets.E2E_USER_D_PASSWORD }}
-          E2E_USER_E_EMAIL: ${{ secrets.E2E_USER_E_EMAIL }}
-          E2E_USER_E_PASSWORD: ${{ secrets.E2E_USER_E_PASSWORD }}
-          E2E_USER_F_EMAIL: ${{ secrets.E2E_USER_F_EMAIL }}
-          E2E_USER_F_PASSWORD: ${{ secrets.E2E_USER_F_PASSWORD }}
-          E2E_USER_G_EMAIL: ${{ secrets.E2E_USER_G_EMAIL }}
-          E2E_USER_G_PASSWORD: ${{ secrets.E2E_USER_G_PASSWORD }}
-          E2E_USER_H_EMAIL: ${{ secrets.E2E_USER_H_EMAIL }}
-          E2E_USER_H_PASSWORD: ${{ secrets.E2E_USER_H_PASSWORD }}
-          E2E_USER_I_EMAIL: ${{ secrets.E2E_USER_I_EMAIL }}
-          E2E_USER_I_PASSWORD: ${{ secrets.E2E_USER_I_PASSWORD }}
-          E2E_USER_J_EMAIL: ${{ secrets.E2E_USER_J_EMAIL }}
-          E2E_USER_J_PASSWORD: ${{ secrets.E2E_USER_J_PASSWORD }}
-          E2E_USER_K_EMAIL: ${{ secrets.E2E_USER_K_EMAIL }}
-          E2E_USER_K_PASSWORD: ${{ secrets.E2E_USER_K_PASSWORD }}
-          E2E_USER_L_EMAIL: ${{ secrets.E2E_USER_L_EMAIL }}
-          E2E_USER_L_PASSWORD: ${{ secrets.E2E_USER_L_PASSWORD }}
-          E2E_USER_M_EMAIL: ${{ secrets.E2E_USER_M_EMAIL }}
-          E2E_USER_M_PASSWORD: ${{ secrets.E2E_USER_M_PASSWORD }}
-          E2E_USER_N_EMAIL: ${{ secrets.E2E_USER_N_EMAIL }}
-          E2E_USER_N_PASSWORD: ${{ secrets.E2E_USER_N_PASSWORD }}
-          E2E_USER_O_EMAIL: ${{ secrets.E2E_USER_O_EMAIL }}
-          E2E_USER_O_PASSWORD: ${{ secrets.E2E_USER_O_PASSWORD }}
-          E2E_USER_P_EMAIL: ${{ secrets.E2E_USER_P_EMAIL }}
-          E2E_USER_P_PASSWORD: ${{ secrets.E2E_USER_P_PASSWORD }}
-          E2E_USER_R_EMAIL: ${{ secrets.E2E_USER_R_EMAIL }}
-          E2E_USER_R_PASSWORD: ${{ secrets.E2E_USER_R_PASSWORD }}
-          E2E_TEST_TOKEN: ${{ secrets.E2E_TEST_TOKEN }}
-          E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
-
+        # chromium + play-queue (queue specs one at a time) + game-serial (restart-resume, its own :3103); the
+        # webkit-iphone smoke project belongs to ci.yml's e2e-smoke job on dev.
+        run: pnpm --filter web exec playwright test --project=chromium --project=play-queue --project=game-serial
       - name: Upload test report
         uses: actions/upload-artifact@v6
         if: always()
@@ -124,7 +133,6 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report/
           retention-days: 7
-
       - name: Upload traces
         uses: actions/upload-artifact@v6
         if: failure()

@@ -15,7 +15,7 @@
 import { randomBytes } from "node:crypto";
 import { mergeTests, type Locator, type Page } from "@playwright/test";
 import { Webhook } from "standardwebhooks";
-import type { PrismaClient } from "../../app/generated/prisma";
+import type { PrismaClient } from "@repo/db";
 import { test as authTest } from "../fixtures/auth";
 import { expect, test as telemetryTest } from "../fixtures/telemetry";
 
@@ -143,7 +143,7 @@ test.describe("telemetry @p1 @smoke @local-only", () => {
     test.skip(!DODO_KEY, "DODO_PAYMENTS_WEBHOOK_KEY not in .env.test");
 
     test.afterAll(async () => {
-      const { PrismaClient } = await import("../../app/generated/prisma/index.js");
+      const { PrismaClient } = await import("@repo/db");
       db = new PrismaClient();
       await db.$executeRawUnsafe(`DELETE FROM webhook_events WHERE "eventId" = $1`, eventId);
       await db.$disconnect();

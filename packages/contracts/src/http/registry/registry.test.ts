@@ -73,9 +73,11 @@ describe("endpoint registry", () => {
     for (const f of areaFiles) assert.match(index, new RegExp(`from "\\./${f}"`), f);
   });
 
-  it("declares the P1 endpoints of plan §7.3/§7.4", () => {
+  it("declares the P1 endpoints of plan §7.3/§7.4 and the P2 games endpoints (phase-02 §7.1)", () => {
     assert.deepEqual(HTTP_ENDPOINTS.map((e) => e.id).sort(), [
-      "billing.refresh", "catalog.openings.index", "cron.daily", "health.get", "healthcheck.get",
+      "billing.refresh", "catalog.openings.index", "cron.daily",
+      "games.checkpoint", "games.complete", "games.create", "games.detail", "games.pgn",
+      "health.get", "healthcheck.get",
       "me.get", "session.clear", "socket-token.get", "subscription.get", "webhook.clerk", "webhook.dodo",
     ]);
     const me = getEndpoint("me.get");
@@ -89,6 +91,29 @@ describe("endpoint registry", () => {
     assert.deepEqual(getEndpoint("health.get").rateLimit, { bucket: "health-deep", limit: 6, windowSec: 60, by: "ip" });
     assert.equal(getEndpoint("session.clear").status, 204);
     assert.throws(() => getEndpoint("nope" as never), /Unknown endpoint/);
+  });
+
+  it("declares the P2 games endpoints as phase-02 §7.1 says", () => {
+    const create = getEndpoint("games.create");
+    assert.equal(create.auth, "member");
+    assert.equal(create.status, 201);
+    assert.equal(create.maxBodyBytes, 4_096);
+    assert.deepEqual(create.rateLimit, { bucket: "create-game", limit: 20, windowSec: 600, by: "user", store: "durable" });
+    const detail = getEndpoint("games.detail");
+    assert.equal(detail.path, "/api/games/{ref}");
+    assert.equal(detail.cache, "private-etag");
+    const checkpoint = getEndpoint("games.checkpoint");
+    assert.equal(checkpoint.auth, "user");
+    assert.equal(checkpoint.status, 204);
+    assert.equal(checkpoint.maxBodyBytes, 8_192);
+    assert.deepEqual(checkpoint.rateLimit, { bucket: "bot-checkpoint", limit: 60, windowSec: 60, by: "user" });
+    assert.equal(getEndpoint("games.complete").maxBodyBytes, 16_384);
+    const pgn = getEndpoint("games.pgn");
+    assert.equal(pgn.cache, "no-store");
+    assert.equal(pgn.responseFormat, "text");
+    for (const e of [create, detail, checkpoint, getEndpoint("games.complete"), pgn]) {
+      assert.ok(!(e.cache ?? "no-store").startsWith("public-"), e.id);
+    }
   });
 
   it("every response, query, params and body is a zod schema", () => {

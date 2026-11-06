@@ -1,0 +1,48 @@
+{
+  "name": "@repo/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./live": "./src/live/index.ts",
+    "./games": "./src/games/index.ts",
+    "./json": "./src/json/index.ts",
+    "./seed-guards": "./prisma/seed-guards.ts",
+    "./runtime/library": {
+      "types": "./generated/prisma/runtime/library.d.ts",
+      "default": "./generated/prisma/runtime/library.js"
+    }
+  },
+  "imports": {
+    "#generated": {
+      "browser": "./generated/prisma/index-browser.js",
+      "default": "./generated/prisma/index.js"
+    }
+  },
+  "scripts": {
+    "generate": "prisma generate",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:status": "prisma migrate status",
+    "seed": "tsx prisma/seed.ts",
+    "seed:openings": "tsx prisma/opening-seed.ts",
+    "seed:content": "tsx prisma/seed-content.ts",
+    "test": "tsx --test \"prisma/**/*.test.ts\" \"src/**/*.test.ts\"",
+    "test:int": "tsx --test \"test/**/*.int.test.ts\"",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/client": "6.17.1",
+    "chess.js": "1.4.0",
+    "dotenv": "17.3.1",
+    "zod": "4.1.12"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "22.15.3",
+    "prisma": "6.17.1",
+    "tsx": "4.20.6",
+    "typescript": "5.9.2"
+  }
+}

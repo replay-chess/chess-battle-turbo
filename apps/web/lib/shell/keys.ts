@@ -132,9 +132,11 @@ export type ShortcutRow = { id: string; label: string; keys: string[][] };
 export type ShortcutSection = { title: string; scope: "global" | "board" | "review"; rows: ShortcutRow[] };
 
 /**
- * The shortcut registry. Phase 1 registers only Everywhere. Section titles are
- * Title Case; row labels are sentence case (SPEC 3.11). Phase 2's page keys
- * (F, D, M, N, B, A, E, H, R, S, V) register here and must pass findCollisions.
+ * The shortcut registry. Section titles are Title Case; row labels are sentence
+ * case (SPEC 3.11). Phase 1 registers Everywhere; Phase 2 adds In a Game (the
+ * game page's keys, features/game/keys/useGameHotkeys.ts, P2 plan 4.6.1). Esc on
+ * the game page (cancel a premove, then close the top layer) is the Everywhere
+ * row. Later page keys register here and must pass findCollisions.
  */
 export const SHORTCUT_SECTIONS: ShortcutSection[] = [
   {
@@ -147,6 +149,20 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
       { id: "go-legends", label: "Go to Legends", keys: [["G", "L"]] },
       { id: "notifications", label: "Jump to notifications", keys: [["Alt", "T"]] },
       { id: "close", label: "Close a menu or sheet", keys: [["Esc"]] },
+    ],
+  },
+  {
+    title: "In a Game",
+    scope: "board",
+    rows: [
+      { id: "game-step", label: "Previous or next move", keys: [["←"], ["→"]] },
+      { id: "game-ends", label: "First or latest move", keys: [["↑"], ["↓"]] },
+      { id: "game-flip", label: "Flip the board", keys: [["F"]] },
+      { id: "game-sound", label: "Sound on or off", keys: [["M"]] },
+      { id: "game-draw", label: "Offer a draw", keys: [["D"]] },
+      { id: "game-hint", label: "Hint, again for the arrow", keys: [["H"]] },
+      { id: "game-undo", label: "Undo (bot games)", keys: [["U"]] },
+      { id: "game-promote", label: "Pick a promotion piece", keys: [["Q"], ["R"], ["B"], ["N"]] },
     ],
   },
 ];

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CLERK_CHUNK_ABORT, classifyConsole, classifyResponse } from "./console-guard";
+import { CLERK_CHUNK_ABORT, CLERK_PROTECT_PROBE, classifyConsole, classifyResponse } from "./console-guard";
 import { auditEvents, matchesProps } from "./telemetry";
 
 describe("console guard rules", () => {
@@ -66,6 +66,25 @@ describe("console guard rules", () => {
     assert.equal(classifyResponse("http://x/api/me", 429, {}), null);
     assert.equal(classifyResponse("http://x/_next/static/a.js", 500, {}, "script"), null);
     assert.equal(classifyResponse("http://x/play", 500, {}, "document")?.kind, "api5xx");
+  });
+});
+
+describe("console guard: Clerk bot-protection probes (regression: REGRESSION-2)", () => {
+  const host = "1-lvchtghgfm2qtpgbrzo7a5uili-qqqlrdrxbaqzo5qy4qn4h773b4-p.client.protect.clerk.com";
+  it("excuses WebKit's blocked probes on every port and the /c/<id>/probe form", () => {
+    for (const t of [
+      `/${host}:8443/ins_3LN0o48EllqOBg7LenZniwnJEFd/probe due to access control checks.`,
+      `/${host}/ins_3LN0o48EllqOBg7LenZniwnJEFd/probe due to access control checks.`,
+      `/${host}/ins_3LN0o48EllqOBg7LenZniwnJEFd/c/1-abc/probe due to access control checks.`,
+    ]) {
+      assert.ok(CLERK_PROTECT_PROBE.test(t), t);
+      assert.equal(classifyConsole("error", t, []), null);
+    }
+  });
+  it("still reports our own access-control errors and look-alike hosts", () => {
+    assert.equal(CLERK_PROTECT_PROBE.test("/localhost:3000/api/me due to access control checks."), false);
+    assert.equal(CLERK_PROTECT_PROBE.test("/x.client.protect.clerk.com.evil.example/ins_1/probe due to access control checks."), false);
+    assert.equal(CLERK_PROTECT_PROBE.test(`/${host}/ins_1/other due to access control checks.`), false);
   });
 });
 

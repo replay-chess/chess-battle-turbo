@@ -1,6 +1,7 @@
 import { HydrationBoundary } from "@tanstack/react-query";
 import { AppShellView } from "@/components/shell/AppShellView";
 import { ChromeProvider } from "@/components/shell/chrome-context";
+import { PendingBotCompletes } from "@/features/game/local/pendingCompletes";
 import { serverBuildId } from "@/lib/api/context";
 import { qk } from "@/lib/api/keys";
 import { getViewer } from "@/lib/auth/viewer";
@@ -15,6 +16,9 @@ import { chromeModeFor, getShellSession } from "@/lib/shell/get-shell-session";
 //
 // It also seeds the viewer query, qk.me() (plan §5.3, 1B·J), so UserSync and useMe() make no GET /api/me on a hard
 // load. getViewer() and getShellSession() share one cached getViewerRecord(): one DB statement per render.
+//
+// Signed-in viewers also mount <PendingBotCompletes /> (P2 plan 5.3.3): bot results that failed to save are re-sent
+// on the next app load and on `online`. It renders nothing and reads only localStorage until a journal exists.
 export default async function AppGroupLayout({ children }: { children: React.ReactNode }) {
   const [viewer, session] = await Promise.all([getViewer(), getShellSession()]);
   const flags = await getFlags(viewer);
@@ -26,6 +30,7 @@ export default async function AppGroupLayout({ children }: { children: React.Rea
   return (
     <HydrationBoundary state={dehydrateFor(qc)}>
       <ChromeProvider mode={mode}>
+        {viewer ? <PendingBotCompletes /> : null}
         {mode === "shell" && session ? <AppShellView user={session.user}>{children}</AppShellView> : children}
       </ChromeProvider>
     </HydrationBoundary>

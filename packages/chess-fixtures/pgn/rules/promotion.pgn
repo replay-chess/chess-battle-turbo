@@ -1,0 +1,7 @@
+[Event "Promotion and under-promotion with check"]
+[SetUp "1"]
+[FEN "4k3/1P6/8/8/8/8/6p1/4K3 w - - 0 1"]
+[Result "*"]
+[RcExpect "none"]
+
+1. b8=N g1=R+ 2. Kd2 Rg2+ 3. Kc3 *

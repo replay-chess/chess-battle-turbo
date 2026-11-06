@@ -86,7 +86,7 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium
-      - run: pnpm --filter web exec prisma generate
+      - run: pnpm --filter @repo/db generate
       - name: "@smoke against the dev URL"
         env:
           CI: "1"

@@ -6,7 +6,8 @@
   "exports": {
     "./base": "./base.js",
     "./next-js": "./next.js",
-    "./react-internal": "./react-internal.js"
+    "./react-internal": "./react-internal.js",
+    "./replay-rules": "./replay-rules.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.34.0",
@@ -20,5 +21,8 @@
     "globals": "^16.3.0",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.40.0"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
   }
 }

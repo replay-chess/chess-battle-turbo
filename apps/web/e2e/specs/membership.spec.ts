@@ -71,7 +71,11 @@ test.describe("Non-member (never had a trial)", () => {
     expect(review.status()).toBe(402);
     expect((await review.json()).code).toBe("subscription_required");
 
-    const play = await page.request.post("/api/chess/create-ai-game", { data: {} });
+    // P2: bot games are created through POST /api/games (create-ai-game is gone); member-only, Idempotency-Key required.
+    const play = await page.request.post("/api/games", {
+      data: { mode: "BOT", start: { kind: "initial" } },
+      headers: { "Idempotency-Key": crypto.randomUUID() },
+    });
     expect(play.status()).toBe(402);
   });
 

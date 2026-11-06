@@ -145,9 +145,18 @@ test("findCollisions flags duplicates and passes on the Phase 1 registry", () =>
   assert.deepEqual(vsGlobal[0]?.ids, ["help", "help2"]);
 });
 
-test("the Phase 1 registry has only the Everywhere section", () => {
+test("the registry has Everywhere (P1) and In a Game (P2 plan 4.6.1)", () => {
   assert.deepEqual(
     SHORTCUT_SECTIONS.map((s) => [s.title, s.scope]),
-    [["Everywhere", "global"]],
+    [
+      ["Everywhere", "global"],
+      ["In a Game", "board"],
+    ],
   );
+});
+
+test("the In a Game rows are the game page's keys", () => {
+  const game = SHORTCUT_SECTIONS.find((s) => s.scope === "board");
+  const bindings = game?.rows.flatMap((r) => r.keys.map((seq) => seq.join(" "))) ?? [];
+  assert.deepEqual(bindings.sort(), ["B", "D", "F", "H", "M", "N", "Q", "R", "U", "←", "↑", "→", "↓"].sort());
 });

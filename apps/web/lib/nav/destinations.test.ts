@@ -7,6 +7,7 @@ import type { DestinationKey } from "../shell/types";
 import {
   DESTINATIONS,
   backTarget,
+  hidesTabBar,
   currentDestinations,
   currentFromKey,
   destination,
@@ -95,12 +96,17 @@ test("backTarget for every detail pattern", () => {
   assert.deepEqual(back("/join-tournament/abc"), { key: "tournaments", href: "/tournaments", label: "Tournaments" });
   assert.deepEqual(back("/legends/morphy"), { key: "legends", href: "/legends", label: "Legends" });
   assert.deepEqual(back("/openings/sicilian"), { key: "openings", href: "/openings", label: "Openings" });
-  for (const p of ["/queue", "/challenge/new", "/join/abc", "/position/abc", "/profile/other"]) {
+  for (const p of ["/queue", "/challenge/new", "/join/abc", "/position/abc", "/profile/other", "/game/abc"]) {
     assert.deepEqual(back(p), { key: "play", href: "/play", label: "Play" }, p);
   }
   for (const p of ["/play", "/legends", "/openings", "/tournaments", "/profile/ref", "/dev/ui/shell"]) {
     assert.equal(back(p), null, p);
   }
+});
+
+test("hidesTabBar: only a game route", () => {
+  assert.equal(hidesTabBar("/game/abc"), true);
+  for (const p of ["/game", "/play", "/games", "/analysis/abc"]) assert.equal(hidesTabBar(p), false, p);
 });
 
 test("reachability: every enabled key in at most 2 activations, in every mode", () => {

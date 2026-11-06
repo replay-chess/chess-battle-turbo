@@ -9,14 +9,16 @@
 // Adding a phase's events: create src/events/<area>.ts, spread it into EVENTS
 // below, and add its test beside it.
 import { z } from "zod";
+import { gameClientEvents, gameEvents, gameServerEvents, gameSocketEvents } from "./events/game";
 import { shellEvents } from "./events/shell";
 import { systemClientEvents, systemEvents, systemServerEvents } from "./events/system";
 
 export { shellEvents, DESTINATION_KEYS, NAV_SURFACES, ACCOUNT_ACTIONS } from "./events/shell";
 export { systemEvents, systemClientEvents, systemServerEvents } from "./events/system";
+export { gameEvents, gameClientEvents, gameServerEvents, gameSocketEvents, GAME_OVER_CTAS, END_METHODS, GAME_PHASES } from "./events/game";
 export { FORBIDDEN_PROPERTY_NAMES, PII_PATTERNS, findPii, type PiiFinding } from "./pii";
 
-export const EVENTS = { ...shellEvents, ...systemEvents } as const;
+export const EVENTS = { ...shellEvents, ...systemEvents, ...gameEvents } as const;
 
 export type Events = typeof EVENTS;
 export type EventName = keyof Events;
@@ -24,6 +26,9 @@ export type EventProps<N extends EventName> = z.infer<Events[N]>;
 export type ShellEventName = keyof typeof shellEvents;
 export type SystemClientEventName = keyof typeof systemClientEvents;
 export type SystemServerEventName = keyof typeof systemServerEvents;
+export type GameClientEventName = keyof typeof gameClientEvents;
+export type GameServerEventName = keyof typeof gameServerEvents;
+export type GameSocketEventName = keyof typeof gameSocketEvents;
 
 /** Super properties PostHog adds to every event (set from NEXT_PUBLIC_APP_ENV). */
 export const COMMON_PROPERTIES = z

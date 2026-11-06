@@ -2,3 +2,4 @@ node_modules/
 dist/
 results/
 setup/user-manifest.json
+setup/v2-manifest.json

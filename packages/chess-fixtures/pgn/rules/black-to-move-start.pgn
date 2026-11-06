@@ -1,0 +1,7 @@
+[Event "A Black-to-move start with move numbers above 1"]
+[SetUp "1"]
+[FEN "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 3 10"]
+[Result "*"]
+[RcExpect "none"]
+
+10... Nf6 11. Nc3 Bc5 12. Bc4 O-O *

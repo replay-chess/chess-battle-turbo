@@ -10,6 +10,9 @@ import type { ShellUser } from "@/lib/shell/types";
 import { AccountMenu } from "./AccountMenu";
 import { Brand } from "./Brand";
 
+/** The element a screen portals its top-bar title into (see `TopBarTitle`). */
+export const TOPBAR_TITLE_ID = "shell-topbar-title";
+
 /**
  * Phone and iPad-portrait top bar (the ViewportStage CSS shows it in tab-bar
  * mode only). Detail routes swap the brand for Back.
@@ -60,6 +63,8 @@ export function TopBar({
           wordmarkClassName="flex-1"
         />
       )}
+      {/* Title slot: a detail screen (the game's "Blitz 5+3 · unrated") portals its header text here (TopBarTitle). */}
+      <div id={TOPBAR_TITLE_ID} data-testid="shell-topbar-title" className="min-w-0 max-w-[55%] shrink truncate empty:hidden" />
       <AccountMenu
         user={user}
         demo={demo || preview}

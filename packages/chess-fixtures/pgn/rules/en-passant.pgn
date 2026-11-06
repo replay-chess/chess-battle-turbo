@@ -1,0 +1,5 @@
+[Event "En passant right after the double step"]
+[Result "*"]
+[RcExpect "none"]
+
+1. e4 Nf6 2. e5 d5 3. exd6 cxd6 4. d4 *

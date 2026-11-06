@@ -1,0 +1,10 @@
+[Event "White flags while Black has only a king (design TINS line)"]
+[SetUp "1"]
+[FEN "7R/8/4k3/8/8/2K5/8/7r b - - 0 79"]
+[Result "1/2-1/2"]
+[Termination "Time forfeit"]
+[RcExpect "none"]
+[RcFlag "w"]
+[RcFlagOutcome "timeout_vs_insufficient"]
+
+79... Rh2 80. Rxh2 Kd5 1/2-1/2

@@ -1,5 +1,5 @@
 {
-  "buildCommand": "prisma generate && next build",
+  "buildCommand": "pnpm --filter @repo/db generate && next build",
   "outputDirectory": ".next",
   "framework": "nextjs",
   "installCommand": "corepack enable && corepack prepare pnpm@9.0.0 --activate && pnpm install --frozen-lockfile"

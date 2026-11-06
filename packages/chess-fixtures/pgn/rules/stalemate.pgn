@@ -1,0 +1,7 @@
+[Event "Stalemate (design STALE line)"]
+[SetUp "1"]
+[FEN "6k1/8/5K2/8/8/8/5Q2/8 w - - 0 57"]
+[Result "1/2-1/2"]
+[RcExpect "stalemate"]
+
+57. Kg6 Kh8 58. Qf7 1/2-1/2

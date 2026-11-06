@@ -1,5 +1,5 @@
 import "server-only";
-import type { PrismaClient } from "@/app/generated/prisma";
+import type { PrismaClient } from "@repo/db";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import {

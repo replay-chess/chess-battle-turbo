@@ -6,6 +6,7 @@ import path from "path";
 import type { ConsoleGuardOptions } from "./e2e/fixtures/console-guard";
 import type { TelemetryOptions } from "./e2e/fixtures/telemetry";
 import { prodGuardEnv } from "./lib/test-hooks/registry";
+import { SOCKET_SERVER_COMMAND, socketServerEnv } from "./e2e/fixtures/socket-server";
 
 const WEB_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,10 +40,12 @@ const FLAGS_OFF =
 if (FLAGS_OFF) process.env.E2E_FLAGS_OFF = "1";
 const FLAGS_OFF_PORT = Number(process.env.FLAGS_OFF_PORT ?? 3110);
 /** The open phase's flags, switched off. Every later phase appends its own `<key>:off`. */
-const FLAGS_OFF_OVERRIDE = "shell-v3:off";
-// Phase 0 has no @smoke tags, so its specs are listed by file. quick-match (the serial queue) and
-// tournament (≈ 10 min) stay in the main run; the bot and friend games cover the game flow here.
+const FLAGS_OFF_OVERRIDE = "shell-v3:off,live-protocol-v2:off,game-v3:off";
+// Phase 0 has no @smoke tags, so its specs are listed by file. tournament (≈ 10 min) stays in the main run; the
+// bot and friend games cover the game flow here. P2 plan 12.10: with live-protocol-v2 and game-v3 off, the legacy
+// play-with-friend and quick-match specs pass over protocol v1 until the parity gate.
 const FLAGS_OFF_SPECS = [
+  "**/quick-match.spec.ts",
   "**/flags-off.spec.ts",
   "**/membership.spec.ts",
   "**/paid-only.spec.ts",
@@ -99,12 +102,18 @@ const grepFor = (extra: string[] = []) => {
 };
 const grepInvert = [
   ...(REMOTE ? [/@local-only\b/] : []),
+  // Real-timing copies of the timer specs (*.real.spec.ts) run nightly only (P2 plan 12.6).
+  ...(process.env.E2E_SLOW === "1" ? [] : [/@slow\b/]),
   ...(process.env.CI && process.env.E2E_INCLUDE_QUARANTINED !== "1" ? quarantine.map((q) => quarantinePattern(q.testId)) : []),
 ];
 
 // Queue specs share one matchmaking pool, so they run one at a time in their own
 // project until P2's token-based isolation (plan §12.0).
 const QUEUE_SPECS = ["**/quick-match.spec.ts", "**/queue-*.spec.ts"];
+// Game specs that restart or replace a socket server (e2e/specs/game/serial/**) run alone, after every other project:
+// a socket that boots restores every live game of the shared database (fixtures/socket-server.ts). Locally,
+// `--project=game-serial --no-deps` runs them without the rest.
+const SERIAL_GAME_SPECS = ["**/game/serial/**/*.spec.ts"];
 const PROD_GUARD_SPEC = "**/prod-guard.spec.ts";
 const FLAGS_OFF_SPEC = "**/flags-off.spec.ts";
 
@@ -138,20 +147,21 @@ const sinkServer = {
   timeout: 15_000,
 };
 
-/** The local socket server; apps/web-socket/.env holds production values, so the origins are set here. */
-const socketServer = (webAppUrl: string) => ({
-  command: "pnpm --filter web-socket dev",
-  port: 3002,
-  env: {
-    WEB_APP_URL: webAppUrl,
-    ALLOWED_ORIGINS: `http://localhost:3000,http://localhost:${FLAGS_OFF_PORT}`,
-    SENTRY_DSN: "",
-  },
+/**
+ * The local socket servers (phase-02 plan 12.6, e2e/fixtures/socket-server.ts): the app's :3002 (real timings,
+ * PROTOCOL_V1=on) and the fast fixture server :3102 (TIMING_PROFILE=fast, PROTOCOL_V1=off), both from source with an
+ * explicit environment (APP_ENV=test, local origins, the local PostHog sink, the dev or Docker database; never
+ * apps/web-socket/.env). The restartable :3103 is spawned by the `restartable` fixture in the game-serial project.
+ */
+const socketServer = (kind: "main" | "fast", webAppUrl: string) => ({
+  command: SOCKET_SERVER_COMMAND,
+  url: `http://127.0.0.1:${kind === "main" ? 3002 : 3102}/ready`,
+  env: socketServerEnv(kind, { webAppUrl, extraOrigins: [`http://localhost:${FLAGS_OFF_PORT}`], sinkPort: SINK_PORT }),
   reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
-  timeout: 30_000,
+  timeout: 90_000,
 });
 
-const localServers: NonNullable<PlaywrightTestConfig["webServer"]> = [
+const localServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
   {
     command: process.env.CI ? "pnpm start" : "pnpm dev",
     port: 3000,
@@ -159,13 +169,14 @@ const localServers: NonNullable<PlaywrightTestConfig["webServer"]> = [
     reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
     timeout: process.env.CI ? 30_000 : 60_000,
   },
-  socketServer("http://localhost:3000"),
+  socketServer("main", "http://localhost:3000"),
+  socketServer("fast", "http://localhost:3000"),
   sinkServer,
 ];
 
 // flags-off: the same test-build env plus the override, in its own dist dir (a `next dev` and a
 // `next build` must not share `.next` with the main server). CI has no build for it, so it builds.
-const flagsOffServers: NonNullable<PlaywrightTestConfig["webServer"]> = [
+const flagsOffServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
   {
     command: process.env.CI
       ? `pnpm build && pnpm start --port ${FLAGS_OFF_PORT}`
@@ -179,7 +190,7 @@ const flagsOffServers: NonNullable<PlaywrightTestConfig["webServer"]> = [
     reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
     timeout: process.env.CI ? 600_000 : 120_000,
   },
-  socketServer(`http://localhost:${FLAGS_OFF_PORT}`),
+  socketServer("main", `http://localhost:${FLAGS_OFF_PORT}`),
   sinkServer,
 ];
 
@@ -230,7 +241,7 @@ export default defineConfig<ConsoleGuardOptions & TelemetryOptions>({
       : [
           {
             name: "chromium",
-            testIgnore: [...QUEUE_SPECS, PROD_GUARD_SPEC, FLAGS_OFF_SPEC],
+            testIgnore: [...QUEUE_SPECS, ...SERIAL_GAME_SPECS, PROD_GUARD_SPEC, FLAGS_OFF_SPEC],
             use: { ...devices["Desktop Chrome"] },
           },
           {
@@ -245,13 +256,25 @@ export default defineConfig<ConsoleGuardOptions & TelemetryOptions>({
             ? [
                 {
                   name: "webkit-iphone",
-                  testIgnore: [...QUEUE_SPECS, PROD_GUARD_SPEC, FLAGS_OFF_SPEC],
+                  testIgnore: [...QUEUE_SPECS, ...SERIAL_GAME_SPECS, PROD_GUARD_SPEC, FLAGS_OFF_SPEC],
                   grep: grepFor(["@smoke\\b"]),
                   grepInvert: grepInvert.length ? grepInvert : undefined,
                   use: { ...devices["iPhone 15"] },
                 },
               ]
             : []),
+          {
+            name: "game-serial",
+            testMatch: SERIAL_GAME_SPECS,
+            workers: 1,
+            fullyParallel: false,
+            dependencies: [
+              "chromium",
+              "play-queue",
+              ...(process.env.CI || process.env.E2E_WEBKIT === "1" ? ["webkit-iphone"] : []),
+            ],
+            use: { ...devices["Desktop Chrome"] },
+          },
         ],
-  webServer: PROD_GUARD ? prodGuardServer : BASE_URL ? undefined : FLAGS_OFF ? flagsOffServers : localServers,
+  webServer: PROD_GUARD ? prodGuardServer : BASE_URL ? undefined : FLAGS_OFF ? flagsOffServers() : localServers(),
 });

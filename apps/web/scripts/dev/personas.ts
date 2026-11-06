@@ -33,7 +33,7 @@ import {
   assertUserTripwire,
   hostOf,
   resolveEnvVar,
-} from "../../prisma/seed-guards";
+} from "@repo/db/seed-guards";
 
 export const PERSONAS: Record<string, Persona> = { ...P01_PERSONAS };
 
@@ -130,7 +130,7 @@ export async function resetPersona(target: string, personaName: string, opts: Re
     return { email, persona: persona.name, row, applied: false };
   }
 
-  const { PrismaClient } = await import("../../app/generated/prisma/index.js");
+  const { PrismaClient } = await import("@repo/db");
   const db = new PrismaClient({ datasourceUrl: url });
   try {
     const [users] = await db.$queryRaw<Array<{ count: bigint }>>`SELECT count(*)::bigint AS count FROM users`;

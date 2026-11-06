@@ -3,17 +3,19 @@
 import type { EndpointDef } from "../endpoint";
 import { billingEndpoints } from "./billing";
 import { catalogEndpoints } from "./catalog";
+import { gamesEndpoints } from "./games";
 import { meEndpoints } from "./me";
 import { realtimeEndpoints } from "./realtime";
 import { systemEndpoints } from "./system";
 import { webhookEndpoints } from "./webhooks";
 
-export { billingEndpoints, catalogEndpoints, meEndpoints, realtimeEndpoints, systemEndpoints, webhookEndpoints };
+export { billingEndpoints, catalogEndpoints, gamesEndpoints, meEndpoints, realtimeEndpoints, systemEndpoints, webhookEndpoints };
 
 /** Areas by name, as the OpenAPI generator tags them. Keys match the file names in this directory. */
 export const REGISTRY_AREAS = {
   billing: billingEndpoints,
   catalog: catalogEndpoints,
+  games: gamesEndpoints,
   me: meEndpoints,
   realtime: realtimeEndpoints,
   system: systemEndpoints,

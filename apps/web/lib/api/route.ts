@@ -186,7 +186,8 @@ function upgradeUrlFor(reason: SubscriptionReason): string {
   return reason === "trial_available" ? "/pricing?reason=required" : "/pricing?reason=ended";
 }
 
-function memberDenied(reason: SubscriptionReason): ApiError {
+/** The 402 `subscription_required` error route() answers for `auth: "member"`; handlers with their own rule reuse it. */
+export function memberDenied(reason: SubscriptionReason): ApiError {
   const upgradeUrl = upgradeUrlFor(reason);
   return new ApiError("subscription_required", { details: { reason, upgradeUrl } });
 }

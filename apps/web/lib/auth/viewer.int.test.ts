@@ -8,7 +8,7 @@
  */
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { PrismaClient } from "../../app/generated/prisma";
+import { PrismaClient } from "@repo/db";
 import { VIEWER_COLUMNS, queryViewerRecord, readViewerRecordById, toViewer, type ViewerDb } from "./viewer";
 
 const url = process.env.TEST_DATABASE_URL;

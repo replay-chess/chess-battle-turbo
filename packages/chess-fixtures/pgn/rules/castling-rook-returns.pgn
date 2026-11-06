@@ -1,0 +1,6 @@
+[Event "Castling rights: a rook that moved and came back has lost its right"]
+[Result "*"]
+[RcExpect "none"]
+[RcCastling "Qk"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. Rg1 Rb8 5. Rh1 Ra8 *

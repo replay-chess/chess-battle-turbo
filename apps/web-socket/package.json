@@ -2,28 +2,38 @@
   "name": "web-socket",
   "version": "1.0.0",
   "description": "Chess WebSocket server for real-time game communication",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
   "scripts": {
-    "dev": "tsx watch index.ts",
-    "build": "tsc -p tsconfig.production.json",
-    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "build": "node scripts/build.mjs",
+    "start": "node dist/index.cjs",
     "test": "tsx --test \"test/**/*.test.ts\"",
-    "test:int": "tsx --test \"test/**/*.int.test.ts\""
+    "test:int": "tsx --test \"test/**/*.int.test.ts\"",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src test --ignore-pattern 'src/v1/**' --ignore-pattern 'test/v1/**' --max-warnings 0"
   },
   "private": true,
   "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^24.8.1",
+    "esbuild": "0.25.11",
     "socket.io-client": "4.8.1",
     "tsx": "4.20.6",
     "typescript": "^5.7.2"
   },
   "dependencies": {
+    "@repo/contracts": "workspace:*",
+    "@repo/db": "workspace:*",
+    "@repo/game-core": "workspace:*",
     "@sentry/node": "^10.38.0",
     "@types/express": "^5.0.3",
     "chess.js": "^1.4.0",
     "dotenv": "^17.3.1",
     "express": "4",
-    "socket.io": "^4.8.1"
-  }
+    "posthog-node": "5.56.4",
+    "socket.io": "4.8.1",
+    "zod": "4.1.12"
+  },
+  "type": "module"
 }

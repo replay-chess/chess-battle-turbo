@@ -128,6 +128,21 @@ function parsePgnFromMoveNumber(
   }
 }
 
+/** UCI moves (space-separated, from startingFen) → chess.js Move objects; stops at the first illegal move. */
+function movesFromUci(startingFen: string, moves: string): Move[] {
+  const out: Move[] = [];
+  try {
+    const chess = new Chess(startingFen);
+    for (const uci of moves.trim().split(/\s+/).filter(Boolean)) {
+      const move = chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), ...(uci.length > 4 ? { promotion: uci[4] } : {}) });
+      out.push(move);
+    }
+  } catch (error) {
+    logger.warn("analysis adapter: moves did not replay", { error: error instanceof Error ? error.message : String(error) });
+  }
+  return out;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ gameId: string }> }
@@ -153,6 +168,11 @@ export async function GET(
         opponentId: true,
         chessPositionId: true,
         openingId: true,
+        // P2 play columns (phase-02 plan §3.2 adapter; deleted in P3): the move list and fixed colours
+        moves: true,
+        whitePlayerId: true,
+        blackPlayerId: true,
+        outcome: true,
       },
     });
 
@@ -165,7 +185,10 @@ export async function GET(
 
     // Only the two players (or an admin) can open a game's review.
     const isParticipant =
-      caller.id === game.creatorId || caller.id === game.opponentId;
+      caller.id === game.creatorId ||
+      caller.id === game.opponentId ||
+      caller.id === game.whitePlayerId ||
+      caller.id === game.blackPlayerId;
     if (!isParticipant && caller.role !== "ADMIN") {
       return NextResponse.json(
         { success: false, error: "Game not found" },
@@ -195,12 +218,17 @@ export async function GET(
       };
     } | null;
 
-    const userMoves = gameData?.moveHistory || [];
+    // Games written by P2 (socket v2, bot games via POST /api/games) store `moves` (UCI from startingFen) instead of
+    // gameData.moveHistory: replay them into chess.js Move objects, the shape the analysis page reads.
+    const userMoves = game.moves ? movesFromUci(game.startingFen, game.moves) : gameData?.moveHistory || [];
     // Determine user color: bot games store the human's colour in gameData.playerColor; other
     // games store the creator's colour in gameData.creatorColor, fixed at creation (H6 #11,
     // AS F-04). Games from before that field: the creator played White.
     let userColor: "w" | "b" = "w";
-    if (gameData?.playerColor === "black" || gameData?.playerColor === "b") {
+    if (currentUserId && (game.whitePlayerId === currentUserId || game.blackPlayerId === currentUserId)) {
+      // P2 rows fix the colours in whitePlayerId/blackPlayerId (B2): no guessing.
+      userColor = game.whitePlayerId === currentUserId ? "w" : "b";
+    } else if (gameData?.playerColor === "black" || gameData?.playerColor === "b") {
       userColor = "b";
     } else if (gameData?.playerColor === "white" || gameData?.playerColor === "w") {
       userColor = "w";
@@ -268,7 +296,8 @@ export async function GET(
 
     // If game has an opening, fetch explanation from Opening table
     // Prefer openingId FK (fast PK lookup), fall back to gameData referenceId for backward compat
-    if (!explanation) {
+    let openingRow: { referenceId: string; name: string; eco: string } | null = null;
+    if (!explanation || (game.openingId && !gameData?.openingInfo)) {
       const openingWhere = game.openingId
         ? { id: game.openingId }
         : gameData?.openingInfo?.referenceId
@@ -279,21 +308,30 @@ export async function GET(
         const opening = await prisma.opening.findUnique({
           where: openingWhere,
           select: {
+            referenceId: true,
+            name: true,
+            eco: true,
             explanation: true,
             explanationAudioUrl: true,
           },
         });
 
         if (opening) {
-          explanation = opening.explanation;
-          explanationAudioUrl = opening.explanationAudioUrl;
+          openingRow = { referenceId: opening.referenceId, name: opening.name, eco: opening.eco };
+          if (!explanation) {
+            explanation = opening.explanation;
+            explanationAudioUrl = opening.explanationAudioUrl;
+          }
         }
       }
     }
 
     // 4. Determine user game outcome
     let userGameOutcome: "win" | "loss" | "draw" | null = null;
-    if (currentUserId && game.result) {
+    if (currentUserId && game.outcome && (game.whitePlayerId === currentUserId || game.blackPlayerId === currentUserId)) {
+      userGameOutcome =
+        game.outcome === "DRAW" ? "draw" : game.outcome === "NONE" ? null : (game.outcome === "WHITE") === (userColor === "w") ? "win" : "loss";
+    } else if (currentUserId && game.result) {
       const isCreator = currentUserId === game.creatorId;
       userGameOutcome = getUserGameOutcome(game.result, isCreator);
     }
@@ -302,11 +340,11 @@ export async function GET(
     const legendGameResult = parseResultFromMetadata(positionGameMetadata);
 
     // 5b. Extract opening info from gameData
-    const openingName = gameData?.openingInfo?.name || gameData?.positionInfo?.openingName || null;
-    const openingEco = gameData?.openingInfo?.eco || gameData?.positionInfo?.openingEco || null;
+    const openingName = gameData?.openingInfo?.name || gameData?.positionInfo?.openingName || openingRow?.name || null;
+    const openingEco = gameData?.openingInfo?.eco || gameData?.positionInfo?.openingEco || openingRow?.eco || null;
 
     // 5c. Extract position referenceIds for sharing
-    const openingReferenceId = gameData?.openingInfo?.referenceId ?? null;
+    const openingReferenceId = gameData?.openingInfo?.referenceId ?? openingRow?.referenceId ?? null;
 
     // 6. Build response
     const analysisData: AnalysisData = {

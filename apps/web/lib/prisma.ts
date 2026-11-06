@@ -1,10 +1,9 @@
 import * as Sentry from "@sentry/nextjs";
-import { PrismaClient } from "../app/generated/prisma";
+import { cachedPrismaClient, createPrismaClient, type PrismaClient } from "@repo/db";
 import { isWriteOperation, recordQuery } from "./api/timing";
 
-// PrismaClient is attached to the `global` object in development to prevent
-// exhausting your database connection limit.
-// Learn more: https://pris.ly/d/help/next-js-best-practices
+// The schema, migrations and client live in @repo/db (phase-02 plan 6.9). The client is attached to the global
+// object in development (cachedPrismaClient) so hot reloads do not exhaust the connection limit.
 
 /**
  * Query extension (plan §7.2 steps 8 and 11, OPT §9.1): every statement is timed into the request's
@@ -43,14 +42,4 @@ function withTiming(base: PrismaClient): PrismaClient {
 
 // `prismaRc` (not `prisma`): a dev server that hot-reloads this file picks up the timing extension instead of
 // reusing a client created before it existed.
-const globalForPrisma = global as unknown as { prismaRc?: PrismaClient };
-
-export const prisma =
-  globalForPrisma.prismaRc ||
-  withTiming(
-    new PrismaClient({
-      log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-    }),
-  );
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prismaRc = prisma;
+export const prisma: PrismaClient = cachedPrismaClient("prismaRc", () => withTiming(createPrismaClient()));

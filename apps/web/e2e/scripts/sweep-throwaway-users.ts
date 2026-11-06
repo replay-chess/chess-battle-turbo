@@ -85,7 +85,7 @@ export async function sweepThrowawayUsers(opts: { dryRun?: boolean; log?: (l: st
 
   let db: { user: { deleteMany(args: { where: { email: string } }): Promise<{ count: number }> }; $disconnect(): Promise<void> } | null = null;
   if (!opts.dryRun && doomed.length && process.env.DATABASE_URL) {
-    const { PrismaClient } = await import("../../app/generated/prisma/index.js");
+    const { PrismaClient } = await import("@repo/db");
     db = new PrismaClient();
   }
   try {

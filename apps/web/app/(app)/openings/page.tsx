@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Prisma } from "@/app/generated/prisma";
+import { Prisma } from "@repo/db";
 import { prisma } from "@/lib/prisma";
 import { Navbar } from "@/app/components/Navbar";
 import { Footer } from "@/app/components/Footer";

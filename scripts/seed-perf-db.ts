@@ -1,4 +1,4 @@
-import { PrismaClient } from "../apps/web/app/generated/prisma";
+import { PrismaClient } from "../packages/db/generated/prisma";
 
 const PROD_URL = process.env.PROD_DATABASE_URL!;
 const PERF_URL = process.env.PERF_DATABASE_URL!;

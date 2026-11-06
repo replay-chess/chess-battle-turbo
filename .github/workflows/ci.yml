@@ -4,8 +4,10 @@
 #              Prisma drift gate, OpenAPI diff, test-mode build, bundle budget (blocking), OWNERS report
 # integration  Docker Postgres: migrate deploy + seeds, then every *.int.test.ts and the Postgres part of
 #              lib/webhooks/record.test.ts
-# e2e-smoke    paywall on, test hooks on, local socket from source with SOCKET_AUTH_REQUIRED=true:
-#              the authz walker over HTTP, then Playwright @smoke on chromium + webkit-iphone
+# e2e-smoke    paywall on, test hooks on, the v2 socket servers from source (:3002 app socket, :3102 fast fixture,
+#              :3103 restartable; e2e/fixtures/socket-server.ts) with per-run keys: the authz walker over HTTP,
+#              then Playwright @smoke on chromium + webkit-iphone + game-serial (P2 plan 12.6)
+# devices-game the P2 game one-viewport suite on P1's PR device tier (4 projects, plan 12.7)
 #
 # CI never touches Neon: every database here is a service container. `main` has its own guard
 # (main-guard.yml); this workflow does not run there, because main has none of the new packages until P13.
@@ -63,36 +65,39 @@ jobs:
           --log-opts=--all --redact --no-banner
           --config /repo/.gitleaks.toml --baseline-path /repo/.gitleaks-baseline.json
 
-      - run: pnpm --filter web exec prisma generate
+      - run: pnpm --filter @repo/db generate
 
-      - name: Type check (web, contracts, analytics)
+      - name: Type check (web, socket and the packages)
         run: |
           pnpm --filter web check-types
+          pnpm --filter web-socket check-types
           pnpm --filter @repo/contracts check-types
           pnpm --filter @repo/analytics check-types
+          pnpm --filter @repo/db check-types
+          pnpm --filter @repo/game-core check-types
+          pnpm --filter @repo/chess-fixtures check-types
 
       - name: Orphan-test guard
         run: node scripts/qa/check-test-globs.mjs
 
-      - name: Unit tests (web, contracts, analytics, socket)
+      - name: Unit tests (web, socket and the packages)
         run: |
           pnpm --filter web test:unit
           pnpm --filter @repo/contracts test
           pnpm --filter @repo/analytics test
+          pnpm --filter @repo/db test
+          pnpm --filter @repo/game-core test
+          pnpm --filter @repo/chess-fixtures test
           pnpm --filter web-socket test
 
       - name: Lint delta (warnings ≤ baseline, 0 errors; SPEC D19)
         run: node apps/web/scripts/lint-delta.mjs --all
 
       - name: Prisma drift gate (migrations == schema.prisma)
-        # ADB §4.3 step 6. P2 replaces this step with scripts/db/check-drift.ts + packages/db/prisma/protected-indexes.txt,
-        # because a raw diff fails once partial indexes exist (CC 1.7). The shadow database is reset by Prisma.
-        run: >-
-          pnpm --filter web exec prisma migrate diff
-          --from-migrations prisma/migrations
-          --to-schema-datamodel prisma/schema.prisma
-          --shadow-database-url postgresql://postgres:shadow@localhost:5432/postgres
-          --exit-code
+        # ADB §4.3 step 6, P2 plan 6.5 step 3: check-drift.ts replays the migrations into the (reset) shadow database
+        # and fails on any difference except DROP INDEX of a name in packages/db/prisma/protected-indexes.txt and the
+        # storage-parameter lines Prisma does not model (a raw --exit-code diff cannot tell those from drift, CC 1.7).
+        run: pnpm tsx scripts/db/check-drift.ts --shadow-database-url postgresql://postgres:shadow@localhost:5432/postgres
 
       - name: OpenAPI is regenerated
         run: |
@@ -162,14 +167,27 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter web exec prisma generate
+      - run: pnpm --filter @repo/db generate
       - name: Migrate and seed
-        # prisma/seed-content.ts refuses every host but the Neon dev endpoint (prisma/seed-guards.ts), so CI
+        # packages/db/prisma/seed-content.ts refuses every host but the Neon dev endpoint (seed-guards.ts), so CI
         # databases get seed.ts and opening-seed.ts only (1Q·1 open issue 7).
         run: |
-          pnpm --filter web exec prisma migrate deploy
-          pnpm --filter web prisma:seed
-          pnpm --filter web prisma:seed:openings
+          pnpm --filter @repo/db migrate:deploy
+          pnpm --filter @repo/db seed
+          pnpm --filter @repo/db seed:openings
+      - name: Realtime role for the socket and @repo/db suites (packages/db/sql/roles.sql)
+        # P2 plan 12.4 / WP-D: the socket's int tests run as replay_realtime (column grants, no gameData) when
+        # TEST_REALTIME_DATABASE_URL is set; without it the DB suites of apps/web-socket skip.
+        run: |
+          command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          RT_PW=$(openssl rand -hex 16)
+          echo "::add-mask::$RT_PW"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v rt_password="$RT_PW" -f packages/db/sql/roles.sql
+          echo "TEST_REALTIME_DATABASE_URL=postgresql://replay_realtime:$RT_PW@localhost:5432/replay" >> "$GITHUB_ENV"
+      - name: Hot-query gate (index existence + EXPLAIN, phase-02 plan 9.2)
+        # docs/indexes.json names must exist; the P2 hot queries must not Seq Scan games/game_players or Sort
+        # game_players (planned with seqscan/sort off, so a tiny CI database still proves the index path).
+        run: pnpm tsx scripts/explain-hot-queries.ts
       - name: Integration tests (every *.int.test.ts in every package)
         run: pnpm -r test:int
       - name: Postgres part of the webhook claim test
@@ -199,10 +217,10 @@ jobs:
       NEXT_PUBLIC_SENTRY_DSN: ""
       SENTRY_DSN: ""
       NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
-      # The local socket server (Playwright webServer, from source) requires the signed handshake token.
-      SOCKET_AUTH_REQUIRED: "true"
+      # The v2 socket servers (Playwright webServer + the restartable fixture) share SOCKET_TOKEN_SECRET and
+      # INTERNAL_API_SECRET with the web app; both are random per run (below), so no secret is needed.
       NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:3002
-      INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
+      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on
       E2E_TEST_TOKEN: ${{ secrets.E2E_TEST_TOKEN }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
@@ -262,12 +280,27 @@ jobs:
           echo "::add-mask::$clerk"
           echo "DODO_PAYMENTS_WEBHOOK_KEY=$dodo" >> "$GITHUB_ENV"
           echo "CLERK_WEBHOOK_SIGNING_SECRET=$clerk" >> "$GITHUB_ENV"
+      - name: Random socket keys for this run (web ↔ socket token and HMAC rings)
+        run: |
+          tok="d1:$(openssl rand -base64 32)"
+          int="web:$(openssl rand -base64 32)"
+          echo "::add-mask::$tok"
+          echo "::add-mask::$int"
+          echo "SOCKET_TOKEN_SECRET=$tok" >> "$GITHUB_ENV"
+          echo "INTERNAL_API_SECRET=$int" >> "$GITHUB_ENV"
       - name: Migrate and seed the Docker database
         run: |
-          pnpm --filter web exec prisma generate
-          pnpm --filter web exec prisma migrate deploy
-          pnpm --filter web prisma:seed
-          pnpm --filter web prisma:seed:openings
+          pnpm --filter @repo/db generate
+          pnpm --filter @repo/db migrate:deploy
+          pnpm --filter @repo/db seed
+          pnpm --filter @repo/db seed:openings
+      - name: Socket role (packages/db/sql/roles.sql), as on OCI
+        run: |
+          command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          RT_PW=$(openssl rand -hex 16)
+          echo "::add-mask::$RT_PW"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v rt_password="$RT_PW" -f packages/db/sql/roles.sql
+          echo "E2E_SOCKET_DATABASE_URL=postgresql://replay_realtime:$RT_PW@localhost:5432/replay" >> "$GITHUB_ENV"
       - name: Build (test app env, hooks on, sinks on)
         run: pnpm --filter web build
       - name: Authz walker over HTTP (signed out, against next start)
@@ -285,10 +318,11 @@ jobs:
           pkill -f "next-server" 2>/dev/null || true
           pkill -f "next start" 2>/dev/null || true
           for _ in $(seq 1 20); do curl -fsS -o /dev/null http://localhost:3000 2>/dev/null || break; sleep 1; done
-      - name: Playwright @smoke (chromium + webkit-iphone; quarantine excluded)
+      - name: Playwright @smoke (chromium + webkit-iphone + game-serial; quarantine excluded)
         # Global setup provisions the users rows, entitles A–P and runs the fixture health check. The config
-        # starts `pnpm start`, the socket server from source and the PostHog sink (POSTHOG_HOST above).
-        run: pnpm --filter web exec playwright test --project=chromium --project=webkit-iphone --grep @smoke
+        # starts `pnpm start`, the :3002 and :3102 socket servers from source and the PostHog sink (POSTHOG_HOST
+        # above); game-serial (restart-resume) runs last with its own restartable :3103 server.
+        run: pnpm --filter web exec playwright test --project=chromium --project=webkit-iphone --project=game-serial --grep @smoke
       - if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -297,5 +331,44 @@ jobs:
             apps/web/playwright-report/
             apps/web/test-results/results.json
             next-start.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  devices-game:
+    # P2 plan 12.7 tiering: the game's one-viewport suite on the 4 PR projects (desktop-1440@100, desktop-1280@125,
+    # iphone@100, ipad-portrait@100) against a CI-local production build; nightly runs all 40 projects.
+    needs: verify
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 40
+    env:
+      CI: "1"
+      DEVICES_TIER: pr
+      NEXT_PUBLIC_APP_ENV: test
+      NEXT_PUBLIC_POSTHOG_KEY: ""
+      NEXT_PUBLIC_SENTRY_DSN: ""
+      SENTRY_DSN: ""
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/none
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/none
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
+      CLERK_SECRET_KEY: sk_test_ci_dummy_not_a_real_key
+      NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:3002
+      DODO_PAYMENTS_API_KEY: ci-dummy-dodo-key
+      DODO_PAYMENTS_ENVIRONMENT: test_mode
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium webkit
+      - run: pnpm --filter @repo/db generate
+      - name: Game one-viewport (/dev/ui/game, builds .next-devices, serves :3100)
+        run: pnpm --filter web exec playwright test -c e2e/devices/game/game.config.ts one-viewport
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: devices-game-report
+          path: apps/web/playwright-report-devices/
           retention-days: 14
           if-no-files-found: ignore

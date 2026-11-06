@@ -230,12 +230,12 @@ describe("webhookProcessedProps", () => {
 const url = process.env.TEST_DATABASE_URL;
 
 describe("webhook_events claim (Postgres)", { skip: url ? false : "TEST_DATABASE_URL not set" }, () => {
-  let db: import("../../app/generated/prisma").PrismaClient;
+  let db: import("@repo/db").PrismaClient;
   let sql: WebhookSql;
   const run = `int-${Date.now().toString(36)}`;
 
   before(async () => {
-    const { PrismaClient } = await import("../../app/generated/prisma");
+    const { PrismaClient } = await import("@repo/db");
     db = new PrismaClient({ datasourceUrl: url });
     sql = {
       query: (s, ...p) => db.$queryRawUnsafe<unknown[]>(s, ...p),

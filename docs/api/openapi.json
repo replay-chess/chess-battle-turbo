@@ -25,6 +25,25 @@
         ],
         "type": "string"
       },
+      "Assists": {
+        "properties": {
+          "hints": {
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "undos": {
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hints",
+          "undos"
+        ],
+        "type": "object"
+      },
       "BillingRefreshData": {
         "properties": {
           "entitlement": {
@@ -52,10 +71,149 @@
         ],
         "type": "object"
       },
+      "CheckpointBody": {
+        "properties": {
+          "assists": {
+            "$ref": "#/components/schemas/Assists"
+          },
+          "clocksMs": {
+            "items": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 400,
+            "type": "array"
+          },
+          "moves": {
+            "items": {
+              "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+              "type": "string"
+            },
+            "maxItems": 400,
+            "type": "array"
+          },
+          "rev": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rev",
+          "moves",
+          "clocksMs",
+          "assists"
+        ],
+        "type": "object"
+      },
       "Color": {
         "enum": [
           "w",
           "b"
+        ],
+        "type": "string"
+      },
+      "CompleteBody": {
+        "properties": {
+          "assists": {
+            "$ref": "#/components/schemas/Assists"
+          },
+          "clocksMs": {
+            "items": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 400,
+            "type": "array"
+          },
+          "endedAtClient": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "method": {
+            "$ref": "#/components/schemas/EndMethod"
+          },
+          "moves": {
+            "items": {
+              "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+              "type": "string"
+            },
+            "maxItems": 400,
+            "type": "array"
+          },
+          "result": {
+            "$ref": "#/components/schemas/CompleteResult"
+          },
+          "rev": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rev",
+          "moves",
+          "clocksMs",
+          "result",
+          "method",
+          "assists",
+          "endedAtClient"
+        ],
+        "type": "object"
+      },
+      "CompleteResponse": {
+        "properties": {
+          "analysis": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "none"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "type": "object"
+          },
+          "method": {
+            "$ref": "#/components/schemas/EndMethod"
+          },
+          "outcome": {
+            "enum": [
+              "WHITE",
+              "BLACK",
+              "DRAW",
+              "NONE"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "COMPLETED",
+              "ABORTED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "outcome",
+          "method",
+          "analysis"
+        ],
+        "type": "object"
+      },
+      "CompleteResult": {
+        "enum": [
+          "w",
+          "b",
+          "draw",
+          "aborted"
         ],
         "type": "string"
       },
@@ -108,6 +266,22 @@
           "ms"
         ],
         "type": "object"
+      },
+      "EndMethod": {
+        "enum": [
+          "checkmate",
+          "resignation",
+          "timeout",
+          "timeout_vs_insufficient",
+          "stalemate",
+          "threefold",
+          "fifty_move",
+          "insufficient_material",
+          "agreement",
+          "abandoned",
+          "aborted"
+        ],
+        "type": "string"
       },
       "Entitlement": {
         "properties": {
@@ -243,7 +417,11 @@
               "upstream_unavailable",
               "maintenance",
               "not_configured",
-              "unavailable"
+              "unavailable",
+              "in_flight",
+              "idempotency_key_reused",
+              "illegal_position",
+              "illegal_moves"
             ],
             "type": "string"
           },
@@ -292,6 +470,1665 @@
           "error"
         ],
         "type": "object"
+      },
+      "GameCreateBody": {
+        "properties": {
+          "botElo": {
+            "maximum": 2200,
+            "minimum": 400,
+            "multipleOf": 100,
+            "type": "integer"
+          },
+          "color": {
+            "default": "auto",
+            "enum": [
+              "w",
+              "b",
+              "random",
+              "auto"
+            ],
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "BOT",
+              "LEGEND_BOT"
+            ],
+            "type": "string"
+          },
+          "parentGameRef": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "reason": {
+            "default": "new",
+            "enum": [
+              "new",
+              "rematch",
+              "restart"
+            ],
+            "type": "string"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "properties": {
+                  "kind": {
+                    "const": "initial",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "kind": {
+                    "const": "random_position",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "kind": {
+                    "const": "legend",
+                    "type": "string"
+                  },
+                  "legendRef": {
+                    "pattern": "^c[a-z0-9]{20,31}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "legendRef"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "kind": {
+                    "const": "position",
+                    "type": "string"
+                  },
+                  "positionRef": {
+                    "pattern": "^c[a-z0-9]{20,31}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "positionRef"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "kind": {
+                    "const": "opening",
+                    "type": "string"
+                  },
+                  "openingRef": {
+                    "pattern": "^c[a-z0-9]{20,31}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "openingRef"
+                ],
+                "type": "object"
+              }
+            ],
+            "default": {
+              "kind": "random_position"
+            }
+          },
+          "tc": {
+            "anyOf": [
+              {
+                "properties": {
+                  "incrementSeconds": {
+                    "maximum": 180,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "initialSeconds": {
+                    "maximum": 10800,
+                    "minimum": 15,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "initialSeconds",
+                  "incrementSeconds"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": {
+              "incrementSeconds": 0,
+              "initialSeconds": 600
+            }
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
+      },
+      "GameCreateResponse": {
+        "properties": {
+          "game": {
+            "$ref": "#/components/schemas/GameSnapshot"
+          }
+        },
+        "required": [
+          "game"
+        ],
+        "type": "object"
+      },
+      "GameDetailResponse": {
+        "properties": {
+          "snapshot": {
+            "$ref": "#/components/schemas/GameSnapshot"
+          }
+        },
+        "required": [
+          "snapshot"
+        ],
+        "type": "object"
+      },
+      "GameRefParams": {
+        "properties": {
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref"
+        ],
+        "type": "object"
+      },
+      "GameSnapshot": {
+        "properties": {
+          "bot": {
+            "properties": {
+              "elo": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "maxLength": 40,
+                "type": "string"
+              }
+            },
+            "required": [
+              "elo",
+              "name"
+            ],
+            "type": "object"
+          },
+          "canOfferAtPly": {
+            "properties": {
+              "b": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "w": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "w",
+              "b"
+            ],
+            "type": "object"
+          },
+          "clocks": {
+            "properties": {
+              "at": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "b": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "run": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Color"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "w": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "w",
+              "b",
+              "run",
+              "at"
+            ],
+            "type": "object"
+          },
+          "clocksMs": {
+            "items": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 1200,
+            "type": "array"
+          },
+          "drawOffer": {
+            "anyOf": [
+              {
+                "properties": {
+                  "by": {
+                    "$ref": "#/components/schemas/Color"
+                  },
+                  "ply": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "by",
+                  "ply"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "firstMove": {
+            "anyOf": [
+              {
+                "properties": {
+                  "deadlineAt": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "side": {
+                    "$ref": "#/components/schemas/Color"
+                  }
+                },
+                "required": [
+                  "side",
+                  "deadlineAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "frozen": {
+            "anyOf": [
+              {
+                "properties": {
+                  "reason": {
+                    "const": "restart",
+                    "type": "string"
+                  },
+                  "since": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "since",
+                  "reason"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "header": {
+            "properties": {
+              "left": {
+                "maxLength": 160,
+                "type": "string"
+              },
+              "right": {
+                "maxLength": 80,
+                "type": "string"
+              }
+            },
+            "required": [
+              "left",
+              "right"
+            ],
+            "type": "object"
+          },
+          "inCheck": {
+            "type": "boolean"
+          },
+          "mode": {
+            "enum": [
+              "BOT",
+              "FRIEND",
+              "ONLINE",
+              "TOURNAMENT"
+            ],
+            "type": "string"
+          },
+          "moves": {
+            "maxLength": 7200,
+            "pattern": "^(?:[a-h][1-8][a-h][1-8][qrbn]?(?: [a-h][1-8][a-h][1-8][qrbn]?)*)?$",
+            "type": "string"
+          },
+          "phase": {
+            "enum": [
+              "waiting",
+              "study",
+              "first_move",
+              "playing",
+              "ended"
+            ],
+            "type": "string"
+          },
+          "players": {
+            "properties": {
+              "b": {
+                "properties": {
+                  "avatarUrl": {
+                    "anyOf": [
+                      {
+                        "maxLength": 500,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "displayName": {
+                    "maxLength": 40,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "graceEndsAt": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "initials": {
+                    "maxLength": 3,
+                    "type": "string"
+                  },
+                  "isBot": {
+                    "type": "boolean"
+                  },
+                  "online": {
+                    "type": "boolean"
+                  },
+                  "rating": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "ready": {
+                    "type": "boolean"
+                  },
+                  "ref": {
+                    "anyOf": [
+                      {
+                        "pattern": "^c[a-z0-9]{20,31}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "ref",
+                  "displayName",
+                  "initials",
+                  "avatarUrl",
+                  "rating",
+                  "isBot",
+                  "online",
+                  "graceEndsAt"
+                ],
+                "type": "object"
+              },
+              "w": {
+                "properties": {
+                  "avatarUrl": {
+                    "anyOf": [
+                      {
+                        "maxLength": 500,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "displayName": {
+                    "maxLength": 40,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "graceEndsAt": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "initials": {
+                    "maxLength": 3,
+                    "type": "string"
+                  },
+                  "isBot": {
+                    "type": "boolean"
+                  },
+                  "online": {
+                    "type": "boolean"
+                  },
+                  "rating": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "ready": {
+                    "type": "boolean"
+                  },
+                  "ref": {
+                    "anyOf": [
+                      {
+                        "pattern": "^c[a-z0-9]{20,31}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "ref",
+                  "displayName",
+                  "initials",
+                  "avatarUrl",
+                  "rating",
+                  "isBot",
+                  "online",
+                  "graceEndsAt"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "w",
+              "b"
+            ],
+            "type": "object"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "properties": {
+                  "afterLabel": {
+                    "anyOf": [
+                      {
+                        "maxLength": 40,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "event": {
+                    "anyOf": [
+                      {
+                        "maxLength": 120,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "legendSide": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Color"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "name": {
+                    "maxLength": 120,
+                    "type": "string"
+                  },
+                  "sideToMove": {
+                    "$ref": "#/components/schemas/Color"
+                  },
+                  "year": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "event",
+                  "year",
+                  "sideToMove",
+                  "afterLabel",
+                  "legendSide"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prefix": {
+            "properties": {
+              "sans": {
+                "maxLength": 3200,
+                "type": "string"
+              },
+              "startMoveNo": {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "startsBlack": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "sans",
+              "startMoveNo",
+              "startsBlack"
+            ],
+            "type": "object"
+          },
+          "rated": {
+            "type": "boolean"
+          },
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "rematch": {
+            "anyOf": [
+              {
+                "properties": {
+                  "by": {
+                    "$ref": "#/components/schemas/Color"
+                  },
+                  "expiresAt": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "offersUsed": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "by",
+                  "expiresAt",
+                  "offersUsed"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rematchOf": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "properties": {
+                  "abortedBy": {
+                    "enum": [
+                      "w",
+                      "b",
+                      "timeout",
+                      "stale"
+                    ],
+                    "type": "string"
+                  },
+                  "endedAt": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "method": {
+                    "$ref": "#/components/schemas/EndMethod"
+                  },
+                  "ply": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "winner": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Color"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "winner",
+                  "method",
+                  "ply",
+                  "endedAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rev": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "seq": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "serverNow": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "spectators": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "startFen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "startPly": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GameStatusWire"
+          },
+          "study": {
+            "anyOf": [
+              {
+                "properties": {
+                  "endsAt": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "ready": {
+                    "properties": {
+                      "b": {
+                        "type": "boolean"
+                      },
+                      "w": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "w",
+                      "b"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "endsAt",
+                  "ready"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tc": {
+            "anyOf": [
+              {
+                "properties": {
+                  "incrementMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "initialMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "label": {
+                    "maxLength": 12,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "initialMs",
+                  "incrementMs",
+                  "label"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "timeClass": {
+            "enum": [
+              "bullet",
+              "blitz",
+              "rapid",
+              "classical",
+              "untimed"
+            ],
+            "type": "string"
+          },
+          "turn": {
+            "$ref": "#/components/schemas/Color"
+          },
+          "updatedAt": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "v": {
+            "const": 2,
+            "type": "number"
+          },
+          "watchable": {
+            "type": "boolean"
+          },
+          "you": {
+            "properties": {
+              "color": {
+                "$ref": "#/components/schemas/Color"
+              },
+              "role": {
+                "enum": [
+                  "player",
+                  "spectator"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "role"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "v",
+          "ref",
+          "seq",
+          "serverNow",
+          "mode",
+          "rated",
+          "timeClass",
+          "tc",
+          "header",
+          "position",
+          "startFen",
+          "startPly",
+          "prefix",
+          "moves",
+          "clocksMs",
+          "fen",
+          "turn",
+          "inCheck",
+          "phase",
+          "study",
+          "firstMove",
+          "clocks",
+          "frozen",
+          "players",
+          "you",
+          "drawOffer",
+          "canOfferAtPly",
+          "rematch",
+          "spectators",
+          "result",
+          "status",
+          "watchable",
+          "updatedAt",
+          "rev"
+        ],
+        "type": "object"
+      },
+      "GameState": {
+        "properties": {
+          "bot": {
+            "properties": {
+              "elo": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "maxLength": 40,
+                "type": "string"
+              }
+            },
+            "required": [
+              "elo",
+              "name"
+            ],
+            "type": "object"
+          },
+          "canOfferAtPly": {
+            "properties": {
+              "b": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "w": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "w",
+              "b"
+            ],
+            "type": "object"
+          },
+          "clocks": {
+            "properties": {
+              "at": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "b": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "run": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Color"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "w": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "w",
+              "b",
+              "run",
+              "at"
+            ],
+            "type": "object"
+          },
+          "clocksMs": {
+            "items": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 1200,
+            "type": "array"
+          },
+          "drawOffer": {
+            "anyOf": [
+              {
+                "properties": {
+                  "by": {
+                    "$ref": "#/components/schemas/Color"
+                  },
+                  "ply": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "by",
+                  "ply"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "firstMove": {
+            "anyOf": [
+              {
+                "properties": {
+                  "deadlineAt": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "side": {
+                    "$ref": "#/components/schemas/Color"
+                  }
+                },
+                "required": [
+                  "side",
+                  "deadlineAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "frozen": {
+            "anyOf": [
+              {
+                "properties": {
+                  "reason": {
+                    "const": "restart",
+                    "type": "string"
+                  },
+                  "since": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "since",
+                  "reason"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "header": {
+            "properties": {
+              "left": {
+                "maxLength": 160,
+                "type": "string"
+              },
+              "right": {
+                "maxLength": 80,
+                "type": "string"
+              }
+            },
+            "required": [
+              "left",
+              "right"
+            ],
+            "type": "object"
+          },
+          "inCheck": {
+            "type": "boolean"
+          },
+          "mode": {
+            "enum": [
+              "BOT",
+              "FRIEND",
+              "ONLINE",
+              "TOURNAMENT"
+            ],
+            "type": "string"
+          },
+          "moves": {
+            "maxLength": 7200,
+            "pattern": "^(?:[a-h][1-8][a-h][1-8][qrbn]?(?: [a-h][1-8][a-h][1-8][qrbn]?)*)?$",
+            "type": "string"
+          },
+          "phase": {
+            "enum": [
+              "waiting",
+              "study",
+              "first_move",
+              "playing",
+              "ended"
+            ],
+            "type": "string"
+          },
+          "players": {
+            "properties": {
+              "b": {
+                "properties": {
+                  "avatarUrl": {
+                    "anyOf": [
+                      {
+                        "maxLength": 500,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "displayName": {
+                    "maxLength": 40,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "graceEndsAt": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "initials": {
+                    "maxLength": 3,
+                    "type": "string"
+                  },
+                  "isBot": {
+                    "type": "boolean"
+                  },
+                  "online": {
+                    "type": "boolean"
+                  },
+                  "rating": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "ready": {
+                    "type": "boolean"
+                  },
+                  "ref": {
+                    "anyOf": [
+                      {
+                        "pattern": "^c[a-z0-9]{20,31}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "ref",
+                  "displayName",
+                  "initials",
+                  "avatarUrl",
+                  "rating",
+                  "isBot",
+                  "online",
+                  "graceEndsAt"
+                ],
+                "type": "object"
+              },
+              "w": {
+                "properties": {
+                  "avatarUrl": {
+                    "anyOf": [
+                      {
+                        "maxLength": 500,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "displayName": {
+                    "maxLength": 40,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "graceEndsAt": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "initials": {
+                    "maxLength": 3,
+                    "type": "string"
+                  },
+                  "isBot": {
+                    "type": "boolean"
+                  },
+                  "online": {
+                    "type": "boolean"
+                  },
+                  "rating": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "ready": {
+                    "type": "boolean"
+                  },
+                  "ref": {
+                    "anyOf": [
+                      {
+                        "pattern": "^c[a-z0-9]{20,31}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "ref",
+                  "displayName",
+                  "initials",
+                  "avatarUrl",
+                  "rating",
+                  "isBot",
+                  "online",
+                  "graceEndsAt"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "w",
+              "b"
+            ],
+            "type": "object"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "properties": {
+                  "afterLabel": {
+                    "anyOf": [
+                      {
+                        "maxLength": 40,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "event": {
+                    "anyOf": [
+                      {
+                        "maxLength": 120,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "legendSide": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Color"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "name": {
+                    "maxLength": 120,
+                    "type": "string"
+                  },
+                  "sideToMove": {
+                    "$ref": "#/components/schemas/Color"
+                  },
+                  "year": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "event",
+                  "year",
+                  "sideToMove",
+                  "afterLabel",
+                  "legendSide"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prefix": {
+            "properties": {
+              "sans": {
+                "maxLength": 3200,
+                "type": "string"
+              },
+              "startMoveNo": {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "startsBlack": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "sans",
+              "startMoveNo",
+              "startsBlack"
+            ],
+            "type": "object"
+          },
+          "rated": {
+            "type": "boolean"
+          },
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "rematch": {
+            "anyOf": [
+              {
+                "properties": {
+                  "by": {
+                    "$ref": "#/components/schemas/Color"
+                  },
+                  "expiresAt": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "offersUsed": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "by",
+                  "expiresAt",
+                  "offersUsed"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rematchOf": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "properties": {
+                  "abortedBy": {
+                    "enum": [
+                      "w",
+                      "b",
+                      "timeout",
+                      "stale"
+                    ],
+                    "type": "string"
+                  },
+                  "endedAt": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "method": {
+                    "$ref": "#/components/schemas/EndMethod"
+                  },
+                  "ply": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "winner": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Color"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "winner",
+                  "method",
+                  "ply",
+                  "endedAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seq": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "serverNow": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "spectators": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "startFen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "startPly": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "study": {
+            "anyOf": [
+              {
+                "properties": {
+                  "endsAt": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "ready": {
+                    "properties": {
+                      "b": {
+                        "type": "boolean"
+                      },
+                      "w": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "w",
+                      "b"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "endsAt",
+                  "ready"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tc": {
+            "anyOf": [
+              {
+                "properties": {
+                  "incrementMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "initialMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "label": {
+                    "maxLength": 12,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "initialMs",
+                  "incrementMs",
+                  "label"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "timeClass": {
+            "enum": [
+              "bullet",
+              "blitz",
+              "rapid",
+              "classical",
+              "untimed"
+            ],
+            "type": "string"
+          },
+          "turn": {
+            "$ref": "#/components/schemas/Color"
+          },
+          "v": {
+            "const": 2,
+            "type": "number"
+          },
+          "you": {
+            "properties": {
+              "color": {
+                "$ref": "#/components/schemas/Color"
+              },
+              "role": {
+                "enum": [
+                  "player",
+                  "spectator"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "role"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "v",
+          "ref",
+          "seq",
+          "serverNow",
+          "mode",
+          "rated",
+          "timeClass",
+          "tc",
+          "header",
+          "position",
+          "startFen",
+          "startPly",
+          "prefix",
+          "moves",
+          "clocksMs",
+          "fen",
+          "turn",
+          "inCheck",
+          "phase",
+          "study",
+          "firstMove",
+          "clocks",
+          "frozen",
+          "players",
+          "you",
+          "drawOffer",
+          "canOfferAtPly",
+          "rematch",
+          "spectators",
+          "result"
+        ],
+        "type": "object"
+      },
+      "GameStatusWire": {
+        "enum": [
+          "WAITING_FOR_OPPONENT",
+          "IN_PROGRESS",
+          "COMPLETED",
+          "ABORTED",
+          "CANCELLED",
+          "EXPIRED"
+        ],
+        "type": "string"
       },
       "HealthData": {
         "properties": {
@@ -936,6 +2773,1145 @@
         "x-side-effects": [
           "cron"
         ]
+      }
+    },
+    "/api/games": {
+      "post": {
+        "operationId": "games.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "botElo": {
+                    "maximum": 2200,
+                    "minimum": 400,
+                    "multipleOf": 100,
+                    "type": "integer"
+                  },
+                  "color": {
+                    "default": "auto",
+                    "enum": [
+                      "w",
+                      "b",
+                      "random",
+                      "auto"
+                    ],
+                    "type": "string"
+                  },
+                  "mode": {
+                    "enum": [
+                      "BOT",
+                      "LEGEND_BOT"
+                    ],
+                    "type": "string"
+                  },
+                  "parentGameRef": {
+                    "pattern": "^c[a-z0-9]{20,31}$",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "default": "new",
+                    "enum": [
+                      "new",
+                      "rematch",
+                      "restart"
+                    ],
+                    "type": "string"
+                  },
+                  "start": {
+                    "anyOf": [
+                      {
+                        "properties": {
+                          "kind": {
+                            "const": "initial",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "kind": {
+                            "const": "random_position",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "kind": {
+                            "const": "legend",
+                            "type": "string"
+                          },
+                          "legendRef": {
+                            "pattern": "^c[a-z0-9]{20,31}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "legendRef"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "kind": {
+                            "const": "position",
+                            "type": "string"
+                          },
+                          "positionRef": {
+                            "pattern": "^c[a-z0-9]{20,31}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "positionRef"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "kind": {
+                            "const": "opening",
+                            "type": "string"
+                          },
+                          "openingRef": {
+                            "pattern": "^c[a-z0-9]{20,31}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "openingRef"
+                        ],
+                        "type": "object"
+                      }
+                    ],
+                    "default": {
+                      "kind": "random_position"
+                    }
+                  },
+                  "tc": {
+                    "anyOf": [
+                      {
+                        "properties": {
+                          "incrementSeconds": {
+                            "maximum": 180,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "initialSeconds": {
+                            "maximum": 10800,
+                            "minimum": 15,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "initialSeconds",
+                          "incrementSeconds"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": {
+                      "incrementSeconds": 0,
+                      "initialSeconds": 600
+                    }
+                  }
+                },
+                "required": [
+                  "mode"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/GameCreateResponse"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `in_flight`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content: `idempotency_key_reused`, `illegal_position`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Creates a bot game",
+        "tags": [
+          "games"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W2",
+        "x-max-body-bytes": 4096,
+        "x-rate-limit": [
+          {
+            "bucket": "create-game",
+            "by": "user",
+            "limit": 20,
+            "store": "durable",
+            "windowSec": 600
+          }
+        ]
+      }
+    },
+    "/api/games/{ref}": {
+      "get": {
+        "operationId": "games.detail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/GameDetailResponse"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified (If-None-Match matched the ETag)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "A game snapshot for a player or a spectator",
+        "tags": [
+          "games"
+        ],
+        "x-auth": "user",
+        "x-cache": "private-etag",
+        "x-class": "R1"
+      }
+    },
+    "/api/games/{ref}/checkpoint": {
+      "post": {
+        "operationId": "games.checkpoint",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "assists": {
+                    "properties": {
+                      "hints": {
+                        "maximum": 10000,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "undos": {
+                        "maximum": 10000,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "hints",
+                      "undos"
+                    ],
+                    "type": "object"
+                  },
+                  "clocksMs": {
+                    "items": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "maxItems": 400,
+                    "type": "array"
+                  },
+                  "moves": {
+                    "items": {
+                      "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+                      "type": "string"
+                    },
+                    "maxItems": 400,
+                    "type": "array"
+                  },
+                  "rev": {
+                    "maximum": 9007199254740991,
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "rev",
+                  "moves",
+                  "clocksMs",
+                  "assists"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden: `forbidden`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content: `illegal_moves`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Saves a bot game's moves",
+        "tags": [
+          "games"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 8192,
+        "x-rate-limit": [
+          {
+            "bucket": "bot-checkpoint",
+            "by": "user",
+            "limit": 60,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/games/{ref}/complete": {
+      "post": {
+        "operationId": "games.complete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "assists": {
+                    "properties": {
+                      "hints": {
+                        "maximum": 10000,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "undos": {
+                        "maximum": 10000,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "hints",
+                      "undos"
+                    ],
+                    "type": "object"
+                  },
+                  "clocksMs": {
+                    "items": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "maxItems": 400,
+                    "type": "array"
+                  },
+                  "endedAtClient": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "method": {
+                    "enum": [
+                      "checkmate",
+                      "resignation",
+                      "timeout",
+                      "timeout_vs_insufficient",
+                      "stalemate",
+                      "threefold",
+                      "fifty_move",
+                      "insufficient_material",
+                      "agreement",
+                      "abandoned",
+                      "aborted"
+                    ],
+                    "type": "string"
+                  },
+                  "moves": {
+                    "items": {
+                      "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+                      "type": "string"
+                    },
+                    "maxItems": 400,
+                    "type": "array"
+                  },
+                  "result": {
+                    "enum": [
+                      "w",
+                      "b",
+                      "draw",
+                      "aborted"
+                    ],
+                    "type": "string"
+                  },
+                  "rev": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "rev",
+                  "moves",
+                  "clocksMs",
+                  "result",
+                  "method",
+                  "assists",
+                  "endedAtClient"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CompleteResponse"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden: `forbidden`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content: `illegal_moves`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Finishes a bot game",
+        "tags": [
+          "games"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "W2",
+        "x-max-body-bytes": 16384
+      }
+    },
+    "/api/games/{ref}/pgn": {
+      "get": {
+        "operationId": "games.pgn",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Downloads a finished game as PGN",
+        "tags": [
+          "games"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "R1"
       }
     },
     "/api/health": {
@@ -1678,6 +4654,9 @@
       "name": "catalog"
     },
     {
+      "name": "games"
+    },
+    {
       "name": "me"
     },
     {
@@ -1710,6 +4689,10 @@
     "already_subscribed": 409,
     "conflict": 409,
     "forbidden": 403,
+    "idempotency_key_reused": 422,
+    "illegal_moves": 422,
+    "illegal_position": 422,
+    "in_flight": 409,
     "internal": 500,
     "invalid_json": 400,
     "maintenance": 503,

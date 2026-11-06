@@ -19,6 +19,7 @@ import {
 } from "../src/http/endpoint";
 import * as envelope from "../src/http/envelope";
 import { ErrorEnvelope, ok } from "../src/http/envelope";
+import * as games from "../src/http/games";
 import * as me from "../src/http/me";
 import * as openings from "../src/http/openings";
 import { areaOf, HTTP_ENDPOINTS } from "../src/http/registry/index";
@@ -34,6 +35,7 @@ const SCHEMA_MODULES: Record<string, Record<string, unknown>> = {
   billing,
   common,
   envelope,
+  games,
   me,
   openings,
   socketToken,

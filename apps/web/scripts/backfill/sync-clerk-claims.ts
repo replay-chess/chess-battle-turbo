@@ -19,7 +19,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parse as parseEnv } from "dotenv";
-import { DEV_ENV_FILE, hostOf, isDevHost } from "../../prisma/seed-guards";
+import { DEV_ENV_FILE, hostOf, isDevHost } from "@repo/db/seed-guards";
 import { CLAIMS_SELECT, claimsMatch, computeClaims, type ClaimsRecord, type RcPublicMetadata } from "../../lib/auth/claims";
 
 export const BATCH_SIZE = 100;
@@ -125,7 +125,7 @@ export async function syncClerkClaimsBackfill(opts: { dryRun: boolean; allowProd
   });
   log(`[claims] ${opts.dryRun ? "DRY RUN" : "WRITE"}: database ${target.host}, Clerk ${target.clerk} instance (${env.source})`);
 
-  const { PrismaClient } = await import("../../app/generated/prisma/index.js");
+  const { PrismaClient } = await import("@repo/db");
   const db = new PrismaClient({ datasourceUrl: env.databaseUrl });
   const key = env.clerkKey!;
   const now = new Date();

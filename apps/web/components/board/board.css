@@ -1,0 +1,338 @@
+/*
+ * V3MoveBoard (P2 plan §4.5; DS components/ChessBoard). Neutral bevelled squares
+ * in both themes, PNG pieces at 85 % of the square, overlays bottom to top: last
+ * move, highlights, selection, premove, check, ring, legal dot / capture corners,
+ * piece. Sizes are relative (%, cqw of the board), so the board never measures
+ * itself. Only transform, scale and opacity animate (no transition-all).
+ *
+ * Pieces and marks live inside their [data-square] cell so the e2e fixture
+ * (e2e/fixtures/chess-board.ts) finds `[data-square] img`, `.rounded-full` dots
+ * and the inline rgba(220, 80, 80, …) capture corners. A slide is a FLIP: the
+ * piece is drawn in its new cell and animates from the old one (--rc-dx/--rc-dy
+ * in squares); the sliding cell is lifted above its neighbours.
+ */
+@layer theme, base, components, utilities;
+
+@layer components {
+  .rc-board {
+    --rc-bd-ms: 180ms;
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    container-type: inline-size;
+    isolation: isolate;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: var(--shadow-board, 0 1px 3px rgba(0, 0, 0, 0.12));
+    color: var(--cb-text);
+  }
+  .rc-board[data-interactive] { touch-action: none; }
+  .rc-board[data-dimmed] { opacity: 0.9; }
+  .rc-board[data-thumb] { border: 0; box-shadow: none; }
+
+  .rc-bd-grid {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-rows: repeat(8, minmax(0, 1fr));
+  }
+  .rc-bd-row {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    min-height: 0;
+  }
+
+  .rc-bd-cell {
+    position: relative;
+    display: block;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    font: inherit;
+    color: inherit;
+    cursor: default;
+    outline: none;
+    background: linear-gradient(to bottom right, var(--board-light-edge), var(--board-light-center), var(--board-light-edge));
+    box-shadow: var(--shadow-square-light);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .rc-bd-cell[data-dark] {
+    background: linear-gradient(to bottom right, var(--board-dark-edge), var(--board-dark-center), var(--board-dark-edge));
+    box-shadow: var(--shadow-square-dark);
+  }
+  .rc-board[data-thumb] .rc-bd-cell { background: var(--article-board-light); box-shadow: none; }
+  .rc-board[data-thumb] .rc-bd-cell[data-dark] { background: var(--article-board-dark); }
+  .rc-bd-cell[data-movable],
+  .rc-bd-cell[data-target] { cursor: pointer; }
+  .rc-bd-cell[data-sliding] { z-index: 3; }
+  .rc-bd-cell[data-lift] { z-index: 30; }
+  .rc-board[data-dragging],
+  .rc-board[data-dragging] .rc-bd-cell { cursor: grabbing; }
+
+  /* Focus: a two-tone inset ring that reads on light and dark squares. */
+  .rc-bd-cell:focus-visible::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 2px #1a1a1a, inset 0 0 0 4px #ffffff;
+  }
+
+  /* Overlay marks (OverlayLayer.tsx). */
+  .rc-bd-mark { position: absolute; inset: 0; pointer-events: none; }
+  .rc-bd-last { background: var(--board-last-move); }
+  .rc-bd-cell[data-dark] > .rc-bd-last { background: var(--board-last-move-dark); }
+  .rc-bd-sel { background: rgba(253, 230, 138, 0.45); box-shadow: inset 0 0 0 3px rgba(217, 119, 6, 0.85); }
+  .rc-bd-pm { background: rgba(138, 90, 18, 0.38); }
+  .rc-bd-check {
+    background: radial-gradient(circle, rgba(163, 65, 46, 0.95) 0, rgba(163, 65, 46, 0.55) 38%, rgba(163, 65, 46, 0) 72%);
+    animation: rc-bd-check 300ms ease-out;
+  }
+  /* Drop target under a dragged piece (set on the cell by useBoardInput, no render). */
+  .rc-bd-cell[data-drop]::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 3px rgba(26, 26, 26, 0.35);
+  }
+  .rc-bd-dot {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: clamp(10px, 3cqw, 18px);
+    height: clamp(10px, 3cqw, 18px);
+    translate: -50% -50%;
+    border-radius: 9999px;
+    background: var(--board-legal-dot);
+    pointer-events: none;
+  }
+  .rc-bd-cell[data-dark] > .rc-bd-dot { background: var(--board-legal-dot-on-dark); }
+  .rc-bd-cap { position: absolute; inset: 0; pointer-events: none; }
+
+  .rc-bd-coords { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+  .rc-bd-coord {
+    position: absolute;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: clamp(7px, 2cqw, 12px);
+    line-height: 1;
+    color: var(--board-coordinate-light);
+  }
+  .rc-bd-coord[data-dark] { color: var(--board-coordinate-dark); }
+
+  /* Pieces (PieceLayer.tsx). The image fills the cell, so translate(100%) is one square. */
+  .rc-bd-piece,
+  .rc-bd-from,
+  .rc-bd-fade {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 7.5%;
+    box-sizing: border-box;
+    object-fit: contain;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+  }
+  .rc-bd-piece[data-color="b"],
+  .rc-bd-from[data-color="b"],
+  .rc-bd-fade[data-color="b"] { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)); }
+  .rc-board[data-thumb] .rc-bd-piece { filter: none; }
+  .rc-bd-from,
+  .rc-bd-fade {
+    background-origin: content-box;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+  .rc-bd-piece { z-index: 4; transition: scale 120ms ease-out; }
+  .rc-bd-piece[data-slide],
+  .rc-bd-from { animation: rc-bd-slide var(--rc-bd-ms) ease-out; }
+  /* Promotion: the pawn slides, then the new piece appears at the end of the slide. */
+  .rc-bd-piece[data-slide][data-promo] {
+    animation: rc-bd-slide var(--rc-bd-ms) ease-out, rc-bd-hidden 1ms linear var(--rc-bd-ms) backwards;
+  }
+  .rc-bd-from {
+    z-index: 4;
+    animation: rc-bd-slide var(--rc-bd-ms) ease-out, rc-bd-gone 1ms linear var(--rc-bd-ms) forwards;
+  }
+  .rc-bd-fade { z-index: 3; animation: rc-bd-fade 120ms ease-out forwards; }
+  .rc-bd-piece[data-lifted] {
+    will-change: transform;
+    filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.35));
+    animation: none;
+  }
+  .rc-bd-piece[data-shake="a"] { animation: rc-bd-shake-a 180ms ease-in-out 2; }
+  .rc-bd-piece[data-shake="b"] { animation: rc-bd-shake-b 180ms ease-in-out 2; }
+  @media (hover: hover) {
+    .rc-board[data-interactive]:not([data-dragging]) .rc-bd-cell[data-movable]:hover > .rc-bd-piece { scale: 1.05; }
+  }
+
+  /* Ghost (premove or queued move): dashed amber outline + the piece at 50 %. */
+  .rc-bd-ghost {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    outline: 2px dashed rgba(138, 90, 18, 0.9);
+    outline-offset: -4px;
+  }
+  .rc-bd-ghost > span {
+    position: absolute;
+    inset: 10%;
+    opacity: 0.5;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  /* Arrows (ArrowLayer.tsx) and badges (BadgeLayer.tsx) sit above the pieces. */
+  .rc-bd-arrows {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .rc-bd-badges { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
+  .rc-bd-badge {
+    position: absolute;
+    width: 4.25%;
+    height: 4.25%;
+    display: block;
+    pointer-events: none;
+    container-type: size;
+  }
+  .rc-bd-badge > img { display: block; width: 100%; height: 100%; }
+  .rc-bd-badge[data-glyph] {
+    border-radius: 9999px;
+    overflow: hidden;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18), inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+  }
+  /* cq units resolve against the badge itself (container-type: size), so the glyph scales with the square. */
+  .rc-bd-badge[data-glyph] > span {
+    font: 700 50cqh/1 var(--font-mono);
+    letter-spacing: -0.06em;
+    white-space: nowrap;
+  }
+
+  /* Promotion picker (PromotionPicker.tsx), a board child. */
+  .rc-bd-promo-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 35;
+    background: rgba(26, 26, 26, 0.28);
+  }
+  .rc-bd-promo {
+    position: absolute;
+    z-index: 40;
+    width: 12.5%;
+    display: flex;
+    flex-direction: column;
+    background: var(--cb-surface);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    animation: rc-bd-pop 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .rc-bd-promo[data-edge="bottom"] { flex-direction: column-reverse; }
+  .rc-bd-promo button {
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-bottom: 1px solid var(--cb-border);
+    background: var(--cb-surface);
+    color: var(--cb-text);
+    cursor: pointer;
+  }
+  .rc-bd-promo[data-edge="bottom"] button { border-bottom: 0; border-top: 1px solid var(--cb-border); }
+  .rc-bd-promo button:hover,
+  .rc-bd-promo button:focus-visible { background: var(--cb-surface-elevated); }
+  .rc-bd-promo button:focus-visible { outline: 2px solid var(--cb-text); outline-offset: -2px; }
+  .rc-bd-promo button[data-default] { box-shadow: inset 0 0 0 2px var(--cb-accent); }
+  .rc-bd-promo button > img { width: 80%; height: 80%; object-fit: contain; pointer-events: none; }
+  .rc-bd-promo button[data-esc] {
+    aspect-ratio: auto;
+    min-height: 32px;
+    font: 500 0.6875rem/1 var(--font-mono);
+    letter-spacing: 0.1em;
+    color: var(--cb-text-secondary);
+  }
+
+  /* Text move entry (MoveInput.tsx): visually hidden until focused or switched on; desktop only. */
+  .rc-bd-moveinput { display: flex; flex-direction: column; gap: 4px; }
+  .rc-bd-moveinput:not([data-visible]):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  @media (hover: none) and (pointer: coarse) {
+    .rc-bd-moveinput { display: none; }
+  }
+
+  @keyframes rc-bd-slide {
+    from { transform: translate(calc(var(--rc-dx, 0) * 100%), calc(var(--rc-dy, 0) * 100%)); }
+  }
+  @keyframes rc-bd-hidden { from, to { opacity: 0; } }
+  @keyframes rc-bd-gone { to { opacity: 0; visibility: hidden; } }
+  @keyframes rc-bd-fade { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes rc-bd-check { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.85; } }
+  @keyframes rc-bd-pop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+  @keyframes rc-bd-shake-a {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-4px); }
+    40%, 80% { transform: translateX(4px); }
+  }
+  @keyframes rc-bd-shake-b {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-4px); }
+    40%, 80% { transform: translateX(4px); }
+  }
+
+  /* Reduced motion: instant moves, an outline flash instead of the shake, no pop or glow animation. */
+  @media (prefers-reduced-motion: reduce) {
+    .rc-bd-piece,
+    .rc-bd-piece[data-slide],
+    .rc-bd-piece[data-slide][data-promo],
+    .rc-bd-piece[data-shake],
+    .rc-bd-check,
+    .rc-bd-promo { animation: none; transition: none; }
+    .rc-bd-from,
+    .rc-bd-fade { display: none; }
+    .rc-bd-cell[data-shake]::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 7;
+      pointer-events: none;
+      box-shadow: inset 0 0 0 3px var(--cb-bad, #a3412e);
+    }
+  }
+  .rc-board[data-instant] .rc-bd-piece:not([data-shake]),
+  .rc-board[data-instant] .rc-bd-from,
+  .rc-board[data-instant] .rc-bd-fade { animation: none; }
+  .rc-board[data-instant] .rc-bd-from,
+  .rc-board[data-instant] .rc-bd-fade { display: none; }
+}

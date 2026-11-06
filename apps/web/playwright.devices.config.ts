@@ -1,7 +1,7 @@
 /**
  * Device x zoom suites (SPEC D7, 5.2; 04 §8.3).
  *
- *   40 layout projects  `<device>@<zoom%>`   testMatch layout/**
+ *   40 layout projects  `<device>@<zoom%>`   testMatch layout/** and game/** (P2's game one-viewport + visual)
  *    4 UI projects      ui-desktop, ui-iphone, ui-android, ui-ipad   testMatch ui/**
  *    2 motion projects  ui-desktop-motion, ui-iphone-motion          testMatch ui/overlays.spec.ts
  *
@@ -47,7 +47,11 @@ const REAL_ROUTE_PROJECTS = new Set(["desktop-1440@100", "desktop-1440@150", "ip
 const layoutProjects: Project[] = BASE_DEVICES.flatMap((d) =>
   ZOOMS.map((z) => {
     const name = projectName(d, z);
-    const testMatch = REAL_ROUTE_PROJECTS.has(name) ? ["layout/**/*.spec.ts", "layout/routes.real.ts"] : "layout/**/*.spec.ts";
+    // game/**: the P2 game suites (one-viewport, visual) run on the same projects, so `test:devices`, the nightly
+    // devices-full shards and the update-snapshots workflow pick them up (REGRESSION-2; was a WP-I request to P1).
+    const testMatch = REAL_ROUTE_PROJECTS.has(name)
+      ? ["layout/**/*.spec.ts", "game/**/*.spec.ts", "layout/routes.real.ts"]
+      : ["layout/**/*.spec.ts", "game/**/*.spec.ts"];
     return { name, testMatch, ...zoomed(d, z) };
   }),
 ).filter((p) => tier === "full" || PR_TIER.has(p.name!));

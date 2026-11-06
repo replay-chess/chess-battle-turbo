@@ -63,6 +63,18 @@ function signedWebhook(def: EndpointDef): { headers: Record<string, string>; bod
 
 const ENV = { ROUTE_VALIDATE_RESPONSES: "1", CRON_SECRET: "contract-cron-secret", INTERNAL_API_SECRET: process.env.INTERNAL_API_SECRET };
 
+/**
+ * Endpoints whose happy path needs database rows: their success status and body contract are asserted in the named
+ * file (an in-memory client per SQL statement). Every other matrix row here (401/402/400/413/429) still runs for them.
+ */
+const HAPPY_PATH_ELSEWHERE: Record<string, string> = {
+  "games.create": "test/api/games-routes.test.ts",
+  "games.detail": "test/api/games-routes.test.ts",
+  "games.checkpoint": "test/api/games-routes.test.ts",
+  "games.complete": "test/api/games-routes.test.ts",
+  "games.pgn": "test/api/games-routes.test.ts",
+};
+
 /** Requests that make a route's rate limit apply (rateLimitWhen). */
 const RATE_LIMIT_PROBE: Record<string, string> = { "health.get": "?deep=1" };
 
@@ -243,6 +255,7 @@ describe("contract: body, rate limit, responses", () => {
 
   it("happy path: each route() endpoint answers its success status and its body parses with the contract", async () => {
     for (const entry of loaded.values()) {
+      if (HAPPY_PATH_ELSEWHERE[entry.def.id]) continue;
       const t = installTestDeps({ env: ENV, userId: "user_1", viewer: viewerFixture({ role: "admin" }) });
       try {
         const res = await call(entry, entry.def.auth === "webhook" ? signedWebhook(entry.def) : { headers: authHeaders(entry.def) });

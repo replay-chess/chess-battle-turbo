@@ -8,6 +8,17 @@ import {
   resolveStartingPosition,
 } from "@/lib/services/tournament/tournament.service";
 import { notifyTournamentEvent } from "@/lib/services/tournament/notify-websocket";
+import { createLiveGame, timeClassOf } from "@repo/db/games";
+import {
+  START_OPENING_SELECT,
+  START_POSITION_SELECT,
+  legendSideOf,
+  metaForInitial,
+  metaForOpening,
+  metaForPosition,
+  ratingFor,
+} from "@/lib/games/start.server";
+import { rawDb } from "@/lib/games/snapshot.server";
 
 const findMatchSchema = z.object({
   tournamentReferenceId: z.string().min(1),
@@ -140,40 +151,63 @@ export async function POST(request: NextRequest) {
         const whiteUserId = userIsWhite ? dbUser.id : opponent.userId;
         const blackUserId = userIsWhite ? opponent.userId : dbUser.id;
 
-        // Create the game
-        const game = await tx.game.create({
-          data: {
-            creatorId: whiteUserId,
-            opponentId: blackUserId,
-            chessPositionId: positionData.chessPositionId,
-            openingId: positionData.openingId ?? null,
-            startingFen: positionData.fen,
-            initialTimeSeconds: tournament.initialTimeSeconds,
-            incrementSeconds: tournament.incrementSeconds,
-            creatorTimeRemaining: tournament.initialTimeSeconds,
-            opponentTimeRemaining: tournament.initialTimeSeconds,
-            expiresAt: tournament.endsAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000),
-            status: "IN_PROGRESS",
-            startedAt: new Date(),
-            tournamentId: tournament.id,
-            gameData: {
-              gameMode: "tournament",
-              // The creator is the White player (H6 #11): the socket reads this, never randomises.
-              creatorColor: "white",
-              tournamentReferenceId: tournament.referenceId,
-              positionInfo: positionData.positionInfo,
-              ...(positionData.openingInfo && {
-                openingInfo: positionData.openingInfo,
-              }),
-            },
+        // Names, displayed ratings and the start's header/prefix (phase-02 plan §6.6.2), read through tx (DB-11)
+        const timeClass = timeClassOf({
+          initialSeconds: tournament.initialTimeSeconds,
+          incrementSeconds: tournament.incrementSeconds,
+        });
+        const [opponentUser, profiles, startOpening, startPosition] = await Promise.all([
+          tx.user.findUnique({
+            where: { id: opponent.userId },
+            select: { referenceId: true, name: true, profilePictureUrl: true },
+          }),
+          tx.chessComProfile.findMany({
+            where: { userId: { in: [dbUser.id, opponent.userId] } },
+            select: { userId: true, bulletRating: true, blitzRating: true, rapidRating: true },
+          }),
+          positionData.openingId
+            ? tx.opening.findUnique({ where: { id: positionData.openingId }, select: START_OPENING_SELECT })
+            : Promise.resolve(null),
+          positionData.chessPositionId
+            ? tx.chessPosition.findUnique({ where: { id: positionData.chessPositionId }, select: START_POSITION_SELECT })
+            : Promise.resolve(null),
+        ]);
+        const ratingOf = (userId: bigint) => ratingFor(profiles.find((p) => p.userId === userId) ?? null, timeClass);
+        const me = { userId: dbUser.id, name: dbUser.name, rating: ratingOf(dbUser.id) };
+        const them = { userId: opponent.userId, name: opponentUser?.name ?? "", rating: ratingOf(opponent.userId) };
+        const meta = startOpening
+          ? metaForOpening(startOpening)
+          : startPosition
+            ? metaForPosition(startPosition, legendSideOf(startPosition, tournament.legendId))
+            : metaForInitial();
+
+        // Create the game: P2 play columns, display snapshots and both game_players rows in one statement (createLiveGame)
+        const created = await createLiveGame(rawDb(tx), {
+          mode: "TOURNAMENT",
+          creatorId: whiteUserId,
+          opponentId: blackUserId,
+          white: userIsWhite ? me : them,
+          black: userIsWhite ? them : me,
+          startingFen: positionData.fen,
+          initialTimeSeconds: tournament.initialTimeSeconds,
+          incrementSeconds: tournament.incrementSeconds,
+          chessPositionId: positionData.chessPositionId,
+          openingId: positionData.openingId ?? null,
+          tournamentId: tournament.id,
+          meta,
+          expiresAt: tournament.endsAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000),
+          gameData: {
+            gameMode: "tournament",
+            // The creator is the White player (H6 #11): the socket reads this, never randomises.
+            creatorColor: "white",
+            tournamentReferenceId: tournament.referenceId,
+            positionInfo: positionData.positionInfo,
+            ...(positionData.openingInfo && {
+              openingInfo: positionData.openingInfo,
+            }),
           },
         });
-
-        // Get opponent info
-        const opponentUser = await tx.user.findUnique({
-          where: { id: opponent.userId },
-          select: { referenceId: true, name: true, profilePictureUrl: true },
-        });
+        const game = { referenceId: created.ref };
 
         return {
           status: "MATCHED" as const,

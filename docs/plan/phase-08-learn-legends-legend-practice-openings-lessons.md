@@ -1869,7 +1869,7 @@ There is no N+1: every loader is one statement, or a `Promise.all` of independen
 | Public Learn pages (S1, S2, S5, S6, S9, S10, S12) | ≤ 180 KB total, ≤ 40 KB page-specific | server-rendered `MiniBoard` / `StaticBoard` SVG; no chess.js, no Stockfish, no socket.io, no `motion`, **no clerk-js** (D8-21); islands are small client components; TanStack Query only in islands that fetch; no zod at runtime (`devSchema`, AP-12) |
 | Drill pages (S11) | ≤ 220 KB | chess.js (≈ 25 KB) and the interactive `Board` load through `next/dynamic` when the drill section mounts |
 | Lesson player (S7) | ≤ 260 KB | board + chess.js + reducer; no engine |
-| Legend game (S3) | P2's `/game` budget (≤ 300 KB without the engine) | legend components ≤ 10 KB |
+| Legend game (S3) | P2's `/game` budget (≤ 600 KB without the engine, owner-approved 2026-11-06) | legend components ≤ 10 KB |
 
 The engine (7.3 MB WASM) is only ever *prefetched* on Learn pages, never executed (S2 and S14 intent).
 

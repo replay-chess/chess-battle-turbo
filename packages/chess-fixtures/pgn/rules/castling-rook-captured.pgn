@@ -1,0 +1,6 @@
+[Event "Castling rights: a captured rook removes that wing"]
+[Result "*"]
+[RcExpect "none"]
+[RcCastling "KQq"]
+
+1. b3 g6 2. Bb2 Bg7 3. Bxg7 Nf6 4. Bxh8 *

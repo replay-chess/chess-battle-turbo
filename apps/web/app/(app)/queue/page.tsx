@@ -17,12 +17,15 @@ import {
 } from "@/lib/hooks/useMatchmaking";
 import { useRequireSubscription } from "@/lib/hooks/useRequireSubscription";
 import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";
+import { ApiError } from "@/lib/api/errors";
+import { useCreateBotGame } from "@/lib/api/mutations/games";
 import { motion } from "motion/react";
 
 type QueueState = "initializing" | "searching" | "timeout" | "matched" | "error";
 
 function QueueContent() {
   const router = useRouter();
+  const createBotGame = useCreateBotGame({ navigate: false });
   const searchParams = useSearchParams();
   const { isReady, userObject } = useRequireSubscription();
   const chrome = useChrome();
@@ -260,34 +263,21 @@ function QueueContent() {
 
     setIsCreatingBotGame(true);
     try {
-      const start = Date.now();
-      const response = await fetch("/api/chess/create-ai-game", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userReferenceId: userObject.user.referenceId,
-          initialTimeSeconds,
-          incrementSeconds,
-          ...(legendReferenceId && { selectedLegend: legendReferenceId }),
-        }),
+      // No opponent found: a bot game with the same time control and legend (POST /api/games, phase-02 plan §5.6).
+      const began = Date.now();
+      const game = await createBotGame.mutateAsync({
+        mode: "BOT",
+        start: legendReferenceId ? { kind: "legend", legendRef: legendReferenceId } : { kind: "random_position" },
+        color: "auto",
+        tc: { initialSeconds: initialTimeSeconds, incrementSeconds },
       });
-
-      if (await isSubscriptionRequiredResponse(response)) {
-        router.push(paywallUrl(currentAppPath()));
-        return;
-      }
-
-      const data = await response.json();
-      trackApiResponseTime("chess.createAiGame", Date.now() - start);
-
-      if (!data.success) {
-        throw new Error(data.error || "Failed to create AI game");
-      }
-
-      router.replace(`/game/${data.data.game.referenceId}`);
+      trackApiResponseTime("games.create", Date.now() - began);
+      router.replace(`/game/${game.ref}`);
     } catch (error) {
-      logger.error("Error creating AI game:", error);
-      setErrorMessage(error instanceof Error ? error.message : "Failed to create AI game");
+      // 402 is routed to /pricing by the QueryProvider.
+      if (error instanceof ApiError && error.code === "subscription_required") return;
+      logger.error("Error creating bot game:", error);
+      setErrorMessage(error instanceof Error ? error.message : "Failed to create the game");
       setQueueState("error");
     } finally {
       setIsCreatingBotGame(false);

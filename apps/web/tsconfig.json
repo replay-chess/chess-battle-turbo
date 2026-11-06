@@ -18,10 +18,15 @@
     "**/*.ts",
     "**/*.tsx",
     ".next-devices/types/**/*.ts",
+    ".next-flagsoff/types/**/*.ts",
+    ".next-gfinish/types/**/*.ts",
+    ".next-int2/types/**/*.ts",
     ".next-prodcheck/types/**/*.ts",
+    ".next-reg2/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts",
-    "next.config.js"
+    "next.config.js",
+    ".next-fixa/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

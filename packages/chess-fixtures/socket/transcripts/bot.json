@@ -1,0 +1,110 @@
+{
+  "format": 1,
+  "state": "bot",
+  "number": 28,
+  "status": "golden",
+  "summary": "A bot game rendered from the RSC snapshot; the local controller runs it (no socket).",
+  "t0": 1793563200000,
+  "expect": {
+    "w": {
+      "primary": "bot",
+      "zone": "coach",
+      "actions": "bot"
+    }
+  },
+  "steps": [
+    {
+      "t": 0,
+      "actor": "w",
+      "snapshot": {
+        "v": 2,
+        "ref": "cm3k9x2p10007slzpqa8hd4fe",
+        "seq": 0,
+        "serverNow": 1793563200000,
+        "mode": "BOT",
+        "rated": false,
+        "timeClass": "untimed",
+        "tc": null,
+        "header": {
+          "left": "C41 · Philidor Defence · Morphy vs Duke Karl of Brunswick and Count Isouard 1858",
+          "right": "vs Engine 1400 · unrated"
+        },
+        "position": {
+          "name": "Morphy vs Duke Karl of Brunswick and Count Isouard",
+          "event": "Paris Opera",
+          "year": 1858,
+          "sideToMove": "w",
+          "afterLabel": "after 9…b5",
+          "legendSide": "w"
+        },
+        "startFen": "rn2kb1r/p3qppp/2p2n2/1p2p1B1/2B1P3/1QN5/PPP2PPP/R3K2R w KQkq - 0 10",
+        "startPly": 18,
+        "prefix": {
+          "sans": "e4 e5 Nf3 d6 d4 Bg4 dxe5 Bxf3 Qxf3 dxe5 Bc4 Nf6 Qb3 Qe7 Nc3 c6 Bg5 b5",
+          "startMoveNo": 10,
+          "startsBlack": false
+        },
+        "moves": "c3b5 c6b5",
+        "clocksMs": [
+          299000,
+          295000
+        ],
+        "fen": "rn2kb1r/p3qppp/5n2/1p2p1B1/2B1P3/1Q6/PPP2PPP/R3K2R w KQkq - 0 11",
+        "turn": "w",
+        "inCheck": false,
+        "phase": "playing",
+        "study": null,
+        "firstMove": null,
+        "clocks": {
+          "w": 300000,
+          "b": 300000,
+          "run": "w",
+          "at": 1793563200000
+        },
+        "frozen": null,
+        "players": {
+          "w": {
+            "ref": "cm1a7rt0q0002ls8d9x0k4vze",
+            "displayName": "lucena_now_blitz2026",
+            "initials": "LU",
+            "avatarUrl": null,
+            "rating": 1847,
+            "isBot": false,
+            "online": true,
+            "graceEndsAt": null
+          },
+          "b": {
+            "ref": null,
+            "displayName": "Engine 1400",
+            "initials": "E",
+            "avatarUrl": null,
+            "rating": 1400,
+            "isBot": true,
+            "online": true,
+            "graceEndsAt": null
+          }
+        },
+        "you": {
+          "role": "player",
+          "color": "w"
+        },
+        "drawOffer": null,
+        "canOfferAtPly": {
+          "w": 0,
+          "b": 0
+        },
+        "rematch": null,
+        "spectators": 0,
+        "result": null,
+        "bot": {
+          "elo": 1400,
+          "name": "Engine 1400"
+        },
+        "status": "IN_PROGRESS",
+        "watchable": false,
+        "updatedAt": 1793563200000,
+        "rev": 3
+      }
+    }
+  ]
+}

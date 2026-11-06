@@ -7,7 +7,20 @@ import {
   getTimeControlType,
   TimeControlType,
 } from "./types";
-import { selectPositionFromLegends, getDefaultFen, selectOpeningPosition } from "./position-selector";
+import { createLiveGame } from "@repo/db/games";
+import {
+  findStartOpening,
+  legacyPositionInfo,
+  legendSideOf,
+  metaForInitial,
+  metaForOpening,
+  metaForPosition,
+  randomStartPosition,
+  type StartDb,
+  type StartPosition,
+} from "@/lib/games/start.server";
+import { rawDb } from "@/lib/games/snapshot.server";
+import { getDefaultFen } from "./position-selector";
 
 const DEMO_USER_CODE = "DEMO_PLAYER_001";
 const QUEUE_TIMEOUT_SECONDS = 60;
@@ -111,6 +124,24 @@ export async function createMatchRequest(
 }
 
 /**
+ * A random active position of either player's legend (else any random position), read through the caller's `tx`
+ * (the old position-selector used the global client inside the matching transaction, DB-11).
+ */
+async function pickLegendPosition(
+  tx: Pick<StartDb, "$queryRawUnsafe" | "legend">,
+  legendRef1: string | null | undefined,
+  legendRef2: string | null | undefined,
+): Promise<StartPosition | null> {
+  const refs = [legendRef1, legendRef2].filter((r): r is string => !!r);
+  if (refs.length > 0) {
+    const legends = await tx.legend.findMany({ where: { referenceId: { in: refs } }, select: { id: true } });
+    const own = legends.length > 0 ? await randomStartPosition(tx, legends.map((l) => l.id)) : null;
+    if (own) return own;
+  }
+  return randomStartPosition(tx, null);
+}
+
+/**
  * Try to find and match with an existing waiting player
  * Uses FOR UPDATE to lock the candidate row and prevent race conditions
  */
@@ -211,86 +242,63 @@ async function tryFindMatch(params: {
       return null;
     }
 
-    // Check if either player has an opening selected
+    // Start: an opening when the caller picked one, else a position of either player's legend (else any random
+    // position). Read through `tx` (DB-11: never the global client inside the transaction).
     const openingRef = params.openingReferenceId || null;
-    let openingData = null;
-
-    if (openingRef) {
-      openingData = await selectOpeningPosition(openingRef);
-    }
-
-    // Select position from either legend (only if no opening)
-    const position = openingData ? null : await selectPositionFromLegends(
-      params.legendReferenceId,
-      opponent.legendReferenceId
-    );
+    const openingData = openingRef ? await findStartOpening(tx, openingRef) : null;
+    const position = openingData ? null : await pickLegendPosition(tx, params.legendReferenceId, opponent.legendReferenceId);
 
     // Random color assignment (for both legend and opening quick matches)
     const newPlayerIsWhite = Math.random() < 0.5;
     const whiteUserId = newPlayerIsWhite ? params.userId : opponent.userId;
     const blackUserId = newPlayerIsWhite ? opponent.userId : params.userId;
+    const me = { userId: params.userId, name: params.userName, rating: params.rating };
+    const them = { userId: opponent.userId, name: opponentUser.name, rating: opponent.rating };
 
-    // Build gameData based on opening vs legend
     const startingFen = openingData?.fen || position?.fen || getDefaultFen();
-    const chessPositionId = openingData ? null : (position?.id || null);
-
-    const positionInfo = openingData
-      ? {
-          whitePlayerName: null,
-          blackPlayerName: null,
-          tournamentName: null,
-          openingName: openingData.name,
-          openingEco: openingData.eco,
-          whitePlayerImageUrl: null,
-          blackPlayerImageUrl: null,
-        }
+    const meta = openingData
+      ? metaForOpening(openingData)
       : position
-        ? {
-            whitePlayerName: position.whitePlayerName ?? null,
-            blackPlayerName: position.blackPlayerName ?? null,
-            tournamentName: position.tournamentName ?? null,
-            whitePlayerImageUrl: position.whiteLegend?.profilePhotoUrl ?? null,
-            blackPlayerImageUrl: position.blackLegend?.profilePhotoUrl ?? null,
-          }
-        : null;
+        ? metaForPosition(position, legendSideOf(position))
+        : metaForInitial();
 
-    // Create the game
-    const game = await tx.game.create({
-      data: {
-        creatorId: whiteUserId,
-        opponentId: blackUserId,
-        chessPositionId,
-        openingId: openingData?.id ?? null,
-        startingFen,
-        initialTimeSeconds: params.timeControlSeconds,
-        incrementSeconds: params.incrementSeconds,
-        creatorTimeRemaining: params.timeControlSeconds,
-        opponentTimeRemaining: params.timeControlSeconds,
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-        status: "IN_PROGRESS",
-        startedAt: new Date(),
-        gameData: {
-          gameMode: "quick",
-          // The creator is the White player (H6 #11): the socket reads this, never randomises.
-          creatorColor: "white",
-          playAsLegend: !!params.legendReferenceId || !!opponent.legendReferenceId,
-          player1Legend: params.legendReferenceId,
-          player2Legend: opponent.legendReferenceId,
-          matchedAt: new Date().toISOString(),
-          positionInfo,
-          ...(openingData && {
-            selectedOpening: openingRef,
-            openingInfo: {
-              referenceId: openingData.referenceId,
-              name: openingData.name,
-              eco: openingData.eco,
-              pgn: openingData.pgn,
-              moveCount: openingData.moveCount,
-            },
-          }),
-        },
+    // Create the game with the P2 play columns, both display snapshots and both game_players rows, in one statement
+    // inside this transaction (phase-02 plan §6.6.2, §7.2). gameData stays for the v1 socket until the parity gate.
+    const created = await createLiveGame(rawDb(tx), {
+      mode: "ONLINE",
+      creatorId: whiteUserId,
+      opponentId: blackUserId,
+      white: newPlayerIsWhite ? me : them,
+      black: newPlayerIsWhite ? them : me,
+      startingFen,
+      initialTimeSeconds: params.timeControlSeconds,
+      incrementSeconds: params.incrementSeconds,
+      chessPositionId: openingData ? null : (position?.id ?? null),
+      openingId: openingData?.id ?? null,
+      meta,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      gameData: {
+        gameMode: "quick",
+        // The creator is the White player (H6 #11): the socket reads this, never randomises.
+        creatorColor: "white",
+        playAsLegend: !!params.legendReferenceId || !!opponent.legendReferenceId,
+        player1Legend: params.legendReferenceId,
+        player2Legend: opponent.legendReferenceId,
+        matchedAt: new Date().toISOString(),
+        positionInfo: legacyPositionInfo(position, openingData),
+        ...(openingData && {
+          selectedOpening: openingRef,
+          openingInfo: {
+            referenceId: openingData.referenceId,
+            name: openingData.name,
+            eco: openingData.eco,
+            pgn: openingData.pgn,
+            moveCount: openingData.moveCount,
+          },
+        }),
       },
     });
+    const game = { referenceId: created.ref };
 
     // Update opponent's queue entry to MATCHED
     await tx.matchmakingQueue.update({

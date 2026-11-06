@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import * as nodeModule from "node:module";
 import { after, before, describe, it } from "node:test";
-import { PrismaClient } from "../../app/generated/prisma";
+import { PrismaClient } from "@repo/db";
 
 // entitlement.ts starts with `import "server-only"`, which only Next.js resolves. Stub it first.
 const STUB = "data:text/javascript,export%20%7B%7D";

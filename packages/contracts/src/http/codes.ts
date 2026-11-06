@@ -1,6 +1,6 @@
 // The one error-code ledger (phase-01 plan §7.1, CC R-06). Append-only: adding a code is an additive contract change,
-// made by the first phase that produces it. Codes later phases add (so nobody adds them twice): `in_flight` 409,
-// `idempotency_key_reused` 422, `illegal_position` 422, `illegal_moves` 422 (P2); `gone` 410 (P3);
+// made by the first phase that produces it. P2 added `in_flight` 409, `idempotency_key_reused` 422,
+// `illegal_position` 422 and `illegal_moves` 422. Codes later phases add (so nobody adds them twice): `gone` 410 (P3);
 // `fair_use_limit` 429 (P7); `reverification_required` 403 (P10, or P12 if it merges first); `precondition_failed` 412 (P12).
 // Never codes: `membership_ended`, `origin_mismatch`, `upstream_timeout`, `upstream_error`, `refresh_failed`,
 // `upstream_rate_limited`, `unauthenticated`, `bad_request`, `unsupported_media_type` (see the plan for their replacements).
@@ -22,6 +22,11 @@ export const ERROR_STATUS = {
   maintenance: 503,
   not_configured: 503,
   unavailable: 503,
+  // P2 (phase-02 plan §0.2, consistency R-06)
+  in_flight: 409,
+  idempotency_key_reused: 422,
+  illegal_position: 422,
+  illegal_moves: 422,
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_STATUS;
@@ -39,14 +44,33 @@ export type SubscriptionReason = (typeof SUBSCRIPTION_REASONS)[number];
 
 /**
  * details.reason for 409 conflict. Append-only; each phase registers the reasons it introduces (CC R-06 list:
- * P2 already_started, already_completed, not_bot_game, rev_gap; P4 …; P12 …).
+ * P2 already_started, already_completed, not_bot_game, not_finished, rev_gap; P4 …; P12 …).
  */
-export const CONFLICT_REASONS = [] as const;
+export const CONFLICT_REASONS = ["already_started", "already_completed", "not_bot_game", "not_finished", "rev_gap"] as const;
 export type ConflictReason = (typeof CONFLICT_REASONS)[number];
 
 /** details.reason for 403 forbidden. Append-only. */
 export const FORBIDDEN_REASONS = ["cooldown"] as const;
 export type ForbiddenReason = (typeof FORBIDDEN_REASONS)[number];
+
+/** details.reason for 400 validation_failed beyond field errors. Append-only (P2: LEGEND_BOT before P8's flag). */
+export const VALIDATION_REASONS = ["mode_not_available"] as const;
+export type ValidationReason = (typeof VALIDATION_REASONS)[number];
+
+/** details.reason for 422 illegal_moves. Append-only (P2: claimed result not consistent with the board, §8.16). */
+export const ILLEGAL_MOVES_REASONS = ["claim_mismatch"] as const;
+export type IllegalMovesReason = (typeof ILLEGAL_MOVES_REASONS)[number];
+
+/**
+ * Codes a bare status never maps to (codeForStatus): each names one specific situation, so a legacy 409 stays
+ * `conflict` and a legacy 422 stays `internal` instead of borrowing a P2 meaning.
+ */
+const NOT_INFERRED_FROM_STATUS: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
+  "in_flight",
+  "idempotency_key_reused",
+  "illegal_position",
+  "illegal_moves",
+]);
 
 /** The HTTP status for a code. */
 export function statusFor(code: ErrorCode): (typeof ERROR_STATUS)[ErrorCode] {
@@ -60,6 +84,6 @@ export function isErrorCode(value: unknown): value is ErrorCode {
 
 /** The first ledger code for a status, used to map legacy bodies that carry no code (lib/api/legacy.ts). */
 export function codeForStatus(status: number): ErrorCode {
-  for (const code of ERROR_CODES) if (ERROR_STATUS[code] === status) return code;
+  for (const code of ERROR_CODES) if (ERROR_STATUS[code] === status && !NOT_INFERRED_FROM_STATUS.has(code)) return code;
   return "internal";
 }

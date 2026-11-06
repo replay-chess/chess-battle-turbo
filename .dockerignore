@@ -1,5 +1,10 @@
-# Dependencies
+# Dependencies (every workspace level, not only the root)
 node_modules
+**/node_modules
+# Generated Prisma client: each image generates its own for its platform (packages/db)
+packages/db/generated
+**/.env*
+!**/.env.example
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

@@ -1,8 +1,11 @@
 name: Deploy WebSocket to OCI
 
-# Builds the arm64 websocket image on GitHub's arm runners (the OCI Ampere A1
-# server is arm64), pushes it to GHCR, then pulls and restarts the stack on
-# the server. The Next.js app stays on Vercel.
+# Builds the arm64 websocket image on Blacksmith's arm runners (the OCI Ampere A1
+# server is arm64), pushes it to GHCR, then restarts the stack on the server with
+# a drain (phase-02 plan 7.11): pre-pull, signed restart notice to every live game,
+# wait, `up -d` (SIGTERM → the server freezes clocks, fsyncs the journal and flushes
+# every game within stop_grace_period 30s), then poll /ready until the new process
+# restored the games. The Next.js app stays on Vercel.
 #
 # Two environments, one workflow:
 #   push to main -> prod server  (OCI_HOST,     WS_ENV_FILE,     ws-chess.playchess.tech)
@@ -10,7 +13,8 @@ name: Deploy WebSocket to OCI
 #
 # Secrets:
 #   WS_ENV_FILE / WS_DEV_ENV_FILE  websocket server .env for each environment
-#                (see deploy/oci/.env.example); written to /opt/replay-chess/.env
+#                (apps/web-socket/.env.example; DRAIN_NOTICE_SECONDS=30 on dev,
+#                120 on production); written to /opt/replay-chess/.env
 #   OCI_HOST / OCI_DEV_HOST        server public IPs
 #   OCI_SSH_KEY  private key of the `deploy` user on both servers
 #                (deploy/oci/setup-server.sh)
@@ -20,6 +24,9 @@ on:
     branches: [main, dev]
     paths:
       - "apps/web-socket/**"
+      - "packages/db/**"
+      - "packages/game-core/**"
+      - "packages/contracts/**"
       - "deploy/oci/**"
       - ".github/workflows/deploy-oci.yml"
   workflow_dispatch:
@@ -91,7 +98,7 @@ jobs:
           target: /opt/replay-chess
           strip_components: 1
 
-      - name: Restart stack
+      - name: Restart stack with drain
         uses: appleboy/ssh-action@v1.0.3
         env:
           GHCR_USER: ${{ github.actor }}
@@ -106,8 +113,26 @@ jobs:
             cd /opt/replay-chess
             chmod 600 .env
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            # The old container keeps serving while the new image downloads.
             docker compose pull
+            N="$(sed -n 's/^DRAIN_NOTICE_SECONDS=//p' .env | tail -n 1)"
+            N="${N:-30}"
+            if docker compose ps --status running websocket | grep -q websocket; then
+              # The CLI signs with the container's own `ops` key (plan 7.5.1): no secret
+              # ever expands in this log. An old image without the CLI just skips the notice.
+              if docker compose exec -T websocket node dist/cli/internal.js broadcast --in "$N"; then
+                sleep "$N"
+              fi
+            fi
+            # SIGTERM → drain (stop_grace_period 30s), then the new process restores the games.
             docker compose up -d --remove-orphans
+            READY=0
+            for i in $(seq 1 45); do
+              if docker compose exec -T websocket wget -qO- http://127.0.0.1:3002/ready; then READY=1; break; fi
+              sleep 2
+            done
+            echo
             docker logout ghcr.io
             docker image prune -f
             docker compose ps
+            if [ "$READY" != 1 ]; then echo "websocket did not report /ready within 90 s"; exit 1; fi

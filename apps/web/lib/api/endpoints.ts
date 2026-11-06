@@ -15,6 +15,12 @@ type EndpointPaths = {
   health: PathOf<"health.get">;
   socketToken: PathOf<"socket-token.get">;
   subscription: PathOf<"subscription.get">;
+  // P2 games (`{ref}` filled by lib/api/queries/games.ts gamePath()).
+  gameCreate: PathOf<"games.create">;
+  gameDetail: PathOf<"games.detail">;
+  gameCheckpoint: PathOf<"games.checkpoint">;
+  gameComplete: PathOf<"games.complete">;
+  gamePgn: PathOf<"games.pgn">;
 };
 
 export const endpoints = {
@@ -25,6 +31,11 @@ export const endpoints = {
   health: "/api/health",
   socketToken: "/api/socket-token",
   subscription: "/api/subscription",
+  gameCreate: "/api/games",
+  gameDetail: "/api/games/{ref}",
+  gameCheckpoint: "/api/games/{ref}/checkpoint",
+  gameComplete: "/api/games/{ref}/complete",
+  gamePgn: "/api/games/{ref}/pgn",
 } as const satisfies EndpointPaths;
 
 /** The registry id behind each entry (endpoints.test.ts). */
@@ -36,4 +47,9 @@ export const ENDPOINT_IDS = {
   health: "health.get",
   socketToken: "socket-token.get",
   subscription: "subscription.get",
+  gameCreate: "games.create",
+  gameDetail: "games.detail",
+  gameCheckpoint: "games.checkpoint",
+  gameComplete: "games.complete",
+  gamePgn: "games.pgn",
 } as const satisfies Record<keyof typeof endpoints, EndpointId>;

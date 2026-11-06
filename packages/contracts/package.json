@@ -6,7 +6,9 @@
   "sideEffects": false,
   "exports": {
     "./http/*": "./src/http/*.ts",
-    "./http/registry": "./src/http/registry/index.ts"
+    "./http/registry": "./src/http/registry/index.ts",
+    "./socket/*": "./src/socket/*.ts",
+    "./internal/*": "./src/internal/*.ts"
   },
   "scripts": {
     "test": "tsx --test \"src/**/*.test.ts\"",

@@ -25,6 +25,11 @@ export const DEFAULT_ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = {
   maintenance: "ReplayChess is down for maintenance. Try again shortly.",
   not_configured: "This feature is not configured.",
   unavailable: "The service is temporarily unavailable. Try again shortly.",
+  // Phase 2 ledger rows (@repo/contracts/http/codes).
+  in_flight: "This request is already being processed. Try again in a moment.",
+  idempotency_key_reused: "This request key was already used for a different request.",
+  illegal_position: "This starting position is not valid.",
+  illegal_moves: "These moves are not legal from the game's position.",
 };
 
 export type ApiErrorInit = {

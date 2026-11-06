@@ -1,0 +1,238 @@
+{
+  "format": 1,
+  "state": "over_aborted",
+  "number": 46,
+  "status": "golden",
+  "summary": "No first move within 30 s.",
+  "t0": 1793563200000,
+  "expect": {
+    "w": {
+      "primary": "over_aborted"
+    },
+    "b": {
+      "primary": "over_aborted"
+    }
+  },
+  "steps": [
+    {
+      "t": 0,
+      "actor": "w",
+      "send": "game:join",
+      "payload": {
+        "ref": "cm3k9x2p10007slzpqa8hd4fe"
+      },
+      "ack": {
+        "ok": true,
+        "role": "player",
+        "color": "w",
+        "state": {
+          "v": 2,
+          "ref": "cm3k9x2p10007slzpqa8hd4fe",
+          "seq": 5,
+          "serverNow": 1793563200000,
+          "mode": "FRIEND",
+          "rated": false,
+          "timeClass": "blitz",
+          "tc": {
+            "initialMs": 300000,
+            "incrementMs": 3000,
+            "label": "5+3"
+          },
+          "header": {
+            "left": "C41 · Philidor Defence · Morphy vs Duke Karl of Brunswick and Count Isouard 1858",
+            "right": "Blitz 5+3 · unrated"
+          },
+          "position": {
+            "name": "Morphy vs Duke Karl of Brunswick and Count Isouard",
+            "event": "Paris Opera",
+            "year": 1858,
+            "sideToMove": "w",
+            "afterLabel": "after 9…b5",
+            "legendSide": "w"
+          },
+          "startFen": "rn2kb1r/p3qppp/2p2n2/1p2p1B1/2B1P3/1QN5/PPP2PPP/R3K2R w KQkq - 0 10",
+          "startPly": 18,
+          "prefix": {
+            "sans": "e4 e5 Nf3 d6 d4 Bg4 dxe5 Bxf3 Qxf3 dxe5 Bc4 Nf6 Qb3 Qe7 Nc3 c6 Bg5 b5",
+            "startMoveNo": 10,
+            "startsBlack": false
+          },
+          "moves": "",
+          "clocksMs": [],
+          "fen": "rn2kb1r/p3qppp/2p2n2/1p2p1B1/2B1P3/1QN5/PPP2PPP/R3K2R w KQkq - 0 10",
+          "turn": "w",
+          "inCheck": false,
+          "phase": "first_move",
+          "study": null,
+          "firstMove": {
+            "side": "w",
+            "deadlineAt": 1793563230000
+          },
+          "clocks": {
+            "w": 300000,
+            "b": 300000,
+            "run": null,
+            "at": 1793563200000
+          },
+          "frozen": null,
+          "players": {
+            "w": {
+              "ref": "cm1a7rt0q0002ls8d9x0k4vze",
+              "displayName": "lucena_now_blitz2026",
+              "initials": "LU",
+              "avatarUrl": null,
+              "rating": 1847,
+              "isBot": false,
+              "online": true,
+              "graceEndsAt": null
+            },
+            "b": {
+              "ref": "cm1a7s3c10003ls8dh2m7q5yt",
+              "displayName": "martin_k_of_the_ring",
+              "initials": "MA",
+              "avatarUrl": null,
+              "rating": 1912,
+              "isBot": false,
+              "online": true,
+              "graceEndsAt": null
+            }
+          },
+          "you": {
+            "role": "player",
+            "color": "w"
+          },
+          "drawOffer": null,
+          "canOfferAtPly": {
+            "w": 0,
+            "b": 0
+          },
+          "rematch": null,
+          "spectators": 0,
+          "result": null
+        }
+      }
+    },
+    {
+      "t": 0,
+      "actor": "b",
+      "send": "game:join",
+      "payload": {
+        "ref": "cm3k9x2p10007slzpqa8hd4fe"
+      },
+      "ack": {
+        "ok": true,
+        "role": "player",
+        "color": "b",
+        "state": {
+          "v": 2,
+          "ref": "cm3k9x2p10007slzpqa8hd4fe",
+          "seq": 5,
+          "serverNow": 1793563200000,
+          "mode": "FRIEND",
+          "rated": false,
+          "timeClass": "blitz",
+          "tc": {
+            "initialMs": 300000,
+            "incrementMs": 3000,
+            "label": "5+3"
+          },
+          "header": {
+            "left": "C41 · Philidor Defence · Morphy vs Duke Karl of Brunswick and Count Isouard 1858",
+            "right": "Blitz 5+3 · unrated"
+          },
+          "position": {
+            "name": "Morphy vs Duke Karl of Brunswick and Count Isouard",
+            "event": "Paris Opera",
+            "year": 1858,
+            "sideToMove": "w",
+            "afterLabel": "after 9…b5",
+            "legendSide": "w"
+          },
+          "startFen": "rn2kb1r/p3qppp/2p2n2/1p2p1B1/2B1P3/1QN5/PPP2PPP/R3K2R w KQkq - 0 10",
+          "startPly": 18,
+          "prefix": {
+            "sans": "e4 e5 Nf3 d6 d4 Bg4 dxe5 Bxf3 Qxf3 dxe5 Bc4 Nf6 Qb3 Qe7 Nc3 c6 Bg5 b5",
+            "startMoveNo": 10,
+            "startsBlack": false
+          },
+          "moves": "",
+          "clocksMs": [],
+          "fen": "rn2kb1r/p3qppp/2p2n2/1p2p1B1/2B1P3/1QN5/PPP2PPP/R3K2R w KQkq - 0 10",
+          "turn": "w",
+          "inCheck": false,
+          "phase": "first_move",
+          "study": null,
+          "firstMove": {
+            "side": "w",
+            "deadlineAt": 1793563230000
+          },
+          "clocks": {
+            "w": 300000,
+            "b": 300000,
+            "run": null,
+            "at": 1793563200000
+          },
+          "frozen": null,
+          "players": {
+            "w": {
+              "ref": "cm1a7rt0q0002ls8d9x0k4vze",
+              "displayName": "lucena_now_blitz2026",
+              "initials": "LU",
+              "avatarUrl": null,
+              "rating": 1847,
+              "isBot": false,
+              "online": true,
+              "graceEndsAt": null
+            },
+            "b": {
+              "ref": "cm1a7s3c10003ls8dh2m7q5yt",
+              "displayName": "martin_k_of_the_ring",
+              "initials": "MA",
+              "avatarUrl": null,
+              "rating": 1912,
+              "isBot": false,
+              "online": true,
+              "graceEndsAt": null
+            }
+          },
+          "you": {
+            "role": "player",
+            "color": "b"
+          },
+          "drawOffer": null,
+          "canOfferAtPly": {
+            "w": 0,
+            "b": 0
+          },
+          "rematch": null,
+          "spectators": 0,
+          "result": null
+        }
+      }
+    },
+    {
+      "t": 30020,
+      "to": [
+        "w",
+        "b"
+      ],
+      "event": "game:ended",
+      "payload": {
+        "seq": 6,
+        "ref": "cm3k9x2p10007slzpqa8hd4fe",
+        "winner": null,
+        "method": "aborted",
+        "ply": 18,
+        "endedAt": 1793563230020,
+        "finalFen": "rn2kb1r/p3qppp/2p2n2/1p2p1B1/2B1P3/1QN5/PPP2PPP/R3K2R w KQkq - 0 10",
+        "clocks": {
+          "w": 300000,
+          "b": 300000,
+          "run": null,
+          "at": 1793563230020
+        },
+        "rated": false
+      }
+    }
+  ]
+}

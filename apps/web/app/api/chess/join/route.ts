@@ -1,9 +1,17 @@
+// POST /api/chess/join (legacy friend join, kept until P9; phase-02 plan §6.6.2, §7.2). The join is ONE conditional
+// statement (`joinLiveGame`): `status = 'WAITING_FOR_OPPONENT' AND "opponentId" IS NULL AND "creatorId" <> me`, it fills
+// the empty colour and its display snapshot, inserts the joiner's game_players row and completes the creator's. Two
+// concurrent joiners: exactly one wins; the other gets 409 conflict {reason: already_started} (play-a B13). The
+// legacy "not available" / "expired" / "own game" answers and the response shape are unchanged.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import * as Sentry from "@sentry/nextjs";
+import { joinLiveGame, timeClassOf } from "@repo/db/games";
 import { prisma } from "@/lib/prisma";
 import { ValidationError } from "@/lib/errors/validation-error";
 import { requireSubscribedUser } from "@/lib/auth/require-subscription";
+import { ratingFor } from "@/lib/games/start.server";
+import { rawDb } from "@/lib/games/snapshot.server";
 import { logger } from "@/lib/logger";
 import { trackUserAction } from "@/lib/metrics";
 
@@ -11,19 +19,20 @@ const joinGameSchema = z.object({
   gameReferenceId: z.string().min(1, "Game reference ID is required"),
 });
 
+const PLAYER_SELECT = { referenceId: true, name: true, profilePictureUrl: true, code: true } as const;
+
 async function validateAndFetchGame(gameReferenceId: string) {
   const game = await prisma.game.findUnique({
     where: { referenceId: gameReferenceId },
-    include: {
-      creator: {
-        select: {
-          id: true,
-          referenceId: true,
-          name: true,
-          profilePictureUrl: true,
-          code: true,
-        },
-      },
+    select: {
+      id: true,
+      referenceId: true,
+      status: true,
+      creatorId: true,
+      expiresAt: true,
+      gameData: true,
+      initialTimeSeconds: true,
+      incrementSeconds: true,
     },
   });
 
@@ -78,33 +87,38 @@ export async function POST(request: NextRequest) {
         throw new ValidationError("You cannot join your own game", 400);
       }
 
-      // 5. Update game - set opponent and change status to IN_PROGRESS
-      const updatedGame = await prisma.game.update({
-        where: { id: game.id },
-        data: {
-          opponentId: opponent.id,
-          status: "IN_PROGRESS",
-          startedAt: new Date(),
-        },
-        include: {
-          creator: {
-            select: {
-              referenceId: true,
-              name: true,
-              profilePictureUrl: true,
-              code: true,
-            },
-          },
-          opponent: {
-            select: {
-              referenceId: true,
-              name: true,
-              profilePictureUrl: true,
-              code: true,
-            },
-          },
+      // 5. Conditional join: fills the empty colour, the display snapshot and both game_players rows
+      const profile = await prisma.chessComProfile.findUnique({
+        where: { userId: opponent.id },
+        select: { bulletRating: true, blitzRating: true, rapidRating: true },
+      });
+      const timeClass = timeClassOf({ initialSeconds: game.initialTimeSeconds, incrementSeconds: game.incrementSeconds });
+      const joined = await joinLiveGame(rawDb(prisma), {
+        ref: game.referenceId,
+        me: { userId: opponent.id, name: opponent.name, rating: ratingFor(profile, timeClass) },
+      });
+      if (!joined) {
+        return NextResponse.json(
+          { error: "This game has already started.", code: "conflict", details: { reason: "already_started" } },
+          { status: 409 }
+        );
+      }
+
+      const updatedGame = await prisma.game.findUnique({
+        where: { id: joined.id },
+        select: {
+          referenceId: true,
+          status: true,
+          initialTimeSeconds: true,
+          incrementSeconds: true,
+          startedAt: true,
+          expiresAt: true,
+          createdAt: true,
+          creator: { select: PLAYER_SELECT },
+          opponent: { select: PLAYER_SELECT },
         },
       });
+      if (!updatedGame) throw new ValidationError("Game not found", 404);
 
       // 6. Return success response
       return NextResponse.json(

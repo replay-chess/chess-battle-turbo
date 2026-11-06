@@ -1,0 +1,119 @@
+{
+  "format": 1,
+  "state": "rematch_study",
+  "number": 7,
+  "status": "golden",
+  "summary": "Rematch accepted; colours swapped (you play Black); study of the new game.",
+  "t0": 1793563200000,
+  "expect": {
+    "b": {
+      "primary": "rematch_study",
+      "zone": "study",
+      "toast": "rematch_accepted"
+    }
+  },
+  "steps": [
+    {
+      "t": 0,
+      "actor": "b",
+      "send": "game:join",
+      "payload": {
+        "ref": "cm3k9xq7r0009slzpw2e5bn1k"
+      },
+      "ack": {
+        "ok": true,
+        "role": "player",
+        "color": "b",
+        "state": {
+          "v": 2,
+          "ref": "cm3k9xq7r0009slzpw2e5bn1k",
+          "seq": 1,
+          "serverNow": 1793563200000,
+          "mode": "FRIEND",
+          "rated": false,
+          "timeClass": "blitz",
+          "tc": {
+            "initialMs": 300000,
+            "incrementMs": 3000,
+            "label": "5+3"
+          },
+          "header": {
+            "left": "C41 · Philidor Defence · Morphy vs Duke Karl of Brunswick and Count Isouard 1858",
+            "right": "Rematch · Blitz 5+3"
+          },
+          "position": {
+            "name": "Morphy vs Duke Karl of Brunswick and Count Isouard",
+            "event": "Paris Opera",
+            "year": 1858,
+            "sideToMove": "w",
+            "afterLabel": "after 9…b5",
+            "legendSide": "w"
+          },
+          "startFen": "rn2kb1r/p3qppp/2p2n2/1p2p1B1/2B1P3/1QN5/PPP2PPP/R3K2R w KQkq - 0 10",
+          "startPly": 18,
+          "prefix": {
+            "sans": "e4 e5 Nf3 d6 d4 Bg4 dxe5 Bxf3 Qxf3 dxe5 Bc4 Nf6 Qb3 Qe7 Nc3 c6 Bg5 b5",
+            "startMoveNo": 10,
+            "startsBlack": false
+          },
+          "moves": "",
+          "clocksMs": [],
+          "fen": "rn2kb1r/p3qppp/2p2n2/1p2p1B1/2B1P3/1QN5/PPP2PPP/R3K2R w KQkq - 0 10",
+          "turn": "w",
+          "inCheck": false,
+          "phase": "study",
+          "study": {
+            "endsAt": 1793563230000,
+            "ready": {
+              "w": false,
+              "b": false
+            }
+          },
+          "firstMove": null,
+          "clocks": {
+            "w": 300000,
+            "b": 300000,
+            "run": null,
+            "at": 1793563200000
+          },
+          "frozen": null,
+          "players": {
+            "w": {
+              "ref": "cm1a7s3c10003ls8dh2m7q5yt",
+              "displayName": "martin_k_of_the_ring",
+              "initials": "MA",
+              "avatarUrl": null,
+              "rating": 1912,
+              "isBot": false,
+              "online": true,
+              "graceEndsAt": null
+            },
+            "b": {
+              "ref": "cm1a7rt0q0002ls8d9x0k4vze",
+              "displayName": "lucena_now_blitz2026",
+              "initials": "LU",
+              "avatarUrl": null,
+              "rating": 1847,
+              "isBot": false,
+              "online": true,
+              "graceEndsAt": null
+            }
+          },
+          "you": {
+            "role": "player",
+            "color": "b"
+          },
+          "drawOffer": null,
+          "canOfferAtPly": {
+            "w": 0,
+            "b": 0
+          },
+          "rematch": null,
+          "spectators": 0,
+          "result": null,
+          "rematchOf": "cm3k9x2p10007slzpqa8hd4fe"
+        }
+      }
+    }
+  ]
+}

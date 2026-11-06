@@ -5,5 +5,24 @@
 # WS_HOST comes from the stack's .env: ws-chess.playchess.tech on prod, the
 # dev hostname on the dev server.
 {$WS_HOST} {
+	# Internal bodies are small (phase-02 plan 7.5.1); refuse anything larger before Node reads it.
+	@internal path /internal/*
+	request_body @internal {
+		max_size 64KB
+	}
+
+	# Ops endpoints are reached only from inside the container
+	# (docker compose exec websocket node dist/cli/internal.js …), never from outside.
+	@opsOnly path /internal/broadcast /internal/drain /internal/metrics
+	respond @opsOnly 404
+
+	# Unsigned pre-check (feasibility SEC-8): a request without the HMAC signature header never reaches Node on
+	# the 1-OCPU box. The socket server still verifies every signature (kid, ts, sig, replay).
+	@unsigned {
+		path /internal/* /engine/*
+		not header X-Rc-Sig *
+	}
+	respond @unsigned 401
+
 	reverse_proxy websocket:3002
 }

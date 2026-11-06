@@ -1,6 +1,7 @@
 /* global process */
 import withPWAInit from "@ducanh2912/next-pwa";
 import createMDX from "@next/mdx";
+import prismaWorkaround from "@prisma/nextjs-monorepo-workaround-plugin";
 import { withSentryConfig } from "@sentry/nextjs";
 import remarkGfm from "remark-gfm";
 import { allRedirects, mediaUrlOf } from "./config/redirects/index.mjs";
@@ -82,6 +83,17 @@ const withPWA = withPWAInit({
         handler: "NetworkOnly",
       },
       {
+        // The engine (P2 plan 9.3): the hashed same-origin folder and R2's /engine/sf18-<hash>/ are immutable, so
+        // cache-first. Must sit before the destination "" rule (the worker fetches the wasm with destination "").
+        urlPattern: ({ url }) => /\/sf18-[0-9a-f]{12}\//.test(url.pathname),
+        handler: "CacheFirst",
+        options: {
+          cacheName: "rc-engine-v18",
+          expiration: { maxEntries: 10 },
+          cacheableResponse: { statuses: [0, 200] },
+        },
+      },
+      {
         urlPattern: ({ request }) => request.destination === "",
         handler: "NetworkOnly",
       },
@@ -106,8 +118,22 @@ const nextConfig = {
   // The devices build uses .next-devices so it never fights `next dev` (SPEC 5.2).
   distDir: process.env.NEXT_DIST_DIR || ".next",
   devIndicators: process.env.NEXT_PUBLIC_DEV_WIDGETS === "0" ? false : undefined,
-  // Workspace packages ship TypeScript source (phase-01 plan 7.3, 10.1).
-  transpilePackages: ["@repo/contracts", "@repo/analytics"],
+  // Workspace packages ship TypeScript source (phase-01 plan 7.3, 10.1; phase-02 plan 6.9).
+  transpilePackages: ["@repo/contracts", "@repo/analytics", "@repo/db", "@repo/game-core"],
+  // The Prisma client is generated into packages/db/generated/prisma (phase-02 plan 6.9). File tracing follows the
+  // client's own path.join(__dirname, ...) annotations, but this keeps the query engines (darwin locally,
+  // rhel-openssl on Vercel, linux-musl in Docker) and schema.prisma in every server bundle even if a bundler
+  // change hides them (risk R-02).
+  outputFileTracingIncludes: {
+    "/**": ["../../packages/db/generated/prisma/*.node", "../../packages/db/generated/prisma/schema.prisma"],
+  },
+  // The client is bundled into the server chunks, where Prisma looks for schema.prisma and the engine next to the
+  // chunk (__dirname) or under the runtime cwd; neither is packages/db on Vercel (/var/task). Prisma's monorepo
+  // plugin copies both next to every chunk that holds the client (https://pris.ly/d/engine-not-found-nextjs).
+  webpack(config, { isServer }) {
+    if (isServer) config.plugins.push(new prismaWorkaround.PrismaPlugin());
+    return config;
+  },
   // Only use standalone output for Docker builds
   // Amplify uses standard Next.js output
   ...(process.env.USE_STANDALONE === "true" && { output: "standalone" }),
@@ -208,6 +234,17 @@ const nextConfig = {
           {
             key: "Cache-Control",
             value: "public, max-age=0, must-revalidate",
+          },
+        ],
+      },
+      // Hashed engine folders (/workers/sf18-<hash>/, phase-02 plan 0.2 and WP-H): the hash changes with the
+      // files, so they are immutable. Listed after the rule above so its Cache-Control wins for these paths.
+      {
+        source: "/workers/sf18-:hash/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
           },
         ],
       },

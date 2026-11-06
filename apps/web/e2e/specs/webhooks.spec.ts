@@ -12,7 +12,7 @@
 import { randomBytes } from "node:crypto";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { Webhook } from "standardwebhooks";
-import type { PrismaClient } from "../../app/generated/prisma";
+import type { PrismaClient } from "@repo/db";
 import { throwawayEmail } from "../fixtures/users";
 
 const DODO_KEY = process.env.DODO_PAYMENTS_WEBHOOK_KEY ?? "";
@@ -65,7 +65,7 @@ test.describe("webhooks @p1 @local-only", () => {
   let userId: bigint;
 
   test.beforeAll(async () => {
-    const { PrismaClient } = await import("../../app/generated/prisma/index.js");
+    const { PrismaClient } = await import("@repo/db");
     db = new PrismaClient();
     const user = await db.user.create({
       data: { googleId: `user_e2ewh_dodo_${run}`, email: dodoEmail, name: "Webhook E2E", code: userCode() },

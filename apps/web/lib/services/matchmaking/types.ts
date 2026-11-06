@@ -1,4 +1,4 @@
-import { MatchmakingStatus } from "@/app/generated/prisma";
+import { MatchmakingStatus } from "@repo/db";
 
 export interface QueueEntry {
   id: bigint;

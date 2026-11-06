@@ -231,11 +231,22 @@ export function backTarget(pathname: string, me: Me): BackTarget | null {
   if (detailOf(p, "/tournament") || detailOf(p, "/join-tournament")) return backFor("tournaments", me);
   if (detailOf(p, "/legends")) return backFor("legends", me);
   if (detailOf(p, "/openings")) return backFor("openings", me);
-  if (under(p, "/queue") || under(p, "/challenge/new") || detailOf(p, "/join") || detailOf(p, "/position")) {
+  if (
+    under(p, "/queue") ||
+    under(p, "/challenge/new") ||
+    detailOf(p, "/join") ||
+    detailOf(p, "/position") ||
+    detailOf(p, "/game")
+  ) {
     return backFor("play", me);
   }
   if (detailOf(p, "/profile") && !isOwnProfile(p, me)) return backFor("play", me);
   return null;
+}
+
+/** Routes that take the whole phone screen: no tab bar while a game is on screen (P2 plan 4.1, one viewport). */
+export function hidesTabBar(pathname: string): boolean {
+  return detailOf(normalizePath(pathname), "/game");
 }
 
 /**

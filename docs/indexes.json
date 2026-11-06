@@ -1,0 +1,116 @@
+{
+  "$comment": "Index existence gate (phase-02 plan 9.2, optimization §3.5.4). Every index a hot query relies on is listed here; packages/db/test/migrations.int.test.ts fails when a listed name is missing from pg_indexes after `prisma migrate deploy`. P2 created this file; later phases append their rows. `query` names the statement it serves; `explain` says the plan it must keep.",
+  "version": 1,
+  "indexes": [
+    {
+      "name": "games_referenceId_key",
+      "table": "games",
+      "columns": ["referenceId"],
+      "unique": true,
+      "phase": "P0",
+      "query": "getGameSnapshot (RSC, every game page load); socket loadLiveGame (once per session); POST /api/games/[ref]/*",
+      "explain": "Index Scan using games_referenceId_key"
+    },
+    {
+      "name": "games_pkey",
+      "table": "games",
+      "columns": ["id"],
+      "unique": true,
+      "phase": "P0",
+      "query": "socket checkpoint UPDATE … WHERE id = $1 (≤ 10 per game), finish CTE, abort",
+      "explain": "Index Scan using games_pkey"
+    },
+    {
+      "name": "games_open_idx",
+      "table": "games",
+      "columns": ["status"],
+      "partial": "status IN ('WAITING_FOR_OPPONENT','IN_PROGRESS')",
+      "protected": true,
+      "phase": "P2",
+      "query": "socket boot restore list; boot/opportunistic stale sweep; daily stale bot sweep; stale waiting-game expiry",
+      "explain": "Index Scan (or Bitmap Index Scan) using games_open_idx; never a Seq Scan on games"
+    },
+    {
+      "name": "games_source_externalId_key",
+      "table": "games",
+      "columns": ["source", "externalId"],
+      "unique": true,
+      "phase": "P2",
+      "query": "P4 import upsert ON CONFLICT (source, \"externalId\")",
+      "explain": "unique arbiter index"
+    },
+    {
+      "name": "games_white_player_idx",
+      "table": "games",
+      "columns": ["whitePlayerId"],
+      "partial": "\"whitePlayerId\" IS NOT NULL",
+      "protected": true,
+      "phase": "P2",
+      "query": "ON DELETE SET NULL from users (P10 account deletion) without a scan",
+      "explain": "Index Scan using games_white_player_idx"
+    },
+    {
+      "name": "games_black_player_idx",
+      "table": "games",
+      "columns": ["blackPlayerId"],
+      "partial": "\"blackPlayerId\" IS NOT NULL",
+      "protected": true,
+      "phase": "P2",
+      "query": "ON DELETE SET NULL from users (P10 account deletion) without a scan",
+      "explain": "Index Scan using games_black_player_idx"
+    },
+    {
+      "name": "games_rematch_of_idx",
+      "table": "games",
+      "columns": ["rematchOfId"],
+      "partial": "\"rematchOfId\" IS NOT NULL",
+      "protected": true,
+      "phase": "P2",
+      "query": "createRematch NOT EXISTS guard; ON DELETE SET NULL from games; rematch chain length",
+      "explain": "Index Only Scan using games_rematch_of_idx"
+    },
+    {
+      "name": "game_players_pkey",
+      "table": "game_players",
+      "columns": ["gameId", "userId"],
+      "unique": true,
+      "phase": "P2",
+      "query": "participant check on GET /api/games/[ref], checkpoint, complete, PGN (≤ 2 rows); finish CTE join",
+      "explain": "Index Scan using game_players_pkey"
+    },
+    {
+      "name": "game_players_gameId_color_key",
+      "table": "game_players",
+      "columns": ["gameId", "color"],
+      "unique": true,
+      "phase": "P2",
+      "query": "one row per side (a join race inserts the second row → unique violation → 409)",
+      "explain": "unique constraint"
+    },
+    {
+      "name": "game_players_userId_endedAt_gameId_idx",
+      "table": "game_players",
+      "columns": ["userId", "endedAt DESC", "gameId DESC"],
+      "phase": "P2",
+      "query": "my live games WHERE \"userId\" = $1 AND \"endedAt\" IS NULL; P3 archive keyset ORDER BY \"endedAt\" DESC, \"gameId\" DESC; user-delete cascade",
+      "explain": "Index Scan using game_players_userId_endedAt_gameId_idx; no Sort over game_players"
+    },
+    {
+      "name": "idempotency_keys_pkey",
+      "table": "idempotency_keys",
+      "columns": ["userId", "key"],
+      "unique": true,
+      "phase": "P2",
+      "query": "POST /api/games Idempotency-Key insert ON CONFLICT (\"userId\", key) DO NOTHING",
+      "explain": "unique arbiter index"
+    },
+    {
+      "name": "idempotency_keys_createdAt_idx",
+      "table": "idempotency_keys",
+      "columns": ["createdAt"],
+      "phase": "P2",
+      "query": "daily prune DELETE … WHERE \"createdAt\" < now() - interval '24 hours'",
+      "explain": "Index Scan using idempotency_keys_createdAt_idx"
+    }
+  ]
+}

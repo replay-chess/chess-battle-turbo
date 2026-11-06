@@ -10,8 +10,10 @@
  * logic are unit-tested with fakes (`tasks.test.ts`).
  */
 import { createHash, timingSafeEqual } from "node:crypto";
+import { idempotencyPrune } from "./idempotency-prune";
 import { membershipReconcile } from "./membership-reconcile";
 import { rateLimitSweep } from "./rate-limit-sweep";
+import { staleBotGames } from "./stale-bot-games";
 import { webhookRetention } from "./webhook-retention";
 
 export type CronContext = {
@@ -50,8 +52,8 @@ export type CronRunReport = {
   durationMs: number;
 };
 
-/** The P1 tasks, in run order. */
-export const CRON_TASKS: readonly CronTask[] = [rateLimitSweep, webhookRetention, membershipReconcile];
+/** The tasks, in run order (P1, then P2's stale bot-game sweep and idempotency-key prune). */
+export const CRON_TASKS: readonly CronTask[] = [rateLimitSweep, webhookRetention, membershipReconcile, staleBotGames, idempotencyPrune];
 
 /** Route budget: `maxDuration = 60`; long tasks stop taking new work after this many ms. */
 export const CRON_SOFT_BUDGET_MS = 45_000;

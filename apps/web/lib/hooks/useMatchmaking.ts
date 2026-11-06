@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { MatchmakingStatus } from "@/app/generated/prisma";
+import { MatchmakingStatus } from "@repo/db";
 import { useRouter } from "next/navigation";
 import { trackApiResponseTime } from "@/lib/metrics";
 import { currentAppPath, isSubscriptionRequiredResponse, paywallUrl } from "@/lib/billing/client";

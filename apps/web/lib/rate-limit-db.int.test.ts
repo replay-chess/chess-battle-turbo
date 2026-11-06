@@ -4,7 +4,7 @@
  */
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { PrismaClient } from "../app/generated/prisma";
+import { PrismaClient } from "@repo/db";
 import {
   RATE_LIMIT_SQL,
   checkRateLimit,

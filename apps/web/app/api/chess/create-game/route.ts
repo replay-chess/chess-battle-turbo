@@ -1,12 +1,22 @@
-import {NextRequest, NextResponse} from "next/server";
-import {z} from "zod";
+// POST /api/chess/create-game (legacy friend challenge, kept until P9's /api/challenges; phase-02 plan §6.6.2, §7.2).
+// Writes the P2 play columns through `createLiveGame` (mode FRIEND, the creator's colour column and display snapshot,
+// studySeconds, timeClass, startPly, fen, phase WAITING, meta, the creator's game_players row) in one statement, and
+// keeps `gameData` (creatorColor, positionInfo, …) for the legacy readers (v1 socket, game-by-ref, analysis) until the
+// parity gate. An optional `Idempotency-Key` stops double-click duplicates (audit-api F-06). The response shape is
+// unchanged (tolerant readers).
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import * as Sentry from "@sentry/nextjs";
-import {prisma} from "@/lib/prisma";
-import {getRandomChessPosition, getRandomPositionByLegend, getPositionByReferenceId, incrementPositionPlayCount} from "@/lib/services/chess-position.service";
-import { getOpeningByReferenceId, getOpeningPlayerColor } from "@/lib/services/opening.service";
+import { createLiveGameSql } from "@repo/db/games";
+import { prisma } from "@/lib/prisma";
+import { ApiError, isApiError } from "@/lib/api/api-error";
+import { readIdempotencyKey, requestHash, withIdempotency } from "@/lib/api/idempotency";
 import { ValidationError } from "@/lib/errors/validation-error";
 import { requireSubscribedUser } from "@/lib/auth/require-subscription";
 import { captureGameTraceData } from "@/lib/sentry/game-trace";
+import { legacyPositionInfo, ratingFor, resolveLegacyStart, type Side } from "@/lib/games/start.server";
+import { rawDb } from "@/lib/games/snapshot.server";
+import { timeClassOf } from "@repo/db/games";
 import { logger } from "@/lib/logger";
 import { trackUserAction } from "@/lib/metrics";
 
@@ -21,8 +31,13 @@ const createGameSchema = z.object({
   chessPositionReferenceId: z.string().optional(),
 });
 
-function calculateExpirationTime(hoursFromNow: number = 1): Date {
-  return new Date(Date.now() + hoursFromNow * 60 * 60 * 1000);
+const INVITE_TTL_MS = 60 * 60 * 1000;
+
+function legacyError(err: ApiError): NextResponse {
+  return NextResponse.json(
+    { error: err.message, code: err.code, ...(err.details ? { details: err.details } : {}), ...(err.fields ? { fields: err.fields } : {}) },
+    { status: err.status, headers: err.retryAfterSec ? { "Retry-After": String(err.retryAfterSec) } : undefined },
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -35,147 +50,116 @@ export async function POST(request: NextRequest) {
     // 2. Parse and validate request body using Zod schema
     const body = await request.json();
     const validatedData = createGameSchema.parse(body);
+    const key = readIdempotencyKey(request.headers, { required: false });
 
-    // 3. Fetch chess position, opening, or legend position
-    const DEFAULT_STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    let chessPosition;
-    let legendPosition: Awaited<ReturnType<typeof getRandomPositionByLegend>> = null;
-    let opening: Awaited<ReturnType<typeof getOpeningByReferenceId>> = null;
+    const create = async () => {
+      // 3. Start: position by ref, opening, legend position, else a random position (unknown refs are tolerated)
+      const [start, profile] = await Promise.all([
+        resolveLegacyStart(prisma, {
+          positionRef: validatedData.chessPositionReferenceId ?? null,
+          openingRef: validatedData.chessPositionReferenceId ? null : (validatedData.selectedOpening ?? null),
+          legendRef:
+            validatedData.chessPositionReferenceId || validatedData.selectedOpening
+              ? null
+              : validatedData.playAsLegend
+                ? validatedData.selectedLegend
+                : null,
+        }),
+        prisma.chessComProfile.findUnique({
+          where: { userId: user.id },
+          select: { bulletRating: true, blitzRating: true, rapidRating: true },
+        }),
+      ]);
 
-    if (validatedData.chessPositionReferenceId) {
-      const positionByRef = await getPositionByReferenceId(validatedData.chessPositionReferenceId);
-      if (positionByRef) {
-        chessPosition = positionByRef;
+      // 4. Colours are fixed here, once (H6 #11, plan §8.8): the position's side to move, the opening's side, the
+      // legend's side, else random. The v1 socket reads gameData.creatorColor; v2 reads whitePlayerId/blackPlayerId.
+      const creatorSide: Side = start.ruledSide ?? (Math.random() < 0.5 ? "w" : "b");
+      const extraGameData: Record<string, unknown> = { creatorColor: creatorSide === "w" ? "white" : "black" };
+      const traceData = captureGameTraceData();
+      if (traceData) extraGameData.traceContext = traceData;
+      if (start.opening) {
+        extraGameData.selectedOpening = validatedData.selectedOpening;
+        extraGameData.openingInfo = {
+          referenceId: start.opening.referenceId,
+          name: start.opening.name,
+          eco: start.opening.eco,
+          pgn: start.opening.pgn,
+          moveCount: start.opening.moveCount,
+        };
       }
-    } else if (validatedData.selectedOpening) {
-      opening = await getOpeningByReferenceId(validatedData.selectedOpening);
-    } else if (validatedData.playAsLegend && validatedData.selectedLegend) {
-      legendPosition = await getRandomPositionByLegend(validatedData.selectedLegend);
-      chessPosition = legendPosition;
 
-      if (!chessPosition) {
-        chessPosition = await getRandomChessPosition();
-      }
-    } else {
-      chessPosition = await getRandomChessPosition();
-    }
-
-    const chessPositionId = opening ? null : (chessPosition?.id ?? null);
-    const openingId = opening?.id ?? null;
-    const startingFen = opening ? opening.fen : (chessPosition?.fen ?? DEFAULT_STARTING_FEN);
-
-    // 4. Build position info for display
-    let positionInfo;
-    if (opening) {
-      positionInfo = {
-        whitePlayerName: null,
-        blackPlayerName: null,
-        tournamentName: null,
-        openingName: opening.name,
-        openingEco: opening.eco,
-        whitePlayerImageUrl: null,
-        blackPlayerImageUrl: null,
-      };
-    } else if (chessPosition) {
-      positionInfo = {
-        whitePlayerName: chessPosition.whitePlayerName ?? null,
-        blackPlayerName: chessPosition.blackPlayerName ?? null,
-        tournamentName: chessPosition.tournamentName ?? null,
-        whitePlayerImageUrl: chessPosition.whiteLegend?.profilePhotoUrl ?? null,
-        blackPlayerImageUrl: chessPosition.blackLegend?.profilePhotoUrl ?? null,
-      };
-    } else {
-      positionInfo = null;
-    }
-
-    // 5. Capture Sentry trace context for distributed tracing
-    const traceData = captureGameTraceData();
-
-    // 5b. Determine creator color and build extra game data
-    const extraGameData: Record<string, unknown> = {};
-    if (traceData) {
-      extraGameData.traceContext = traceData;
-    }
-    if (validatedData.chessPositionReferenceId && chessPosition && 'sideToMove' in chessPosition) {
-      extraGameData.creatorColor = chessPosition.sideToMove === "white" ? "white" : "black";
-    } else if (opening) {
-      extraGameData.creatorColor = getOpeningPlayerColor(opening.sideToMove);
-      extraGameData.selectedOpening = validatedData.selectedOpening;
-      extraGameData.openingInfo = {
-        referenceId: opening.referenceId,
-        name: opening.name,
-        eco: opening.eco,
-        pgn: opening.pgn,
-        moveCount: opening.moveCount,
-      };
-    } else if (legendPosition && legendPosition.legendId) {
-      if (legendPosition.whitePlayerId === legendPosition.legendId) {
-        extraGameData.creatorColor = "white";
-      } else {
-        extraGameData.creatorColor = "black";
-      }
-    }
-    // Colours are fixed here, once (H6 #11, plan §8.8): any game without a side chosen above
-    // gets a random one now. The socket reads `creatorColor` and never re-randomises, and the
-    // analysis route grades the side the creator really played.
-    if (extraGameData.creatorColor !== "white" && extraGameData.creatorColor !== "black") {
-      extraGameData.creatorColor = Math.random() < 0.5 ? "white" : "black";
-    }
-
-    // 6. Create the game
-    const expiresAt = calculateExpirationTime(1);
-    const game = await prisma.game.create({
-      data: {
+      // 5. Create the game (+ the creator's game_players row) and count the position's play, atomically
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + INVITE_TTL_MS);
+      const timeClass = timeClassOf({ initialSeconds: validatedData.initialTimeSeconds, incrementSeconds: validatedData.incrementSeconds });
+      const me = { userId: user.id, name: user.name, rating: ratingFor(profile, timeClass) };
+      const { sql, ref } = createLiveGameSql({
+        mode: "FRIEND",
         creatorId: user.id,
-        chessPositionId,
-        openingId,
-        startingFen,
+        opponentId: null,
+        white: creatorSide === "w" ? me : null,
+        black: creatorSide === "b" ? me : null,
+        startingFen: start.fen,
         initialTimeSeconds: validatedData.initialTimeSeconds,
         incrementSeconds: validatedData.incrementSeconds,
-        creatorTimeRemaining: validatedData.initialTimeSeconds,
-        opponentTimeRemaining: validatedData.initialTimeSeconds,
-        expiresAt,
         status: "WAITING_FOR_OPPONENT",
+        chessPositionId: start.position?.id ?? null,
+        openingId: start.opening?.id ?? null,
+        meta: start.meta,
         gameData: {
           gameMode: validatedData.gameMode,
           playAsLegend: validatedData.playAsLegend,
           selectedLegend: validatedData.selectedLegend,
-          positionInfo: positionInfo,
+          positionInfo: legacyPositionInfo(start.position, start.opening),
           ...extraGameData,
         },
-      },
-    });
+        expiresAt,
+        now,
+      });
+      await prisma.$transaction([
+        prisma.$queryRawUnsafe(sql.text, ...sql.values), // (text, ...values): see rawDb()
+        ...(start.position
+          ? [prisma.chessPosition.update({ where: { id: start.position.id }, data: { timesPlayed: { increment: 1 } } })]
+          : []),
+      ]);
 
-    // 7. Increment position play count if a position was used
-    if (chessPositionId) {
-      await incrementPositionPlayCount(chessPositionId);
-    }
-
-    // 8. Tag for Sentry filtering
-    Sentry.setTag("game.referenceId", game.referenceId);
-    trackUserAction("create_game");
-
-    // 9. Return success response
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Game created successfully",
-        data: {
-          game: {
-            referenceId: game.referenceId,
-            startingFen: game.startingFen,
-            chessPositionId: game.chessPositionId?.toString() ?? null,
-            initialTimeSeconds: game.initialTimeSeconds,
-            incrementSeconds: game.incrementSeconds,
-            status: game.status,
-            expiresAt: game.expiresAt,
-            createdAt: game.createdAt,
+      Sentry.setTag("game.referenceId", ref);
+      trackUserAction("create_game");
+      return {
+        status: 201,
+        body: {
+          success: true,
+          message: "Game created successfully",
+          data: {
+            game: {
+              referenceId: ref,
+              startingFen: start.fen,
+              chessPositionId: start.position?.id.toString() ?? null,
+              initialTimeSeconds: validatedData.initialTimeSeconds,
+              incrementSeconds: validatedData.incrementSeconds,
+              status: "WAITING_FOR_OPPONENT",
+              expiresAt: expiresAt.toISOString(),
+              createdAt: now.toISOString(),
+            },
           },
         },
-      },
-      { status: 201 }
-    );
+      };
+    };
+
+    const out = key
+      ? await withIdempotency(
+          rawDb(prisma),
+          { userId: user.id, key, route: "chess.create-game", hash: requestHash(validatedData), now: new Date() },
+          create,
+        )
+      : { ...(await create()), replayed: false };
+    return NextResponse.json(out.body, {
+      status: out.status,
+      headers: out.replayed ? { "Idempotent-Replayed": "true" } : undefined,
+    });
   } catch (error) {
+    if (isApiError(error)) return legacyError(error);
+
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {
       return NextResponse.json(

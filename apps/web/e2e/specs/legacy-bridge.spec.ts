@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { test, expect, ChessBoardHelper } from "../fixtures";
+import { test, expect } from "../fixtures";
 
 // The legacy client bridge (phase-01 plan §3.2, §5.2, 1B·F4d acceptance; AC #4 / #5):
 // - UserSync fills the legacy store from one GET /api/me; nothing calls /api/user/sync, /api/subscription or the
@@ -78,29 +78,19 @@ test.describe("legacy bridge: viewer reads @p1", () => {
     expect(hits.count, "(app) pages make no client /api/me read").toBe(0);
   });
 
-  test("a forced 500 on /api/me never redirects a member outside (app) (cold store, game page)", async ({
+  // regression: REGRESSION-2 — this used the game page as the "outside (app)" page; P2 moved /game/[ref] into
+  // (app), whose layout seeds the viewer, so UserSync never asked. /help is outside (app) and signed-in aware.
+  test("a forced 500 on /api/me never redirects a member outside (app) (cold store, /help)", async ({
     authedPage: page,
   }) => {
-    test.setTimeout(240_000);
-    // The game page is outside the (app) layout, so UserSync reads the viewer on a hard load.
-    await page.goto("/play");
-    await page.locator('[data-testid="start-game-button"]').click();
-    await page.waitForURL(/\/game\//, { timeout: 60_000, waitUntil: "commit" });
-    const gamePath = new URL(page.url()).pathname;
-
+    // Outside the (app) layout UserSync reads the viewer on a hard load.
+    await page.goto("/play", { waitUntil: "load" });
     const hits = await failMe(page);
     await page.evaluate((key) => localStorage.removeItem(key), STORE_KEY);
-    await page.goto(gamePath, { waitUntil: "load" });
-    await expectStays(page, gamePath);
+    await page.goto("/help", { waitUntil: "load" });
+    await expectStays(page, "/help");
     expect(hits.count, "UserSync asked for the viewer").toBeGreaterThan(0);
-
-    // Leave A without an open game.
     await page.unrouteAll({ behavior: "ignoreErrors" });
-    await page.reload({ waitUntil: "load" });
-    const board = new ChessBoardHelper(page);
-    await board.waitForBoard().catch(() => {});
-    await board.waitForGameStarted().catch(() => {});
-    await board.resign().catch(() => {});
   });
 
   test("a forced 500 on /api/me never redirects a member (Phase 0 snapshot saying entitled:false)", async ({

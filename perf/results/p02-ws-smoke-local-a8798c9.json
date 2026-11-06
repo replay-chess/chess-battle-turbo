@@ -1,0 +1,113 @@
+{
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {}
+    },
+    "metrics": {
+        "active_games": {
+            "value": -1,
+            "min": -1,
+            "max": 1
+        },
+        "data_received": {
+            "rate": 9787.962072393273,
+            "count": 274974
+        },
+        "iteration_duration": {
+            "p(95)": 27617.0142092,
+            "avg": 21200.45980804,
+            "min": 14883.206719,
+            "med": 21523.977872,
+            "max": 28092.148592,
+            "p(90)": 26860.793922
+        },
+        "ws_sessions": {
+            "count": 50,
+            "rate": 1.7797977394941473
+        },
+        "ws_session_duration": {
+            "p(95)": 20886.5786468,
+            "avg": 17597.068957300005,
+            "min": 14652.927391,
+            "med": 17740.6330295,
+            "max": 20887.146319,
+            "p(90)": 20453.6565801
+        },
+        "ws_msgs_sent": {
+            "count": 535,
+            "rate": 19.04383581258738
+        },
+        "ws_move_duration": {
+            "max": 8,
+            "p(90)": 3,
+            "p(95)": 5,
+            "avg": 2.3966666666666665,
+            "min": 0,
+            "med": 2,
+            "thresholds": {
+                "p(95)<100": false
+            }
+        },
+        "ws_msgs_received": {
+            "count": 1345,
+            "rate": 47.87655919239256
+        },
+        "games_completed": {
+            "count": 25,
+            "rate": 0.8898988697470737
+        },
+        "iterations": {
+            "rate": 0.8898988697470737,
+            "count": 25
+        },
+        "ws_connection_success": {
+            "passes": 50,
+            "fails": 0,
+            "thresholds": {
+                "rate>0.99": false
+            },
+            "value": 1
+        },
+        "vus_max": {
+            "value": 25,
+            "min": 25,
+            "max": 25
+        },
+        "data_sent": {
+            "count": 63017,
+            "rate": 2243.1502829940537
+        },
+        "vus": {
+            "max": 25,
+            "value": 1,
+            "min": 1
+        },
+        "ws_connecting": {
+            "max": 4.615296,
+            "p(90)": 3.4230819,
+            "p(95)": 4.104043249999998,
+            "avg": 1.9167201200000006,
+            "min": 0.722417,
+            "med": 1.3470225
+        },
+        "ws_connect_duration": {
+            "p(90)": 5.100000000000001,
+            "p(95)": 6,
+            "avg": 2.96,
+            "min": 1,
+            "med": 2,
+            "max": 6
+        },
+        "game_completion_rate": {
+            "passes": 25,
+            "fails": 0,
+            "thresholds": {
+                "rate>0.95": false
+            },
+            "value": 1
+        }
+    }
+}

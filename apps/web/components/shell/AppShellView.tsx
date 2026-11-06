@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ViewportStage } from "@/components/layout/ViewportStage";
 import { navSurface, trackShell } from "@/lib/analytics/shell-events";
-import { backFor, backTarget, currentDestinations, currentFromKey, subnavFor } from "@/lib/nav/destinations";
+import { backFor, backTarget, currentDestinations, currentFromKey, hidesTabBar, subnavFor } from "@/lib/nav/destinations";
 import { markShellMounted } from "@/lib/shell/presence";
 import type { DestinationKey, ShellUser } from "@/lib/shell/types";
 import { CommandPalette } from "./CommandPalette";
@@ -88,7 +88,7 @@ export function AppShellView({
           />
         }
         topbar={<TopBar user={user} back={back} demo={demo} onBack={() => back && track("back")(back.key)} />}
-        tabbar={hideTabBar ? undefined : <TabBar me={me} current={current} demo={demo} onNavigate={track("tabbar")} />}
+        tabbar={hideTabBar || hidesTabBar(pathname) ? undefined : <TabBar me={me} current={current} demo={demo} onNavigate={track("tabbar")} />}
         banner={
           <>
             <SubNav

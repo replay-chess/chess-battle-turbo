@@ -101,7 +101,8 @@ test("parseFlagsOverride: on/off spellings, whitespace, unknown keys and junk ig
 
 test("precedence: default when there is no override and no PostHog", async () => {
   assert.deepEqual(await evaluateFlags(member, deps({ appEnv: "dev" })), defaultFlags("dev"));
-  assert.deepEqual(await evaluateFlags(member, deps({ appEnv: "production" })), { "shell-v3": false });
+  assert.deepEqual(await evaluateFlags(member, deps({ appEnv: "production" })), defaultFlags("production"));
+  assert.equal(defaultFlags("production")["shell-v3"], false);
 });
 
 test("precedence: PostHog beats the default", async () => {
@@ -124,7 +125,8 @@ test("precedence: FLAGS_OVERRIDE beats PostHog when test hooks are on (acceptanc
     member,
     deps({
       appEnv: "dev",
-      override: "shell-v3:on",
+      // Every key overridden (P2 added game-v3 and live-protocol-v2), so PostHog is not consulted.
+      override: FLAG_KEYS.map((k) => `${k}:${k === "shell-v3" ? "on" : "off"}`).join(","),
       posthog: async () => {
         called = true;
         return { "shell-v3": false };
@@ -183,7 +185,7 @@ test("the ignored-override report raises a Sentry issue (logger.error with an Er
 
 test("unknown key in the override is ignored; known keys still apply", async () => {
   const flags = await evaluateFlags(member, deps({ appEnv: "production", override: "nope:on,shell-v3:on" }));
-  assert.deepEqual(flags, { "shell-v3": true });
+  assert.deepEqual(flags, { ...defaultFlags("production"), "shell-v3": true });
   assert.deepEqual(Object.keys(flags), FLAG_KEYS);
 });
 

@@ -27,6 +27,12 @@ const REGISTRY_ROWS: [string, AuthMode][] = [
   ["POST /api/webhook/dodo-payments", "webhook"],
   ["POST /api/webhook/clerk", "webhook"],
   ["GET /api/cron/daily", "cron"],
+  // Phase 2 (§11.1 of the P2 plan).
+  ["POST /api/games", "member"],
+  ["GET /api/games/{ref}", "user"],
+  ["POST /api/games/{ref}/checkpoint", "user"],
+  ["POST /api/games/{ref}/complete", "user"],
+  ["GET /api/games/{ref}/pgn", "member"],
 ];
 
 /** §11.1 rows still served by legacy handlers: file + method → signed out / signed in non-admin. */
@@ -55,9 +61,11 @@ describe("access matrix (plan §11.1)", () => {
     }
   });
 
-  it("no registry entry is admin, member or internal in P1 except where the matrix says", () => {
+  it("no registry entry is admin, member or internal except where the matrix says", () => {
+    const listed = new Map(REGISTRY_ROWS);
     for (const e of HTTP_ENDPOINTS as readonly EndpointDef[]) {
-      assert.ok(!["admin", "member", "internal", "owner"].includes(e.auth), `${e.id} is ${e.auth}; add it to the matrix`);
+      if (!["admin", "member", "internal", "owner"].includes(e.auth)) continue;
+      assert.equal(listed.get(`${e.method} ${e.path}`), e.auth, `${e.id} is ${e.auth}; add it to the matrix`);
     }
   });
 

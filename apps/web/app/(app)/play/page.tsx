@@ -17,6 +17,9 @@ import { Users, Zap, Crown, Bot, ArrowRight, Sparkles, BookOpen } from "lucide-r
 import { motion, AnimatePresence } from "motion/react";
 import { ShareLinkModal } from "@/app/components/ShareLinkModal";
 import { useDataStore } from "@/lib/stores";
+import { ApiError } from "@/lib/api/errors";
+import { useCreateBotGame } from "@/lib/api/mutations/games";
+import { engineIntentProps } from "@/features/engine/prefetch";
 
 // Static game mode definitions — never change at runtime
 const gameModes = [
@@ -59,6 +62,7 @@ function PlayContent() {
   const chrome = useChrome();
   const userReferenceId = userObject?.user?.referenceId;
   const router = useRouter();
+  const createBotGame = useCreateBotGame({ navigate: false });
   const searchParams = useSearchParams();
 
   const [timeControl, setTimeControl] = useState<TimeControlValue>({
@@ -144,39 +148,29 @@ function PlayContent() {
       }
       router.push(`/queue?${params.toString()}`);
     } else if (selectedMode === "ai") {
-      const aiGameData = {
-        userReferenceId: userReferenceId,
-        initialTimeSeconds: timeControl.time,
-        incrementSeconds: timeControl.increment,
-        ...(playAsLegend && selectedHero && { selectedLegend: selectedHero }),
-        ...(playOpening && selectedOpening && { selectedOpening: selectedOpening }),
-      };
-
+      // POST /api/games (phase-02 plan §5.6): the start follows the legacy rules (opening, else legend, else a random
+      // position); colour "auto" and the bot's strength from the viewer's rating are decided by the server.
+      const start = playOpening && selectedOpening
+        ? { kind: "opening" as const, openingRef: selectedOpening }
+        : playAsLegend && selectedHero
+          ? { kind: "legend" as const, legendRef: selectedHero }
+          : { kind: "random_position" as const };
       try {
-        const start = Date.now();
-        const response = await fetch("/api/chess/create-ai-game", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(aiGameData),
+        const began = Date.now();
+        const game = await createBotGame.mutateAsync({
+          mode: "BOT",
+          start,
+          color: "auto",
+          tc: { initialSeconds: timeControl.time, incrementSeconds: timeControl.increment },
         });
-
-        if (await isSubscriptionRequiredResponse(response)) {
-          router.push(paywallUrl(currentAppPath()));
-          return;
-        }
-
-        const data = await response.json();
-        trackApiResponseTime("chess.createAiGame", Date.now() - start);
-
-        if (!data.success) {
-          throw new Error(data.error || "Failed to create AI game");
-        }
-
-        router.push(`/game/${data.data.game.referenceId}`);
+        trackApiResponseTime("games.create", Date.now() - began);
+        router.push(`/game/${game.ref}`);
       } catch (error) {
-        logger.error("Error creating AI game", error);
-        toast.error(error instanceof Error ? error.message : "Failed to create AI game");
         setIsCreatingGame(false);
+        // 402 is routed to /pricing by the QueryProvider; everything else is shown here.
+        if (error instanceof ApiError && error.code === "subscription_required") return;
+        logger.error("Error creating bot game", error);
+        toast.error(error instanceof Error ? error.message : "Failed to create the game");
       }
     }
     else {
@@ -306,6 +300,7 @@ function PlayContent() {
                         setSelectedMode(mode.id);
                       }
                     }}
+                    {...(mode.id === "ai" ? engineIntentProps() : {})}
                     onMouseEnter={() => setHoveredMode(mode.id)}
                     onMouseLeave={() => setHoveredMode(null)}
                     disabled={isCreatingGame}
@@ -586,6 +581,7 @@ function PlayContent() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1 }}
+              {...(selectedMode === "ai" ? engineIntentProps() : {})}
               onClick={handleCreateGame}
               disabled={isCreatingGame}
               className={cn(

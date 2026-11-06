@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@/app/generated/prisma";
+import { Prisma } from "@repo/db";
 import { validateScraperApiKey } from "@/lib/auth/api-key";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { logger } from "@/lib/logger";

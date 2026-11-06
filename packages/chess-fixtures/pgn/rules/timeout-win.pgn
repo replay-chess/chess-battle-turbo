@@ -1,0 +1,10 @@
+[Event "Black flags while White still has a rook"]
+[SetUp "1"]
+[FEN "7R/8/4k3/8/8/2K5/8/7r b - - 0 79"]
+[Result "1-0"]
+[Termination "Time forfeit"]
+[RcExpect "none"]
+[RcFlag "b"]
+[RcFlagOutcome "timeout"]
+
+79... Rh2 80. Rxh2 Kd5 81. Rh5+ 1-0

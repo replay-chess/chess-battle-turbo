@@ -1,0 +1,672 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../generated/prisma"
+  // x64 Vercel/CI + arm64 OCI alpine (the socket server image, phase-02 plan 6.2)
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id                BigInt           @id @default(autoincrement())
+  referenceId       String           @unique @default(cuid())
+  code              String           @unique
+  googleId          String           @unique
+  email             String           @unique
+  name              String
+  profilePictureUrl String?
+  dateOfBirth       DateTime?
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  onboarded         Boolean          @default(false)
+  dodoCustomerId    String?          @unique
+  role              Role             @default(USER)
+
+  // Billing entitlement, synced from Dodo Payments by the webhook and the
+  // subscription API. Read through lib/billing/entitlement.ts, never directly.
+  plan                  String?
+  planInterval          String?
+  subscriptionId        String?   @unique
+  subscriptionStatus    String?
+  subscriptionProductId String?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean   @default(false)
+  subscriptionUpdatedAt DateTime?
+  // Free trial: one per person. Set from the first subscription webhook that
+  // carries trial_period_days > 0. A non-null trialStartedAt means the trial
+  // has been used, even if it was cancelled.
+  trialStartedAt        DateTime?
+  trialEndsAt           DateTime?
+  /// M1 (P1). Provider-side time of the snapshot last applied (Dodo webhook timestamp or the API object's own
+  /// timestamp). The billing compare-and-set key. Never set from now().
+  subscriptionSourceAt  DateTime?
+  /// M1 (P1). Bumped by every write that changes the member's game list (P2 finish, P3 analysis and review
+  /// completion, P4 import and purge). P3's archive ETag reads it from the viewer row.
+  gamesVersion          Int       @default(0)
+  chessComProfile     ChessComProfile?
+  gamesAsCreator       Game[]             @relation("CreatorGames")
+  gamesAsOpponent      Game[]             @relation("OpponentGames")
+  gamesWon             Game[]             @relation("WinnerGames")
+  stats                UserStats?
+  matchmakingRequests  MatchmakingQueue[]
+  tournamentsCreated          Tournament[]              @relation("TournamentCreator")
+  tournamentParticipations    TournamentParticipant[]
+  /// M2 (P2). Games by fixed colour (B2) and the per-user game index (B1).
+  gamesAsWhite         Game[]             @relation("WhiteGames")
+  gamesAsBlack         Game[]             @relation("BlackGames")
+  gamePlayers          GamePlayer[]
+
+  @@index([googleId])
+  @@index([email])
+  @@index([code])
+  @@index([referenceId])
+  @@index([dodoCustomerId])
+  @@index([subscriptionStatus])
+  @@map("users")
+}
+
+model Game {
+  id                    BigInt        @id @default(autoincrement())
+  referenceId           String        @unique @default(cuid())
+  creatorId             BigInt
+  opponentId            BigInt?
+  status                GameStatus    @default(WAITING_FOR_OPPONENT)
+  result                GameResult?
+  winnerId              BigInt?
+  chessPositionId       BigInt?
+  openingId             BigInt?
+  startingFen           String
+  initialTimeSeconds    Int
+  incrementSeconds      Int
+  creatorTimeRemaining  Int
+  opponentTimeRemaining Int
+  lastMoveAt            DateTime?
+  gameData              Json?
+  expiresAt             DateTime
+  startedAt             DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  tournamentId          BigInt?
+  creator               User          @relation("CreatorGames", fields: [creatorId], references: [id], onDelete: Cascade)
+  opponent              User?         @relation("OpponentGames", fields: [opponentId], references: [id], onDelete: Cascade)
+  winner                User?         @relation("WinnerGames", fields: [winnerId], references: [id])
+  opening               Opening?      @relation("OpeningGames", fields: [openingId], references: [id], onDelete: SetNull)
+  tournament            Tournament?   @relation("TournamentGames", fields: [tournamentId], references: [id], onDelete: SetNull)
+
+  // ── M2 (Phase 2): typed play columns (phase-02 plan 6.2). Expand-only: every column is nullable or defaulted.
+  /// null only on legacy rows until scripts/backfill-play-columns.ts has run
+  mode          GameMode?
+  /// false until P9 (ratings)
+  rated         Boolean        @default(false)
+  /// from initial + 40 × increment (P2 §8.11); UNTIMED for untimed bot games
+  timeClass     TimeClass?
+  /// fixed at creation (B2); a null side is the bot, or a friend who has not joined yet
+  whitePlayerId BigInt?
+  blackPlayerId BigInt?
+  /// BOT / LEGEND_BOT: 400..2200
+  botElo        Int?           @db.SmallInt
+  /// ply number of startingFen: 2·(fullmove−1) + (side = b ? 1 : 0)
+  startPly      Int            @default(0) @db.SmallInt
+  /// 30 when startingFen ≠ initial (owner Q1), decided at creation
+  studySeconds  Int            @default(0) @db.SmallInt
+  /// Space-separated UCI from startingFen (~5 B/ply). Source of truth for the move list (B3).
+  moves         String         @default("") @db.Text
+  /// Mover's remaining ms after each ply (increment included). Empty for untimed games.
+  moveClocksMs  Int[]          @default([])
+  /// Checkpoint guard: UPDATE … WHERE "plyCount" <= $n (B3)
+  plyCount      Int            @default(0) @db.SmallInt
+  /// position after the last persisted ply (replaces gameData.fen)
+  fen           String?
+  /// remaining ms at the last checkpoint (replaces creator/opponent seconds, play-a B9)
+  whiteTimeMs   Int?
+  blackTimeMs   Int?
+  /// 'w' | 'b' | null; running since lastMoveAt
+  clockRunning  String?        @db.Char(1)
+  /// live rehydration (P2 §7.6)
+  phase         LivePhase?
+  /// study end or first-move deadline
+  phaseEndsAt   DateTime?
+  endMethod     GameEndMethod?
+  /// named outcome because Game.winner is the legacy winner relation
+  outcome       GameWinner?
+  /// Built once at game end with %clk (B3); immutable afterwards. Never written for imports.
+  pgn           String?        @db.Text
+  rematchOfId   BigInt?
+  // Display snapshot read by P3, P4, P10, P12 (consistency R-01). Filled at creation and join; the finish fills
+  // any that are still NULL. Bots get the ladder label "Engine {botElo}" and no title.
+  whiteName     String?        @db.VarChar(40)
+  blackName     String?        @db.VarChar(40)
+  whiteRating   Int?           @db.SmallInt
+  blackRating   Int?           @db.SmallInt
+  whiteTitle    String?        @db.VarChar(4)
+  blackTitle    String?        @db.VarChar(4)
+  /// P4 writes CHESSCOM/LICHESS rows; P2 writes REPLAY only
+  source        GameSource     @default(REPLAY)
+  externalId    String?        @db.VarChar(40)
+  externalUrl   String?        @db.VarChar(120)
+  /// GameMetaV1 (packages/db/src/json/game-meta.ts): header, prefix, position card, assists, rev, drawOffers, client
+  meta          Json?
+
+  whitePlayer   User?         @relation("WhiteGames", fields: [whitePlayerId], references: [id], onDelete: SetNull)
+  blackPlayer   User?         @relation("BlackGames", fields: [blackPlayerId], references: [id], onDelete: SetNull)
+  rematchOf     Game?         @relation("Rematches", fields: [rematchOfId], references: [id], onDelete: SetNull)
+  rematches     Game[]        @relation("Rematches")
+  players       GamePlayer[]
+
+  // P4 import upsert; REPLAY rows have externalId NULL and never collide
+  @@unique([source, externalId], map: "games_source_externalId_key")
+  // The restore list and the sweeps use the partial games_open_idx (raw SQL in M2, protected-indexes.txt), not an
+  // index on lastMoveAt, so the ≈ 10 checkpoint UPDATEs per game stay HOT. The existing @@index([status]) becomes
+  // redundant and is dropped in contract step C1 (owner confirmation).
+  @@index([creatorId])
+  @@index([opponentId])
+  @@index([winnerId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([referenceId])
+  @@index([chessPositionId])
+  @@index([openingId])
+  @@index([tournamentId])
+  @@map("games")
+}
+
+model UserStats {
+  id                    BigInt    @id @default(autoincrement())
+  referenceId           String    @unique @default(cuid())
+  userId                BigInt    @unique
+  totalGamesPlayed      Int       @default(0)
+  gamesWon              Int       @default(0)
+  gamesLost             Int       @default(0)
+  gamesDrawn            Int       @default(0)
+  currentWinStreak      Int       @default(0)
+  longestWinStreak      Int       @default(0)
+  averageGameDuration   Int?
+  lastPlayedAt          DateTime?
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([referenceId])
+  @@map("user_stats")
+}
+
+model ChessComProfile {
+  id               BigInt   @id @default(autoincrement())
+  referenceId      String   @unique @default(cuid())
+  userId           BigInt   @unique
+  chessComHandle   String   @unique
+  displayName      String?
+  avatar           String?
+  title            String?
+  country          String?
+  status           String?
+  followers        Int?
+  isStreamer       Boolean  @default(false)
+  joined           DateTime?
+  rapidRating      Int?
+  rapidBestRating  Int?
+  rapidWins        Int?
+  rapidLosses      Int?
+  rapidDraws       Int?
+  blitzRating      Int?
+  blitzBestRating  Int?
+  blitzWins        Int?
+  blitzLosses      Int?
+  blitzDraws       Int?
+  bulletRating     Int?
+  bulletBestRating Int?
+  bulletWins       Int?
+  bulletLosses     Int?
+  bulletDraws      Int?
+  dailyRating      Int?
+  dailyBestRating  Int?
+  dailyWins        Int?
+  dailyLosses      Int?
+  dailyDraws       Int?
+  lastSyncedAt     DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([chessComHandle])
+  @@index([referenceId])
+  @@map("chess_com_profiles")
+}
+
+model ChessPosition {
+  id          BigInt @id @default(autoincrement())
+  referenceId String @unique @default(cuid())
+
+  // ===== REQUIRED FIELDS (Minimum data needed) =====
+  fen        String @unique
+  sideToMove String
+
+  // ===== OPTIONAL CORE DATA =====
+  pgn        String?
+  moveNumber Int?
+
+  // ===== PLAYER INFO (All nullable) =====
+  whitePlayerName     String?
+  blackPlayerName     String?
+  whitePlayerMetadata Json?
+  blackPlayerMetadata Json?
+  whitePlayerId       BigInt? // FK to Legend if white player is a legend
+  blackPlayerId       BigInt? // FK to Legend if black player is a legend
+
+  // ===== GAME METADATA (All nullable) =====
+  tournamentName String?
+  eventDate      DateTime?
+  gameMetadata   Json?
+
+  // ===== POSITION INFO (Optional but recommended) =====
+  positionType    String?
+  positionContext Json?
+
+  // ===== EXPLANATION (Grandmaster thought process) =====
+  explanation          Json?     // Segments with visuals + narration
+  explanationAudioUrl  String?   // URL to audio file (e.g., CDN/S3)
+
+  // ===== SOURCE (Track where it came from) =====
+  sourceType     String @default("manual")
+  sourceMetadata Json?
+
+  // ===== ENGAGEMENT & SYSTEM =====
+  timesPlayed     Int      @default(0)
+  popularityScore Float?
+  featured        Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  whiteLegend Legend? @relation("WhiteLegendGames", fields: [whitePlayerId], references: [id], onDelete: SetNull)
+  blackLegend Legend? @relation("BlackLegendGames", fields: [blackPlayerId], references: [id], onDelete: SetNull)
+  tournaments Tournament[]
+
+  @@index([referenceId])
+  @@index([sourceType])
+  @@index([featured])
+  @@index([isActive])
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
+  @@map("chess_positions")
+}
+
+model Legend {
+  id          BigInt @id @default(autoincrement())
+  referenceId String @unique @default(cuid())
+
+  // ===== BASIC INFORMATION =====
+  name String @unique // Full name (e.g., "Magnus Carlsen")
+  era  String // Chess era (e.g., "Modern Era", "Romantic Era")
+
+  // ===== VISUAL & DISPLAY =====
+  profilePhotoUrl String? // URL to profile image
+
+  // ===== CHESS STATS =====
+  peakRating  Int?    // Peak ELO rating
+  nationality String? // Country code (e.g., "NOR", "USA")
+
+  // ===== DESCRIPTIONS =====
+  shortDescription String  @db.VarChar(500) // 1-2 sentences for cards
+  playingStyle     String? // Description of their style
+
+  // ===== ADDITIONAL INFO =====
+  birthYear Int?
+  deathYear Int? // Null if still alive
+
+  // ===== METADATA AS JSON =====
+  achievements Json? // Array of major titles/achievements
+  famousGames  Json? // Array of notable games with FEN positions
+
+  // ===== ADMIN & ANALYTICS =====
+  isActive  Boolean @default(true) // Record is active in system
+  isVisible Boolean @default(false) // Show/hide on UI
+
+  // ===== TIMESTAMPS =====
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations - Games where this legend played
+  gamesAsWhite ChessPosition[] @relation("WhiteLegendGames")
+  gamesAsBlack ChessPosition[] @relation("BlackLegendGames")
+  tournaments  Tournament[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("legends")
+}
+
+model Opening {
+  id          BigInt   @id @default(autoincrement())
+  referenceId String   @unique @default(cuid())
+
+  eco        String   // ECO code e.g. "A00", "C50"
+  name       String   // Full name e.g. "Italian Game: Giuoco Piano"
+  pgn        String   // PGN moves e.g. "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5"
+  fen        String   // FEN after PGN moves played out
+  sideToMove String   // "white" or "black" — whose turn after PGN
+  moveCount  Int      // Number of half-moves (plies)
+
+  explanation         Json?
+  explanationAudioUrl String?
+
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  games       Game[]       @relation("OpeningGames")
+  tournaments Tournament[]
+
+  @@index([eco])
+  @@index([name])
+  @@unique([eco, name, pgn])
+  @@index([isActive])
+  @@map("openings")
+}
+
+enum GameStatus {
+  WAITING_FOR_OPPONENT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  EXPIRED
+  /// M2a (P2). Its own migration, one release before any writer (data-model §11.1.6, feasibility §9).
+  ABORTED
+}
+
+// ── M2 (Phase 2) enums. IMPORTED, OTHER and the non-REPLAY sources exist from M2 but are first written by P4, so
+//    every enum value obeys the two-release rule.
+enum GameMode {
+  LEGEND_BOT
+  BOT
+  FRIEND
+  ONLINE
+  TOURNAMENT
+  IMPORTED
+}
+
+enum GameSource {
+  REPLAY
+  CHESSCOM
+  LICHESS
+}
+
+enum TimeClass {
+  BULLET
+  BLITZ
+  RAPID
+  CLASSICAL
+  DAILY
+  UNTIMED
+}
+
+enum GameEndMethod {
+  CHECKMATE
+  RESIGNATION
+  TIMEOUT
+  TIMEOUT_VS_INSUFFICIENT
+  STALEMATE
+  THREEFOLD
+  FIFTY_MOVE
+  INSUFFICIENT_MATERIAL
+  AGREEMENT
+  ABANDONED
+  ABORTED
+  OTHER
+}
+
+/// NONE = aborted
+enum GameWinner {
+  WHITE
+  BLACK
+  DRAW
+  NONE
+}
+
+enum LivePhase {
+  WAITING
+  STUDY
+  FIRST_MOVE
+  PLAYING
+  ENDED
+}
+
+enum PlayerResult {
+  WIN
+  LOSS
+  DRAW
+  ABORTED
+}
+
+/// M2 (Phase 2, B1). One row per member side of a game; bots have no row. The per-user game index for Home, the
+/// archive, profile and weakness (filled further by P3, P4, P9). Later phases add their own nullable columns.
+model GamePlayer {
+  gameId         BigInt
+  userId         BigInt
+  /// 'w' | 'b'
+  color          String        @db.Char(1)
+  mode           GameMode
+  timeClass      TimeClass?
+  rated          Boolean       @default(false)
+  /// null while the game is live
+  result         PlayerResult?
+  /// null while live → "my live games" = WHERE "endedAt" IS NULL (wire DTOs may call it playedAt)
+  endedAt        DateTime?
+  /// no FK (history column, data-model §2.8)
+  opponentUserId BigInt?
+  /// display snapshot: member name, "Engine 1400", "" until a friend joins
+  opponentName   String        @default("") @db.VarChar(40)
+  opponentRating Int?          @db.SmallInt
+  /// P2: the displayed rating at start (Chess.com-derived); P9 writes Glicko values
+  ratingBefore   Int?          @db.SmallInt
+  ratingAfter    Int?          @db.SmallInt
+  ratingDelta    Int?          @db.SmallInt
+  /// denormalised, no FK
+  tournamentId   BigInt?
+  source         GameSource    @default(REPLAY)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  game           Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([gameId, userId])
+  @@unique([gameId, color])
+  @@index([userId, endedAt(sort: Desc), gameId(sort: Desc)])
+  @@map("game_players")
+}
+
+/// M2i (P2; P1 did not ship it). Header-key idempotency for create endpoints (api-design §2.8). Kept 24 h.
+model IdempotencyKey {
+  userId         BigInt
+  key            String   @db.VarChar(36)
+  route          String   @db.VarChar(64)
+  /// sha256 hex of the canonical JSON body
+  requestHash    String   @db.Char(64)
+  /// 0 running, 1 done
+  status         Int      @db.SmallInt
+  responseStatus Int?     @db.SmallInt
+  responseBody   Json?
+  createdAt      DateTime @default(now())
+
+  @@id([userId, key])
+  @@index([createdAt])
+  @@map("idempotency_keys")
+}
+
+enum GameResult {
+  CREATOR_WON
+  OPPONENT_WON
+  DRAW
+  CREATOR_TIMEOUT
+  OPPONENT_TIMEOUT
+}
+
+enum MatchmakingStatus {
+  SEARCHING
+  MATCHED
+  CANCELLED
+  EXPIRED
+}
+
+model MatchmakingQueue {
+  id          BigInt @id @default(autoincrement())
+  referenceId String @unique @default(cuid())
+
+  // Player info
+  userId          BigInt
+  rating          Int?   // Player's rating for this time control (from ChessComProfile)
+  timeControlType String // "bullet", "blitz", "rapid", "daily"
+
+  // Game preferences
+  legendReferenceId  String? // Legend.referenceId (no FK - just stored for position lookup)
+  openingReferenceId String? // Opening.referenceId (no FK - just stored for position lookup)
+  timeControlSeconds Int     // e.g., 300 for 5 min
+  incrementSeconds   Int     // e.g., 5
+
+  // Queue state
+  status MatchmakingStatus @default(SEARCHING)
+
+  // Timing
+  createdAt DateTime  @default(now())
+  expiresAt DateTime  // createdAt + 60 seconds
+  matchedAt DateTime?
+
+  // If matched, store game reference ID (no FK - just for returning to client)
+  matchedGameRef String? // Game.referenceId when matched
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status, timeControlSeconds, incrementSeconds, rating])
+  @@index([expiresAt])
+  @@map("matchmaking_queue")
+}
+
+// ===== TOURNAMENT SYSTEM =====
+
+enum TournamentStatus {
+  LOBBY
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum TournamentMode {
+  OPENING
+  LEGEND
+  ENDGAME
+  FREE
+}
+
+model Tournament {
+  id                  BigInt            @id @default(autoincrement())
+  referenceId         String            @unique @default(cuid())
+  name                String
+  description         String            @default("")
+  mode                TournamentMode
+  status              TournamentStatus  @default(LOBBY)
+  maxParticipants     Int?
+  initialTimeSeconds  Int
+  incrementSeconds    Int
+  durationMinutes     Int
+  openingId           BigInt?
+  legendId            BigInt?
+  chessPositionId     BigInt?
+  createdByUserId     BigInt
+  scheduledStartAt    DateTime @default(now())
+  startedAt           DateTime?
+  endsAt              DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  createdBy       User                    @relation("TournamentCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  opening         Opening?                @relation(fields: [openingId], references: [id], onDelete: SetNull)
+  legend          Legend?                  @relation(fields: [legendId], references: [id], onDelete: SetNull)
+  chessPosition   ChessPosition?          @relation(fields: [chessPositionId], references: [id], onDelete: SetNull)
+  participants    TournamentParticipant[]
+  games           Game[]                  @relation("TournamentGames")
+
+  @@index([referenceId])
+  @@index([status])
+  @@index([createdByUserId])
+  @@map("tournaments")
+}
+
+model TournamentParticipant {
+  id             BigInt    @id @default(autoincrement())
+  referenceId    String    @unique @default(cuid())
+  tournamentId   BigInt
+  userId         BigInt
+  points         Decimal   @default(0) @db.Decimal(5, 1)
+  wins           Int       @default(0)
+  losses         Int       @default(0)
+  draws          Int       @default(0)
+  gamesPlayed    Int       @default(0)
+  isSearching    Boolean   @default(false)
+  searchingSince DateTime?
+  joinedAt       DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId, points(sort: Desc)])
+  @@index([userId])
+  @@map("tournament_participants")
+}
+
+/// M1 (P1). Webhook idempotency for Dodo and Clerk. Clerk rows never store the payload (PII).
+/// Dodo payloads are kept 180 days, Clerk rows 30 days, then deleted by the daily cron (webhook-retention).
+model WebhookEvent {
+  provider    String    @db.VarChar(16) // "dodo" | "clerk"
+  eventId     String    @db.VarChar(100) // Dodo `webhook-id`, Clerk `svix-id`
+  type        String    @db.VarChar(64) // "subscription.active", "user.created", …
+  eventTime   DateTime? // provider timestamp
+  userId      BigInt? // users.id once resolved; no FK (rows outlive deleted users)
+  status      String?   @db.VarChar(16) // "applied" | "ignored" | "stale" | "unmatched" | "error"
+  error       String?   @db.VarChar(500) // safe message, never a stack
+  payload     Json? // Dodo only
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@id([provider, eventId])
+  @@map("webhook_events")
+}
+
+/// M1 (P1). Fixed-window counters for BURST limits only (window ≤ 300 s). Created UNLOGGED by hand in the
+/// migration SQL: no WAL; Neon empties it when the compute restarts or scales to zero. A window ≤ 300 s cannot be
+/// reset early by a suspend, because Neon suspends only after 300 s without queries.
+/// Never store daily or monthly budgets here (use RateLimitWindow or count the source rows).
+/// Never recreate this table with `prisma db push`: it would come back LOGGED.
+model RateLimitBucket {
+  key     String   @id @db.VarChar(120) // "rl:<bucket>:c:<clerkUserId>" | "rl:<bucket>:ip:<sha256(pepper‖ip)[0:16]>"
+  count   Int
+  resetAt DateTime
+
+  @@map("rate_limit_buckets")
+}
+
+/// M1 (P1). The same counters for DURABLE limits (window > 300 s). Logged, so they survive a compute restart.
+/// Same statement as the burst store; swept daily (rate-limit-sweep).
+model RateLimitWindow {
+  key     String   @id @db.VarChar(120)
+  count   Int
+  resetAt DateTime
+
+  @@map("rate_limit_windows")
+}

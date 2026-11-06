@@ -39,9 +39,9 @@ WORKDIR /app/apps/web
 # Install OpenSSL for Prisma
 RUN apk add --no-cache openssl
 
-# Generate Prisma Client
+# Generate Prisma Client (packages/db, phase-02 plan 6.9)
 # Prisma will auto-detect the correct binary for Alpine Linux (linux-musl)
-RUN npx prisma generate
+RUN pnpm --filter @repo/db generate
 
 # Standalone output is what the runner stage copies
 ENV USE_STANDALONE=true
@@ -68,7 +68,7 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
-COPY --from=builder /app/apps/web/app/generated ./apps/web/app/generated
+COPY --from=builder /app/packages/db/generated ./packages/db/generated
 # Blog posts are read from disk at request time (lib/blog.ts)
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/content ./apps/web/content
 

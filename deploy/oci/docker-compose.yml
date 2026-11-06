@@ -9,16 +9,23 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3002
+      # The game journal (phase-02 plan 7.6): survives container replacement on the ws_journal volume.
+      - JOURNAL_DIR=/data/journal
+    # APP_ENV, DATABASE_URL, SOCKET_TOKEN_SECRET, INTERNAL_API_SECRET, ALLOWED_ORIGINS, PROTOCOL_V1 and
+    # DRAIN_NOTICE_SECONDS come from .env (WS_ENV_FILE / WS_DEV_ENV_FILE).
     restart: unless-stopped
-    # On SIGTERM the server tells clients it is restarting, saves clocks and pending moves
-    # (at most 20 s), then closes. Give it that time before Docker sends SIGKILL (H6 #13).
+    # On SIGTERM the server freezes every clock, fsyncs the journal and flushes every game to the database
+    # (at most 20 s), then closes. Give it that time before Docker sends SIGKILL (plan 7.6 "Drain").
     stop_grace_period: 30s
+    volumes:
+      - ws_journal:/data/journal
+    # /ready: 503 while draining, before the boot restore finished, or with an outbox older than 60 s.
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3002/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3002/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 30s
     logging: &logging
       driver: "json-file"
       options:
@@ -45,3 +52,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  ws_journal:

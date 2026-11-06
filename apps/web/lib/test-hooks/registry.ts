@@ -80,7 +80,7 @@ export const TEST_HOOKS: readonly TestHook[] = [
     id: "dev-routes",
     phase: 1,
     guard: "devRoutesEnabled",
-    description: "UI gallery, shell and stage demos, data-layer demo, skeleton demo",
+    description: "UI gallery, shell and stage demos, data-layer demo, skeleton demo, board demo (P2)",
     files: "app/dev/**",
     paths: [
       "/dev/ui",
@@ -93,6 +93,8 @@ export const TEST_HOOKS: readonly TestHook[] = [
       "/dev/ui/stage",
       "/dev/ui/data",
       "/dev/ui/skeletons",
+      "/dev/ui/board",
+      "/dev/ui/game",
     ],
   },
   {
@@ -166,6 +168,39 @@ export const TEST_HOOKS: readonly TestHook[] = [
     description: "subscriptionProductId 'e2e-fixture' resolves to the monthly plan outside production",
     value: "e2e-fixture",
     proof: { by: "unit", test: "lib/billing/products.test.ts" },
+  },
+  // ── Phase 2 (phase-02 plan 12.0 "Test hooks P2 adds"; /dev/ui/game is in the dev-routes entry above) ──
+  {
+    kind: "env",
+    id: "timing-profile",
+    phase: 2,
+    guard: "isTestBuild",
+    description:
+      "TIMING_PROFILE=fast shrinks the socket server's study, first-move, grace, rematch and resume timers to 2–5 s. " +
+      "Read only by apps/web-socket (config/env.ts), which refuses to boot with it unless APP_ENV=test; the web app never reads it",
+    env: "TIMING_PROFILE",
+    prodGuardValue: "fast",
+    proof: { by: "unit", test: "../web-socket/test/config.test.ts" },
+  },
+  {
+    kind: "data",
+    id: "fixture-socket-server",
+    phase: 2,
+    guard: "isTestBuild",
+    description:
+      "e2e/fixtures/socket-server.ts: the fast (:3102) and restartable (:3103) socket servers, APP_ENV=test with a per-run " +
+      "ops key; pages reach them only through the Playwright WebSocket route, so no build ships a URL to them",
+    value: "ws://127.0.0.1:3102, ws://127.0.0.1:3103",
+    proof: { by: "unit", test: "../web-socket/test/config.test.ts" },
+  },
+  {
+    kind: "data",
+    id: "e2e-run-claim",
+    phase: 2,
+    guard: "isTestBuild",
+    description: "Socket token claim e2eRun (queue isolation per test pair); minting refuses it unless the token env is test",
+    value: "e2eRun",
+    proof: { by: "unit", test: "lib/hooks/socket-token.test.ts" },
   },
 ];
 

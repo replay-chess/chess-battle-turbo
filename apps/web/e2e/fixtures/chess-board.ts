@@ -73,6 +73,12 @@ export class ChessBoardHelper {
         const promoHeading = this.page.getByRole("heading", { name: "Promote Pawn" });
         if (await promoHeading.isVisible({ timeout: 500 }).catch(() => false)) {
           await this.page.getByRole("button", { name: /queen/i }).click();
+        } else {
+          // v3 board (components/board/PromotionPicker.tsx): a real pointer click is accepted.
+          const picker = this.page.getByRole("menu", { name: "Choose a promotion piece" });
+          if (await picker.isVisible({ timeout: 500 }).catch(() => false)) {
+            await picker.getByRole("menuitem", { name: "Promote to queen" }).click();
+          }
         }
 
         return [from, to];
@@ -150,6 +156,9 @@ export class ChessBoardHelper {
   }
 
   async resign() {
+    // v3 (game-v3 on): Resign lives in the ⋯ menu (row on desktop, `-bar` on phones). Legacy: a visible button.
+    const menu = this.page.locator('[data-testid="game-menu-button"]:visible, [data-testid="game-menu-button-bar"]:visible').first();
+    if (await menu.isVisible().catch(() => false)) await menu.click();
     await this.page.locator('[data-testid="resign-button"]:visible').click();
     await this.page.locator('[data-testid="confirm-resign-button"]').click();
   }

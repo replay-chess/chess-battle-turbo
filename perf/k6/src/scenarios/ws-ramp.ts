@@ -1,125 +1,93 @@
 /**
- * WebSocket Ramp Test — Gradually ramp up concurrent games.
+ * Protocol v2 capacity ramp (phase-02 plan 9.6, 12.8): 250 → 2,000 sockets (125 → 1,000 concurrent games, two
+ * sockets each), one move per 5 s per game, 15 minutes. Run once per phase on the dev OCI box from a GitHub runner
+ * after the Neon split (owner, stage B); the local 50-socket smoke is SMOKE=1 against :3002.
  *
- * Uses per-vu-iterations with staggered start delays to simulate a ramp.
- * Each VU waits a random delay (spread over RAMP_OVER seconds), then plays
- * RAMP_GAMES games sequentially. This avoids thundering herd and prevents
- * fast retry loops from flooding the server on failures.
+ *   npx tsx setup/v2-manifest.ts --games 1000 --ws wss://ws-dev.80-225-200-210.sslip.io --out setup/v2-manifest.json
+ *   k6 run dist/ws-ramp.js -e MANIFEST=../setup/v2-manifest.json --summary-export ../results/p02-ws-ramp-<sha>.json
+ *   k6 run dist/ws-ramp.js -e SMOKE=1 -e MANIFEST=../setup/v2-manifest.json     # 25 games = 50 sockets, ~1 min
  *
- * Default: 100 VUs × 10 games each = 1,000 total games, staggered over 5 min.
- * Each game takes ~25s (15s analysis + 10s play), so at steady state ~100
- * games are in-flight concurrently.
- *
- * Usage:
- *   k6 run dist/ws-ramp.js                                    # 1,000 games
- *   k6 run dist/ws-ramp.js -e RAMP_VUS=50 -e RAMP_GAMES=5    # 250 games
- *   k6 run dist/ws-ramp.js -e RAMP_VUS=200 -e RAMP_GAMES=5   # 1,000 games
- *   k6 run dist/ws-ramp.js -e RAMP_OVER=300                   # stagger over 5 min
+ * Client-side gates here; the server gates (ws.move_latency_ms p95 < 5 ms, ws.loop_lag_ms p99 < 20 ms, RSS < 1 GB,
+ * 0 persist failures, ≤ 1 checkpoint per 10 plies) are read from /internal/metrics and Sentry (perf/README.md).
+ * Tokens live 15 minutes: mint the manifest right before the run.
  */
-
-import { check, sleep } from 'k6';
 import { Options } from 'k6/options';
-import http from 'k6/http';
 import { SharedArray } from 'k6/data';
-
-import { CONFIG, apiUrl, jsonParams } from '../lib/config';
-import { playGame } from '../lib/game-player';
+import exec from 'k6/execution';
+import { sleep } from 'k6';
+import { playV2Game, type ManifestGame, type V2Manifest } from '../lib/protocol-v2';
 import {
-  httpCreateGameDuration,
-  httpJoinGameDuration,
-  httpErrorRate,
+  activeGames,
+  gameCompletionRate,
+  gamesCompleted,
+  gamesFailed,
+  wsConnectDuration,
+  wsConnectionSuccess,
+  wsMoveDuration,
 } from '../lib/metrics';
-import { TestUser } from '../lib/user-pool';
 
-const users = new SharedArray('users', function () {
-  return JSON.parse(open('../setup/user-manifest.json')) as TestUser[];
-});
+declare const __ENV: Record<string, string>;
+declare function open(path: string): string;
 
-const vuCount = parseInt(__ENV.RAMP_VUS || '100', 10);
-const gamesPerVU = parseInt(__ENV.RAMP_GAMES || '10', 10);
-const rampOverSeconds = parseInt(__ENV.RAMP_OVER || '300', 10); // 5 min stagger
+const manifest = new SharedArray<V2Manifest>('v2-manifest', () => [JSON.parse(open(__ENV.MANIFEST || '../setup/v2-manifest.json')) as V2Manifest]);
+const SMOKE = __ENV.SMOKE === '1';
 
-export const options: Options = {
-  scenarios: {
-    ws_ramp: {
-      executor: 'per-vu-iterations',
-      vus: vuCount,
-      iterations: gamesPerVU,
-      maxDuration: '30m',
+export const options: Options = SMOKE
+  ? {
+      scenarios: { smoke: { executor: 'per-vu-iterations', vus: 25, iterations: 1, maxDuration: '5m' } },
+      thresholds: {
+        ws_connection_success: [{ threshold: 'rate>0.99', abortOnFail: true }],
+        ws_move_duration: ['p(95)<100'],
+        game_completion_rate: ['rate>0.95'],
+      },
+    }
+  : {
+      scenarios: {
+        ramp: {
+          executor: 'ramping-vus',
+          startVUs: 125,
+          stages: [
+            { duration: '3m', target: 500 },
+            { duration: '3m', target: 1000 },
+            { duration: '9m', target: 1000 },
+          ],
+          gracefulRampDown: '30s',
+        },
+      },
+      thresholds: {
+        ws_connection_success: [{ threshold: 'rate>0.99', abortOnFail: true, delayAbortEval: '1m' }],
+        ws_move_duration: [{ threshold: 'p(95)<250', abortOnFail: true, delayAbortEval: '2m' }],
+        game_completion_rate: ['rate>0.95'],
+      },
+    };
+
+export default function (): void {
+  const m = manifest[0]!;
+  // Every iteration plays a game of its own (a finished game cannot be replayed); idle once the manifest is used up.
+  const index = exec.scenario.iterationInTest;
+  if (index >= m.games.length) {
+    sleep(5);
+    return;
+  }
+  const game = m.games[index] as ManifestGame;
+  // Smoke: 25 games start over ~7.5 s (a real crowd arrives spread out; a burst of 50 first joins is the restore case,
+  // covered by restart.int.test.ts and the dev-box ramp).
+  if (SMOKE) sleep(index * 0.3);
+  activeGames.add(1);
+  playV2Game(m.wsUrl, game, {
+    moveEveryMs: SMOKE ? 1_000 : 5_000,
+    maxPlies: SMOKE ? 12 : 60,
+    timeoutMs: SMOKE ? 3 * 60_000 : 10 * 60_000,
+    onMoveRtt: (ms) => wsMoveDuration.add(ms),
+    onConnect: (ms, ok) => {
+      wsConnectDuration.add(ms);
+      wsConnectionSuccess.add(ok);
     },
-  },
-  thresholds: {
-    http_error_rate: ['rate<0.10'],
-    ws_connection_success: ['rate>0.90'],
-    ws_move_duration: ['p(95)<1000'],
-    game_completion_rate: ['rate>0.80'],
-  },
-};
-
-export default function () {
-  const vuIndex = (__VU - 1) % Math.floor(users.length / 2);
-  const playerA = users[vuIndex * 2] as TestUser;
-  const playerB = users[vuIndex * 2 + 1] as TestUser;
-  const tag = `ramp-VU${__VU}-i${__ITER}`;
-
-  // On the first iteration, each VU waits a random delay to stagger start.
-  // VUs spread their start over RAMP_OVER seconds, creating a gradual ramp.
-  if (__ITER === 0) {
-    const delay = Math.random() * rampOverSeconds;
-    console.log(`[${tag}] Stagger delay: ${delay.toFixed(1)}s`);
-    sleep(delay);
-  }
-
-  // Phase 1: HTTP create
-  const createRes = http.post(
-    apiUrl('/api/chess/create-game'),
-    JSON.stringify({
-      userReferenceId: playerA.referenceId,
-      initialTimeSeconds: CONFIG.INITIAL_TIME_SECONDS,
-      incrementSeconds: CONFIG.INCREMENT_SECONDS,
-      gameMode: CONFIG.GAME_MODE,
-      playAsLegend: false,
-      selectedLegend: null,
-      selectedOpening: null,
-    }),
-    jsonParams({ name: 'create-game' }),
-  );
-
-  httpCreateGameDuration.add(createRes.timings.duration);
-
-  if (!check(createRes, { 'create 201': (r) => r.status === 201 })) {
-    httpErrorRate.add(1);
-    console.error(`[${tag}] create-game FAILED — status=${createRes.status}`);
-    sleep(5);
-    return;
-  }
-  httpErrorRate.add(0);
-
-  const gameRefId = JSON.parse(createRes.body as string).data.game.referenceId;
-
-  // Phase 2: HTTP join
-  const joinRes = http.post(
-    apiUrl('/api/chess/join'),
-    JSON.stringify({
-      gameReferenceId: gameRefId,
-      opponentReferenceId: playerB.referenceId,
-    }),
-    jsonParams({ name: 'join-game' }),
-  );
-
-  httpJoinGameDuration.add(joinRes.timings.duration);
-
-  if (!check(joinRes, { 'join 200': (r) => r.status === 200 })) {
-    httpErrorRate.add(1);
-    console.error(`[${tag}] join-game FAILED — status=${joinRes.status}`);
-    sleep(5);
-    return;
-  }
-  httpErrorRate.add(0);
-
-  // Phase 3-5: Play the game over WebSocket (event-driven, non-blocking)
-  playGame(gameRefId, playerA.referenceId, playerB.referenceId, tag);
+    onDone: ({ ok, reason, plies }) => {
+      if (!ok) console.warn(`game ${game.ref.slice(0, 8)} failed after ${plies} plies: ${reason}`);
+      activeGames.add(-1);
+      gameCompletionRate.add(ok);
+      (ok ? gamesCompleted : gamesFailed).add(1);
+    },
+  });
 }
-
-declare const __VU: number;
-declare const __ITER: number;

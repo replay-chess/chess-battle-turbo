@@ -2,11 +2,12 @@
 // Client code imports types and the pure helpers below; it never evaluates PostHog.
 
 import { P01_FLAGS } from "./p01";
+import { P02_FLAGS } from "./p02";
 
 /** Every phase file, in phase order. `flags.test.ts` asserts no key appears in two of them. */
-export const FLAG_REGISTRIES = { p01: P01_FLAGS /* , p02: P02_FLAGS (P2 adds one line here and one below) */ } as const;
+export const FLAG_REGISTRIES = { p01: P01_FLAGS, p02: P02_FLAGS } as const;
 
-export const FLAGS = { ...P01_FLAGS /* , ...P02_FLAGS */ } as const;
+export const FLAGS = { ...P01_FLAGS, ...P02_FLAGS } as const;
 
 export type FlagKey = keyof typeof FLAGS;
 export type FlagEnv = "dev" | "test" | "production" | "local";

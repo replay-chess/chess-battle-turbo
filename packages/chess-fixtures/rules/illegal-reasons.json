@@ -1,0 +1,32 @@
+{
+  "$comment": "Phase-02 plan 8.17 / 12.1: one case per illegal-move reason (first match wins). `mover` defaults to the side to move; names default to White/Black. The toast is \"That move isn’t legal: {text}\". Shared with P9 and P10 (premove settings).",
+  "version": 1,
+  "cases": [
+    { "id": "not_your_turn", "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "mover": "b", "from": "e7", "to": "e5", "reason": "not_your_turn", "text": "it’s White’s move." },
+    { "id": "opponent_piece", "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "from": "e7", "to": "e5", "reason": "opponent_piece", "text": "that’s Black’s piece." },
+    { "id": "own_piece_on_target", "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "from": "d1", "to": "d2", "reason": "own_piece_on_target", "text": "your pawn is already on d2." },
+    { "id": "pattern_knight", "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "from": "g1", "to": "g3", "reason": "pattern_knight", "text": "a knight moves in an L shape." },
+    { "id": "pattern_bishop", "fen": "4k3/8/8/8/8/8/8/2B1K3 w - - 0 1", "from": "c1", "to": "c3", "reason": "pattern_bishop", "text": "a bishop moves diagonally." },
+    { "id": "pattern_rook", "fen": "4k3/8/8/8/8/8/8/R3K3 w - - 0 1", "from": "a1", "to": "b2", "reason": "pattern_rook", "text": "a rook moves along ranks and files." },
+    { "id": "pattern_queen", "fen": "4k3/8/8/8/8/8/8/3QK3 w - - 0 1", "from": "d1", "to": "e3", "reason": "pattern_queen", "text": "a queen moves along ranks, files and diagonals." },
+    { "id": "pattern_king", "fen": "4k3/8/8/8/8/8/8/4K3 w - - 0 1", "from": "e1", "to": "e3", "reason": "pattern_king", "text": "the king moves one square at a time." },
+    { "id": "pattern_pawn_three", "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "from": "e2", "to": "e5", "reason": "pattern_pawn", "text": "a pawn moves straight ahead and captures diagonally." },
+    { "id": "pattern_pawn_diagonal_empty", "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "from": "e2", "to": "d3", "reason": "pattern_pawn", "text": "a pawn moves straight ahead and captures diagonally." },
+    { "id": "blocked_file_design", "$comment": "V3Game `illegal` state: Opera Game after 12...Rd8, Rd1-d8", "fen": "3rkb1r/p2nqppp/5n2/1B2p1B1/4P3/1Q6/PPP2PPP/2KR3R w k - 3 13", "from": "d1", "to": "d8", "reason": "blocked", "text": "the knight on d7 blocks the d-file." },
+    { "id": "blocked_rank", "fen": "4k3/8/8/8/R2p3K/8/8/8 w - - 0 1", "from": "a4", "to": "g4", "reason": "blocked", "text": "the pawn on d4 blocks the 4th rank." },
+    { "id": "blocked_diagonal", "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "from": "f1", "to": "c4", "reason": "blocked", "text": "the pawn on e2 blocks the diagonal." },
+    { "id": "blocked_pawn_double_step", "fen": "4k3/8/8/8/8/4n3/4P3/4K3 w - - 0 1", "from": "e2", "to": "e4", "reason": "blocked", "text": "the knight on e3 blocks the e-file." },
+    { "id": "in_check", "fen": "4k3/8/8/8/8/8/3P4/r3K3 w - - 0 1", "from": "d2", "to": "d3", "reason": "in_check", "text": "your king is in check." },
+    { "id": "pinned_template", "$comment": "the template's \"the bishop on e7 is pinned to your king\"", "fen": "4k3/4b3/8/8/8/8/8/4R1K1 b - - 0 1", "from": "e7", "to": "d6", "reason": "pinned", "text": "the bishop on e7 is pinned to your king." },
+    { "id": "exposes_king_king_move", "fen": "4k3/8/8/8/8/8/r7/4K3 w - - 0 1", "from": "e1", "to": "e2", "reason": "exposes_king", "text": "that would leave your king in check." },
+    { "id": "exposes_king_en_passant_discovery", "$comment": "e.p. capture that clears the 5th rank between Ka5 and Rh5", "fen": "8/8/8/K2pP2r/8/8/8/4k3 w - d6 0 2", "from": "e5", "to": "d6", "reason": "exposes_king", "text": "that would leave your king in check." },
+    { "id": "castle_out_of_check", "fen": "4r1k1/8/8/8/8/8/8/4K2R w K - 0 1", "from": "e1", "to": "g1", "reason": "castle_out_of_check", "text": "you can’t castle out of check." },
+    { "id": "castle_through_check", "fen": "5rk1/8/8/8/8/8/8/4K2R w K - 0 1", "from": "e1", "to": "g1", "reason": "castle_through_check", "text": "you can’t castle through check." },
+    { "id": "castle_into_check", "fen": "4k1r1/8/8/8/8/8/8/4K2R w K - 0 1", "from": "e1", "to": "g1", "reason": "exposes_king", "text": "that would leave your king in check." },
+    { "id": "castle_king_moved", "fen": "4k3/8/8/8/8/8/8/4K2R w - - 0 1", "from": "e1", "to": "g1", "reason": "castle_king_moved", "text": "your king has already moved." },
+    { "id": "castle_rook_moved", "fen": "4k3/8/8/8/8/8/8/R3K2R w Q - 0 1", "from": "e1", "to": "g1", "reason": "castle_rook_moved", "text": "that rook has already moved." },
+    { "id": "castle_blocked", "fen": "4k3/8/8/8/8/8/8/4KB1R w K - 0 1", "from": "e1", "to": "g1", "reason": "castle_blocked", "text": "there are pieces between your king and rook." },
+    { "id": "en_passant_too_late", "fen": "4k3/8/8/3pP3/8/8/8/4K3 w - - 0 2", "from": "e5", "to": "d6", "reason": "en_passant", "text": "en passant is only possible right after the pawn moves two squares." },
+    { "id": "fallback_empty_square", "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "from": "e4", "to": "e5", "reason": "fallback", "text": "the piece went back." }
+  ]
+}

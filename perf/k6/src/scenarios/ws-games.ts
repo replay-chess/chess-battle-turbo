@@ -1,118 +1,49 @@
 /**
- * WebSocket Games Test — Full game lifecycle at scale.
+ * Protocol v2 move RTT (phase-02 plan 12.8): every VU plays one fixture game between two v2 sockets, one move per
+ * MOVE_EVERY_MS, and resigns after MAX_PLIES. `ws_move_duration` = command → ack.
  *
- * Each VU runs the complete flow:
- *   HTTP create → HTTP join → WS connect (x2) →
- *   analysis phase → play 10+ moves → resign → game_over
+ *   npx tsx setup/v2-manifest.ts --games 25 --out setup/v2-manifest.json      (mints tokens, creates the games)
+ *   k6 run dist/ws-games.js -e MANIFEST=../setup/v2-manifest.json
  *
- * Usage:
- *   k6 run dist/ws-games.js --vus 10    # 10 concurrent games
- *   k6 run dist/ws-games.js --vus 50    # 50 concurrent games
- *   k6 run dist/ws-games.js --vus 250   # 250 concurrent games (target)
+ * Pass: ws_move_duration p95 < RTT + 50 ms (RTT_MS, default 10 for a local socket).
  */
-
-import { check, sleep } from 'k6';
 import { Options } from 'k6/options';
-import http from 'k6/http';
 import { SharedArray } from 'k6/data';
+import { playV2Game, type ManifestGame, type V2Manifest } from '../lib/protocol-v2';
+import { gameCompletionRate, gamesCompleted, gamesFailed, wsConnectDuration, wsConnectionSuccess, wsMoveDuration } from '../lib/metrics';
 
-import { CONFIG, apiUrl, jsonParams } from '../lib/config';
-import { playGame } from '../lib/game-player';
-import {
-  httpCreateGameDuration,
-  httpJoinGameDuration,
-  httpErrorRate,
-} from '../lib/metrics';
-import { TestUser } from '../lib/user-pool';
+declare const __ENV: Record<string, string>;
+declare const __VU: number;
+declare function open(path: string): string;
 
-const users = new SharedArray('users', function () {
-  return JSON.parse(open('../setup/user-manifest.json')) as TestUser[];
-});
-
-// Default: 30 VUs x 3 iterations = 90 games (uses all 60 users)
-// Override via CLI: k6 run dist/ws-games.js --vus 10 --iterations 10
-const vuCount = parseInt(__ENV.WS_VUS || '30', 10);
-const iterCount = parseInt(__ENV.WS_ITERS || '3', 10);
+const manifest = new SharedArray<V2Manifest>('v2-manifest', () => [JSON.parse(open(__ENV.MANIFEST || '../setup/v2-manifest.json')) as V2Manifest]);
+const RTT = Number(__ENV.RTT_MS || 10);
+const games = Number(__ENV.GAMES || 25);
 
 export const options: Options = {
-  scenarios: {
-    ws_games: {
-      executor: 'per-vu-iterations',
-      vus: vuCount,
-      iterations: iterCount,
-      maxDuration: '15m',
-    },
-  },
+  scenarios: { ws_games: { executor: 'per-vu-iterations', vus: games, iterations: 1, maxDuration: '10m' } },
   thresholds: {
-    http_error_rate: ['rate<0.05'],
-    ws_connection_success: ['rate>0.95'],
-    ws_move_duration: ['p(95)<500'],
-    game_completion_rate: ['rate>0.9'],
+    ws_move_duration: [{ threshold: `p(95)<${RTT + 50}`, abortOnFail: false }],
+    ws_connection_success: ['rate>0.99'],
+    game_completion_rate: ['rate>0.95'],
   },
 };
 
-export default function () {
-  const vuIndex = (__VU - 1) % Math.floor(users.length / 2);
-  const playerA = users[vuIndex * 2] as TestUser;
-  const playerB = users[vuIndex * 2 + 1] as TestUser;
-
-  console.log(`[ws-game] VU ${__VU} iter ${__ITER}: Starting — playerA=${playerA.referenceId.substring(0, 8)}, playerB=${playerB.referenceId.substring(0, 8)}`);
-
-  // Phase 1: HTTP create + join
-  const createRes = http.post(
-    apiUrl('/api/chess/create-game'),
-    JSON.stringify({
-      userReferenceId: playerA.referenceId,
-      initialTimeSeconds: CONFIG.INITIAL_TIME_SECONDS,
-      incrementSeconds: CONFIG.INCREMENT_SECONDS,
-      gameMode: CONFIG.GAME_MODE,
-      playAsLegend: false,
-      selectedLegend: null,
-      selectedOpening: null,
-    }),
-    jsonParams({ name: 'create-game' }),
-  );
-
-  httpCreateGameDuration.add(createRes.timings.duration);
-
-  if (!check(createRes, { 'create 201': (r) => r.status === 201 })) {
-    httpErrorRate.add(1);
-    console.error(`[ws-game] VU ${__VU}: create-game FAILED — status=${createRes.status}, duration=${createRes.timings.duration}ms`);
-    console.error(`[ws-game] VU ${__VU}: Response: ${(createRes.body as string)?.substring(0, 300)}`);
-    sleep(2);
-    return;
-  }
-  httpErrorRate.add(0);
-
-  const gameRefId = JSON.parse(createRes.body as string).data.game.referenceId;
-  console.log(`[ws-game] VU ${__VU}: create-game OK — ref=${gameRefId.substring(0, 8)}, took=${createRes.timings.duration}ms`);
-
-  const joinRes = http.post(
-    apiUrl('/api/chess/join'),
-    JSON.stringify({
-      gameReferenceId: gameRefId,
-      opponentReferenceId: playerB.referenceId,
-    }),
-    jsonParams({ name: 'join-game' }),
-  );
-
-  httpJoinGameDuration.add(joinRes.timings.duration);
-
-  if (!check(joinRes, { 'join 200': (r) => r.status === 200 })) {
-    httpErrorRate.add(1);
-    console.error(`[ws-game] VU ${__VU}: join-game FAILED — status=${joinRes.status}, gameRef=${gameRefId.substring(0, 8)}`);
-    console.error(`[ws-game] VU ${__VU}: Response: ${(joinRes.body as string)?.substring(0, 300)}`);
-    sleep(2);
-    return;
-  }
-  httpErrorRate.add(0);
-
-  console.log(`[ws-game] VU ${__VU}: join-game OK — took=${joinRes.timings.duration}ms, entering WS phase`);
-
-  // Phase 2-5: Play the game over WebSocket (event-driven, non-blocking).
-  // game-player.ts handles all WS logging and metrics internally.
-  playGame(gameRefId, playerA.referenceId, playerB.referenceId, `ws-game-VU${__VU}`);
+export default function (): void {
+  const m = manifest[0]!;
+  const game = m.games[(__VU - 1) % m.games.length] as ManifestGame;
+  playV2Game(m.wsUrl, game, {
+    moveEveryMs: Number(__ENV.MOVE_EVERY_MS || 1_000),
+    maxPlies: Number(__ENV.MAX_PLIES || 20),
+    timeoutMs: 5 * 60_000,
+    onMoveRtt: (ms) => wsMoveDuration.add(ms),
+    onConnect: (ms, ok) => {
+      wsConnectDuration.add(ms);
+      wsConnectionSuccess.add(ok);
+    },
+    onDone: ({ ok }) => {
+      gameCompletionRate.add(ok);
+      (ok ? gamesCompleted : gamesFailed).add(1);
+    },
+  });
 }
-
-declare const __VU: number;
-declare const __ITER: number;

@@ -32,7 +32,6 @@ export const LEGACY_ROUTES: readonly LegacyRoute[] = [
   { file: "app/api/chess-positions/featured/route.ts", method: "GET", anonymous: 200, owner: "P8" },
   { file: "app/api/chess-positions/route.ts", method: "GET", anonymous: 401, signedInNonAdmin: 403, owner: "P12" },
   { file: "app/api/chess/cancel-game/route.ts", method: "POST", anonymous: 401, owner: "P2" },
-  { file: "app/api/chess/create-ai-game/route.ts", method: "POST", anonymous: 401, signedInNonAdmin: 402, owner: "P2 (deleted)" },
   { file: "app/api/chess/create-game/route.ts", method: "POST", anonymous: 401, signedInNonAdmin: 402, owner: "P2" },
   // optional + internal (H4): unknown ref → 404; a real ref → the invite projection (200).
   { file: "app/api/chess/game-by-ref/[gameReferenceId]/route.ts", method: "GET", anonymous: 404, owner: "P2" },
@@ -69,7 +68,12 @@ export const LEGACY_ROUTES: readonly LegacyRoute[] = [
     file: "app/api/tournament/[tournamentReferenceId]/route.ts",
     method: "DELETE",
     anonymous: 401,
-    alsoAccept: [{ status: 404, when: "the cleanup bearer secret is unset (local next dev answers 404 'Not configured')" }],
+    alsoAccept: [
+      { status: 404, when: "the cleanup bearer secret is unset (local next dev answers 404 'Not configured')" },
+      // regression: REGRESSION-2 — with E2E_CLEANUP_SECRET set (apps/web/.env.test, so the tournament spec can clean
+      // up) a request without the bearer is 403 'Forbidden'; the handler never answers 401.
+      { status: 403, when: "the cleanup bearer secret is set and the request carries no bearer" },
+    ],
     owner: "P12",
   },
   { file: "app/api/tournament/cancel-search/route.ts", method: "POST", anonymous: 401, owner: "P12" },

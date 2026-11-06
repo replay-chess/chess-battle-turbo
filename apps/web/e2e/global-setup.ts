@@ -1,6 +1,6 @@
 import { clerkSetup } from "@clerk/testing/playwright";
 import { FullConfig } from "@playwright/test";
-import type { PrismaClient } from "../app/generated/prisma";
+import type { PrismaClient } from "@repo/db";
 import { assertFixtureHealth } from "./fixtures/health";
 import { entitleSharedMembers } from "./scripts/provision-test-users";
 import { sweepThrowawayUsers } from "./scripts/sweep-throwaway-users";
@@ -36,7 +36,7 @@ function singleConnection(url: string): string {
 }
 
 async function newClient(url: string): Promise<PrismaClient> {
-  const { PrismaClient } = await import("../app/generated/prisma/index.js");
+  const { PrismaClient } = await import("@repo/db");
   return new PrismaClient({ datasourceUrl: url });
 }
 

@@ -10,6 +10,10 @@ export const gameKeys = {
     list: (f: GamesFilter) => ["games", "list", norm(f)] as const,
     counts: () => ["games", "counts"] as const,
     status: (ref: string) => ["games", ref, "status"] as const,
+    /** GET /api/games/[ref] (P2): staleTime 0 while IN_PROGRESS, Infinity once finished. */
+    detail: (ref: string) => ["games", ref, "detail"] as const,
+    /** Socket `live:list` (P2, LiveGamesSheet): 15 s stale. */
+    live: () => ["games", "live"] as const,
     challenge: (code: string) => ["games", "challenge", code] as const,
   },
 };

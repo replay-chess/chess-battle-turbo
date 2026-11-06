@@ -7,9 +7,11 @@ import {
   ERROR_CODES,
   ERROR_STATUS,
   FORBIDDEN_REASONS,
+  ILLEGAL_MOVES_REASONS,
   isErrorCode,
   statusFor,
   SUBSCRIPTION_REASONS,
+  VALIDATION_REASONS,
 } from "./codes";
 
 describe("codes", () => {
@@ -28,21 +30,48 @@ describe("codes", () => {
   });
 
   it("keeps the reason registries free of duplicates", () => {
-    for (const list of [SUBSCRIPTION_REASONS, CONFLICT_REASONS, FORBIDDEN_REASONS] as readonly (readonly string[])[]) {
+    for (const list of [
+      SUBSCRIPTION_REASONS, CONFLICT_REASONS, FORBIDDEN_REASONS, VALIDATION_REASONS, ILLEGAL_MOVES_REASONS,
+    ] as readonly (readonly string[])[]) {
       assert.equal(new Set(list).size, list.length);
     }
   });
 
-  it("pins the P1 ledger (append-only: removing or remapping a code is a breaking change)", () => {
+  it("pins the P1 + P2 ledger (append-only: removing or remapping a code is a breaking change)", () => {
     assert.deepEqual(ERROR_STATUS, {
       invalid_json: 400, validation_failed: 400, unauthorized: 401,
       subscription_required: 402, payment_update_required: 402,
       forbidden: 403, not_found: 404, conflict: 409, already_subscribed: 409,
       payload_too_large: 413, rate_limited: 429, internal: 500, upstream_unavailable: 502,
       maintenance: 503, not_configured: 503, unavailable: 503,
+      // P2
+      in_flight: 409, idempotency_key_reused: 422, illegal_position: 422, illegal_moves: 422,
     });
+    // Ledger order is append-only too: P1's codes keep their positions.
+    assert.deepEqual(ERROR_CODES.slice(-4), ["in_flight", "idempotency_key_reused", "illegal_position", "illegal_moves"]);
     assert.deepEqual([...SUBSCRIPTION_REASONS], ["trial_available", "trial_used", "expired", "payment_failed"]);
     assert.deepEqual([...FORBIDDEN_REASONS], ["cooldown"]);
+  });
+
+  it("has the P2 rows of phase-02 §0.2", () => {
+    assert.equal(statusFor("in_flight"), 409);
+    assert.equal(statusFor("idempotency_key_reused"), 422);
+    assert.equal(statusFor("illegal_position"), 422);
+    assert.equal(statusFor("illegal_moves"), 422);
+    for (const reason of ["already_started", "already_completed", "not_bot_game", "not_finished", "rev_gap"]) {
+      assert.ok((CONFLICT_REASONS as readonly string[]).includes(reason), reason);
+    }
+    assert.deepEqual([...CONFLICT_REASONS].slice(0, 5), ["already_started", "already_completed", "not_bot_game", "not_finished", "rev_gap"]);
+    // mode_not_available is a validation_failed reason (400), claim_mismatch an illegal_moves reason (422): not codes.
+    assert.deepEqual([...VALIDATION_REASONS], ["mode_not_available"]);
+    assert.deepEqual([...ILLEGAL_MOVES_REASONS], ["claim_mismatch"]);
+    assert.equal(isErrorCode("mode_not_available"), false);
+    assert.equal(isErrorCode("claim_mismatch"), false);
+  });
+
+  it("never infers a P2 code from a bare status", () => {
+    assert.equal(codeForStatus(409), "conflict");
+    assert.equal(codeForStatus(422), "internal");
   });
 
   it("never contains the codes the plan bans", () => {

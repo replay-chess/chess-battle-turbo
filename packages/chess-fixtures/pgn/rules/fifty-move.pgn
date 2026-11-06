@@ -1,0 +1,7 @@
+[Event "Fifty-move rule at halfmove 100 exactly"]
+[SetUp "1"]
+[FEN "8/8/4k3/8/8/4K3/8/R6r w - - 98 120"]
+[Result "1/2-1/2"]
+[RcExpect "fifty_move"]
+
+120. Ra7 Rh2 1/2-1/2

@@ -2,8 +2,11 @@
 #
 # Scheduled workflows run from the default branch, so this file is committed to
 # `main` (workflow-only commit) and to `dev`; every job checks out `ref: dev`.
-# Later phases append jobs (P2 resilience, P3 arm64 goldens, P4 provider canary,
-# P6 weakness recompute).
+# Later phases append jobs (P3 arm64 goldens, P4 provider canary, P6 weakness recompute).
+# P2 (plan 12.6–12.9): e2e-full also runs the @slow real-timing game specs (E2E_SLOW=1) and the game-serial
+# project (restart-resume); devices-full also runs the game one-viewport and visual specs (playwright.devices.config.ts
+# matches e2e/devices/game/** since REGRESSION-2), so the visual job compares the game baselines too; neon-suspend (weekly: Sundays UTC, gated inside the job) plays a game on the dev URL through a compute
+# suspend of the Neon dev branch (needs NEON_API_KEY, NEON_PROJECT_ID, NEON_DEV_ENDPOINT_ID).
 #
 # Secrets (owner adds; names only): E2E_TEST_TOKEN, VERCEL_AUTOMATION_BYPASS_SECRET,
 # NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY (development instance),
@@ -57,6 +60,8 @@ jobs:
       SENTRY_DSN: ""
       NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
       E2E_INCLUDE_QUARANTINED: "1"
+      E2E_SLOW: "1"
+      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on
       E2E_TEST_TOKEN: ${{ secrets.E2E_TEST_TOKEN }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
@@ -69,7 +74,6 @@ jobs:
       DODO_PRODUCT_ID_MONTHLY: ${{ secrets.DODO_PRODUCT_ID_MONTHLY }}
       DODO_PRODUCT_ID_YEARLY: ${{ secrets.DODO_PRODUCT_ID_YEARLY }}
       DODO_PAYMENTS_RETURN_URL: http://localhost:3000/pricing?checkout=success
-      INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
       E2E_USER_A_EMAIL: ${{ secrets.E2E_USER_A_EMAIL }}
       E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
       E2E_USER_B_EMAIL: ${{ secrets.E2E_USER_B_EMAIL }}
@@ -112,16 +116,31 @@ jobs:
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium
+      - name: Random socket keys for this run (web ↔ socket token and HMAC rings)
+        run: |
+          tok="d1:$(openssl rand -base64 32)"
+          int="web:$(openssl rand -base64 32)"
+          echo "::add-mask::$tok"
+          echo "::add-mask::$int"
+          echo "SOCKET_TOKEN_SECRET=$tok" >> "$GITHUB_ENV"
+          echo "INTERNAL_API_SECRET=$int" >> "$GITHUB_ENV"
       - name: Migrate and seed the Docker database
         run: |
-          pnpm --filter web exec prisma generate
-          pnpm --filter web exec prisma migrate deploy
-          pnpm --filter web prisma:seed
-          pnpm --filter web prisma:seed:openings
+          pnpm --filter @repo/db generate
+          pnpm --filter @repo/db migrate:deploy
+          pnpm --filter @repo/db seed
+          pnpm --filter @repo/db seed:openings
+      - name: Socket role (packages/db/sql/roles.sql), as on OCI
+        run: |
+          command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          RT_PW=$(openssl rand -hex 16)
+          echo "::add-mask::$RT_PW"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v rt_password="$RT_PW" -f packages/db/sql/roles.sql
+          echo "E2E_SOCKET_DATABASE_URL=postgresql://replay_realtime:$RT_PW@localhost:5432/replay" >> "$GITHUB_ENV"
       - name: Build (test app env, hooks on, sinks on)
         run: pnpm --filter web build
-      - name: Playwright (main config, quarantined tests included)
-        run: pnpm --filter web exec playwright test --project=chromium --project=play-queue --shard=${{ matrix.shard }}/4
+      - name: Playwright (main config incl. @slow game timers and game-serial, quarantined tests included)
+        run: pnpm --filter web exec playwright test --project=chromium --project=play-queue --project=game-serial --shard=${{ matrix.shard }}/4
       - if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -156,7 +175,7 @@ jobs:
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium webkit
-      - run: pnpm --filter web exec prisma generate
+      - run: pnpm --filter @repo/db generate
       - name: All 40 layout projects + UI + motion (builds .next-devices, serves :3100)
         run: pnpm --filter web test:devices --shard=${{ matrix.shard }}/4
       - if: always()
@@ -184,9 +203,61 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter web exec prisma generate
-      - name: toHaveScreenshot specs (@visual)
+      - run: pnpm --filter @repo/db generate
+      - name: toHaveScreenshot specs (@visual, incl. the game screen baselines of e2e/devices/game)
         run: pnpm --filter web test:devices --grep @visual --pass-with-no-tests
+
+  neon-suspend:
+    # P2 plan 12.9 (feasibility F-OCI-4): weekly, Sundays. A game on the dev URL and the dev socket survives a compute
+    # suspend of the Neon dev branch (never the production branch: the spec refuses any other endpoint id).
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 30
+    concurrency: { group: e2e-dev-shared, cancel-in-progress: false }
+    env:
+      CI: "1"
+      E2E_NEON_SUSPEND: "1"
+      E2E_BASE_URL: https://replay-chess-dev-replaychess007-1069.vercel.app
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DEV_DATABASE_URL }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+      NEON_ENDPOINT_ID: ${{ secrets.NEON_DEV_ENDPOINT_ID }}
+      E2E_TEST_TOKEN: ${{ secrets.E2E_TEST_TOKEN }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      E2E_USER_O_EMAIL: ${{ secrets.E2E_USER_O_EMAIL }}
+      E2E_USER_P_EMAIL: ${{ secrets.E2E_USER_P_EMAIL }}
+    steps:
+      - name: Weekly gate (Sundays UTC, or a manual run)
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$(date -u +%u)" = "7" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v5
+        with: { ref: "${{ env.REF }}" }
+      - if: steps.gate.outputs.run == 'true'
+        uses: pnpm/action-setup@v5
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@v5
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - if: steps.gate.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.gate.outputs.run == 'true'
+        run: pnpm --filter web exec playwright install --with-deps chromium
+      - if: steps.gate.outputs.run == 'true'
+        run: pnpm --filter @repo/db generate
+      - name: A game through a Neon compute suspend (dev URL, dev socket)
+        if: steps.gate.outputs.run == 'true'
+        run: pnpm --filter web exec playwright test --project=chromium --grep @neon-suspend
+      - if: always() && steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: neon-suspend-report
+          path: apps/web/playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
 
   state-coverage:
     runs-on: blacksmith-2vcpu-ubuntu-2404
@@ -200,6 +271,40 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Design-state coverage (missing states fail)
         run: pnpm exec tsx scripts/qa/state-coverage.ts --markdown "$GITHUB_STEP_SUMMARY"
+
+  lighthouse:
+    # Lighthouse CI (mobile) on the demo game (phase-02 plan 12.8): LCP ≤ 2.5 s, CLS ≤ 0.02, TBT ≤ 200 ms.
+    # apps/web/lighthouserc.cjs; a local `next build && next start` with the test app env, never the dev URL.
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    env:
+      CI: "1"
+      NEXT_PUBLIC_APP_ENV: test
+      NEXT_PUBLIC_DEV_WIDGETS: "0"
+      NEXT_PUBLIC_POSTHOG_KEY: ""
+      NEXT_PUBLIC_SENTRY_DSN: ""
+      SENTRY_DSN: ""
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { ref: "${{ env.REF }}" }
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web build
+      - name: Lighthouse CI
+        working-directory: apps/web
+        run: npx --yes @lhci/cli@0.14.0 autorun --config=lighthouserc.cjs
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lighthouse
+          path: apps/web/lhci-report/
+          if-no-files-found: ignore
+          retention-days: 14
 
   flags-off:
     # The flags-off project (1Q·2) runs the earlier phases' @smoke specs with the
@@ -240,13 +345,35 @@ jobs:
         run: |
           if pnpm exec playwright test --list --project=flags-off > /dev/null 2>&1; then echo "project=1" >> "$GITHUB_OUTPUT";
           else echo "project=0" >> "$GITHUB_OUTPUT"; echo "::notice::flags-off project not defined yet (1Q·2)"; fi
+      # The flags-off run plays over protocol v1 (plan 12.10): the :3002 socket needs the token ring and the internal
+      # ring like e2e-full, and the fixture passes the web's INTERNAL_API_SECRET to it as LEGACY_INTERNAL_API_SECRET
+      # (the v1 x-internal-token). Random per run, masked.
+      - if: steps.has.outputs.project == '1'
+        name: Random socket keys for this run (web ↔ socket token and HMAC rings)
+        run: |
+          tok="d1:$(openssl rand -base64 32)"
+          int="web:$(openssl rand -base64 32)"
+          echo "::add-mask::$tok"
+          echo "::add-mask::$int"
+          echo "SOCKET_TOKEN_SECRET=$tok" >> "$GITHUB_ENV"
+          echo "INTERNAL_API_SECRET=$int" >> "$GITHUB_ENV"
       - if: steps.has.outputs.project == '1'
         run: |
           pnpm --filter web exec playwright install --with-deps chromium
-          pnpm --filter web exec prisma generate
-          pnpm --filter web exec prisma migrate deploy
-          pnpm --filter web prisma:seed
-          pnpm --filter web exec playwright test --project=flags-off
+          pnpm --filter @repo/db generate
+          pnpm --filter @repo/db migrate:deploy
+          pnpm --filter @repo/db seed
+          pnpm --filter @repo/db seed:openings
+      - if: steps.has.outputs.project == '1'
+        name: Socket role (packages/db/sql/roles.sql), as on OCI
+        run: |
+          command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          RT_PW=$(openssl rand -hex 16)
+          echo "::add-mask::$RT_PW"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v rt_password="$RT_PW" -f packages/db/sql/roles.sql
+          echo "E2E_SOCKET_DATABASE_URL=postgresql://replay_realtime:$RT_PW@localhost:5432/replay" >> "$GITHUB_ENV"
+      - if: steps.has.outputs.project == '1'
+        run: pnpm --filter web exec playwright test --project=flags-off
 
   quarantine-report:
     needs: e2e-full
@@ -382,7 +509,7 @@ jobs:
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium
-      - run: pnpm --filter web exec prisma generate
+      - run: pnpm --filter @repo/db generate
       - name: "@smoke against the dev URL (@local-only skipped by the config)"
         run: pnpm --filter web exec playwright test --project=chromium --grep @smoke
       - if: always()
