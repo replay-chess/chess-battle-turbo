@@ -13,8 +13,8 @@
 # (main-guard.yml); this workflow does not run there, because main has none of the new packages until P13.
 #
 # Secrets (owner adds; names only): E2E_TEST_TOKEN, NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY
-# (Clerk development instance), INTERNAL_API_SECRET, E2E_USER_{A..P,R}_{EMAIL,PASSWORD}. The verify and
-# integration jobs need none.
+# (Clerk development instance; e2e-smoke and devices-game), INTERNAL_API_SECRET, E2E_USER_{A..P,R}_{EMAIL,PASSWORD}.
+# The verify and integration jobs need none.
 name: CI
 
 on:
@@ -169,8 +169,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @repo/db generate
       - name: Migrate and seed
-        # packages/db/prisma/seed-content.ts refuses every host but the Neon dev endpoint (seed-guards.ts), so CI
-        # databases get seed.ts and opening-seed.ts only (1Q·1 open issue 7).
+        # The integration suites need seed.ts and opening-seed.ts only; the design legends (seed:content) are seeded
+        # in e2e-smoke, where the legend specs run.
         run: |
           pnpm --filter @repo/db migrate:deploy
           pnpm --filter @repo/db seed
@@ -289,11 +289,15 @@ jobs:
           echo "SOCKET_TOKEN_SECRET=$tok" >> "$GITHUB_ENV"
           echo "INTERNAL_API_SECRET=$int" >> "$GITHUB_ENV"
       - name: Migrate and seed the Docker database
+        # seed:content writes the design legends and their positions (prisma/fixtures/design-legend-positions.ts):
+        # friend-full and the G-STUDY fixture start on a legend position (phase-02 plan 6.8, 12.6). Its fixture
+        # source accepts a loopback Postgres as well as the Neon dev endpoint (seed-guards.ts).
         run: |
           pnpm --filter @repo/db generate
           pnpm --filter @repo/db migrate:deploy
           pnpm --filter @repo/db seed
           pnpm --filter @repo/db seed:openings
+          pnpm --filter @repo/db seed:content -- --apply
       - name: Socket role (packages/db/sql/roles.sql), as on OCI
         run: |
           command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
@@ -322,7 +326,12 @@ jobs:
         # Global setup provisions the users rows, entitles A–P and runs the fixture health check. The config
         # starts `pnpm start`, the :3002 and :3102 socket servers from source and the PostHog sink (POSTHOG_HOST
         # above); game-serial (restart-resume) runs last with its own restartable :3103 server.
-        run: pnpm --filter web exec playwright test --project=chromium --project=webkit-iphone --project=game-serial --grep @smoke
+        # E2E_SMOKE=1, not `--grep @smoke`: game-serial depends on chromium, play-queue and webkit-iphone, and a CLI
+        # grep does not reach dependency projects, so they would run in full (the whole chromium suite, with the
+        # specs that need real Dodo test-mode keys). The config grep filters every project.
+        env:
+          E2E_SMOKE: "1"
+        run: pnpm --filter web exec playwright test --project=chromium --project=webkit-iphone --project=game-serial
       - if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -350,8 +359,12 @@ jobs:
       NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
       DATABASE_URL: postgresql://ci:ci@localhost:5432/none
       DIRECT_URL: postgresql://ci:ci@localhost:5432/none
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
-      CLERK_SECRET_KEY: sk_test_ci_dummy_not_a_real_key
+      # The Clerk development instance, as in nightly devices-full: with a development key Clerk's middleware answers
+      # a first document request without a dev-browser cookie (every Playwright context) with a handshake redirect to
+      # the key's Frontend API, /dev/ui/** included. The dummy key of the verify build names clerk.example.com, which
+      # does not resolve, so every page.goto failed with net::ERR_NAME_NOT_RESOLVED.
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:3002
       DODO_PAYMENTS_API_KEY: ci-dummy-dodo-key
       DODO_PAYMENTS_ENVIRONMENT: test_mode

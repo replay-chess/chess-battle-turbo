@@ -125,11 +125,13 @@ jobs:
           echo "SOCKET_TOKEN_SECRET=$tok" >> "$GITHUB_ENV"
           echo "INTERNAL_API_SECRET=$int" >> "$GITHUB_ENV"
       - name: Migrate and seed the Docker database
+        # seed:content: the design legends for friend-full and the G-STUDY fixture (as in ci.yml e2e-smoke).
         run: |
           pnpm --filter @repo/db generate
           pnpm --filter @repo/db migrate:deploy
           pnpm --filter @repo/db seed
           pnpm --filter @repo/db seed:openings
+          pnpm --filter @repo/db seed:content -- --apply
       - name: Socket role (packages/db/sql/roles.sql), as on OCI
         run: |
           command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)

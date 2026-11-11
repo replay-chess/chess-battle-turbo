@@ -89,9 +89,14 @@ const quarantinePattern = (testId: string) =>
 // ── Grep (CT X11) ───────────────────────────────────────────────────────────
 // E2E_PUBLIC_ONLY=1   signed-out specs only (@public)
 // E2E_PHASES=1,2      only specs tagged @p1 or @p2
+// E2E_SMOKE=1         only @smoke specs, in every project that runs (the ci.yml e2e-smoke job). Use it instead of
+//                     `--grep @smoke` whenever a selected project has dependencies: Playwright applies a CLI grep to
+//                     the top-level projects only, so `--project=game-serial --grep @smoke` would run its dependencies
+//                     (chromium, play-queue, webkit-iphone) in full. The config grep below reaches them too.
 // Every condition must hold, so they compose as lookaheads.
 const conditions: string[] = [];
 if (process.env.E2E_PUBLIC_ONLY === "1") conditions.push("@public\\b");
+if (process.env.E2E_SMOKE === "1") conditions.push("@smoke\\b");
 if (process.env.E2E_PHASES) {
   const phases = process.env.E2E_PHASES.split(",").map((p) => p.trim().replace(/^p/i, "")).filter(Boolean);
   conditions.push(`@p(${phases.map(escapeRe).join("|")})\\b`);
@@ -250,7 +255,7 @@ export default defineConfig<ConsoleGuardOptions & TelemetryOptions>({
             workers: 1,
             use: { ...devices["Desktop Chrome"] },
           },
-          // The ci.yml e2e-smoke job runs `--project=chromium --project=webkit-iphone --grep @smoke`.
+          // The ci.yml e2e-smoke job runs `--project=chromium --project=webkit-iphone --project=game-serial` with E2E_SMOKE=1.
           // Only in CI (or E2E_WEBKIT=1), so a plain local run stays chromium-only.
           ...(process.env.CI || process.env.E2E_WEBKIT === "1"
             ? [

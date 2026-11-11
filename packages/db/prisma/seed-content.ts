@@ -6,7 +6,9 @@
 // Guards (all before any write; see prisma/seed-guards.ts):
 //   1. Loads only apps/web/.env.development.local (never .env.local = old prod) and
 //      says whether DIRECT_URL came from that file or the shell.
-//   2. The target is DIRECT_URL, and its host must be the dev endpoint. No override flag.
+//   2. The target is DIRECT_URL, and its host must be the dev endpoint. No override flag. The design fixtures
+//      (`--source fixtures`, the default) may also go to a loopback Postgres (a local Docker or CI service
+//      database, which needs the legends for the legend specs); copies of old prod content never do.
 //   3. Writes go through its own PrismaClient on that URL, never lib/prisma.ts.
 //   4. A `db` source host must be neither the target nor a dev host.
 //   5. Tripwire: the target must have at most MAX_TARGET_USERS (seed-guards.ts) users.
@@ -44,6 +46,7 @@ import {
   MAX_TARGET_USERS,
   SeedGuardError,
   assertDevTarget,
+  assertFixtureContentTarget,
   assertSourceNotTarget,
   assertUserTripwire,
   resolveEnvVar,
@@ -228,8 +231,8 @@ async function main() {
   const origin = direct.origin === "file" ? DEV_ENV_FILE : direct.origin;
   if (direct.origin !== "file") console.log(`note     DIRECT_URL comes from the ${origin}, not ${DEV_ENV_FILE}`);
 
-  // Guard 2: the dev endpoint only.
-  const targetHost = assertDevTarget(direct.value);
+  // Guard 2: the dev endpoint only (the design fixtures: or a loopback Postgres).
+  const targetHost = opts.source === "fixtures" ? assertFixtureContentTarget(direct.value) : assertDevTarget(direct.value);
   console.log(`target   ${targetHost}  (DIRECT_URL from ${origin})`);
   console.log(`mode     ${opts.apply ? "APPLY (one transaction)" : "dry run (no writes; pass -- --apply to write)"}`);
   console.log(`source   ${opts.source}${opts.fromJson ? ` (${opts.fromJson})` : ""}`);

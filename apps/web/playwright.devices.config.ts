@@ -97,6 +97,8 @@ export default defineConfig({
     : {
         command: "pnpm build && pnpm start --port 3100",
         port: 3100,
+        // next build and next start write to stdout; Playwright drops a webServer's stdout unless asked.
+        stdout: "pipe",
         timeout: 600_000,
         reuseExistingServer: !process.env.CI,
         env: {

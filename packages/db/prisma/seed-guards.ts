@@ -59,6 +59,25 @@ export function assertDevTarget(url: string | undefined | null): string {
   return host;
 }
 
+/** Loopback hosts: a throwaway Postgres on this machine (a local Docker database, the CI service containers). */
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+
+export function isLocalHost(host: string): boolean {
+  return LOCAL_HOSTS.has(host.toLowerCase());
+}
+
+/**
+ * Guard 2 of the content seed with `--source fixtures` only: the dev endpoint or a loopback Postgres. The design
+ * fixtures (prisma/fixtures/design-legend-positions.ts) are public content, and the CI databases need them for the
+ * legend specs (phase-02 plan 6.8, 12.6). Copies of old prod content (`--source json|db`) and the persona tool keep
+ * `assertDevTarget`. The user tripwire (guard 5) still runs on every target. Returns the host.
+ */
+export function assertFixtureContentTarget(url: string | undefined | null): string {
+  const host = hostOf(url);
+  if (isDevHost(host) || isLocalHost(host)) return host;
+  throw new SeedGuardError(`refusing to write: target host ${host} is neither the dev endpoint nor a local Postgres`);
+}
+
 /** Guard 4: a source database must be neither the target nor any dev host. Returns the source host. */
 export function assertSourceNotTarget(sourceUrl: string | undefined | null, targetHost: string): string {
   const host = hostOf(sourceUrl);

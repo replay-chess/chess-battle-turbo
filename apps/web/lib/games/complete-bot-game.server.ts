@@ -16,6 +16,7 @@ import { endMethodFromDb } from "@repo/game-core/snapshot";
 import { ApiError } from "@/lib/api/api-error";
 import { warnSafe } from "./access.server";
 import { assertBotPlayer, lastClocks } from "./checkpoint.server";
+import { pgnSiteOrigin } from "./site-origin";
 import { readGameRow, type GameRow, type GamesDb } from "./snapshot.server";
 
 /** `completed`: the props of the `bot_game_completed` event (plan §10.1), set only when this call finished the game. */
@@ -56,6 +57,7 @@ export async function completeBotGame(
   }
 
   const untimed = row.timeClass === "UNTIMED";
+  const siteOrigin = pgnSiteOrigin();
   const verdict = adjudicate({
     startFen: row.startingFen,
     moves: body.moves,
@@ -72,6 +74,7 @@ export async function completeBotGame(
       date: (row.startedAt ?? row.createdAt).getTime(),
       white: displayName(row, "w"),
       black: displayName(row, "b"),
+      ...(siteOrigin ? { siteOrigin } : {}),
     },
   });
   if (!verdict.ok) {

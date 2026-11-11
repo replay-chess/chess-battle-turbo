@@ -5,10 +5,12 @@ import {
   MAX_TARGET_USERS,
   SeedGuardError,
   assertDevTarget,
+  assertFixtureContentTarget,
   assertSourceNotTarget,
   assertUserTripwire,
   hostOf,
   isDevHost,
+  isLocalHost,
   resolveEnvVar,
 } from "./seed-guards";
 
@@ -45,6 +47,29 @@ test("allow-list rejects old prod and any other host", () => {
     assert.equal(isDevHost(host), false, host);
     assert.throws(() => assertDevTarget(url(host)), SeedGuardError, host);
   }
+});
+
+test("the design-fixture content target is the dev endpoint or a loopback Postgres, nothing else", () => {
+  assert.equal(assertFixtureContentTarget(url(DEV)), DEV);
+  assert.equal(assertFixtureContentTarget(url(DEV_POOLER)), DEV_POOLER);
+  for (const host of ["localhost", "127.0.0.1", "LOCALHOST"]) {
+    assert.equal(isLocalHost(host), true, host);
+    assert.equal(assertFixtureContentTarget(`postgresql://postgres:secret@${host}:5432/replay`), host.toLowerCase());
+  }
+  assert.equal(assertFixtureContentTarget("postgresql://postgres:secret@[::1]:5432/replay"), "[::1]");
+  for (const host of [
+    OLD_PROD,
+    OLD_PROD_POOLER,
+    "ep-shiny-shape-b8lvr0f5.c-14.us-east-1.aws.neon.tech",
+    "localhost.evil.com",
+    "127.0.0.1.nip.io",
+    "db.internal",
+  ]) {
+    assert.equal(isLocalHost(host), false, host);
+    assert.throws(() => assertFixtureContentTarget(url(host)), SeedGuardError, host);
+  }
+  // The dev-only guard is unchanged: loopback stays refused there (personas, copies of old prod content).
+  assert.throws(() => assertDevTarget("postgresql://postgres:secret@localhost:5432/replay"), SeedGuardError);
 });
 
 test("bad target URLs are rejected without echoing the value", () => {

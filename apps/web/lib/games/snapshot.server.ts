@@ -8,6 +8,7 @@
 import { cache } from "react";
 import { Prisma } from "@repo/db";
 import { buildPgn } from "@repo/game-core/pgn";
+import { pgnSiteOrigin } from "./site-origin";
 import { endMethodFromDb, snapshotOf, winnerFromOutcome, type GameRecord, type GameSnapshot } from "@repo/game-core/snapshot";
 import { ApiError } from "@/lib/api/api-error";
 import { prisma } from "@/lib/prisma";
@@ -210,6 +211,12 @@ export function snapshotEtag(snapshot: Pick<GameSnapshot, "ref" | "updatedAt">, 
   return `g-${snapshot.ref}-${snapshot.updatedAt}-${role === "spectator" ? "s" : "p"}`;
 }
 
+/** `{ siteOrigin }` for buildPgn when this deployment has a configured site (lib/games/site-origin.ts). */
+function siteOriginTag(): { siteOrigin?: string } {
+  const siteOrigin = pgnSiteOrigin();
+  return siteOrigin ? { siteOrigin } : {};
+}
+
 /** The PGN download read (plan §7.1.5): players only, finished games only. */
 export async function readGamePgn(db: GamesDb, ref: string, viewerId: bigint): Promise<string> {
   const rows = await db.$queryRaw<(GameRow & { pgn: string | null })[]>(Prisma.sql`
@@ -238,5 +245,6 @@ export async function readGamePgn(db: GamesDb, ref: string, viewerId: bigint): P
     clocksMs: untimed ? [] : (row.moveClocksMs ?? []),
     result: method ? { winner: winnerFromOutcome(row.outcome), method } : null,
     tc: untimed ? null : { initialMs: row.initialTimeSeconds * 1000, incrementMs: row.incrementSeconds * 1000 },
+    ...siteOriginTag(),
   });
 }
