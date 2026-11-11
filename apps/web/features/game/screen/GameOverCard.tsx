@@ -5,14 +5,17 @@
 // Share (Copy link, Download PGN; no image until P3's shares). It replaces the top of the panel (desktop) or renders
 // in the zone under the board (phones); it never covers the board. Later phases add a slot, never edit the card.
 
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import Link from "next/link";
 import { trackGame } from "@/lib/analytics/game-events";
 import { gamePgnHref } from "@/lib/api/queries/games";
 import { BUTTONS, copyCtx, resultCopy } from "../copy";
 import { useController, useGame, useView } from "./GameContext";
 import { IconArrow, IconDownload, IconLink, IconReload, IconShare } from "./icons";
-import { LiveGamesSheet } from "./LiveGamesSheet";
+
+// "Watch another game" opens for spectators of an ended game only: its dialog and the live-list query load on the
+// first open, not with every game page (/game/[ref] First Load JS is held to 600 kB gz by check-bundle-budgets.mjs).
+const LiveGamesSheet = lazy(() => import("./LiveGamesSheet").then((m) => ({ default: m.LiveGamesSheet })));
 
 export type ResultSlot = "rating" | "tournament" | "accuracy" | "bank" | "coach" | "legend";
 export type ResultSlots = Partial<Record<ResultSlot, React.ReactNode>>;
@@ -26,6 +29,8 @@ export function GameOverCard({ slots = {}, inSheet = false }: { slots?: ResultSl
   const [share, setShare] = useState(false);
   const [copied, setCopied] = useState(false);
   const [watchOpen, setWatchOpen] = useState(false);
+  // Mounted from the first open on, so later opens and every close keep the dialog's own transitions.
+  const [watchMounted, setWatchMounted] = useState(false);
   const r = view.result;
   if (!r) return null;
 
@@ -79,6 +84,7 @@ export function GameOverCard({ slots = {}, inSheet = false }: { slots?: ResultSl
             {ctx.spectator ? (
               <button type="button" className="g-btn-p" onClick={() => {
                   trackGame("game_over_cta", { cta: "watch_another" });
+                  setWatchMounted(true);
                   setWatchOpen(true);
                 }}
                 data-testid="watch-another"
@@ -165,7 +171,11 @@ export function GameOverCard({ slots = {}, inSheet = false }: { slots?: ResultSl
           ) : null}
         </div>
       </div>
-      {ctx.spectator ? <LiveGamesSheet open={watchOpen} onOpenChange={setWatchOpen} /> : null}
+      {ctx.spectator && watchMounted ? (
+        <Suspense fallback={null}>
+          <LiveGamesSheet open={watchOpen} onOpenChange={setWatchOpen} />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

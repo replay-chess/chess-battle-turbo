@@ -188,11 +188,19 @@ test("the restore's candidates statement has the load budget and one retry on a 
   );
   assert.equal(metrics.counts.get("ws.persist.reconnect{op=restore}"), 1);
 
-  const hung = { ...flaky, $queryRaw: () => new Promise<never>(() => {}) };
+  // A statement that never answers. A real hung statement waits on a connection, a live handle; the budget timer is
+  // unref'd (it must never keep a draining process alive), so a promise with no handle at all would let the event loop
+  // end before the budget fires (Node 22 cancelled the test that way in CI run 43064453612).
+  let stuck: ReturnType<typeof setTimeout> | undefined;
+  const hung = { ...flaky, $queryRaw: () => new Promise<never>(() => void (stuck = setTimeout(() => {}, 60_000))) };
   const q = createOutboxPersistence({ ...base, db: hung as unknown as Db, statementBudgetMs: 50 });
   const started = Date.now();
-  await assert.rejects(q.restoreCandidates([], 60_000), /restore exceeded its 50 ms budget/);
-  assert.ok(Date.now() - started < 2_000, "the budget, not the connect, bounds the restore");
-  p.stop();
-  q.stop();
+  try {
+    await assert.rejects(q.restoreCandidates([], 60_000), /restore exceeded its 50 ms budget/);
+    assert.ok(Date.now() - started < 2_000, "the budget, not the connect, bounds the restore");
+  } finally {
+    clearTimeout(stuck);
+    p.stop();
+    q.stop();
+  }
 });
