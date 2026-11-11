@@ -12,6 +12,7 @@ npx playwright test                                   # spec suite (starts the w
 PW_REUSE_SERVER=1 npx playwright test e2e/specs/data-layer.spec.ts   # reuse running servers on 3000/3002/4011
 E2E_PUBLIC_ONLY=1 npx playwright test                 # signed-out specs only (@public)
 E2E_PHASES=1 npx playwright test                      # only @p1 specs
+E2E_PORT_OFFSET=300 npx playwright test               # every server +300 (a second worktree; a build needs NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:3302)
 E2E_BASE_URL=https://<dev url> npx playwright test    # against a deployment (@local-only specs skipped)
 pnpm test:devices                                     # devices config
 ```

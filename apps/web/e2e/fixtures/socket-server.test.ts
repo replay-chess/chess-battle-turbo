@@ -1,7 +1,7 @@
 // Unit tests of the e2e socket fixture's environment (phase-02 plan 12.0: the fixture servers are test hooks).
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { SocketFixtureError, socketDatabaseUrl, socketServerEnv } from "./socket-server";
+import { REFUSED_FRAME, SocketFixtureError, socketDatabaseUrl, socketServerEnv } from "./socket-server";
 
 const LOCAL = "postgresql://u:p@localhost:5432/replay";
 
@@ -63,5 +63,12 @@ describe("e2e socket fixture env", () => {
       if (prev === undefined) delete process.env.E2E_SOCKET_DATABASE_URL;
       else process.env.E2E_SOCKET_DATABASE_URL = prev;
     }
+  });
+
+  // regression: restart-resume (CI run 43037495714) — a link to a server that was down closed the page's WebSocket
+  // cleanly; engine.io-client waited out its 10 s connect timeout instead of retrying on its backoff.
+  it("a refused upstream is told to the page as a failed transport: a frame that is no engine.io packet type", () => {
+    // engine.io-parser: types 0–6 (open … noop) and the base64 binary prefix "b"; anything else decodes as `error`.
+    assert.equal(REFUSED_FRAME.length > 0 && !/^[0-6b]/.test(REFUSED_FRAME), true);
   });
 });

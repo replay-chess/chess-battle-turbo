@@ -21,7 +21,7 @@ import { finishGuard, guardContext } from "./console-guard";
 import { isEventName } from "@repo/analytics";
 import { auditEvents, expect, matchesProps, test as telemetryTest, type CapturedEvent, type ExpectOptions, type Match, type Telemetry } from "./telemetry";
 import { letterEmail } from "./users";
-import { FixtureSocketServer, linkContext, type SocketKind, type SocketLink } from "./socket-server";
+import { FixtureSocketServer, linkContext, MAIN_SOCKET_PORT, type SocketKind, type SocketLink } from "./socket-server";
 import { assertFixtureTarget, resolveFixtureUser, seedGameFixture, type FixtureName } from "../../scripts/dev/seed-game-fixtures";
 
 export { expect };
@@ -414,7 +414,7 @@ export async function socketCommand(token: string | undefined, event: string, pa
   const auth: Record<string, unknown> = { token };
   if (opts.proto !== null) auth.proto = opts.proto ?? 2;
   return new Promise((resolve) => {
-    const s = io(`ws://127.0.0.1:${opts.port ?? 3002}`, { transports: ["websocket"], auth, reconnection: false, timeout: 10_000 });
+    const s = io(`ws://127.0.0.1:${opts.port ?? MAIN_SOCKET_PORT}`, { transports: ["websocket"], auth, reconnection: false, timeout: 10_000 });
     const done = (v: unknown) => {
       s.disconnect();
       resolve(v);

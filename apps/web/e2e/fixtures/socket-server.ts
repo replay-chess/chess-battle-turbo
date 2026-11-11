@@ -30,9 +30,17 @@ import { parse as parseEnv } from "dotenv";
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const WS_DIR = path.resolve(WEB_DIR, "../web-socket");
 
-export const MAIN_SOCKET_PORT = 3002;
-export const FAST_SOCKET_PORT = 3102;
-export const RESTARTABLE_SOCKET_PORT = 3103;
+/**
+ * E2E_PORT_OFFSET moves every local e2e server by the same amount (web 3000, sockets 3002/3102/3103, sink 4011), so
+ * two checkouts (git worktrees) can run the suite side by side. CI and a plain local run use offset 0. The web app's
+ * NEXT_PUBLIC_WEBSOCKET_URL must name the shifted main port (the link below only routes that one).
+ */
+export const E2E_PORT_OFFSET = Number(process.env.E2E_PORT_OFFSET ?? 0) || 0;
+export const WEB_PORT = 3000 + E2E_PORT_OFFSET;
+export const MAIN_SOCKET_PORT = 3002 + E2E_PORT_OFFSET;
+export const FAST_SOCKET_PORT = 3102 + E2E_PORT_OFFSET;
+export const RESTARTABLE_SOCKET_PORT = 3103 + E2E_PORT_OFFSET;
+export const DEFAULT_SINK_PORT = 4011 + E2E_PORT_OFFSET;
 export type SocketKind = "main" | "fast" | "restartable";
 export const SOCKET_PORTS: Record<SocketKind, number> = {
   main: MAIN_SOCKET_PORT,
@@ -95,8 +103,8 @@ export function socketServerEnv(
   opts: { webAppUrl?: string; extraOrigins?: string[]; sinkPort?: number; strict?: boolean } = {},
 ) {
   const port = SOCKET_PORTS[kind];
-  const web = opts.webAppUrl ?? "http://localhost:3000";
-  const origins = [...new Set([web, "http://localhost:3000", ...(opts.extraOrigins ?? [])])];
+  const web = opts.webAppUrl ?? `http://localhost:${WEB_PORT}`;
+  const origins = [...new Set([web, `http://localhost:${WEB_PORT}`, ...(opts.extraOrigins ?? [])])];
   const webInternal = process.env.INTERNAL_API_SECRET?.trim();
   // The web signs with its own ring (a bare value is kid `web`); the fixture adds an `ops` kid for the broadcast.
   const internal = [webInternal && !webInternal.includes(":") ? `web:${Buffer.from(webInternal).toString("base64")}` : webInternal, `ops:${OPS_KEY}`]
@@ -125,7 +133,7 @@ export function socketServerEnv(
     SOCKET_TOKEN_SECRET: tokenSecret,
     INTERNAL_API_SECRET: internal,
     SENTRY_DSN: "",
-    POSTHOG_HOST: `http://127.0.0.1:${opts.sinkPort ?? Number(process.env.POSTHOG_SINK_PORT ?? 4011)}`,
+    POSTHOG_HOST: `http://127.0.0.1:${opts.sinkPort ?? Number(process.env.POSTHOG_SINK_PORT ?? DEFAULT_SINK_PORT)}`,
     POSTHOG_PROJECT_KEY: "phc_e2e_local_sink",
     LOG_LEVEL: process.env.E2E_SOCKET_LOG_LEVEL ?? "warn",
   };
@@ -235,6 +243,9 @@ export class FixtureSocketServer {
 
 // ─── Browser link ───────────────────────────────────────────────────────────────────────────────────────────────
 
+/** Not an engine.io packet type: engine.io-parser decodes it as `{ type: "error" }`, a failed transport. */
+export const REFUSED_FRAME = "x";
+
 const SOCKET_WS = new RegExp(`^wss?://(localhost|127\\.0\\.0\\.1):${MAIN_SOCKET_PORT}/socket\\.io/`);
 const SOCKET_POLL = new RegExp(`^https?://(localhost|127\\.0\\.0\\.1):${MAIN_SOCKET_PORT}/socket\\.io/`);
 
@@ -275,8 +286,22 @@ export async function linkContext(context: BrowserContext, kind: SocketKind): Pr
   await context.routeWebSocket(SOCKET_WS, (ws) => {
     const entry: { page: WebSocketRoute; up: WebSocket | null } = { page: ws, up: null };
     routes.add(entry);
+    let upOpen = false;
     const closePage = () => {
       routes.delete(entry);
+      // An upstream that never opened is a refused connection (the server is down or restarting). A browser sees a
+      // transport error then (behind Caddy: a 502 on the upgrade) and socket.io-client retries on its backoff. A
+      // routed WebSocket can only close cleanly, and engine.io-client ignores a clean close before its handshake: the
+      // attempt then waited out the client's 10 s connect timeout, longer than the restart's resume wait plus grace
+      // (restart-resume abandoned a player that way, CI run 43037495714). An unknown engine.io packet type decodes
+      // as the parser's `error` packet, which the client handles as that failed transport.
+      if (!upOpen) {
+        try {
+          ws.send(REFUSED_FRAME);
+        } catch {
+          // page side already gone
+        }
+      }
       ws.close({ code: 1000, reason: "upstream closed" }).catch(() => undefined);
     };
     if (down) return void closePage();
@@ -296,6 +321,7 @@ export async function linkContext(context: BrowserContext, kind: SocketKind): Pr
     connections++;
     const pending: (string | Buffer)[] = [];
     up.onopen = () => {
+      upOpen = true;
       for (const m of pending.splice(0)) up.send(m);
     };
     up.onmessage = (e: MessageEvent) => {

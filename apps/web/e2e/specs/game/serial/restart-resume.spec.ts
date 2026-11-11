@@ -1,7 +1,13 @@
 // T11 (phase-02 plan 1.2, 7.6, 12.6) @smoke, in the game-serial project: mid-game the socket broadcasts a restart
 // (5 s), is stopped with SIGTERM (the drain: clocks frozen, checkpoint flushed) and started again (restore from the
 // journal + DB). Both players see the restart chip, come back at the same ply with the same colours, the clocks stay
-// frozen until both are back, no ply is lost, and the new bootId causes exactly one user-level resync.
+// frozen until both are back, no ply is lost, and the new bootId causes exactly one user-level resync. Neither player
+// is ever told that the other one left (D7): the restart sends no presence change to "offline".
+//
+// While the server is down the socket link answers every connection attempt as a failed transport, as Caddy's 502 does
+// on the dev box (fixtures/socket-server.ts `REFUSED_FRAME`): a clean close made socket.io-client wait out its 10 s
+// connect timeout, longer than the fast profile's resume wait plus grace, and one player came back abandoned
+// (CI run 43037495714).
 import type { Request } from "@playwright/test";
 import { byColor, expect, playLine, startSeeded, test, type Seat } from "../../../fixtures/games";
 import { gameTags, p2 } from "../tags";
@@ -33,6 +39,7 @@ test.describe("restart and resume", { tag: p2("@smoke", "@local-only") }, () => 
     };
     s.w.page.on("request", onReq);
 
+    const framesFrom = { w: s.w.link.frames().length, b: s.b.link.frames().length };
     await restartable.broadcastRestart(5);
     for (const p of [s.w, s.b]) await expect(p.page.getByTestId("chip-restarting")).toContainText(/Server restarting in 0:0\d/i, { timeout: 15_000 });
     await restartable.stop("SIGTERM");
@@ -47,6 +54,14 @@ test.describe("restart and resume", { tag: p2("@smoke", "@local-only") }, () => 
     // Black's clock was frozen across the restart (it is Black's turn; it only runs again once both are back).
     const after = await s.b.page.locator('[data-testid="clock-b"]:visible').first().innerText();
     expect(after <= frozen || after === frozen).toBe(true);
+
+    for (const side of ["w", "b"] as const) {
+      const left = s[side].link
+        .frames()
+        .slice(framesFrom[side])
+        .filter((f) => f.startsWith('42["presence:update"') && f.includes('"online":false'));
+      expect(left, `${side} was told the other side left`).toEqual([]);
+    }
 
     // Play on: no ply lost.
     await playLine(s, ["g8f6"]);

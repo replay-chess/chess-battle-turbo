@@ -6,13 +6,24 @@ import path from "path";
 import type { ConsoleGuardOptions } from "./e2e/fixtures/console-guard";
 import type { TelemetryOptions } from "./e2e/fixtures/telemetry";
 import { prodGuardEnv } from "./lib/test-hooks/registry";
-import { SOCKET_SERVER_COMMAND, socketServerEnv } from "./e2e/fixtures/socket-server";
+import {
+  DEFAULT_SINK_PORT,
+  E2E_PORT_OFFSET,
+  FAST_SOCKET_PORT,
+  MAIN_SOCKET_PORT,
+  SOCKET_SERVER_COMMAND,
+  WEB_PORT,
+  socketServerEnv,
+} from "./e2e/fixtures/socket-server";
 
 const WEB_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 // Load .env.test FIRST with override so E2E tests always use the dev/E2E database,
 // never prod — even if a dev server is already running or .env.local is present.
 config({ path: path.resolve(WEB_DIR, ".env.test"), override: true });
+// A shifted run (E2E_PORT_OFFSET, e.g. a second git worktree) points the app at its own main socket. `next dev` reads
+// it at runtime; a `next start` build must have been built with the same value (NEXT_PUBLIC_* is inlined).
+if (E2E_PORT_OFFSET) process.env.NEXT_PUBLIC_WEBSOCKET_URL = `ws://localhost:${MAIN_SOCKET_PORT}`;
 
 // ── Targets (phase-01 plan §12.3, CT X2) ────────────────────────────────────
 // E2E_BASE_URL runs the suite against a deployed site (the dev URL): no local
@@ -24,7 +35,7 @@ const BASE_URL = process.env.E2E_BASE_URL?.replace(/\/$/, "");
 const REMOTE = Boolean(BASE_URL) && !/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(BASE_URL ?? "");
 const PROD_GUARD = process.env.PROD_GUARD === "1";
 const PROD_GUARD_PORT = 3200;
-const SINK_PORT = Number(process.env.POSTHOG_SINK_PORT ?? 4011);
+const SINK_PORT = Number(process.env.POSTHOG_SINK_PORT ?? DEFAULT_SINK_PORT);
 const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 
 // ── flags-off (plan §12.3, CT X13; 1Q·2) ─────────────────────────────────────
@@ -38,7 +49,7 @@ const FLAGS_OFF =
   process.env.E2E_FLAGS_OFF === "1" ||
   argv.some((a, i) => a === "--project=flags-off" || (a === "--project" && argv[i + 1] === "flags-off"));
 if (FLAGS_OFF) process.env.E2E_FLAGS_OFF = "1";
-const FLAGS_OFF_PORT = Number(process.env.FLAGS_OFF_PORT ?? 3110);
+const FLAGS_OFF_PORT = Number(process.env.FLAGS_OFF_PORT ?? 3110 + E2E_PORT_OFFSET);
 /** The open phase's flags, switched off. Every later phase appends its own `<key>:off`. */
 const FLAGS_OFF_OVERRIDE = "shell-v3:off,live-protocol-v2:off,game-v3:off";
 // Phase 0 has no @smoke tags, so its specs are listed by file. tournament (≈ 10 min) stays in the main run; the
@@ -160,7 +171,7 @@ const sinkServer = {
  */
 const socketServer = (kind: "main" | "fast", webAppUrl: string) => ({
   command: SOCKET_SERVER_COMMAND,
-  url: `http://127.0.0.1:${kind === "main" ? 3002 : 3102}/ready`,
+  url: `http://127.0.0.1:${kind === "main" ? MAIN_SOCKET_PORT : FAST_SOCKET_PORT}/ready`,
   env: socketServerEnv(kind, { webAppUrl, extraOrigins: [`http://localhost:${FLAGS_OFF_PORT}`], sinkPort: SINK_PORT }),
   reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
   timeout: 90_000,
@@ -168,14 +179,18 @@ const socketServer = (kind: "main" | "fast", webAppUrl: string) => ({
 
 const localServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
   {
-    command: process.env.CI ? "pnpm start" : "pnpm dev",
-    port: 3000,
+    command: process.env.CI
+      ? `pnpm start${WEB_PORT === 3000 ? "" : ` --port ${WEB_PORT}`}`
+      : WEB_PORT === 3000
+        ? "pnpm dev"
+        : `node scripts/build-engine-assets.mjs && pnpm exec next dev --port ${WEB_PORT}`,
+    port: WEB_PORT,
     env: testServerEnv,
     reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
     timeout: process.env.CI ? 30_000 : 60_000,
   },
-  socketServer("main", "http://localhost:3000"),
-  socketServer("fast", "http://localhost:3000"),
+  socketServer("main", `http://localhost:${WEB_PORT}`),
+  socketServer("fast", `http://localhost:${WEB_PORT}`),
   sinkServer,
 ];
 
@@ -222,7 +237,7 @@ export default defineConfig<ConsoleGuardOptions & TelemetryOptions>({
       ? `http://localhost:${PROD_GUARD_PORT}`
       : FLAGS_OFF
         ? `http://localhost:${FLAGS_OFF_PORT}`
-        : (BASE_URL ?? "http://localhost:3000"),
+        : (BASE_URL ?? `http://localhost:${WEB_PORT}`),
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "on-first-retry",
