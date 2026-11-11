@@ -113,11 +113,19 @@ describe("shutdown", () => {
     const { game, W, B, session } = await startGame(server, user("w"), user("b"));
     await move(W, game.ref, 0, "e2e4");
     await move(B, game.ref, 1, "e7e5");
+    // The notice and the frozen clocks are emitted in one tick, right before io.close(): the second one used to be
+    // dropped with the connection's write buffer (flushWrites, D11). Both must arrive.
+    const notice = waitFor(W, "server:restarting", 2_000);
+    const noticeB = waitFor(B, "server:restarting", 2_000);
+    const frozenB = waitFor(B, "clock:sync", 2_000, (p) => p.frozen !== undefined);
     const frozen = waitFor(W, "clock:sync", 2_000, (p) => p.frozen !== undefined);
     const s = session();
     const closing = server.handle.shutdown();
     const ev = await frozen;
     assert.equal(ev.frozen.reason, "restart");
+    assert.ok((await notice).restartAt > 0, "White heard the restart");
+    assert.ok((await noticeB).restartAt > 0, "Black heard the restart");
+    assert.equal((await frozenB).frozen.reason, "restart");
     assert.equal(s.state.frozen !== null || s.isDestroyed, true);
     assert.ok(server.persistence.checkpoints.some((c) => c.ref === game.ref && c.reason === "freeze"));
     await closing;
@@ -145,4 +153,46 @@ test("createLimiter runs at most `max` tasks at once, in arrival order", async (
   );
   assert.equal(peak, 3);
   assert.deepEqual(order.slice(0, 3).sort(), [0, 1, 2]);
+});
+
+// review of "one restore statement": it ran on the raw client, with no budget and no retry, so a Neon cold start at
+// boot dropped the boot restore of every game without a journal file (their rows were never adopted) and could hold
+// the join gate for as long as the connect took.
+test("the restore's candidates statement has the load budget and one retry on a fresh connection", async () => {
+  const metrics = createMemoryMetrics();
+  let calls = 0;
+  let disconnects = 0;
+  const row = { id: 1n, ref: "crestorecand000000000000001", status: "IN_PROGRESS", moveClocksMs: [] };
+  const flaky = {
+    async $queryRaw() {
+      calls++;
+      if (calls === 1) throw Object.assign(new Error("Server has closed the connection."), { code: "P1017" });
+      return [row];
+    },
+    async $executeRaw() {
+      return 0;
+    },
+    async $disconnect() {
+      disconnects++;
+    },
+  };
+  const base = { journal: null, timing: testTiming(), now: Date.now, log: SILENT_LOGGER, metrics, liveRefs: () => [] };
+  type Db = Parameters<typeof createOutboxPersistence>[0]["db"];
+  const p = createOutboxPersistence({ ...base, db: flaky as unknown as Db });
+  const rows = await p.restoreCandidates([row.ref], 60_000);
+  assert.equal(calls, 2, "retried once after the transient error");
+  assert.equal(disconnects, 1, "on a fresh connection");
+  assert.deepEqual(
+    rows.map((r) => r.ref),
+    [row.ref],
+  );
+  assert.equal(metrics.counts.get("ws.persist.reconnect{op=restore}"), 1);
+
+  const hung = { ...flaky, $queryRaw: () => new Promise<never>(() => {}) };
+  const q = createOutboxPersistence({ ...base, db: hung as unknown as Db, statementBudgetMs: 50 });
+  const started = Date.now();
+  await assert.rejects(q.restoreCandidates([], 60_000), /restore exceeded its 50 ms budget/);
+  assert.ok(Date.now() - started < 2_000, "the budget, not the connect, bounds the restore");
+  p.stop();
+  q.stop();
 });

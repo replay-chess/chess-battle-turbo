@@ -41,14 +41,24 @@ export interface DrainReport {
 type EngineConn = { writeBuffer?: unknown[]; once(event: "drain", listener: () => void): unknown };
 
 /**
- * Waits (≤ `maxMs`) until every socket sent what is queued for it. `io.close()` closes each engine.io connection with
- * `discard`, dropping its write buffer: only the packet already in flight survived, so with a fast flush the frozen
- * `clock:sync` after the restart notice never reached the players.
+ * Waits (≤ `maxMs`) until every engine.io connection has handed what is queued for it to its transport.
+ *
+ * Why: `io.close()` closes each connection with `discard`, which drops the connection's write buffer. A WebSocket
+ * transport sends one batch at a time and buffers the rest until the previous `send` completed, so of the events the
+ * drain emits in one tick (the restart notice, then the frozen `clock:sync`) only the first left: the players never
+ * saw their clocks frozen (found by persistence.test.ts "SIGTERM drain", which fails without this wait).
+ *
+ * What engine.io's `drain` event guarantees: the connection's write buffer is empty because the transport took every
+ * packet (WebSocket: each frame was passed to the socket, so the close that follows is queued after it; polling: the
+ * pending GET answered with them). It does NOT mean the client received or processed them, and a polling client with
+ * no GET in flight only drains on its next poll, which the `maxMs` cap bounds. Connections are walked on the engine,
+ * not per namespace: one engine connection carries every namespace's sockets (the server only uses "/" today) and the
+ * v1 sockets too.
  */
 export async function flushWrites(io: Server, maxMs: number): Promise<void> {
   const waits: Promise<void>[] = [];
-  for (const socket of io.sockets.sockets.values()) {
-    const conn = socket.conn as unknown as EngineConn;
+  const clients = (io.engine as unknown as { clients?: Record<string, EngineConn> } | undefined)?.clients ?? {};
+  for (const conn of Object.values(clients)) {
     if (conn.writeBuffer && conn.writeBuffer.length > 0) waits.push(new Promise<void>((resolve) => void conn.once("drain", resolve)));
   }
   if (waits.length === 0) return;

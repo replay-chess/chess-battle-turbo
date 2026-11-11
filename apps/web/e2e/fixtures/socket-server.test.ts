@@ -1,6 +1,10 @@
 // Unit tests of the e2e socket fixture's environment (phase-02 plan 12.0: the fixture servers are test hooks).
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { createServer } from "node:http";
+import type { AddressInfo, Socket } from "node:net";
 import { describe, it } from "node:test";
+import { io } from "socket.io-client";
 import { REFUSED_FRAME, SocketFixtureError, socketDatabaseUrl, socketServerEnv } from "./socket-server";
 
 const LOCAL = "postgresql://u:p@localhost:5432/replay";
@@ -65,10 +69,72 @@ describe("e2e socket fixture env", () => {
     }
   });
 
-  // regression: restart-resume (CI run 43037495714) — a link to a server that was down closed the page's WebSocket
-  // cleanly; engine.io-client waited out its 10 s connect timeout instead of retrying on its backoff.
-  it("a refused upstream is told to the page as a failed transport: a frame that is no engine.io packet type", () => {
-    // engine.io-parser: types 0–6 (open … noop) and the base64 binary prefix "b"; anything else decodes as `error`.
-    assert.equal(REFUSED_FRAME.length > 0 && !/^[0-6b]/.test(REFUSED_FRAME), true);
+});
+
+// regression: restart-resume (CI run 43037495714). A behavioural check of REFUSED_FRAME with the app's socket.io-client
+// options: a server that accepts the WebSocket upgrade and closes it before the engine.io handshake. With the frame,
+// the client counts a failed transport and retries on its backoff; with a clean close only, it waits out its connect
+// timeout (10 s in the app), which is what abandoned a player across a restart.
+describe("the link's refused connection", () => {
+  type Mode = "refuse" | "clean";
+
+  /** A WebSocket endpoint that closes every upgrade (after REFUSED_FRAME in "refuse" mode); counts the upgrades. */
+  async function closingServer(mode: Mode): Promise<{ url: string; upgrades(): number; close(): Promise<void> }> {
+    let upgrades = 0;
+    const sockets = new Set<Socket>();
+    const server = createServer((_req, res) => {
+      res.writeHead(503).end(); // the polling fallback is refused too, as the link aborts it
+    });
+    server.on("upgrade", (req, socket: Socket) => {
+      upgrades++;
+      sockets.add(socket);
+      const accept = createHash("sha1")
+        .update(`${req.headers["sec-websocket-key"]}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+        .digest("base64");
+      socket.write(
+        `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`,
+      );
+      const frames: Buffer[] = [];
+      if (mode === "refuse") frames.push(Buffer.from([0x81, REFUSED_FRAME.length]), Buffer.from(REFUSED_FRAME));
+      frames.push(Buffer.from([0x88, 0x02, 0x03, 0xe8])); // close 1000
+      socket.end(Buffer.concat(frames));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+    return {
+      url: `http://127.0.0.1:${port}`,
+      upgrades: () => upgrades,
+      close: () =>
+        new Promise<void>((resolve) => {
+          for (const sock of sockets) sock.destroy();
+          server.closeAllConnections();
+          server.close(() => resolve());
+        }),
+    };
+  }
+
+  async function attemptsWithin(mode: Mode, ms: number): Promise<number> {
+    const srv = await closingServer(mode);
+    // apps/web/lib/realtime/connection.ts options, with a short backoff and a 3 s connect timeout.
+    const s = io(srv.url, {
+      transports: ["websocket", "polling"],
+      upgrade: false,
+      tryAllTransports: true,
+      reconnectionDelay: 100,
+      reconnectionDelayMax: 200,
+      randomizationFactor: 0,
+      timeout: 3_000,
+    });
+    await new Promise((r) => setTimeout(r, ms));
+    s.close();
+    await srv.close();
+    return srv.upgrades();
+  }
+
+  it("with the refusal frame the client retries on its backoff; with a clean close it waits for its timeout", async () => {
+    const refused = await attemptsWithin("refuse", 1_500);
+    const clean = await attemptsWithin("clean", 1_500);
+    assert.ok(refused >= 3, `refused: ${refused} attempts in 1.5 s`);
+    assert.equal(clean, 1, "a clean close before the handshake is not a failed attempt");
   });
 });

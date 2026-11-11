@@ -20,9 +20,11 @@ import {
   dbErrorCode,
   finishGame,
   loadLiveGame,
+  loadRestoreCandidates,
   prewarm,
   staleSweep,
   withTransientRetry,
+  type LiveGameRecord,
   type SqlClient,
   type StaleSweepResult,
 } from "@repo/db/live";
@@ -107,6 +109,11 @@ export interface OutboxPersistence extends LivePersistence {
   stats(): OutboxStats;
   /** Writes the session's state now (restore: the plies the journal has and the DB lacks, in one checkpoint). */
   writeNow(session: LiveSession): Promise<boolean>;
+  /**
+   * The boot restore's one statement (`loadRestoreCandidates`), on the same path as a session load: a load slot, the
+   * statement budget and one retry on a fresh connection after a transient error (a Neon cold start or suspend).
+   */
+  restoreCandidates(journalRefs: readonly string[], windowMs: number): Promise<LiveGameRecord[]>;
   /** The stale sweep (boot, and after a finish ≤ 1 per 10 min). Null when skipped by the cadence. */
   staleSweep(force?: boolean): Promise<StaleSweepResult | null>;
   /** Stops retry loops and timers (shutdown). */
@@ -355,6 +362,9 @@ export function createOutboxPersistence(deps: OutboxDeps): OutboxPersistence {
 
   const persistence: OutboxPersistence = {
     load: (ref) => loadSlot(() => run("load", () => loadLiveGame(db, ref))),
+
+    restoreCandidates: (journalRefs, windowMs) =>
+      loadSlot(() => run("restore", () => loadRestoreCandidates(db, journalRefs, windowMs))),
 
     journal(session, line) {
       journal?.append(session, line);

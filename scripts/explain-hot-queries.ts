@@ -19,12 +19,16 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { Prisma } from "@repo/db";
 import { createPrismaClient } from "../packages/db/src/client";
+import { restoreCandidatesSql } from "../packages/db/src/live/loadLiveGame";
+import { RESTORE_WINDOW_MS } from "../packages/db/src/live/restoreList";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "postgres"]);
 
-type HotQuery = { name: string; sql: string; noSeqScan: string[]; noSort: string[] };
+/** `sql` is planned as written; a `Prisma.Sql` is the production statement itself, with its bind parameters. */
+type HotQuery = { name: string; sql: string | Prisma.Sql; noSeqScan: string[]; noSort: string[] };
 
 /** The P2 hot queries (packages/db/sql/explain-p2.sql, plan 9.2), with literal placeholders for the plans. */
 export const HOT_QUERIES: HotQuery[] = [
@@ -39,10 +43,17 @@ export const HOT_QUERIES: HotQuery[] = [
     noSeqScan: ["games"],
     noSort: [],
   },
+  // The socket's boot restore, one statement (loadRestoreCandidates): the journal refs (games_referenceId_key) OR the
+  // live games of the window (games_open_idx). Planned with journal files and without (an empty ANY array).
   {
-    name: "socket boot restore list (games_open_idx)",
-    sql: `SELECT "referenceId" FROM games
-           WHERE status = 'IN_PROGRESS' AND mode IN ('FRIEND', 'ONLINE', 'TOURNAMENT') AND "lastMoveAt" > now() - interval '2 hours'`,
+    name: "socket boot restore candidates, with journal refs (referenceId key + games_open_idx)",
+    sql: restoreCandidatesSql(["cxxxxxxxxxxxxxxxxxxxxxxxx", "cyyyyyyyyyyyyyyyyyyyyyyyy"], RESTORE_WINDOW_MS),
+    noSeqScan: ["games"],
+    noSort: [],
+  },
+  {
+    name: "socket boot restore candidates, no journal files (games_open_idx)",
+    sql: restoreCandidatesSql([], RESTORE_WINDOW_MS),
     noSeqScan: ["games"],
     noSort: [],
   },
@@ -149,7 +160,11 @@ async function main(): Promise<number> {
       const plan = await db.$transaction(async (tx) => {
         await tx.$executeRawUnsafe("SET LOCAL enable_seqscan = off");
         await tx.$executeRawUnsafe("SET LOCAL enable_sort = off");
-        const r = await tx.$queryRawUnsafe<{ "QUERY PLAN": [{ Plan: PlanNode }] }[]>(`EXPLAIN (FORMAT JSON) ${q.sql}`);
+        type Explained = { "QUERY PLAN": [{ Plan: PlanNode }] }[];
+        const r =
+          typeof q.sql === "string"
+            ? await tx.$queryRawUnsafe<Explained>(`EXPLAIN (FORMAT JSON) ${q.sql}`)
+            : await tx.$queryRaw<Explained>(Prisma.sql`EXPLAIN (FORMAT JSON) ${q.sql}`);
         return r[0]!["QUERY PLAN"][0].Plan;
       });
       const problems = planProblems(plan, q);

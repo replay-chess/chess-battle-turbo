@@ -29,6 +29,11 @@ export interface BootOptions {
   telemetry?: ServerTelemetry;
   timing?: Timing;
   now?: () => number;
+  /**
+   * The boot restore's window for live games without a journal file (default RESTORE_WINDOW_MS). Tests on a shared
+   * database narrow it so a boot restores only their own journals, never another suite's live games.
+   */
+  restoreWindowMs?: number;
   /** Default `env.journalDir`; null = no journal (restore from the DB rows only). */
   journalDir?: string | null;
   journal?: { fsyncEveryMs?: number; keepAfterEndMs?: number; maxAgeMs?: number };
@@ -132,6 +137,7 @@ export async function bootServer(options: BootOptions): Promise<BootedServer> {
       log,
       metrics,
       ...(options.warn ? { warn: options.warn } : {}),
+      ...(options.restoreWindowMs !== undefined ? { windowMs: options.restoreWindowMs } : {}),
     });
     // Joins wait for the restore only, never for the sweep after it.
     h.registry.setGate(restored);

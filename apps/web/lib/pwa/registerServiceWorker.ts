@@ -43,31 +43,62 @@ export async function registerServiceWorker(env: SwEnv, delays: readonly number[
   }
 }
 
-/** The browser wiring: after `load` (as Workbox did), never in development (no sw.js is built there). */
-export function startServiceWorker(report: (error: unknown) => void): () => void {
+/**
+ * The browser wiring: after `load` (as Workbox did), never in development (no sw.js is built there). A page that was
+ * left mid-registration and comes back from the back/forward cache (`pageshow` with `persisted`) registers again. The
+ * returned cleanup stops it, retry timers included.
+ */
+export function startServiceWorker(report: (error: unknown) => void, delays: readonly number[] = SW_RETRY_DELAYS_MS): () => void {
   if (process.env.NODE_ENV !== "production" || typeof window === "undefined" || !("serviceWorker" in navigator)) {
     return () => {};
   }
   let left = false;
   let stopped = false;
+  let running = false;
+  let settled = false; // registered, or reported as failed: nothing more to do
+  const timers = new Set<ReturnType<typeof setTimeout>>();
+  const wait = (ms: number) =>
+    new Promise<void>((resolve) => {
+      const t = setTimeout(() => {
+        timers.delete(t);
+        resolve();
+      }, ms);
+      timers.add(t);
+    });
+  const run = () => {
+    if (stopped || running || settled) return;
+    running = true;
+    void registerServiceWorker(
+      {
+        register: (url, options) => navigator.serviceWorker.register(url, options),
+        wait,
+        leaving: () => left || stopped,
+        report,
+      },
+      delays,
+    ).then((outcome) => {
+      running = false;
+      if (outcome !== "left") settled = true;
+    });
+  };
   const onPageHide = () => {
     left = true;
   };
-  window.addEventListener("pagehide", onPageHide);
-  const run = () => {
-    if (stopped) return;
-    void registerServiceWorker({
-      register: (url, options) => navigator.serviceWorker.register(url, options),
-      wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      leaving: () => left || stopped,
-      report,
-    });
+  const onPageShow = (e: PageTransitionEvent) => {
+    if (!e.persisted) return;
+    left = false;
+    run();
   };
+  window.addEventListener("pagehide", onPageHide);
+  window.addEventListener("pageshow", onPageShow);
   if (document.readyState === "complete") run();
   else window.addEventListener("load", run, { once: true });
   return () => {
     stopped = true;
+    for (const t of timers) clearTimeout(t);
+    timers.clear();
     window.removeEventListener("pagehide", onPageHide);
+    window.removeEventListener("pageshow", onPageShow);
     window.removeEventListener("load", run);
   };
 }

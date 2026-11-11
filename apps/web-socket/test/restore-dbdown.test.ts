@@ -53,18 +53,22 @@ test("journal plies survive a boot where the DB load of that game failed once", 
     appEnv: "test",
   });
   // Neon unreachable at boot: the restore's candidates statement fails too (each game is then loaded on its own).
-  const fakeDb = {
-    $queryRaw: async () => {
-      if (dbDown) throw Object.assign(new Error("Can't reach database server"), { code: "P1001" });
-      return [];
-    },
-    $executeRaw: async () => 0,
+  const unreachable = () => Object.assign(new Error("Can't reach database server"), { code: "P1001" });
+  const fakeDb = { $queryRaw: async () => [], $executeRaw: async () => 0 };
+  const restoreCandidates = async () => {
+    if (dbDown) throw unreachable();
+    return [];
   };
   const report = await restoreAtBoot({
     db: fakeDb as never,
     journal,
     registry,
-    persistence: Object.assign(persistence, { writeNow: async () => true, flushAll: async () => {}, stats: () => ({}) }) as never,
+    persistence: Object.assign(persistence, {
+      restoreCandidates,
+      writeNow: async () => true,
+      flushAll: async () => {},
+      stats: () => ({}),
+    }) as never,
     timing,
     now: Date.now,
     log: SILENT_LOGGER,

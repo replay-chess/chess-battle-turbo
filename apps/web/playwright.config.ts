@@ -116,8 +116,14 @@ const grepFor = (extra: string[] = []) => {
   const all = [...conditions, ...extra];
   return all.length ? new RegExp(`^${all.map((c) => `(?=.*${c})`).join("")}`) : undefined;
 };
+// `@prod-build` specs need what only a production build serves (the service worker /sw.js: next-pwa is off under
+// `next dev`). They run in CI (`pnpm start` on the build), against E2E_BASE_URL and with PROD_GUARD; a local run
+// serves `next dev` unless E2E_WEB_BUILD=1 (after `pnpm build`: the config then starts `pnpm start`).
+const WEB_BUILD = Boolean(process.env.CI) || process.env.E2E_WEB_BUILD === "1";
+const DEV_SERVER = !BASE_URL && !PROD_GUARD && !WEB_BUILD;
 const grepInvert = [
   ...(REMOTE ? [/@local-only\b/] : []),
+  ...(DEV_SERVER ? [/@prod-build\b/] : []),
   // Real-timing copies of the timer specs (*.real.spec.ts) run nightly only (P2 plan 12.6).
   ...(process.env.E2E_SLOW === "1" ? [] : [/@slow\b/]),
   ...(process.env.CI && process.env.E2E_INCLUDE_QUARANTINED !== "1" ? quarantine.map((q) => quarantinePattern(q.testId)) : []),
@@ -179,7 +185,7 @@ const socketServer = (kind: "main" | "fast", webAppUrl: string) => ({
 
 const localServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
   {
-    command: process.env.CI
+    command: WEB_BUILD
       ? `pnpm start${WEB_PORT === 3000 ? "" : ` --port ${WEB_PORT}`}`
       : WEB_PORT === 3000
         ? "pnpm dev"

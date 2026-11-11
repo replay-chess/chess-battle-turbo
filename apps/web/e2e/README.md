@@ -12,6 +12,7 @@ npx playwright test                                   # spec suite (starts the w
 PW_REUSE_SERVER=1 npx playwright test e2e/specs/data-layer.spec.ts   # reuse running servers on 3000/3002/4011
 E2E_PUBLIC_ONLY=1 npx playwright test                 # signed-out specs only (@public)
 E2E_PHASES=1 npx playwright test                      # only @p1 specs
+E2E_WEB_BUILD=1 npx playwright test                   # against `pnpm start` (after `pnpm build`): also runs the @prod-build specs
 E2E_PORT_OFFSET=300 npx playwright test               # every server +300 (a second worktree; a build needs NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:3302)
 E2E_BASE_URL=https://<dev url> npx playwright test    # against a deployment (@local-only specs skipped)
 pnpm test:devices                                     # devices config
@@ -33,7 +34,7 @@ Hook-dependent specs (the `x-rc-fault` buttons on `/dev/ui/data`, the session br
 | Test-hook guard | `specs/prod-guard.spec.ts`, `lib/test-hooks/` | `PROD_GUARD=1 npx playwright test`: a production-mode build with every hook switched on must 404 every dev route and ignore every hook header (see `lib/test-hooks/README.md`). |
 | Quarantine | `quarantine.json` | `{ testId: "<spec path> › <describe> › <title>", reason, owner, expires, issue }`. PR CI skips the entries (`grepInvert`), nightly runs and reports them, an expired entry (more than 14 days) fails CI. Empty at P13. |
 | Design-state tags | test titles | `@state:<Board>.<value>` (reached on a real route) and `@demo:<Board>.<value>` (on a `/dev/ui` demo). `scripts/qa/state-coverage.ts` reads them; see `docs/qa/README.md`. |
-| Phase tags | test titles | `@p<N>`, `@smoke` (the CI e2e-smoke job), `@public` (signed out), `@local-only` (needs the local sinks or socket). |
+| Phase tags | test titles | `@p<N>`, `@smoke` (the CI e2e-smoke job), `@public` (signed out), `@local-only` (needs the local sinks or socket), `@prod-build` (needs a production build: skipped against `next dev`). |
 
 ## Visual tooling
 

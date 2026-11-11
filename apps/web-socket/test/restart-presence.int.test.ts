@@ -38,10 +38,14 @@ const GRACE_MS = 400;
 const LINE = ["e2e4", "e7e5", "g1f3", "b8c6", "f1c4"]; // five plies: Black to move, more than 2 (abandoned, not aborted)
 
 const servers: DbServer[] = [];
+/** A restore window no other suite's game moved in: each boot here restores its own journal files only. */
+const ISOLATED_WINDOW_MS = 1;
 
 async function boot(journalDir: string, resumeMaxWaitMs: number): Promise<DbServer> {
   const timing = testTiming({ graceMs: GRACE_MS, graceFlappingMs: GRACE_MS, resumeMaxWaitMs }, { checkpointMaxAgeMs: 300 });
-  const s = await startDbServer({ journalDir, timing });
+  // Only this test's own journal files are restored: the shared database holds other suites' live games (pnpm -r
+  // test:int runs files in parallel), which a short resume wait here would resume and freeze under them.
+  const s = await startDbServer({ journalDir, timing, restoreWindowMs: ISOLATED_WINDOW_MS });
   servers.push(s);
   return s;
 }
@@ -191,7 +195,7 @@ describe("restart vs grace (Postgres + journal)", { skip: DB_SKIP }, () => {
       ended.push({ ref: g.ref, recent });
     }
 
-    const c = await startDbServer({ journalDir: dir, restore: false, timing: testTiming({ resumeMaxWaitMs: 60_000 }) });
+    const c = await startDbServer({ journalDir: dir, restore: false, restoreWindowMs: ISOLATED_WINDOW_MS, timing: testTiming({ resumeMaxWaitMs: 60_000 }) });
     servers.push(c);
     const before = c.sql.queries();
     const report = await restoreAtBoot({
@@ -203,7 +207,7 @@ describe("restart vs grace (Postgres + journal)", { skip: DB_SKIP }, () => {
       now: Date.now,
       log: SILENT_LOGGER,
       metrics: createMemoryMetrics(),
-      windowMs: 1, // only the journal files are candidates (the shared test database holds other suites' games)
+      windowMs: ISOLATED_WINDOW_MS, // only the journal files are candidates
     });
     assert.equal(c.sql.queries() - before, 1, "one statement loads every candidate");
     assert.deepEqual(report.restored, [game.ref]);

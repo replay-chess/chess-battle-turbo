@@ -15,7 +15,7 @@
 // process died before the finish committed) finishes it now with the journal's result. A game whose DB load fails
 // here (Neon unreachable at boot) is deferred: its first join that reaches the DB runs the same restore, so the
 // journal-only plies are never dropped (FIX-A).
-import { abortGame, loadRestoreCandidates, RESTORE_WINDOW_MS, type LiveGameRecord, type SqlClient } from "@repo/db/live";
+import { abortGame, RESTORE_WINDOW_MS, type LiveGameRecord, type SqlClient } from "@repo/db/live";
 import {
   foldJournal,
   progressFromJournal,
@@ -172,7 +172,8 @@ export async function restoreAtBoot(deps: RestoreDeps): Promise<RestoreReport> {
   let records: Map<string, LiveGameRecord> | null = null;
   const dbStarted = now();
   try {
-    const rows = await loadRestoreCandidates(db, [...files.keys()], deps.windowMs ?? RESTORE_WINDOW_MS);
+    // The statement budget and the transient retry of every load (persistence.restoreCandidates).
+    const rows = await persistence.restoreCandidates([...files.keys()], deps.windowMs ?? RESTORE_WINDOW_MS);
     records = new Map(rows.map((r) => [r.ref, r]));
   } catch (error) {
     // Without it the journal files still restore their games: their rows are loaded one by one below (and a game

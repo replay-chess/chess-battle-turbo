@@ -39,7 +39,7 @@ test.describe("restart and resume", { tag: p2("@smoke", "@local-only") }, () => 
     };
     s.w.page.on("request", onReq);
 
-    const framesFrom = { w: s.w.link.frames().length, b: s.b.link.frames().length };
+    const framesFrom = { w: s.w.link.mark(), b: s.b.link.mark() };
     await restartable.broadcastRestart(5);
     for (const p of [s.w, s.b]) await expect(p.page.getByTestId("chip-restarting")).toContainText(/Server restarting in 0:0\d/i, { timeout: 15_000 });
     await restartable.stop("SIGTERM");
@@ -56,10 +56,9 @@ test.describe("restart and resume", { tag: p2("@smoke", "@local-only") }, () => 
     expect(after <= frozen || after === frozen).toBe(true);
 
     for (const side of ["w", "b"] as const) {
-      const left = s[side].link
-        .frames()
-        .slice(framesFrom[side])
-        .filter((f) => f.startsWith('42["presence:update"') && f.includes('"online":false'));
+      const since = s[side].link.framesSince(framesFrom[side]);
+      expect(since.some((f) => f.startsWith('42["server:restarting"')), `${side}: the frames cover the restart`).toBe(true);
+      const left = since.filter((f) => f.startsWith('42["presence:update"') && f.includes('"online":false'));
       expect(left, `${side} was told the other side left`).toEqual([]);
     }
 

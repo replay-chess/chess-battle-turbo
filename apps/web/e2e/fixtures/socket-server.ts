@@ -257,6 +257,10 @@ export type SocketLink = {
   setDown(down: boolean): Promise<void>;
   /** Frames the page received, newest last (text only, for assertions on server events). */
   frames(): readonly string[];
+  /** A position in the received frames that stays valid when old frames are dropped (`framesSince`). */
+  mark(): number;
+  /** Every frame received since `mark()`; throws if some of them were already dropped (never passes vacuously). */
+  framesSince(mark: number): readonly string[];
   /** Frames the page sent (text only): commands such as `42N["move",{…}]`. */
   sent(): readonly string[];
   /** Refuses the next handshakes with a socket.io CONNECT_ERROR carrying `code` (e.g. upgrade_required). */
@@ -275,6 +279,8 @@ export async function linkContext(context: BrowserContext, kind: SocketKind): Pr
   const port = SOCKET_PORTS[kind];
   const routes = new Set<{ page: WebSocketRoute; up: WebSocket | null }>();
   const frames: string[] = [];
+  /** Frames dropped from the front of `frames` (the window keeps the last 1000–2000). */
+  let dropped = 0;
   const sentFrames: string[] = [];
   let down = false;
   let refuse: string | null = null;
@@ -328,7 +334,10 @@ export async function linkContext(context: BrowserContext, kind: SocketKind): Pr
       const data = typeof e.data === "string" ? e.data : Buffer.from(e.data as ArrayBuffer);
       if (typeof data === "string") {
         frames.push(data);
-        if (frames.length > 2000) frames.splice(0, 1000);
+        if (frames.length > 2000) {
+          frames.splice(0, 1000);
+          dropped += 1000;
+        }
       }
       try {
         ws.send(data);
@@ -389,6 +398,11 @@ export async function linkContext(context: BrowserContext, kind: SocketKind): Pr
       }
     },
     frames: () => frames,
+    mark: () => dropped + frames.length,
+    framesSince(mark) {
+      if (mark < dropped) throw new Error(`framesSince(${mark}): frames up to ${dropped} were already dropped`);
+      return frames.slice(mark - dropped);
+    },
     sent: () => sentFrames,
     refuseWith(code) {
       refuse = code;

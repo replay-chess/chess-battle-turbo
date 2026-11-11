@@ -170,6 +170,8 @@ export async function startDbServer(
     sql?: CountedDb;
     onEmitParse?: (event: string) => void;
     restore?: boolean;
+    /** Narrows the boot restore to this window (1 = only this server's own journal files). */
+    restoreWindowMs?: number;
   } = {},
 ): Promise<DbServer> {
   const sql = opts.sql ?? socketDb();
@@ -189,6 +191,7 @@ export async function startDbServer(
     drainTimeoutMs: 5_000,
     outbox: { backoffBaseMs: 100 },
     ...(opts.onEmitParse ? { onEmitParse: opts.onEmitParse } : {}),
+    ...(opts.restoreWindowMs !== undefined ? { restoreWindowMs: opts.restoreWindowMs } : {}),
   });
   const port = await booted.handle.listen(0, "127.0.0.1");
   if (opts.restore !== false) await booted.restore();

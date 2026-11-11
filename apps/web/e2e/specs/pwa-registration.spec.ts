@@ -38,21 +38,19 @@ async function settled(page: Page): Promise<void> {
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 }
 
-test.describe("service worker registration @p1 @smoke @public", () => {
+// @prod-build: /sw.js exists only in a production build (next-pwa is off under `next dev`; playwright.config.ts).
+test.describe("service worker registration @p1 @smoke @public @prod-build", () => {
   test("a navigation that cancels the registration is not a page error", async ({ context, page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
     const sw = await holdServiceWorker(context);
-    for (const [from, to] of [
-      ["/about", "/privacy"],
-      ["/terms", "/about"],
-    ]) {
-      await page.goto(from!, { waitUntil: "load" });
+    // Each page is left only once it is quiet, with its registration waiting on the held /sw.js: every navigation
+    // below cancels one registration and nothing else.
+    for (const path of ["/about", "/privacy", "/terms", "/about"]) {
+      await page.goto(path, { waitUntil: "load" });
       await settled(page);
       await expect.poll(sw.seen, { message: "the registration is waiting for the held /sw.js" }).toBeGreaterThan(0);
-      await page.goto(to!, { waitUntil: "load" });
     }
     // The last page registers for real once the script is let through.
-    await settled(page);
     await sw.release();
     await expect
       .poll(() => page.evaluate(async () => Boolean(await navigator.serviceWorker.getRegistration("/"))), { timeout: 30_000 })
@@ -60,7 +58,9 @@ test.describe("service worker registration @p1 @smoke @public", () => {
   });
 
   test.describe("a broken /sw.js", () => {
-    // The provoked failure: our report, and Chrome's own line for each failed attempt. The array goes in a
+    // The provoked failure: our report, and Chrome's own line for each failed attempt. WebKit logs each attempt as
+    // "Failed to load resource: the server responded with a status of 404 (Not Found)", which the guard already
+    // leaves to its response rule; its report reads "… TypeError: Script …/sw.js load failed". The array goes in a
     // `[value, { scope }]` tuple: Playwright reads a bare two-item array whose second item is an object as one.
     const allow = [
       /\[pwa\] service worker registration failed/,
