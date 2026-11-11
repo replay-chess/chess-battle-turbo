@@ -69,3 +69,19 @@ condition = "AND"
 paths = ['''^apps/web-socket/test/''']
 regexTarget = "match"
 regexes = ['''test-internal-secret-[0-9a-f]+''']
+
+[[allowlists]]
+# Phase 2 stage A (de4020c): fixed, made-up test values the generic-api-key rule flags. Path AND exact value
+# must both match, so a real secret pasted into these files is still reported.
+description = "Fixed test-only idempotency key and socket token fixtures"
+condition = "AND"
+paths = [
+  '''^apps/web/lib/api/idempotency\.test\.ts$''',
+  '''^apps/web/test/api/games-routes\.test\.ts$''',
+  '''^packages/contracts/src/socket/test/fixtures\.ts$''',
+]
+regexTarget = "secret"
+regexes = [
+  '''^3f2b8c1e-9d4a-4b6f-8e2d-1a2b3c4d5e6f$''',
+  '''^eyJ2IjoyfQ\.c2lnbmF0dXJlLW9mLXRoZS10b2tlbi1zaXh0eS1mb3VyLWNoYXJz$''',
+]
