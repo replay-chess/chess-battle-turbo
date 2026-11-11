@@ -374,6 +374,16 @@ export async function finishedSnapshot(seat: Seat, ref: string, status: "COMPLET
 }
 
 /**
+ * The seat letters for this project. The CI smoke run plays a spec on chromium and webkit-iphone at the same time
+ * against one PostHog sink, and server events carry no game ref: two games of the same users with the same settings
+ * cannot be told apart (expectServerEvents counted game_started ×4). A spec that counts server events gives the phone
+ * project other users. regression: CI run 43033886505 (friend-full on webkit-iphone).
+ */
+export function seatLetters<T extends readonly string[]>(testInfo: TestInfo, desktop: T, phone: T): T {
+  return testInfo.project.use.isMobile ? phone : desktop;
+}
+
+/**
  * Server events (the PostHog sink) of one name sent for these players (`distinct_id` = users.referenceId), so games
  * other workers play at the same time are not counted. Polls until exactly `count` match, then stays 1 s to catch a
  * late duplicate.

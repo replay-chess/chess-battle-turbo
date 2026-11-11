@@ -3,16 +3,19 @@
 // Hint twice (piece, then arrow + SAN), Undo (your move and the reply), a reload resumes at the same ply, resign
 // completes exactly once; `bot_game_started` and `bot_game_completed{hints: 2, undos: 1}` reach the sink once each.
 import type { Request } from "@playwright/test";
-import { expect, expectServerEvents, finishedSnapshot, test } from "../../fixtures/games";
+import { expect, expectServerEvents, finishedSnapshot, seatLetters, test } from "../../fixtures/games";
 import { gameTags, p2 } from "./tags";
 
 test.describe("bot game", { tag: p2("@smoke", "@local-only") }, () => {
   test(
     "play the machine: hint ×2, undo, reload, resign",
     { tag: [...gameTags("state", ["bot"]), "@state:V3GameBot.bot"] },
-    async ({ seat, telemetry }) => {
+    async ({ seat, telemetry }, testInfo) => {
       test.setTimeout(300_000);
-      const me = await seat("E");
+      // Another user on the phone project: the desktop copy runs at the same time in CI and the bot_game_* counts are
+      // per user (seatLetters).
+      const [letter] = seatLetters(testInfo, ["E"], ["G"]);
+      const me = await seat(letter);
       const page = me.page;
       const requests: string[] = [];
       page.on("request", (r: Request) => {

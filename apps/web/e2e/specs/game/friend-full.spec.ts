@@ -19,6 +19,7 @@ import {
   joinViaLink,
   planEvent,
   playLine,
+  seatLetters,
   startSeeded,
   test,
 } from "../../fixtures/games";
@@ -41,9 +42,10 @@ test.describe("friend game", { tag: p2("@smoke", "@local-only") }, () => {
   test(
     "create from /play on a legend, join by link, study, ready, first move",
     { tag: gameTags("state", ["waiting", "study", "abort", "their_move"]) },
-    async ({ seat, telemetry }) => {
-      const a = await seat("A");
-      const b = await seat("B");
+    async ({ seat, telemetry }, testInfo) => {
+      const [la, lb] = seatLetters(testInfo, ["A", "B"], ["C", "D"]);
+      const a = await seat(la);
+      const b = await seat(lb);
       const legend = await firstLegendRef(a);
 
       await a.page.goto(`/play?legend=${legend}`, { timeout: 180_000 });
@@ -99,12 +101,14 @@ test.describe("friend game", { tag: p2("@smoke", "@local-only") }, () => {
         "@state:V3MoveBoard.mover=",
       ],
     },
-    async ({ seat, seedGame, telemetry }) => {
+    async ({ seat, seedGame, telemetry }, testInfo) => {
       test.setTimeout(300_000);
       const { uci, finalFen, lastSan } = mainLine();
       expect(uci).toHaveLength(33);
-      const a = await seat("A");
-      const b = await seat("B");
+      // Other users on the phone project: the desktop copy of this test runs at the same time in CI (seatLetters).
+      const [la, lb] = seatLetters(testInfo, ["A", "B"], ["C", "D"]);
+      const a = await seat(la);
+      const b = await seat(lb);
       telemetry.forbid(lastSan);
       telemetry.forbid(finalFen.split(" ")[0]!);
       const g = await seedGame("G-THREEFOLD", a, b); // initial position, 5+0, no study
