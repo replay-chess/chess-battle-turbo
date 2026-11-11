@@ -16,6 +16,7 @@ import { useMediaQuery } from "@/components/ui/use-media-query";
 import { BUTTONS, copyCtx, RESIGN_TITLE, resignBody } from "../copy";
 import { useController, useDispatch, useGame, usePrefs, useView } from "./GameContext";
 import { GameOverCard, type ResultSlots } from "./GameOverCard";
+import { gameMenuItems } from "./gameMenu";
 import {
   IconDraw,
   IconFlag,
@@ -67,19 +68,16 @@ function useHandlers() {
 function GameMenu({ actions, variant }: { actions: ActionsVariant; variant: "row" | "bar" }) {
   const h = useHandlers();
   const plies = useGame((g) => absPly(g.state) - g.state.startPly);
-  const canResign = actions === "online" || actions === "bot";
-  // Bot games (no first-move window): Abort while fewer than two plies are played, then Offer Draw (D).
-  const canAbort = actions === "abort" || (actions === "bot" && plies < 2);
-  const canBotDraw = actions === "bot" && plies >= 2;
+  const { resign: canResign, abort: canAbort, botDraw: canBotDraw, label } = gameMenuItems(actions, plies);
   return (
     <Menu modal={false}>
       <MenuTrigger asChild>
         {variant === "row" ? (
-          <button type="button" className="g-act g-sq44" aria-label={BUTTONS.moreActions} data-testid="game-menu-button">
+          <button type="button" className="g-act g-sq44" aria-label={label} data-testid="game-menu-button">
             <IconMore size={18} />
           </button>
         ) : (
-          <button type="button" className="g-foot__btn" aria-label={BUTTONS.moreActions} data-testid="game-menu-button-bar">
+          <button type="button" className="g-foot__btn" aria-label={label} data-testid="game-menu-button-bar">
             <IconMore size={18} />
             {BUTTONS.more}
           </button>

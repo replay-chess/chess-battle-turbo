@@ -54,10 +54,12 @@ export const BUTTONS = {
   next: "Next",
   previousMove: "Previous Move",
   nextMove: "Next Move",
-  moreActions: "More: Resign, Flip Board, Sound",
+  /** The ⋯ button names the items its menu really has (a spectator's has no Resign: D9). */
+  moreActions: (items: readonly string[]) => `More: ${items.join(", ")}`,
   resignItem: "Resign…",
   abortItem: "Abort Game",
   sound: (on: boolean) => `Sound · ${on ? "On" : "Off"}`,
+  soundItem: "Sound",
   /** The move list's windowed slice past 200 plies (plan 4.6.3). */
   earlierMoves: "Show Earlier Moves",
   keepPlaying: "Keep Playing",
@@ -468,6 +470,8 @@ export function alreadyEndedLine(r: ResultView | null, c: CopyCtx): string {
 
 export const CHIPS = {
   restarting: (t: string) => `Server restarting in ${t} · Games in progress will resume. Keep playing.`,
+  /** The restart time has come (or the drain was not announced in advance): no countdown. */
+  restartingNow: "Server restarting · Games in progress will resume.",
   authRefreshing: (t: string) => `Auth… refreshing sign-in · retry in ${t}`,
   authOk: "Signed in · game continues",
   upgrade: "Update ready · installs after this game",

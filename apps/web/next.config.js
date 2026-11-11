@@ -39,6 +39,10 @@ const withPWA = withPWAInit({
   // The online chip replaces the reload (SPEC D18).
   reloadOnOnline: false,
   disable: process.env.NODE_ENV === "development",
+  // Registration is ours (app/components/ServiceWorkerRegistration.tsx, lib/pwa/registerServiceWorker.ts): the
+  // plugin's `window.workbox.register()` left its promise unhandled, so a navigation that cancelled the sw.js load
+  // (WebKit: "SecurityError: Script …/sw.js load failed") surfaced as an uncaught page error.
+  register: false,
   // Every public/ file is precached unless excluded here, so each install
   // downloaded ~90 MB of media most visitors never open. These still load
   // normally when a page uses them.

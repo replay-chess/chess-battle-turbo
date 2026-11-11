@@ -1,5 +1,8 @@
 // Restore at boot (phase-02 plan 7.6 "Restore at boot", socket §18.4, T19/T20):
-//   1. read every journal file and run the restore list query (6.6.8);
+//   1. read every journal file and load every candidate in ONE statement (`loadRestoreCandidates`: the journal refs
+//      plus the restore list of 6.6.8). One load per candidate opened a new pooled connection per parallel load: on
+//      the dev box (Mumbai → Neon us-east-1) one live game took 5.6–6.9 s to restore, while every reconnecting join
+//      waited behind the gate. If that statement fails, each game is loaded on its own (and deferred on failure);
 //   2. per game take the longer move list (the journal wins ties) and push the plies the DB lacks with one checkpoint;
 //   3. `new Chess(startFen)` and replay every ply (threefold history intact; never load a FEN). An illegal ply →
 //      the game is aborted with `meta.abortedBy = "stale"`, Sentry error, `ws.restore{result:"corrupt"}`;
@@ -12,7 +15,7 @@
 // process died before the finish committed) finishes it now with the journal's result. A game whose DB load fails
 // here (Neon unreachable at boot) is deferred: its first join that reaches the DB runs the same restore, so the
 // journal-only plies are never dropped (FIX-A).
-import { abortGame, type LiveGameRecord, type SqlClient, restoreList } from "@repo/db/live";
+import { abortGame, loadRestoreCandidates, RESTORE_WINDOW_MS, type LiveGameRecord, type SqlClient } from "@repo/db/live";
 import {
   foldJournal,
   progressFromJournal,
@@ -41,8 +44,10 @@ export interface RestoreDeps {
   metrics: Metrics;
   /** A Sentry warning without an exception (`journal_newer`). */
   warn?(message: string, fields?: LogFields): void;
-  /** Parallel loads (each ≈ 220 ms from Mumbai). */
+  /** Parallel restores (only the fallback path loads one game per statement). */
   concurrency?: number;
+  /** Restore window of the candidates statement (default RESTORE_WINDOW_MS). */
+  windowMs?: number;
 }
 
 export interface RestoreReport {
@@ -60,6 +65,11 @@ export interface RestoreReport {
   journalNewer: string[];
   /** Games whose DB load failed: restored from their journal on the first join that reaches the DB. */
   deferred: string[];
+  /** Journal files of games the DB had already ended: kept only until their retention (from the file's last write). */
+  endedInDb: number;
+  /** Time reading the journal and in the candidates statement (the rest is replay, pushes and cleanup). */
+  journalMs: number;
+  dbMs: number;
   ms: number;
 }
 
@@ -148,21 +158,29 @@ export async function restoreAtBoot(deps: RestoreDeps): Promise<RestoreReport> {
     finishedFromJournal: [],
     journalNewer: [],
     deferred: [],
+    endedInDb: 0,
+    journalMs: 0,
+    dbMs: 0,
     ms: 0,
   };
 
   const files = new Map<string, JournalFile>();
   for (const f of journal ? await journal.readAll() : []) files.set(f.ref, f);
   report.journalFiles = files.size;
+  report.journalMs = now() - started;
 
-  let listed: string[] = [];
+  let records: Map<string, LiveGameRecord> | null = null;
+  const dbStarted = now();
   try {
-    listed = await restoreList(db);
+    const rows = await loadRestoreCandidates(db, [...files.keys()], deps.windowMs ?? RESTORE_WINDOW_MS);
+    records = new Map(rows.map((r) => [r.ref, r]));
   } catch (error) {
-    // Without the list the journal files still restore their games (their rows are loaded one by one below).
-    log.error("restore list failed", { op: "restore" }, error);
+    // Without it the journal files still restore their games: their rows are loaded one by one below (and a game
+    // whose load fails too is deferred to its first join).
+    log.error("restore candidates failed", { op: "restore" }, error);
   }
-  const refs = [...new Set([...listed, ...files.keys()])];
+  report.dbMs = now() - dbStarted;
+  const refs = [...new Set([...(records?.keys() ?? []), ...files.keys()])];
   report.candidates = refs.length;
 
   /** Restores one IN_PROGRESS row with its journal (if any). Returns the session it adopted, if any. */
@@ -220,11 +238,14 @@ export async function restoreAtBoot(deps: RestoreDeps): Promise<RestoreReport> {
         deps.warn?.("journal format newer than this build; restoring from the DB row", { game: ref, reason: "journal_newer" });
         log.warn("journal skipped (newer format)", { game: ref, v: file.version ?? -1 });
       }
-      const record = await persistence.load(ref);
+      const record = records ? (records.get(ref) ?? null) : await persistence.load(ref);
       if (!record) return;
       if (record.status !== "IN_PROGRESS") {
-        // Already ended (or never started) in the DB: the journal is only kept until the hourly cleanup.
-        if (file) journal?.committed(ref, now());
+        // Already ended (or never started) in the DB. The file is kept for its retention after the end, counted from
+        // its last write (≈ the end), not from this boot: re-marking it "committed now" on every boot kept the files
+        // of finished games as restore candidates across restarts (dev box: one more candidate per restart).
+        report.endedInDb++;
+        if (file) journal?.committed(ref, Math.min(now(), file.mtimeMs));
         return;
       }
       await restoreOne(ref, record, file);
@@ -260,6 +281,10 @@ export async function restoreAtBoot(deps: RestoreDeps): Promise<RestoreReport> {
     pushed: report.pushed.length,
     corrupt: report.corrupt.length,
     finished: report.finishedFromJournal.length,
+    endedInDb: report.endedInDb,
+    deferred: report.deferred.length,
+    journalMs: report.journalMs,
+    dbMs: report.dbMs,
     ms: report.ms,
   });
   return report;

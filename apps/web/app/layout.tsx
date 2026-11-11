@@ -13,6 +13,7 @@ import { ThemeAwareToaster } from "./components/ThemeAwareToaster";
 import { SampledSpeedInsights } from "./components/SampledSpeedInsights";
 import { vercelAnalyticsEnabled } from "@/lib/analytics/vercel";
 import { ThemeColorSync } from "./components/ThemeColorSync";
+import { ServiceWorkerRegistration } from "./components/ServiceWorkerRegistration";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SessionWatcher } from "@/components/system/SessionWatcher";
 import { Providers } from "./providers";
@@ -173,6 +174,7 @@ export default function RootLayout({
               <PostHogIdentify />
               <ThemeAwareToaster />
               <ThemeColorSync />
+              <ServiceWorkerRegistration />
               <TooltipProvider>{children}</TooltipProvider>
             </Providers>
           </ThemeAwareClerkProvider>

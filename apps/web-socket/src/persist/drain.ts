@@ -2,7 +2,7 @@
 //   1. `draining`: no new sessions, no rematch creation (acks answer `draining`);
 //   2. every running clock is frozen at the same instant (the reducer journals `freeze` and asks for a checkpoint);
 //   3. the journal is fsynced and every outbox flushed (checkpoints in parallel, ≤ 8 at a time), v1 sessions too;
-//   4. `io.close()`; the caller exits 0.
+//   4. every queued event leaves its socket (`flushWrites`), then `io.close()`; the caller exits 0.
 // Budget ≤ 20 s inside compose's `stop_grace_period: 30s`; whatever is still unwritten after it is in the journal,
 // which the next process restores.
 import type { Server as HttpServer } from "node:http";
@@ -15,6 +15,8 @@ export const DRAIN_BUDGET_MS = 20_000;
 /** `io.close()` waits for every connection to end; after this long the rest are cut (a peer that never answers the
  * WebSocket close handshake, a proxy holding a keep-alive) so the drain always finishes inside its budget. */
 export const CLOSE_CONNECTIONS_AFTER_MS = 2_000;
+/** How long the drain waits for the last events (restart notice, frozen clocks) to leave each socket. */
+export const FLUSH_WRITES_MAX_MS = 1_000;
 
 export interface DrainDeps {
   registry: SessionRegistry;
@@ -34,6 +36,31 @@ export interface DrainReport {
   /** False when the budget ran out before every write settled. */
   flushed: boolean;
   ms: number;
+}
+
+type EngineConn = { writeBuffer?: unknown[]; once(event: "drain", listener: () => void): unknown };
+
+/**
+ * Waits (≤ `maxMs`) until every socket sent what is queued for it. `io.close()` closes each engine.io connection with
+ * `discard`, dropping its write buffer: only the packet already in flight survived, so with a fast flush the frozen
+ * `clock:sync` after the restart notice never reached the players.
+ */
+export async function flushWrites(io: Server, maxMs: number): Promise<void> {
+  const waits: Promise<void>[] = [];
+  for (const socket of io.sockets.sockets.values()) {
+    const conn = socket.conn as unknown as EngineConn;
+    if (conn.writeBuffer && conn.writeBuffer.length > 0) waits.push(new Promise<void>((resolve) => void conn.once("drain", resolve)));
+  }
+  if (waits.length === 0) return;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  await Promise.race([
+    Promise.all(waits),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, maxMs);
+      timer.unref?.();
+    }),
+  ]);
+  if (timer) clearTimeout(timer);
 }
 
 export async function drainSessions(deps: DrainDeps): Promise<DrainReport> {
@@ -64,6 +91,7 @@ export async function drainSessions(deps: DrainDeps): Promise<DrainReport> {
   ]);
   if (timer) clearTimeout(timer);
   if (!flushed) log.error("drain budget exhausted; the journal keeps what is unwritten", { op: "drain" });
+  await flushWrites(io, FLUSH_WRITES_MAX_MS);
   let closeTimer: ReturnType<typeof setTimeout> | null = null;
   await new Promise<void>((resolve) => {
     io.close(() => resolve());

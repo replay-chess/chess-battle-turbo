@@ -217,6 +217,18 @@ export function createSocketServer(options: SocketServerOptions): SocketServerHa
     if (closing) return closing;
     closing = (async () => {
       clearInterval(limiterPrune);
+      // A drain nobody announced (a bare SIGTERM: a manual container restart, a host reboot) still tells every game
+      // it is a server restart before the sockets close, so players see "Server restarting" and the restart zone,
+      // not a plain disconnect (D11). The deploy workflow's notice (`broadcast --in 30`) already did this.
+      if (restartAt === null) {
+        restartAt = now();
+        const payload = { restartAt, resumes: true as const };
+        for (const session of registry.all()) {
+          io.to(ROOM.game(session.ref)).emit("server:restarting", payload);
+          io.to(ROOM.spectate(session.ref)).emit("server:restarting", payload);
+        }
+        log.info("restart announced at drain", { rooms: registry.size * 2 });
+      }
       await drainSessions({ registry, persistence, io, httpServer, v1, log, metrics, now, budgetMs: drainTimeoutMs });
       tournaments.destroy();
       v1?.destroy();

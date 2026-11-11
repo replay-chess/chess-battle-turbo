@@ -134,8 +134,8 @@ interface Row {
   tournamentName: string | null;
 }
 
-export function loadLiveGameSql(ref: string): Prisma.Sql {
-  return Prisma.sql`
+/** The session columns of a game row and its joins; callers add the WHERE. */
+const LIVE_GAME_SELECT = Prisma.sql`
     SELECT g.id, g."referenceId" AS ref, g.status::text AS status, g.mode::text AS mode, g.rated,
            g."timeClass"::text AS "timeClass", g."startingFen", g."startPly", g."studySeconds",
            g."initialTimeSeconds", g."incrementSeconds", g.moves, g."moveClocksMs", g."plyCount", g.fen,
@@ -153,7 +153,10 @@ export function loadLiveGameSql(ref: string): Prisma.Sql {
       LEFT JOIN users wu ON wu.id = g."whitePlayerId"
       LEFT JOIN users bu ON bu.id = g."blackPlayerId"
       LEFT JOIN tournaments t ON t.id = g."tournamentId"
-      LEFT JOIN games pg ON pg.id = g."rematchOfId"
+      LEFT JOIN games pg ON pg.id = g."rematchOfId"`;
+
+export function loadLiveGameSql(ref: string): Prisma.Sql {
+  return Prisma.sql`${LIVE_GAME_SELECT}
      WHERE g."referenceId" = ${ref}`;
 }
 
@@ -174,7 +177,33 @@ function player(
 export async function loadLiveGame(db: SqlClient, ref: string): Promise<LiveGameRecord | null> {
   const rows = await db.$queryRaw<Row[]>(loadLiveGameSql(ref));
   const r = rows[0];
-  if (!r) return null;
+  return r ? toRecord(r) : null;
+}
+
+/**
+ * The socket's boot restore in ONE statement (plan 6.6.8, 7.6): every game that has a journal file (whatever its
+ * status: the caller learns which ones already ended) plus every live human game that moved within the window
+ * (`restoreList`'s rows), as session records. It replaces the restore list plus one load per candidate, which on the
+ * dev box (Mumbai → Neon us-east-1) cost a new pooled connection per parallel load: 5.6–6.9 s for one live game.
+ * Served by `games_referenceId_key` and the partial `games_open_idx`.
+ */
+export function restoreCandidatesSql(journalRefs: readonly string[], windowMs: number): Prisma.Sql {
+  return Prisma.sql`${LIVE_GAME_SELECT}
+     WHERE g."referenceId" = ANY(${[...journalRefs]}::text[])
+        OR (g.status = 'IN_PROGRESS' AND g.mode IN ('FRIEND', 'ONLINE', 'TOURNAMENT')
+            AND g."lastMoveAt" > now() - (${windowMs}::int * interval '1 millisecond'))`;
+}
+
+export async function loadRestoreCandidates(
+  db: SqlClient,
+  journalRefs: readonly string[],
+  windowMs: number,
+): Promise<LiveGameRecord[]> {
+  const rows = await db.$queryRaw<Row[]>(restoreCandidatesSql(journalRefs, windowMs));
+  return rows.map(toRecord);
+}
+
+function toRecord(r: Row): LiveGameRecord {
   return {
     id: r.id,
     ref: r.ref,

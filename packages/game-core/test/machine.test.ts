@@ -447,6 +447,22 @@ test("T19/T20: freeze stops the clocks and suspends deadlines; resume shifts the
   assert.deepEqual([g.s.clocks.run, g.s.clocks.at], ["w", g.now]);
 });
 
+test("a drain closing the sockets tells nobody that the other side left (D7)", () => {
+  const g = new Live().join().firstMoves("e2e4", "e7e5");
+  g.do({ type: "freeze", reason: "drain" }, 1_000);
+  g.do({ type: "detach", side: "w", socketId: "w1" }, 1_010);
+  assert.deepEqual(g.lastNames(), [], "no presence:update while draining");
+  assert.equal(g.s.presence.w.sockets.length, 0, "the presence state still follows the sockets");
+  assert.equal(g.s.presence.w.graceEndsAt, null, "no grace");
+  g.do({ type: "detach", side: "b", socketId: "b1" }, 1_020);
+  assert.deepEqual(g.lastNames(), []);
+  assert.equal(g.s.phase, "playing");
+  // The 30 s notice before the drain is ordinary play: a real disconnect there is still reported.
+  const n = new Live().join().firstMoves("e2e4", "e7e5");
+  n.do({ type: "detach", side: "w", socketId: "w1" }, 1_000);
+  assert.deepEqual(n.lastNames(), ["presence:update"]);
+});
+
 test("restore: replay keeps threefold history, clocks frozen, resume when both attach or after 60 s", () => {
   const moves = ["g1f3", "g8f6", "f3g1", "f6g8", "g1f3", "g8f6", "f3g1"];
   const r = restoreGame(

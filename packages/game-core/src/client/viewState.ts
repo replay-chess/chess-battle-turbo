@@ -253,6 +253,9 @@ export function deriveViewState(g: ClientGame, serverNow: number): ViewState {
   const myTurn =
     player && (s.phase === "first_move" ? s.firstMove?.side === me : s.phase === "playing" && s.turn === me);
   const toastCode = g.toast?.code ?? null;
+  // A server restart froze the game (drain, then restore with everyone offline until both are back, plan 7.6): both
+  // players see the restart state, never "opponent disconnected" with a grace that is not running (D7).
+  const restartHold = player && !isBot && s.phase === "playing" && s.frozen !== null;
 
   if (s.inCheck && s.phase !== "ended") mods.add("check");
   if (g.premove) mods.add("premove");
@@ -265,7 +268,7 @@ export function deriveViewState(g: ClientGame, serverNow: number): ViewState {
   if (g.restarting) mods.add("restarting");
   if (s.frozen) mods.add("frozen");
   if (s.drawOffer && player) mods.add(s.drawOffer.by === me ? "draw_sent" : "draw_received");
-  if (player && s.phase === "playing" && !s.players[opp].online) mods.add("opp_disconnected");
+  if (player && s.phase === "playing" && !s.players[opp].online && !restartHold) mods.add("opp_disconnected");
   const myClock = s.tc ? remaining(s.clocks, me, serverNow) : Infinity;
   if (player && s.phase === "playing" && s.clocks.run === me && myClock < LOW_TIME_MS) mods.add("low_time");
   const studyLeft = s.study ? s.study.endsAt - serverNow : Infinity;
@@ -287,6 +290,7 @@ export function deriveViewState(g: ClientGame, serverNow: number): ViewState {
     } else primary = "already_ended";
   } else if (s.phase === "waiting") primary = "waiting";
   else if (connDown) primary = s.phase === "study" ? "study_reconnect" : "reconnecting";
+  else if (restartHold) primary = "reconnecting";
   else if (s.phase === "study")
     primary = s.rematchOf ? "rematch_study" : studyLeft <= STUDY_LAST_MS ? "study_last5" : "study";
   else if (s.phase === "first_move") {
@@ -320,7 +324,7 @@ export function deriveViewState(g: ClientGame, serverNow: number): ViewState {
   else if (primary === "already_ended") zone = "ended";
   else if (s.phase === "ended") zone = "result";
   else if (g.serverError) zone = "error";
-  else if (connDown && s.phase !== "study") zone = "reconnect";
+  else if ((connDown && s.phase !== "study") || restartHold) zone = "reconnect";
   else if (player && s.phase === "playing" && !isBot && !s.players[opp].online && s.players[opp].graceEndsAt !== null)
     zone = "disc";
   else if (g.view !== null) zone = "viewing";
@@ -374,7 +378,7 @@ export function deriveViewState(g: ClientGame, serverNow: number): ViewState {
   let countdown: ViewState["countdown"] = null;
   if (s.phase === "study" && s.study) countdown = { kind: "study", endsAt: s.study.endsAt };
   else if (s.phase === "first_move" && s.firstMove) countdown = { kind: "first_move", endsAt: s.firstMove.deadlineAt };
-  else if (zone === "reconnect" && g.disconnectedAt !== null && !g.restarting) {
+  else if (zone === "reconnect" && g.disconnectedAt !== null && !g.restarting && !restartHold) {
     countdown = { kind: "reconnect", endsAt: g.disconnectedAt + 30_000 };
   } else if (zone === "disc" && s.players[opp].graceEndsAt !== null)
     countdown = { kind: "grace", endsAt: s.players[opp].graceEndsAt! };
@@ -421,6 +425,7 @@ export function deriveViewState(g: ClientGame, serverNow: number): ViewState {
       state = "waiting";
       sub = "not_joined";
     } else if (mine && connDown) state = "reconnecting";
+    else if (!mine && restartHold && !p.online) state = "reconnecting";
     else if (!mine && s.phase === "playing" && !p.online) {
       state = "disconnected";
       sub = "disconnected";

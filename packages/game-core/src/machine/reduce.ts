@@ -260,6 +260,10 @@ function detach(c: Ctx, side: Side, socketId: string) {
   p.sockets = p.sockets.filter((id) => id !== socketId);
   if (p.sockets.length > 0) return;
   p.detaches = [...p.detaches.filter((t) => c.now - t < c.config.flapWindowMs), c.now];
+  // A drain closes every socket on its way out: nobody left, the server did. Telling the opponent (whose socket is
+  // closed a moment later) that this side disconnected showed a false "X disconnected, 30 seconds to reconnect"
+  // during every restart (D7). The restored game starts with everyone offline and frozen anyway (plan 7.6 step 4).
+  if (c.s.draining) return;
   const opp = otherSide(side);
   if (c.s.phase === "playing" && !c.s.frozen) {
     if (online(c, opp)) {

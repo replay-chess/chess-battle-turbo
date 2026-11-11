@@ -1,5 +1,6 @@
 // T4 (phase-02 plan 1.2, 5.2.5, 8.18, 12.6) †: a premove set during the opponent's turn is sent with `premove: true`
-// the moment they move; a premove the opponent's move made illegal is dropped with `premove_cancelled`.
+// the moment they move; a premove the opponent's move made illegal is dropped with `premove_cancelled`. The first
+// premove is set by click-click, the second by a mouse drag (D8). Once a premove fired, "Premove set" is gone (D10).
 import { byColor, expect, playLine, sentCommands, startSeeded, test } from "../../fixtures/games";
 import { gameTags, p2 } from "./tags";
 
@@ -23,10 +24,10 @@ test.describe("premove", { tag: p2("@local-only") }, () => {
     await s.b.waitPly(p + 2);
     const sent = sentCommands(s.w, "game:move").find((c) => c.uci === "g1f3");
     expect(sent?.premove).toBe(true);
+    await expect(w.getByTestId("game-toast").filter({ hasText: /Premove set/i })).toHaveCount(0);
 
     // Black to move again (… Nf6 2.Nf3). White premoves exd5; Black captures on e4 first: the premove is cancelled.
-    await w.locator('[data-square="e4"]').click();
-    await w.locator('[data-square="d5"]').click();
+    await s.w.drag("e4", "d5");
     await s.w.waitPhase("premove");
     await s.b.move("d5e4");
     await s.w.waitPhase("premove_cancelled");

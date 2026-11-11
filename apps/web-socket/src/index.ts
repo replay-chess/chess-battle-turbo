@@ -29,6 +29,10 @@ async function main(): Promise<void> {
 
   const timing = timingFor(env);
   const db = createPrismaClient({ datasourceUrl: env.databaseUrl });
+  // The boot restore's statement is the first use of the database, and opening a connection from Mumbai to Neon
+  // us-east-1 took ≈ 2.9 s on the dev box (restore of 0 games: 2882 ms). Open it now, while the journal is read and
+  // the server starts listening, instead of after. A failure here is retried by the restore's own statement.
+  void db.$connect().catch((error: unknown) => log.warn("early database connect failed", { err: String(error) }));
   const metrics = new AggregatingMetrics();
   const telemetry = createPostHogTelemetry(env.posthog, log);
 

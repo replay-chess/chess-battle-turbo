@@ -202,7 +202,8 @@ export function ViewingZone({ label }: { label: string }) {
 export function ReconnectZone() {
   const controller = useController();
   const g = useGame((x) => x);
-  const restarting = g.restarting !== null;
+  // An announced restart, or a game the restart froze (rejoined, waiting for the other player: plan 7.6 step 5).
+  const restarting = g.restarting !== null || g.state.frozen !== null;
   const endsAt = g.disconnectedAt !== null ? g.disconnectedAt + GRACE_MS : null;
   const cd = useCountdown(restarting ? null : endsAt, Date.now, GRACE_MS);
   const me = g.state.you.color;

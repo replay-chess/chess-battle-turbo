@@ -52,7 +52,14 @@ test("journal plies survive a boot where the DB load of that game failed once", 
     log: SILENT_LOGGER,
     appEnv: "test",
   });
-  const fakeDb = { $queryRaw: async () => [{ ref: rec.ref }], $executeRaw: async () => 0 };
+  // Neon unreachable at boot: the restore's candidates statement fails too (each game is then loaded on its own).
+  const fakeDb = {
+    $queryRaw: async () => {
+      if (dbDown) throw Object.assign(new Error("Can't reach database server"), { code: "P1001" });
+      return [];
+    },
+    $executeRaw: async () => 0,
+  };
   const report = await restoreAtBoot({
     db: fakeDb as never,
     journal,

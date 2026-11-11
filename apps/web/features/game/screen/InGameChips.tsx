@@ -38,7 +38,7 @@ export function InGameChips() {
     chips.push(
       <span key="restart" className="g-chip" data-tone="warn" role="status" data-testid="chip-restarting">
         <span className="g-spin" aria-hidden="true" />
-        {CHIPS.restarting(formatCountdown(left))}
+        {left > 0 ? CHIPS.restarting(formatCountdown(left)) : CHIPS.restartingNow}
       </span>,
     );
   }

@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { reduceClient, type ClientAction, type ClientGame } from "../src/client/reducer";
+import { deriveViewState } from "../src/client/viewState";
 import { Harness } from "../src/testing/harness";
 import { LEGEND_MOVES, T0, liveInput } from "../src/testing/scenarios";
 import type { Ack, GameState } from "../src/machine/types";
@@ -153,6 +154,7 @@ test("premove fires in the same task when legal, else it is cancelled", () => {
   const send = fired.out[0] as unknown as { cmd: string; payload: { premove: boolean; uci: string } };
   assert.deepEqual([send.cmd, send.payload.premove, send.payload.uci], ["game:move", true, "e1c1"]);
   assert.equal(fired.store.pending?.uci, "e1c1");
+  assert.equal(fired.store.toast, null, "the 'Premove set' toast ends when the premove fires (D10)");
 
   const cancelled = run(blocked, { type: "event", event: ev, now: g.now });
   assert.equal(cancelled.store.premove, null);
@@ -353,4 +355,31 @@ test("regression: FIX-A — the accept ack's navigation is marked, so the new ga
   const w = g.store("w");
   const r = run(w, { type: "cmdAck", cmd: "rematch:accept", ack: { ok: true, newRef: "cnewgame000000000000000001" }, now: g.now });
   assert.deepEqual(r.out, [{ type: "navigate", to: "/game/cnewgame000000000000000001", acceptedRematch: true }]);
+});
+
+// regression: D7 (three dev-box restarts): during a server restart the joiner was told "<creator> disconnected. They
+// have 30 seconds to reconnect." and saw opp_disconnected while the game was frozen and no grace was running.
+test("a server restart: nobody is told the other side left; both see the restart state until the game resumes", () => {
+  const g = playing(); // White to move
+  g.advance(1_000).serve({ type: "freeze", reason: "drain" });
+  let b = g.store("b");
+  assert.ok(b.state.frozen, "the drain's frozen clock:sync reached Black");
+  const ev = (name: string, payload: Record<string, unknown>) =>
+    ({ type: "event", event: { name, payload: { ref: g.server.ref, seq: b.state.seq + 1, ...payload } }, now: g.now }) as ClientAction;
+  // An older server still sends White's socket closing as a presence change.
+  b = run(b, ev("presence:update", { side: "w", online: false })).store;
+  assert.equal(b.toast, null, "no 'disconnected, N seconds to reconnect' toast");
+  let view = deriveViewState(b, g.now);
+  assert.equal(view.primary, "reconnecting");
+  assert.equal(view.zone, "reconnect");
+  assert.ok(!view.modifiers.has("opp_disconnected"));
+  assert.equal(view.bars.opp.state, "reconnecting");
+  assert.equal(view.countdown, null, "no grace countdown");
+  // Both back: the presence, then the resume (`clock:sync` without `frozen`).
+  b = run(b, ev("presence:update", { side: "w", online: true })).store;
+  assert.equal(b.toast, null, "no 'reconnected' toast for a departure that was never announced");
+  b = run(b, ev("clock:sync", { clocks: { ...b.state.clocks, run: "w", at: g.now } })).store;
+  view = deriveViewState(b, g.now);
+  assert.equal(view.primary, "their_move");
+  assert.equal(view.zone, "");
 });

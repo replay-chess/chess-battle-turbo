@@ -232,6 +232,11 @@ export function endedLongAgo(state: GameState, now: number): boolean {
 
 const you = (g: ClientGame): Side | null => (g.state.you.role === "player" ? (g.state.you.color ?? null) : null);
 
+/** The sticky "Premove set: …" toast ends with the premove it announced (fired, or dropped by a resync or disconnect): D10. */
+function withoutPremoveToast(t: Toast | null): Toast | null {
+  return t?.code === "premove_set" ? null : t;
+}
+
 function toast(code: ToastCode, now: number, params?: Record<string, string | number>): Toast {
   return params ? { code, kind: TOAST_KIND[code], at: now, params } : { code, kind: TOAST_KIND[code], at: now };
 }
@@ -383,6 +388,7 @@ function replace(
     lastServerMessageAt: reason === "local" ? g.lastServerMessageAt : now,
     pending: null,
     premove: reason === "local" ? g.premove : null, // a resync clears the premove
+    toast: reason === "local" ? g.toast : withoutPremoveToast(g.toast),
     optimistic: {},
   };
   if (reason === "join") {
@@ -424,6 +430,7 @@ function onConn(g: ClientGame, conn: ConnState, now: number): ClientGame {
     conn,
     disconnectedAt: down ? (g.disconnectedAt ?? now) : g.disconnectedAt,
     premove: down ? null : g.premove,
+    toast: down ? withoutPremoveToast(g.toast) : g.toast,
   };
 }
 
@@ -484,7 +491,9 @@ function onEvent(g: ClientGame, ev: ServerEvent, now: number, out: Out[]): Clien
       const p = ev.payload;
       const player = { ...s.players[p.side], online: p.online, graceEndsAt: p.graceEndsAt ?? null };
       next.state = { ...s, players: { ...s.players, [p.side]: player } };
-      if (me && p.side !== me && s.phase === "playing") {
+      // While the game is frozen by a server restart, presence changes are the restart itself, not the opponent
+      // leaving or returning (D7): no "disconnected, N seconds to reconnect" toast.
+      if (me && p.side !== me && s.phase === "playing" && !s.frozen) {
         const wasOnline = g.state.players[p.side].online;
         if (wasOnline && !p.online) next.toast = toast("opp_disconnected", now, { graceEndsAt: p.graceEndsAt ?? 0 });
         if (!wasOnline && p.online) next.toast = toast("opp_reconnected", now);
@@ -628,6 +637,7 @@ function moveApplied(
         ...next,
         state: { ...fired.state, clocks: { ...next.state.clocks, run: otherSide(me), at: next.state.clocks.at } },
         pending: q,
+        toast: withoutPremoveToast(next.toast),
       };
     } else {
       next.toast = toast("premove_cancelled", now, { reason: "illegal" });

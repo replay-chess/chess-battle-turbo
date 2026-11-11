@@ -34,7 +34,12 @@ const ctx = copyCtx(state); // White = knightowl_88, Black = martin_k; viewer Wh
 
 test("every button label is Title Case", () => {
   for (const [key, value] of Object.entries(BUTTONS)) {
-    const texts = typeof value === "function" ? [value(true as never), value("b" as never)] : [value];
+    const texts =
+      key === "moreActions"
+        ? [BUTTONS.moreActions([BUTTONS.resign, BUTTONS.flip, BUTTONS.soundItem])]
+        : typeof value === "function"
+          ? [value(true as never), value("b" as never)]
+          : [value];
     for (const t of texts) assert.ok(isTitleCase(String(t)), `${key}: "${t}"`);
   }
 });
