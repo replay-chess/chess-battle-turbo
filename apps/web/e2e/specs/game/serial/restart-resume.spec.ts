@@ -39,15 +39,36 @@ test.describe("restart and resume", { tag: p2("@smoke", "@local-only") }, () => 
     };
     s.w.page.on("request", onReq);
 
+    // Every text the screen-reader polite region takes (dev recheck 2026-11-12: it kept "Connection lost.
+    // Reconnecting." long after the game was back).
+    for (const p of [s.w, s.b]) {
+      await p.page.evaluate(() => {
+        const el = document.querySelector('[data-testid="game-live-polite"]')!;
+        const seen: string[] = [];
+        (window as unknown as { __politeSeen: string[] }).__politeSeen = seen;
+        new MutationObserver(() => seen.push((el.textContent ?? "").trim())).observe(el, { childList: true, characterData: true, subtree: true });
+      });
+    }
     const framesFrom = { w: s.w.link.mark(), b: s.b.link.mark() };
     await restartable.broadcastRestart(5);
     for (const p of [s.w, s.b]) await expect(p.page.getByTestId("chip-restarting")).toContainText(/Server restarting in 0:0\d/i, { timeout: 15_000 });
     await restartable.stop("SIGTERM");
     await s.w.waitPhase(/reconnecting/, 30_000);
+    // The restart is under way: clocks are paused, so the chip neither counts down nor says "Keep playing" (it
+    // contradicted the "clocks are paused" banner: dev recheck 2026-11-12, run 3).
+    await expect(s.w.page.getByTestId("zone-reconnect")).toContainText(/clocks are paused/i);
+    await expect(s.w.page.getByTestId("chip-restarting")).toHaveText(/^Server restarting · Games in progress will resume\.$/);
     const frozen = await s.b.page.locator('[data-testid="clock-b"]:visible').first().innerText();
     await restartable.start();
 
     for (const p of [s.w, s.b]) await p.waitPhase(/your_move|their_move/, 90_000);
+    // The recovery was announced, and the region does not keep stale text.
+    for (const p of [s.w, s.b]) {
+      const seen = await p.page.evaluate(() => (window as unknown as { __politeSeen: string[] }).__politeSeen);
+      expect(seen, "polite region texts").toContain("Connection lost. Reconnecting.");
+      expect(seen, "polite region texts").toContain("Back online.");
+      await expect(p.page.getByTestId("game-live-polite")).toHaveText("", { timeout: 10_000 });
+    }
     expect(await s.w.ply()).toBe(before.ply);
     expect(await s.b.ply()).toBe(before.ply);
     expect([await s.w.color(), await s.b.color()]).toEqual([before.w, before.b]);

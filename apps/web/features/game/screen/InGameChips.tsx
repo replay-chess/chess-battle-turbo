@@ -1,11 +1,13 @@
 "use client";
 
 // In-game status chips (plan 4.2 rule 4, 4.7): server restarting (V3Maintenance `in_game`), silent auth refresh
-// (V3SessionExpired `in_game_refresh` → `in_game_ok`), and "Update ready" for an old bundle. Top right of the board
-// region, z 20; they never take input focus and never cover the clocks.
+// (V3SessionExpired `in_game_refresh` → `in_game_ok`), and "Update ready" for an old bundle. At the top of the panel
+// (V3Maintenance `in_game`: the page's top right, over the panel; the strip under the board in stack mode), in flow:
+// they never cover the board or the clocks and never take input focus.
 
 import { useEffect, useState } from "react";
 import { formatCountdown } from "@repo/game-core/clock/format";
+import { restartStage } from "@repo/game-core/client/viewState";
 import { useAuthStatus, useConnection } from "@/lib/realtime/useConnection";
 import { CHIPS } from "../copy";
 import { useController, useGame } from "./GameContext";
@@ -22,7 +24,8 @@ function useTicker(active: boolean, ms = 250): number {
 
 export function InGameChips() {
   const controller = useController();
-  const restarting = useGame((g) => g.restarting);
+  const game = useGame((g) => g);
+  const restarting = game.restarting;
   const conn = useConnection();
   const auth = useAuthStatus();
   const live = controller.kind === "live";
@@ -34,11 +37,14 @@ export function InGameChips() {
 
   const chips: React.ReactNode[] = [];
   if (showRestart && restarting) {
-    const left = restarting.restartAt - controller.serverNow();
+    // The same stage the panel banner reads (ReconnectZone): once the restart has begun (socket down, game frozen or
+    // the time has come) the chip drops its countdown and "Keep playing" (clocks are paused).
+    const serverNow = controller.serverNow();
+    const stage = restartStage(game, serverNow);
     chips.push(
-      <span key="restart" className="g-chip" data-tone="warn" role="status" data-testid="chip-restarting">
+      <span key="restart" className="g-chip" data-tone="warn" role="status" data-testid="chip-restarting" data-stage={stage}>
         <span className="g-spin" aria-hidden="true" />
-        {left > 0 ? CHIPS.restarting(formatCountdown(left)) : CHIPS.restartingNow}
+        {stage === "announced" ? CHIPS.restarting(formatCountdown(restarting.restartAt - serverNow)) : CHIPS.restartingNow}
       </span>,
     );
   }

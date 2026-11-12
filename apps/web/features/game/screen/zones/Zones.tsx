@@ -5,6 +5,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { restartStage } from "@repo/game-core/client/viewState";
 import { FIRST_MOVE_MS, GRACE_MS, STUDY_SECONDS_NON_INITIAL } from "@repo/game-core/constants";
 import { isInitialFen } from "@repo/game-core/rules/chess";
 import { useCancelLegacyChallenge } from "@/lib/api/mutations/games";
@@ -211,8 +212,9 @@ export function ViewingZone({ label }: { label: string }) {
 export function ReconnectZone() {
   const controller = useController();
   const g = useGame((x) => x);
-  // An announced restart, or a game the restart froze (rejoined, waiting for the other player: plan 7.6 step 5).
-  const restarting = g.restarting !== null || g.state.frozen !== null;
+  // A restart in progress, or a game the restart froze (rejoined, waiting for the other player: plan 7.6 step 5). The
+  // chip (InGameChips) reads the same stage, so the two never disagree about whether clocks are paused.
+  const restarting = restartStage(g, controller.serverNow()) !== "none";
   const endsAt = g.disconnectedAt !== null ? g.disconnectedAt + GRACE_MS : null;
   const cd = useCountdown(restarting ? null : endsAt, Date.now, GRACE_MS);
   const me = g.state.you.color;

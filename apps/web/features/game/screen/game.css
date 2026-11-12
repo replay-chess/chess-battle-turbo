@@ -66,9 +66,11 @@
     position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
     padding: 8px; background: var(--cb-surface); border-top: 1px solid var(--cb-border-strong);
   }
-  .g-chips { position: absolute; top: 8px; right: 8px; z-index: 20; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; max-width: calc(100% - 16px); }
-  .g-chips > * { pointer-events: auto; }
-  .g-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; max-width: 100%; background: var(--cb-surface); border: 1px solid var(--cb-border-strong); box-shadow: var(--cb-shadow-pop, 0 6px 20px rgba(0,0,0,0.10)); font-size: 0.8125rem; line-height: 1.35; }
+  /* In-game chips (InGameChips): the top of the panel, where V3Maintenance `in_game` puts the restart notice (page
+     top right, over the panel); in flow, so they never cover the board, the clocks or the zone under them (they
+     used to sit over the board's top-right squares: dev recheck 2026-11-12). Stack mode: the top of the strip. */
+  .g-chips { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 8px 8px 0; }
+  .g-chip { display: flex; align-items: center; gap: 8px; padding: 6px 10px; max-width: 100%; background: var(--cb-surface); border: 1px solid var(--cb-border-strong); box-shadow: var(--cb-shadow-pop, 0 6px 20px rgba(0,0,0,0.10)); font-size: 0.8125rem; line-height: 1.35; }
   .g-chip[data-tone="warn"] { border-color: color-mix(in srgb, var(--cb-warn) 45%, transparent); }
   .g-chip[data-tone="good"] { border-color: color-mix(in srgb, var(--cb-good) 45%, transparent); }
   .g-spin { display: inline-block; width: 14px; height: 14px; flex: none; box-sizing: border-box; border: 2px solid currentColor; border-right-color: transparent; border-radius: 9999px; animation: g-spin 0.8s linear infinite; }
@@ -169,7 +171,6 @@
     .g-tall, .g-short-hide { display: none !important; }
     .g-result h2 { font-size: 1.75rem; }
     .g-pchip { padding-inline: 0; }
-    .g-chips { top: 4px; right: 4px; }
     /* The result card (title, CTAs: Analyse, Rematch, New game, Share) is taller than the strip BoardStage leaves
        under the board on short phones; BoardStage clips its aside, so the CTAs were unreachable. The aside scrolls
        inside itself here (the page still never scrolls). regression: REGRESSION-2 (webkit-iphone friend-full/

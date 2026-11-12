@@ -1,7 +1,6 @@
 "use client";
 
-// The board region (plan 4.4, 4.5.6): V3MoveBoard wired to the controller and the view state, the in-game chips,
-// and the test container `[data-testid="game-board-container"]` with the attributes the e2e fixture reads
+// The board region (plan 4.4, 4.5.6): V3MoveBoard wired to the controller and the view state, and the test container `[data-testid="game-board-container"]` with the attributes the e2e fixture reads
 // (`data-game-started`, `data-player-color`, `data-current-turn`) plus `data-phase` (the primary design state),
 // `data-ply`, `data-role` and `data-mode`.
 
@@ -14,7 +13,6 @@ import type { Side } from "@repo/game-core/machine/types";
 import { boardLabel, copyCtx, ZONE } from "../copy";
 import { destsCallback, legalDestsFor, premoveDestsFor } from "../live/premove";
 import { useController, useDispatch, useGame, usePrefs, useView } from "./GameContext";
-import { InGameChips } from "./InGameChips";
 import { withTelemetry } from "../telemetryLazy";
 
 // Lazy: the /game route is at its first-load budget (plan 9.1), and the input is hidden until focused.
@@ -109,7 +107,6 @@ export function GameBoardArea() {
         animationMs={animate ? 180 : 0}
         label={boardLabel(ctx)}
       />
-      <InGameChips />
       {state.you.role === "player" && state.phase !== "ended" ? (
         <Suspense fallback={null}>
           <GameMoveInput fen={b.fen} mover={mover} onMove={(m) => controller.move(m)} />

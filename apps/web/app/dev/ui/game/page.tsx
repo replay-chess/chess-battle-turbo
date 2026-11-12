@@ -18,7 +18,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
  *   state=<one of the 55>   (no state: the index of all states)
  *   side=w|b                the other seat when it reaches the same state
  *   mode=live|bot|spectate  spectate = the spectator's store; bot = the same position as a bot game
- *   variant=restart|engine_error|other_tab
+ *   variant=restart|restart_announced|engine_error|other_tab
  *   stress=1                120 plies, 20-character names, three-digit move numbers, the longest header
  *   flip=1                  board flipped     freeze=1   the server clock stands still
  *   toasts=auto             toasts clear after 4 s (default: they stay, so toast-led states stay put)

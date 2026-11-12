@@ -194,7 +194,11 @@ export function movesUntil(canOfferAtPly: number, absPly: number): number {
   return Math.max(1, Math.ceil((canOfferAtPly - absPly) / 2));
 }
 
-/** "Rxd7" for a premove (the move is not legal yet, so this is the piece letter, an x for a capture and the square). */
+/**
+ * "Rxd7" for a premove (the move is not legal yet, so this is the piece letter, an x for a capture and the square).
+ * A king going two files is castling: "O-O" / "O-O-O", as the move list writes it (it read "Kg1": dev recheck
+ * 2026-11-12).
+ */
 export function premoveLabel(fen: string, uci: string): string {
   const board = parsePlacement(fen);
   const from = uci.slice(0, 2);
@@ -202,6 +206,8 @@ export function premoveLabel(fen: string, uci: string): string {
   const piece = board.get(from);
   const capture = board.has(to);
   if (!piece) return to;
+  if (piece.type === "k" && from[1] === to[1] && Math.abs(to.charCodeAt(0) - from.charCodeAt(0)) === 2)
+    return to[0]! > from[0]! ? "O-O" : "O-O-O";
   if (piece.type === "p") return capture ? `${from[0]}x${to}` : to;
   return `${piece.type.toUpperCase()}${capture ? "x" : ""}${to}`;
 }

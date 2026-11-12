@@ -11,6 +11,7 @@ import { GameActionRow } from "./GameActions";
 import { useGame, useView } from "./GameContext";
 import { GameOverCard, type ResultSlots } from "./GameOverCard";
 import { GameToast } from "./GameToast";
+import { InGameChips } from "./InGameChips";
 import { gameSans, MoveList } from "./MoveList";
 import { MoveStrip } from "./MoveStrip";
 import { OfferBar } from "./OfferBar";
@@ -46,6 +47,7 @@ export function GamePanel({ resultSlots }: { resultSlots?: ResultSlots }) {
           {headerRight(state, ctx.spectator)}
         </span>
       </TopBarTitle>
+      <InGameChips />
       <PanelZone resultSlots={resultSlots} />
       <StatusLine />
       <div data-g-side="" style={{ display: "contents" }}>

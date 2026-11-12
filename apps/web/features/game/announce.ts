@@ -98,8 +98,17 @@ export function announce(prev: ClientGame, next: ClientGame, serverNow: number):
 
   const wasDown = prev.conn === "reconnecting" || prev.conn === "offline";
   const isDown = next.conn === "reconnecting" || next.conn === "offline";
-  if (!wasDown && isDown && prev.joined) out.polite = [out.polite, "Connection lost. Reconnecting."].filter(Boolean).join(" ");
+  if (!wasDown && isDown && prev.joined) out.polite = [out.polite, CONNECTION_LOST].filter(Boolean).join(" ");
+  // The recovery: the rejoin snapshot that ends the outage (the in-panel "Back online." toast is a region added
+  // together with its text, which screen readers often skip). Without it the region kept "Connection lost.
+  // Reconnecting." after the game was back (dev recheck 2026-11-12).
+  if (prev.disconnectedAt !== null && next.disconnectedAt === null && !isDown && next.joined) {
+    const san = next.toast?.code === "reconnected" && typeof next.toast.params?.san === "string" ? next.toast.params.san : null;
+    out.polite = [out.polite, san ? `${BACK_ONLINE} ${san} was sent.` : BACK_ONLINE].filter(Boolean).join(" ");
+  }
   return out;
 }
 
 export const LOW_TIME_ANNOUNCEMENT = "Ten seconds left on your clock.";
+export const CONNECTION_LOST = "Connection lost. Reconnecting.";
+export const BACK_ONLINE = "Back online.";

@@ -7,7 +7,8 @@
 // result variants, over_guest dropped) render their P2 fallback, named in `notes`. Params:
 //   side=w|b        the other player's seat when that seat reaches the same state (else the default seat + a note)
 //   mode=spectate   the spectator's store (states with a spectator); mode=bot turns a live store into a bot game
-//   variant=restart | engine_error | other_tab   (plan 4.7 / 4.3 #24 variants)
+//   variant=restart | restart_announced | engine_error | other_tab   (plan 4.7 / 4.3 #24 variants; restart = the
+//                   restart under way, clocks paused; restart_announced = a restart time announced, the game runs on)
 //   stress=1        120 plies, 20-character names, three-digit move numbers, the longest header (testing X9)
 
 import { Chess } from "chess.js";
@@ -24,7 +25,7 @@ import { SCENARIOS, T0, liveInput } from "@repo/game-core/testing/scenarios";
 
 export { DESIGN_STATES };
 export type DemoMode = "live" | "bot" | "spectate";
-export const DEMO_VARIANTS = ["restart", "engine_error", "other_tab"] as const;
+export const DEMO_VARIANTS = ["restart", "restart_announced", "engine_error", "other_tab"] as const;
 export type DemoVariant = (typeof DEMO_VARIANTS)[number];
 
 export interface DemoParams {
@@ -114,6 +115,8 @@ function applyVariant(g: ClientGame, variant: DemoVariant, serverNow: number): C
         restarting: { restartAt: serverNow + 30_000 },
         state: { ...g.state, frozen: { since: serverNow, reason: "restart" } },
       };
+    case "restart_announced":
+      return { ...g, restarting: { restartAt: serverNow + 42_000 } };
     case "engine_error":
       return { ...g, bot: { ...(g.bot ?? NO_BOT), engineError: true } };
     case "other_tab":

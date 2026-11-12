@@ -42,6 +42,39 @@ for (const family of FAMILIES) {
       test.skip(familyOf(testInfo) !== family, `${family} test`);
     });
 
+    // The server-restart chip (InGameChips) sits at the top of the panel / strip and never covers the board or a
+    // clock, announced (countdown, "Keep playing", no banner) or under way (clocks paused: the banner shows and the
+    // chip has no countdown). It used to sit over the board's top-right squares (dev recheck 2026-11-12, D7 run 1).
+    for (const [variant, state] of [["restart_announced", "your_move"], ["restart", "reconnecting"]] as const) {
+      test(`restart chip clear of the board · ${variant}`, async ({ page }) => {
+        await gotoStable(page, `/dev/ui/game?state=${state}&variant=${variant}&freeze=1`);
+        await expect(page.locator('[data-testid="game-board-container"]')).toBeVisible();
+        const mode = await shellModeFor(page);
+        const s = await expectOneViewport(page, { board: true, nav: mode !== "tabbar" });
+        const chip = page.getByTestId("chip-restarting");
+        await expect(chip).toHaveCount(1);
+        if (variant === "restart") {
+          await expect(chip).not.toContainText(/Keep playing|in \d+:\d\d/);
+          await expect(page.getByTestId("zone-reconnect")).toContainText(/clocks are paused/);
+        } else {
+          await expect(chip).toContainText(/Server restarting in \d+:\d\d .*Keep playing/);
+          await expect(page.getByTestId("zone-reconnect")).toHaveCount(0);
+        }
+        const box = await chip.boundingBox();
+        const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
+          a.x < b.x + b.width - 0.5 && b.x < a.x + a.width - 0.5 && a.y < b.y + b.height - 0.5 && b.y < a.y + a.height - 0.5;
+        // A strip folded to nothing (a phone at 150 %) clips the chip with the rest of the panel: nothing to overlap.
+        if (box && box.width > 0 && box.height > 0) {
+          expect(overlaps(box, s.board!), "the chip does not cover the board").toBe(false);
+          for (const c of await page.locator('[data-testid^="clock-"]:visible').all()) {
+            const cb = await c.boundingBox();
+            if (cb) expect(overlaps(box, cb), "the chip does not cover a clock").toBe(false);
+          }
+        }
+        if (mode !== "tabbar") await expect(chip, "side mode: the chip is on screen").toBeInViewport();
+      });
+    }
+
     for (const state of [...LIT_STATES, "stress"]) {
       const key = state === "stress" || KEY_STATES.includes(state);
       const tags = state === "stress" ? [] : demoTags(family, state);

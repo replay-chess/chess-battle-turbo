@@ -242,6 +242,25 @@ export function moveNoOfPly(absolutePly: number): number {
   return Math.floor((Math.max(1, absolutePly) - 1) / 2) + 1;
 }
 
+/**
+ * The one server-restart state both the board chip and the panel banner read (V3Maintenance `in_game`, plan 7.6):
+ * - "announced": the server named a restart time and the game still runs ("Server restarting in 0:42 · … Keep
+ *   playing.", no banner);
+ * - "paused": the restart has begun (the time has come, this tab lost its socket, or the restored game is frozen
+ *   until both players are back): clocks are paused, so no surface may count down or say "Keep playing";
+ * - "none".
+ * The chip once kept its countdown and "Keep playing" while the banner already said "clocks are paused" (dev
+ * recheck 2026-11-12, run 3: the socket dropped before the announced restart time).
+ */
+export type RestartStage = "none" | "announced" | "paused";
+
+export function restartStage(g: ClientGame, serverNow: number): RestartStage {
+  if (g.restarting === null && g.state.frozen === null) return "none";
+  const connDown = g.conn === "reconnecting" || g.conn === "offline";
+  if (g.restarting === null || connDown || g.state.frozen !== null || g.restarting.restartAt <= serverNow) return "paused";
+  return "announced";
+}
+
 export function deriveViewState(g: ClientGame, serverNow: number): ViewState {
   const s = g.state;
   const { me, player } = seat(s);

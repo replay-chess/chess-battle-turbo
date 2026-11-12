@@ -56,6 +56,17 @@ test("the opponent disconnecting is assertive; losing the own connection is poli
   assert.deepEqual(announce(prev, down, f.serverNow), { polite: "Connection lost. Reconnecting." });
 });
 
+test("the recovery is announced politely, and with the queued move that was sent", () => {
+  const f = buildDemoFixture({ state: "your_move" });
+  const down = { ...f.game, conn: "reconnecting" as const, disconnectedAt: f.serverNow - 3_000 };
+  const live = { ...down, conn: "live" as const };
+  assert.deepEqual(announce(down, live, f.serverNow), {}, "the socket is back, the game not yet");
+  const back = { ...live, disconnectedAt: null, toast: { code: "reconnected" as const, kind: "good" as const, at: 1 } };
+  assert.deepEqual(announce(live, back, f.serverNow), { polite: "Back online." });
+  const sent = { ...back, toast: { ...back.toast, params: { san: "Nf3" } } };
+  assert.deepEqual(announce(live, sent, f.serverNow), { polite: "Back online. Nf3 was sent." });
+});
+
 test("nothing for a snapshot that rewinds, another game, or no change", () => {
   const f = buildDemoFixture({ state: "your_move" });
   assert.deepEqual(announce(f.game, f.game, f.serverNow), {});

@@ -120,6 +120,11 @@ test("already-ended line names the winner and the move", () => {
 test("helpers: premove label, draw cooldown in own moves, spectator header", () => {
   assert.equal(premoveLabel("4k3/3r4/8/8/8/8/8/3QK3 w - - 0 1", "d1d7"), "Qxd7");
   assert.equal(premoveLabel("4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", "e2e4"), "e4");
+  // Castling premoves read as the move list writes them (dev recheck 2026-11-12: "Premove set: Kg1.").
+  assert.equal(premoveLabel("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", "e1g1"), "O-O");
+  assert.equal(premoveLabel("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", "e1c1"), "O-O-O");
+  assert.equal(premoveLabel("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1", "e8g8"), "O-O");
+  assert.equal(premoveLabel("4k3/8/8/8/8/8/8/4K3 w - - 0 1", "e1f1"), "Kf1");
   assert.equal(movesUntil(24, 20), 2);
   assert.equal(movesUntil(21, 20), 1);
   assert.match(headerRight(state, true), /^Watching · /);
