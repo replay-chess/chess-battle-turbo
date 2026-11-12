@@ -33,8 +33,11 @@ test.describe("in-game auth refresh", { tag: p2("@smoke", "@local-only") }, () =
 
       // Revoke White's session (Clerk development instance, Backend API).
       const page = s.w.page;
-      const sessionId = await page.evaluate(() => (window as unknown as { Clerk?: { session?: { id?: string } } }).Clerk?.session?.id ?? null);
-      expect(sessionId).toBeTruthy();
+      // Clerk loads after the board (a production build under a busy run takes seconds): wait for its session.
+      const readSessionId = () =>
+        page.evaluate(() => (window as unknown as { Clerk?: { session?: { id?: string } } }).Clerk?.session?.id ?? null);
+      await expect.poll(readSessionId, { message: "Clerk's session on the game page", timeout: 30_000 }).toBeTruthy();
+      const sessionId = await readSessionId();
       const revoke = await fetch(`https://api.clerk.com/v1/sessions/${sessionId}/revoke`, {
         method: "POST",
         headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
