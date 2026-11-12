@@ -147,6 +147,24 @@ test.describe("service worker @p1 @smoke @prod-build", () => {
     page,
   }) => {
     const documentsFromWorker = watchDocuments(context);
+    // Every navigator.serviceWorker.register() the page makes, with its outcome: if the take-over below does not
+    // happen, the failure says whether the reloaded page registered /sw.js at all, and what the browser answered.
+    await context.addInitScript(() => {
+      const calls: string[] = [];
+      (window as unknown as { __rcSwCalls: string[] }).__rcSwCalls = calls;
+      const sw = navigator.serviceWorker;
+      if (!sw) return;
+      const register = sw.register.bind(sw);
+      sw.register = (url: string | URL, options?: RegistrationOptions) => {
+        const i = calls.push(`${String(url)} at ${Math.round(performance.now())} ms: pending`) - 1;
+        const p = register(url, options);
+        p.then(
+          () => (calls[i] = calls[i]!.replace("pending", "resolved")),
+          (e: unknown) => (calls[i] = calls[i]!.replace("pending", `rejected ${String(e)}`)),
+        );
+        return p;
+      };
+    });
     await page.goto("/about", { waitUntil: "domcontentloaded" });
     await activeAndControlling(page);
     const controllerScript = () =>
@@ -221,11 +239,19 @@ test.describe("service worker @p1 @smoke @prod-build", () => {
         () => (window as unknown as { __rcSamePage?: boolean }).__rcSamePage,
       ),
     ).toBeUndefined();
+    // The reloaded page's own registration (lib/pwa/registerServiceWorker.ts, after `load`) asks for /sw.js again; a
+    // different script URL than the registration's makes the browser install it, and skipWaiting + clientsClaim hand
+    // it the page. Polled as one line, so a failure shows which step did not happen.
+    const swState = () =>
+      page.evaluate(async () => {
+        const reg = await navigator.serviceWorker.getRegistration("/");
+        const w = (x?: ServiceWorker | null) => (x ? `${new URL(x.scriptURL).pathname}${new URL(x.scriptURL).search}:${x.state}` : "none");
+        const calls = (window as unknown as { __rcSwCalls?: string[] }).__rcSwCalls ?? [];
+        return `controller=${w(navigator.serviceWorker.controller)} active=${w(reg?.active)} waiting=${w(reg?.waiting)} installing=${w(reg?.installing)} register=[${calls.join("; ")}]`;
+      });
     await expect
-      .poll(async () => new URL(await controllerScript()).search, {
-        timeout: 30_000,
-      })
-      .toBe("");
+      .poll(swState, { timeout: 30_000, message: "the reloaded page's own /sw.js controls it" })
+      .toMatch(/^controller=\/sw\.js:activated /);
     expect(new URL(await controllerScript()).pathname).toBe("/sw.js");
     expect(documentsFromWorker).toEqual([]);
   });
