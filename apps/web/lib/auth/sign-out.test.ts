@@ -1,14 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { QueryClient } from "@tanstack/react-query";
-import {
-  CLERK_BEFOREUNLOAD_EVENT,
-  clearAfterExternalSignOut,
-  clearLocalSession,
-  leavePage,
-  signOutEverywhere,
-  type SignOutDeps,
-} from "./sign-out";
+import { clearAfterExternalSignOut, clearLocalSession, signOutEverywhere, type SignOutDeps } from "./sign-out";
 
 function recorder() {
   const steps: string[] = [];
@@ -88,51 +81,5 @@ describe("clearAfterExternalSignOut", () => {
     await clearAfterExternalSignOut(qc, deps);
     assert.deepEqual(steps, ["store", "caches", "posthog", "sentry", "session/clear"]);
     assert.equal(qc.getQueryData(["me"]), undefined);
-  });
-});
-
-// clerk-js 5.x signOut(callback): the callback runs inside a before-unload tracker (window `beforeunload` or
-// `clerk:beforeunload`); when the page is not unloading by the time it returns, Clerk emits the signed-out state and
-// calls window.__unstable__onAfterSetActive (the Next provider's router.refresh()). A model of that, over a window
-// that, like WebKit, does not fire `beforeunload` inside location.assign().
-function webkitLikeWindow() {
-  const target = new EventTarget();
-  const log: string[] = [];
-  const win = {
-    dispatchEvent: (e: Event) => target.dispatchEvent(e),
-    addEventListener: target.addEventListener.bind(target),
-    removeEventListener: target.removeEventListener.bind(target),
-    location: { assign: (url: string) => void log.push(`assign:${url}`) },
-  };
-  const clerk = {
-    signOut: async (callback: () => void) => {
-      let unloading = false;
-      const mark = () => (unloading = true);
-      win.addEventListener("beforeunload", mark);
-      win.addEventListener(CLERK_BEFOREUNLOAD_EVENT, mark);
-      await callback();
-      win.removeEventListener("beforeunload", mark);
-      win.removeEventListener(CLERK_BEFOREUNLOAD_EVENT, mark);
-      if (!unloading) log.push("emit signed out", "router.refresh");
-    },
-  };
-  return { win, clerk, log };
-}
-
-describe("leavePage (the navigation after Clerk's sign-out)", () => {
-  // regression: on WebKit (webkit-iphone, phone shell) sign-out from /play ended on /sign-in?redirect_url=%2Fplay: the
-  // refresh Clerk ran after a plain location.assign("/") hit the middleware's sign-in redirect and replaced the load.
-  it("tells Clerk the page is unloading, so no refresh races the load of /", async () => {
-    const { win, clerk, log } = webkitLikeWindow();
-    const { deps } = recorder();
-    await signOutEverywhere(clerk, { deps: { ...deps, navigate: (url) => leavePage(url, win) } });
-    assert.deepEqual(log, ["assign:/"]);
-  });
-
-  it("a bare location.assign leaves the refresh in (the old behaviour this replaces)", async () => {
-    const { win, clerk, log } = webkitLikeWindow();
-    const { deps } = recorder();
-    await signOutEverywhere(clerk, { deps: { ...deps, navigate: (url) => win.location.assign(url) } });
-    assert.deepEqual(log, ["assign:/", "emit signed out", "router.refresh"]);
   });
 });

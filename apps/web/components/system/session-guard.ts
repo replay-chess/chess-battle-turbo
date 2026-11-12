@@ -302,6 +302,32 @@ export function setSignOutIntent(on: boolean): void {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// The Next provider's refresh after Clerk's set-active (SessionWatcher (e))
+// ---------------------------------------------------------------------------------------------------------------
+
+/**
+ * Whether SessionWatcher skips the router.refresh() Clerk's Next provider runs after a set-active
+ * (`window.__unstable__onAfterSetActive`). Skipped when the session has ended and either
+ * - the session ended on its own on a non-public route: the refresh's RSC request would meet the middleware's sign-in
+ *   redirect before the dialog's 1.5 s debounce; the page stays and the dialog opens over it (FIX-B, sign-off D8); or
+ * - it is our own sign-out (the intent flag): signOutEverywhere() always ends in a full document load, and clerk-js
+ *   runs this refresh after the sign-out callback unless the page is already unloading. Chromium fires `beforeunload`
+ *   inside location.assign(), WebKit later, so on WebKit the refresh ran, its RSC request for the member page met the
+ *   sign-in redirect, and that navigation replaced the load of "/" (sign-out from /play on the phone ended on
+ *   /sign-in?redirect_url=%2Fplay). Clerk's own state and cookie clean-up still run; only the refresh is dropped.
+ */
+export function skipRefreshAfterSetActive(s: {
+  ended: boolean;
+  wasSignedIn: boolean;
+  signOutIntent: boolean;
+  publicPath: boolean;
+}): boolean {
+  if (!s.ended) return false;
+  if (s.signOutIntent) return true;
+  return s.wasSignedIn && !s.publicPath;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Drafts before sign-in
 // ---------------------------------------------------------------------------------------------------------------
 

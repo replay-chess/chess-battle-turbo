@@ -27,7 +27,7 @@ import { useEffect, useRef } from "react";
 import { useAuth, useClerk } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { setApiErrorDeps } from "@/lib/api/errors";
-import { clearAfterExternalSignOut, clearLocalSession, leavePage } from "@/lib/auth/sign-out";
+import { clearAfterExternalSignOut, clearLocalSession } from "@/lib/auth/sign-out";
 import { SessionExpiredModal } from "./SessionExpiredModal";
 import { isPublicByRouteClass } from "./public-paths";
 import {
@@ -41,6 +41,7 @@ import {
   sessionExpiredStore,
   setPublicPathClassifier,
   setSignOutIntent,
+  skipRefreshAfterSetActive,
   subscribeAuthMessages,
   type ClerkSessionLike,
 } from "./session-guard";
@@ -144,11 +145,13 @@ export function SessionWatcher() {
     const original = w.__unstable__onAfterSetActive;
     if (typeof original !== "function") return;
     const wrapped: Hook = (...args) => {
-      const ended = !(clerkRef.current?.session ?? null);
-      if (ended && wasSignedIn.current && !hasSignOutIntent() && !onPublicPath()) return undefined;
-      // Our own sign-out (signOutEverywhere, or another tab's `signed_out`) always ends in a full document load; a
-      // refresh could only race it (WebKit: its sign-in redirect replaced the load of "/").
-      if (ended && hasSignOutIntent()) return undefined;
+      const skip = skipRefreshAfterSetActive({
+        ended: !(clerkRef.current?.session ?? null),
+        wasSignedIn: wasSignedIn.current,
+        signOutIntent: hasSignOutIntent(),
+        publicPath: onPublicPath(),
+      });
+      if (skip) return undefined;
       return original(...args);
     };
     w.__unstable__onAfterSetActive = wrapped;
@@ -180,7 +183,7 @@ export function SessionWatcher() {
           sessionExpiredStore.close();
         } else {
           setSignOutIntent(true);
-          void clearLocalSession(queryClient).finally(() => leavePage("/"));
+          void clearLocalSession(queryClient).finally(() => window.location.assign("/"));
         }
       }),
     [queryClient],

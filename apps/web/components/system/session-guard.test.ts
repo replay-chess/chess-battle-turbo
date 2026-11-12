@@ -17,6 +17,7 @@ import {
   sessionExpiredStore,
   setPublicPathClassifier,
   signInHref,
+  skipRefreshAfterSetActive,
   subscribeAuthMessages,
   type ClerkSessionLike,
 } from "./session-guard";
@@ -213,6 +214,27 @@ describe("a live game holds the modal (phase-02 plan 4.7, 5.5.1)", () => {
     assert.equal(openSessionExpired("demo"), true);
     release();
     sessionExpiredStore.close();
+  });
+});
+
+describe("skipRefreshAfterSetActive (SessionWatcher (e))", () => {
+  const base = { ended: true, wasSignedIn: true, signOutIntent: false, publicPath: false };
+  it("a session that ended on its own on a member page keeps the page (the dialog opens over it)", () => {
+    assert.equal(skipRefreshAfterSetActive(base), true);
+    assert.equal(skipRefreshAfterSetActive({ ...base, publicPath: true }), false, "public page: refresh");
+    assert.equal(skipRefreshAfterSetActive({ ...base, wasSignedIn: false }), false, "never signed in here: refresh");
+  });
+
+  // regression: webkit-iphone, Sign Out from /play on the phone ended on /sign-in?redirect_url=%2Fplay: the refresh
+  // clerk-js runs after the sign-out callback (WebKit had not fired beforeunload yet) met the sign-in redirect.
+  it("our own sign-out never refreshes: a full document load follows", () => {
+    assert.equal(skipRefreshAfterSetActive({ ...base, signOutIntent: true }), true);
+    assert.equal(skipRefreshAfterSetActive({ ...base, signOutIntent: true, publicPath: true }), true);
+  });
+
+  it("a sign-in or an organisation switch (a session is there) always refreshes", () => {
+    assert.equal(skipRefreshAfterSetActive({ ...base, ended: false }), false);
+    assert.equal(skipRefreshAfterSetActive({ ...base, ended: false, signOutIntent: true }), false);
   });
 });
 
