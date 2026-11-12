@@ -3,9 +3,16 @@
 // /too-many-requests body (plan §4.8; V3RateLimited `page`). Reads `?retry=<sec>&from=<path>`, counts down from the
 // received seconds (performance.now() deltas, countdown.ts), then "Try Again" goes to `from` when it is a safe
 // app-relative path, else "/". A full navigation, because the document itself was what got limited.
+//
+// The query is read from window.location with useSyncExternalStore (server snapshot: no query, so the static HTML is
+// the default 0:30 state), not with useSearchParams: on a static page useSearchParams needs a Suspense boundary,
+// and React streams a boundary's content as a hidden segment that its inline script reveals on the next animation
+// frame. Until then the document held two copies of the page (the 0:30 fallback, visible, and the hidden content),
+// and with frames starved (CI run 43259407710, chromium data-layer.spec "counts down and returns to a safe from") the
+// fallback stayed for 15 s with a second hidden "429 · Too many requests". Without the boundary the static HTML is
+// the page itself, and hydration moves it to ?retry at once.
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trackSystem } from "@/lib/analytics/system-events";
@@ -34,9 +41,23 @@ export function parseTooManyRequestsParams(params: { get(name: string): string |
   };
 }
 
+function subscribeToLocation(onChange: () => void): () => void {
+  window.addEventListener("popstate", onChange);
+  return () => window.removeEventListener("popstate", onChange);
+}
+
+/** `location.search` on the client ("" on the server and during hydration, so the static HTML matches). */
+function useLocationSearch(): string {
+  return useSyncExternalStore(
+    subscribeToLocation,
+    () => window.location.search,
+    () => "",
+  );
+}
+
 export function TooManyRequestsClient() {
-  const params = useSearchParams();
-  const { retrySec, target } = parseTooManyRequestsParams(params);
+  const search = useLocationSearch();
+  const { retrySec, target } = parseTooManyRequestsParams(new URLSearchParams(search));
   // Remount (fresh countdown) when the query changes.
   return <TooManyRequestsCountdown key={`${retrySec}:${target}`} retrySec={retrySec} target={target} />;
 }
@@ -72,7 +93,7 @@ function TooManyRequestsCountdown({ retrySec, target }: { retrySec: number; targ
   );
 }
 
-/** The static markup; also the Suspense fallback of the force-static page (0:30, disabled). */
+/** The markup; with no query (the static HTML) it is the default 0:30, disabled state. */
 export function TooManyRequestsView({ left, onTryAgain }: { left: number; onTryAgain?: () => void }) {
   const ready = left <= 0;
   const label = formatMmSs(left);

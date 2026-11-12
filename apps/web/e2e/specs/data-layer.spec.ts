@@ -228,6 +228,21 @@ test.describe("too-many-requests page @p1 @smoke @public @state:V3RateLimited.pa
     await nav;
   });
 
+  // regression: CI run 43259407710 (chromium, flaky): the static page streamed its body as a Suspense segment that
+  // React reveals on the next animation frame; with frames starved the page sat on the 0:30 fallback for 15 s with a
+  // second, hidden "429 · Too many requests" in the document (strict-mode violation). The page now has no boundary:
+  // with requestAnimationFrame starved for the whole test, there is one copy and it counts down from ?retry.
+  test("one copy of the page, counting from ?retry, even with no animation frames", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.requestAnimationFrame = () => 0;
+    });
+    await gotoOk(page, "/too-many-requests?retry=8&from=/play", "commit");
+    await expect(page.getByRole("heading", { level: 1, name: "Slow Down a Little" })).toBeVisible();
+    await expect(page.getByTestId("too-many-requests-status").getByRole("timer")).toHaveText(/^0:0[1-8]$/);
+    await expect(page.getByText("429 · Too many requests")).toHaveCount(1);
+    await expect(page.locator('div[hidden][id^="S:"]')).toHaveCount(0);
+  });
+
   // (8) An off-site `from` never leaves the app.
   test("an unsafe from goes home", async ({ page }) => {
     await gotoOk(page, "/too-many-requests?retry=0&from=https://evil.example");
