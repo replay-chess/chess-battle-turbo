@@ -39,6 +39,7 @@ import { createInertController, type GameController } from "../controller";
 import { HintCache, nextHint, tookBackText } from "./hints";
 import { createTabLock, type TabLock } from "./lock";
 import { isFinalCompleteError, markCompleteInFlight } from "./pendingCompletes";
+import { afterHydration } from "./afterHydration";
 import { readJournal, removeJournal, sendCheckpoint, writeJournal } from "./persist";
 import { useBotEngine, type BotEngine } from "./useBotEngine";
 
@@ -62,9 +63,10 @@ export interface LocalControllerDeps {
   dom?: LocalDom | null;
   track?: typeof trackEngineEvent<"hint_used" | "undo_used">;
   /**
-   * Runs the start of attach() (resume, engine, bot). The browser default waits for the next frame plus a task, so
-   * the first store writes land after hydration has finished (an early write while parts of the screen are still
-   * hydrating shows up as a hydration mismatch). Tests pass `(fn) => fn()`.
+   * Runs the start of attach() (resume, engine, bot). The browser default (afterHydration.ts) waits for the next
+   * frame plus a task, so the first store writes land after hydration has finished (an early write while parts of the
+   * screen are still hydrating shows up as a hydration mismatch), or for a short timer when no frame comes (a page
+   * that gets no frames must still resume). Tests pass `(fn) => fn()`.
    */
   defer?(fn: () => void): void;
 }
@@ -152,12 +154,7 @@ export function createLocalController(snapshot: GameSnapshot, deps: LocalControl
   const dom = deps.dom === undefined ? browserDom : deps.dom;
   const track = deps.track ?? ((name, props) => trackEngineEvent(name, props));
   const elo = snapshot.bot?.elo ?? FALLBACK_BOT_ELO;
-  const defer =
-    deps.defer ??
-    ((fn: () => void) => {
-      if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => setTimeout(fn, 0));
-      else setTimeout(fn, 0);
-    });
+  const defer = deps.defer ?? ((fn: () => void) => afterHydration(fn));
   let attachGeneration = 0;
 
   // The first render (server and hydration) uses the snapshot at its own render time, so both sides agree;
