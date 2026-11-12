@@ -26,6 +26,13 @@ export function useOnline(): boolean {
 const BACK_ONLINE_MS = 3000;
 
 /**
+ * Desktop chip copy. What is true until Phase 11's offline shell: the service worker precaches static assets only
+ * (no documents, RSC or /api), so the open page keeps working and any page not yet open needs the network. The
+ * design's "Offline · cached pages still work" returns with the P11 offline page.
+ */
+export const OFFLINE_COPY = "Offline · new pages need a connection";
+
+/**
  * Connection chip (V3Offline, V3iPhoneOffline). Floating at the top centre of
  * the page column in sidebar and rail modes; inline in the banner slot in
  * tab-bar mode. Shows "Back online" for 3s after reconnecting. The live region
@@ -58,7 +65,7 @@ export function OnlineChip({ placement }: { placement: "floating" | "inline" }) 
   if (!online) {
     chip = (
       <Tag tone="warn" variant="tint" icon={<WifiOff className="size-3" />}>
-        {floating ? "Offline · cached pages still work" : "Offline"}
+        {floating ? OFFLINE_COPY : "Offline"}
       </Tag>
     );
   } else if (backOnline) {

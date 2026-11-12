@@ -1456,7 +1456,7 @@ Use this for Account, Install, and the palette's "Keyboard Shortcuts" row. A mod
 **OnlineChip** (`role="status"`): `useSyncExternalStore` on the `online`/`offline` events, server snapshot `true`.
 - `placement="floating"` (`shell-online-chip`):
   - classes `flex tabbar:hidden fixed top-[calc(var(--safe-top)+12px)] z-(--cb-z-popover) left-[calc(var(--rc-nav-w,0px)+(100vw-var(--rc-nav-w,0px))/2)] -translate-x-1/2` (visible in sidebar and rail modes, hidden in tab-bar mode);
-  - Offline: `Tag tone="warn" variant="tint"` with `WifiOff`, "Offline · cached pages still work" (V3Offline).
+  - Offline: `Tag tone="warn" variant="tint"` with `WifiOff`, "Offline · new pages need a connection" (V3Offline's "Offline · cached pages still work" returns with the Phase 11 offline shell; until then the service worker caches static assets only, so no page is cached).
 - `placement="inline"` (`shell-online-chip-inline`): `hidden tabbar:flex justify-center py-1.5`, rendered in the banner slot, with the text "Offline" (V3iPhoneOffline).
 - On reconnect both show `Tag tone="good" variant="tint"` "Back online" for 3s. They render nothing while online.
 - PWA `reloadOnOnline` is off (P0), so the chip is visible in production builds.
@@ -1573,7 +1573,7 @@ Previews use demo users, use `#` hrefs, and **must not** render `ViewportStage` 
     - `/` does nothing on coarse pointers.
   - `context.setOffline(true)`:
     - tabbar projects: `shell-online-chip-inline` contains "Offline";
-    - otherwise: `shell-online-chip` contains "Offline · cached pages still work";
+    - otherwise: `shell-online-chip` contains "Offline · new pages need a connection";
     - `setOffline(false)` → "Back online", with no page reload (a `window.__rcMarker` set before going offline survives).
   - **Palette legend search** (`ui-desktop`):
     - typing "morphy" makes the row "Paul Morphy" appear. This needs the P6 seed: `test.skip` with a clear message if `(await (await request.get("/api/legends/search?name=morphy")).json()).data.legends.length === 0`;
@@ -2100,7 +2100,7 @@ Everything in 12.2–12.4 is green. M1–M11 pass locally, and M1–M10 on the d
 | R6 | `viewportFit: "cover"` is global: on landscape iPhones, marketing pages and `/game` slide under the notch on the sides | Outside the matrix. Phase 1 fixes the bottom bars (Hero, `/game` action row, legacy CTA bars); the sides wait for Phase 9. |
 | R7 | Android top and tab bars use the iPhone heights (44/56); V3AndroidPlayHub shows 48/64 | Decision for the user. A `@supports (-webkit-touch-callout: none)` split can't be verified in Playwright WebKit, so it isn't done in Phase 1. |
 | R8 | Banner rows (SubNav, payment) make a short legacy page scroll by their height | Accepted. Lock-mode pages are unaffected (the banner shrinks the page). |
-| R9 | No offline fallback page: navigating to an uncached route offline shows the browser's error page | The chip copy says only cached pages work. The `/~offline` page is Phase 9 (V3Offline). |
+| R9 | No offline fallback page: navigating to a new page offline shows the browser's error page | The chip copy says new pages need a connection. The offline page is Phase 11 (V3Offline). |
 | R10 | The service worker caches per-user pages (`cacheOnFrontEndNav`, `aggressiveFrontEndNavCaching`) | Sign Out purges the runtime caches (P3). Excluding `(app)` RSC payloads from runtime caching is Phase 9. |
 | R11 | `notFound()` inside an `(app)` page renders the root `not-found.tsx` without the shell | Accepted; `(app)/not-found.tsx` is Phase 9 (V3Error404). |
 | R12 | The payment-failed banner shows only on shell pages, not on `/game`, `/analysis` or `/pricing` (plan §1 says "everything") | Accepted for Phase 1; it moves with those pages in Phases 2–3. |
@@ -2218,7 +2218,7 @@ Placeholders P0 hands over: `components/ui/{avatar,tag,banner,skeleton,empty-sta
 | C §3.9 legacy toast coverage | Accepted (no change needed; noted). |
 | C §3.9 toast above an open sheet | Fix rejected: moving the toast to 16px still overlaps the sheet's last row; accepted as R14. |
 | C §3.9 toast copy periods in legacy game toasts | Accepted as a Phase 2 note; new copy follows the rule (§7.2). |
-| C §3.10 soften chip copy to "Offline" | Rejected on desktop: the design copy "cached pages still work" is accurate for cached pages in production builds. Phones use "Offline" per V3iPhoneOffline. The missing fallback page is R9. |
+| C §3.10 soften chip copy to "Offline" | Rejected on desktop, but the design copy "cached pages still work" was replaced (2026-11-12) by "Offline · new pages need a connection": the service worker precaches static assets only (no documents, RSC or `/api`), so no page is cached until Phase 11. Phones use "Offline" per V3iPhoneOffline. The missing fallback page is R9. |
 | C §3.10 palette offline row | Accepted → `palette-legends-offline` §8.2. |
 | C §4 `/queue` leave cancels the queue | Accepted → M4. |
 | C §4 tournaments/tournament Navbar lines missing | Accepted → §9.3 table. |

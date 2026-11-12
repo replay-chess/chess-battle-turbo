@@ -329,6 +329,8 @@ test.describe("service worker @p1 @smoke @prod-build", () => {
             hasText: /Offline/,
           }),
         ).toBeVisible({ timeout: 15_000 });
+        // The copy promises no cached page (none is, until Phase 11): "new pages need a connection" on desktop.
+        await expect(page.locator('[data-testid^="shell-online-chip"]:visible')).not.toContainText(/cached/i);
         await expect(
           page.goto("/play", {
             waitUntil: "domcontentloaded",

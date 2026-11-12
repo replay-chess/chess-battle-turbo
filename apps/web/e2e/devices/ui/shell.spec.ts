@@ -358,7 +358,9 @@ test("offline chip, then Back online without a reload @p1", async ({ page, conte
   const tabbar = await page.getByTestId("shell-tabbar").isVisible();
   const chip = page.getByTestId(tabbar ? "shell-online-chip-inline" : "shell-online-chip");
   await context.setOffline(true);
-  await expect(chip).toContainText(tabbar ? "Offline" : "Offline · cached pages still work");
+  // Until Phase 11's offline shell no page is cached, so the copy promises none (OnlineChip OFFLINE_COPY).
+  await expect(chip).toContainText(tabbar ? "Offline" : "Offline · new pages need a connection");
+  await expect(chip).not.toContainText("cached");
   await context.setOffline(false);
   await expect(chip).toContainText("Back online");
   expect(await page.evaluate(() => (window as unknown as { __rcMarker?: number }).__rcMarker)).toBe(42);

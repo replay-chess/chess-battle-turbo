@@ -49,7 +49,7 @@ export default async function StagePage({ searchParams }: { searchParams: Promis
   const stress = one(params.stress) === "1";
 
   const banner =
-    bannerParam === "offline" ? <Banner tone="warn">You are offline. Cached pages still work.</Banner> : undefined;
+    bannerParam === "offline" ? <Banner tone="warn">You are offline. This page keeps working; new pages need a connection.</Banner> : undefined;
 
   const page = (
     <>
