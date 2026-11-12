@@ -95,6 +95,14 @@ export const TEST_HOOKS: readonly TestHook[] = [
       "/dev/ui/skeletons",
       "/dev/ui/board",
       "/dev/ui/game",
+      // Phase 3 (phase-03 plan §4.10): the review, game-over and around-review demo routes.
+      "/dev/ui/review",
+      "/dev/ui/review/complete",
+      "/dev/ui/review/share",
+      "/dev/ui/game-over",
+      "/dev/ui/games",
+      "/dev/ui/compare",
+      "/dev/ui/practice",
     ],
   },
   {
@@ -201,6 +209,20 @@ export const TEST_HOOKS: readonly TestHook[] = [
     description: "Socket token claim e2eRun (queue isolation per test pair); minting refuses it unless the token env is test",
     value: "e2eRun",
     proof: { by: "unit", test: "lib/hooks/socket-token.test.ts" },
+  },
+  // ── Phase 3 (phase-03 plan §7.9, §11.2 rule 10) ──
+  {
+    kind: "env",
+    id: "worker-fault",
+    phase: 3,
+    guard: "isTestBuild",
+    description:
+      "WORKER_FAULT (fail_at_ply:n, stall_at_ply:n, engine_crash:n, hold_queue, pause_at:<step>:<ms>) and ENGINE=fake. Read " +
+      "only by apps/analysis-worker (config/env.ts): honoured with APP_ENV dev|test, the worker refuses to boot with either " +
+      "under APP_ENV=production; a kick body's one-shot fault is honoured only with APP_ENV=test. The web app never reads them",
+    env: "WORKER_FAULT",
+    prodGuardValue: "fail_at_ply:1",
+    proof: { by: "unit", test: "../analysis-worker/src/boot.test.ts" },
   },
 ];
 

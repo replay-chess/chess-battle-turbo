@@ -26,6 +26,7 @@ import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import type { BrowserContext, WebSocketRoute } from "@playwright/test";
 import { parse as parseEnv } from "dotenv";
+import { ringSignedBy, WORKER_URL } from "./analysis-worker";
 
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const WS_DIR = path.resolve(WEB_DIR, "../web-socket");
@@ -107,7 +108,17 @@ export function socketServerEnv(
   const origins = [...new Set([web, `http://localhost:${WEB_PORT}`, ...(opts.extraOrigins ?? [])])];
   const webInternal = process.env.INTERNAL_API_SECRET?.trim();
   // The web signs with its own ring (a bare value is kid `web`); the fixture adds an `ops` kid for the broadcast.
-  const internal = [webInternal && !webInternal.includes(":") ? `web:${Buffer.from(webInternal).toString("base64")}` : webInternal, `ops:${OPS_KEY}`]
+  // P3: a run ring that also holds `ws` and `wk` (fixtures/analysis-worker.ts) is reordered so the socket signs its
+  // worker kicks with `ws`, and keeps `wk` so the worker's analysis:* emits and /internal/load probes verify.
+  const internal = [
+    webInternal && !webInternal.includes(":")
+      ? `web:${Buffer.from(webInternal).toString("base64")}`
+      : ringSignedBy(webInternal, "ws")
+          .split(",")
+          .filter((e) => !/^(webwk|opswk):/.test(e.trim()))
+          .join(","),
+    `ops:${OPS_KEY}`,
+  ]
     .filter(Boolean)
     .join(",");
   // Without the web app's token secret the server boots (APP_ENV=test does not require it) but refuses every v2
@@ -136,6 +147,8 @@ export function socketServerEnv(
     POSTHOG_HOST: `http://127.0.0.1:${opts.sinkPort ?? Number(process.env.POSTHOG_SINK_PORT ?? DEFAULT_SINK_PORT)}`,
     POSTHOG_PROJECT_KEY: "phc_e2e_local_sink",
     LOG_LEVEL: process.env.E2E_SOCKET_LOG_LEVEL ?? "warn",
+    // P3: the socket kicks the e2e analysis worker after a live finish (phase-03 plan §7.6).
+    ANALYSIS_WORKER_URL: WORKER_URL,
   };
   if (kind !== "main") env.TIMING_PROFILE = "fast";
   // The v1 path (main server, PROTOCOL_V1=on) sends `x-internal-token` to the web's legacy chess routes, which compare

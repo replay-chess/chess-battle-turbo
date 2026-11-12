@@ -7,7 +7,7 @@
 // never reaches the browser bundle; the e2e telemetry fixture parses what is
 // captured against the same schemas.
 import type { EventProps, ShellEventName } from "@repo/analytics";
-import posthog from "posthog-js";
+import { capturePosthog } from "@/lib/analytics/posthog-client";
 import type { DestinationKey } from "../shell/types";
 import { RAIL_MQ, TABBAR_MQ } from "../layout/media-queries";
 import { isTestBuild } from "../env";
@@ -43,8 +43,7 @@ export function trackShell(event: ShellEvent, opts: { demo?: boolean } = {}): vo
   try {
     const { name, ...props } = event;
     pushToTelemetrySink(name, props);
-    if (!(posthog as unknown as { __loaded?: boolean }).__loaded) return;
-    posthog.capture(name, props);
+    capturePosthog(name, props);
   } catch {
     // Telemetry never breaks navigation.
   }

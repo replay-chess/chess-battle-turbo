@@ -14,6 +14,10 @@
  * The queries are planned with plain EXPLAIN (never executed), so writes are safe; still, only a local or CI
  * Postgres is accepted (localhost, 127.0.0.1, ::1, or the CI service `postgres`). Never a Neon URL.
  *
+ * Phase 3 adds its hot queries (A1, the ETag probe, G1 pages and counts, the worker's claim and reaper, the kick CAS,
+ * the opening, share and prune lookups) from packages/db/scripts/explain-hot.ts (`P3_HOT_QUERIES`); that script also
+ * measures them with EXPLAIN (ANALYZE, BUFFERS) against the perf seed.
+ *
  * Exit 0 = pass; 1 = a missing index or a bad plan (printed); 2 = setup error.
  */
 import { readFileSync } from "node:fs";
@@ -23,6 +27,7 @@ import { Prisma } from "@repo/db";
 import { createPrismaClient } from "../packages/db/src/client";
 import { restoreCandidatesSql } from "../packages/db/src/live/loadLiveGame";
 import { RESTORE_WINDOW_MS } from "../packages/db/src/live/restoreList";
+import { P3_HOT_QUERIES } from "../packages/db/scripts/explain-hot";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "postgres"]);
@@ -156,7 +161,7 @@ async function main(): Promise<number> {
     if (missing.length) failed = true;
     else console.log(`indexes: ${doc.indexes.length} listed, all present`);
 
-    for (const q of HOT_QUERIES) {
+    for (const q of [...HOT_QUERIES, ...P3_HOT_QUERIES]) {
       const plan = await db.$transaction(async (tx) => {
         await tx.$executeRawUnsafe("SET LOCAL enable_seqscan = off");
         await tx.$executeRawUnsafe("SET LOCAL enable_sort = off");

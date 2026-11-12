@@ -199,7 +199,7 @@ test("flush: sent → removed, final refusal → removed, transient → kept, st
       sent.push(ref);
       if (ref === "gone") throw new ApiError({ status: 409, code: "conflict" });
       if (ref === "later") throw new ApiError({ status: 0, code: "network" });
-      return { status: "COMPLETED", outcome: "BLACK", method: "checkmate", analysis: { status: "none" } };
+      return { status: "COMPLETED", outcome: "BLACK", method: "checkmate", analysis: { status: "none", etaSec: null }, comparison: null };
     },
   });
   unmark();

@@ -1,9 +1,26 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
-import { motion } from "motion/react";
+import { withSentry } from "@/lib/sentry/lazy";
 import Link from "next/link";
 import { useEffect } from "react";
+
+/**
+ * The entrance animation, in CSS (FIX-1): this root error boundary is part of every route's first load, and its
+ * `motion/react` import put ~36 kB gzipped of animation library into the shared chunk (the /r Lighthouse gate, G5).
+ * Same timings as before; none under reduced motion.
+ */
+const ERROR_CSS = `
+@keyframes rc-err-king { from { opacity: 0; transform: translateY(-30px) rotate(0deg) } to { opacity: .5; transform: translateY(0) rotate(-35deg) } }
+@keyframes rc-err-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes rc-err-rise { from { opacity: 0; transform: translateY(var(--rc-err-y, 10px)) } to { opacity: 1; transform: none } }
+@keyframes rc-err-line { from { opacity: 0; transform: scaleX(0) } to { opacity: 1; transform: scaleX(1) } }
+.rc-err-king { opacity: .5; transform: rotate(-35deg); animation: rc-err-king 1.4s cubic-bezier(.22,1,.36,1) both }
+.rc-err-a { animation: rc-err-fade .6s both }
+.rc-err-r { animation: rc-err-rise .6s both }
+.rc-err-h { --rc-err-y: 20px; animation: rc-err-rise .8s cubic-bezier(.22,1,.36,1) both }
+.rc-err-l { animation: rc-err-line .8s both }
+@media (prefers-reduced-motion: reduce) { .rc-err-king, .rc-err-a, .rc-err-r, .rc-err-h, .rc-err-l { animation: none } }
+`;
 
 export default function Error({
   error,
@@ -13,11 +30,12 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    withSentry((Sentry) => Sentry.captureException(error));
   }, [error]);
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-cb-bg px-6">
+      <style>{ERROR_CSS}</style>
       {/* Grid background */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.015]"
@@ -33,11 +51,8 @@ export default function Error({
 
       <div className="relative z-10 flex flex-col items-center">
         {/* Fallen King */}
-        <motion.div
-          initial={{ opacity: 0, rotate: 0, y: -30 }}
-          animate={{ opacity: 0.5, rotate: -35, y: 0 }}
-          transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-10 origin-bottom"
+        <div
+          className="mb-10 origin-bottom rc-err-king"
         >
           <svg
             width="80"
@@ -69,65 +84,47 @@ export default function Error({
               <path d="M12.5 37c5.5-3 14.5-3 20 0" />
             </g>
           </svg>
-        </motion.div>
+        </div>
 
         {/* Micro label */}
-        <motion.span
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="mb-5 text-[10px] tracking-[0.3em] uppercase text-cb-text-muted"
+        <span
+          className="mb-5 text-[10px] tracking-[0.3em] uppercase text-cb-text-muted rc-err-a" style={{ animationDelay: "0.4s" }}
         >
           Something went wrong
-        </motion.span>
+        </span>
 
         {/* Heading */}
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-5 font-[family-name:var(--font-instrument-serif)] text-5xl italic text-cb-text sm:text-6xl"
+        <h1
+          className="mb-5 font-[family-name:var(--font-instrument-serif)] text-5xl italic text-cb-text sm:text-6xl rc-err-h" style={{ animationDelay: "0.5s" }}
         >
           Position Lost
-        </motion.h1>
+        </h1>
 
         {/* Gradient divider */}
-        <motion.div
-          initial={{ opacity: 0, scaleX: 0 }}
-          animate={{ opacity: 1, scaleX: 1 }}
-          transition={{ duration: 0.8, delay: 0.7 }}
-          className="mb-6 h-px w-48 bg-gradient-to-r from-transparent via-cb-border-strong to-transparent"
+        <div
+          className="mb-6 h-px w-48 bg-gradient-to-r from-transparent via-cb-border-strong to-transparent rc-err-l" style={{ animationDelay: "0.7s" }}
         />
 
         {/* Description */}
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.8 }}
-          className="mb-8 max-w-md text-center text-sm leading-relaxed text-cb-text-muted"
+        <p
+          className="mb-8 max-w-md text-center text-sm leading-relaxed text-cb-text-muted rc-err-r" style={{ animationDelay: "0.8s" }}
         >
           An unexpected error disrupted the game. The position has been reported
           and we&apos;re working to restore it.
-        </motion.p>
+        </p>
 
         {/* Error digest */}
         {error.digest && (
-          <motion.code
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 1 }}
-            className="mb-8 select-all font-[family-name:var(--font-geist-mono)] text-[11px] text-cb-text-faint"
+          <code
+            className="mb-8 select-all font-[family-name:var(--font-geist-mono)] text-[11px] text-cb-text-faint rc-err-a" style={{ animationDelay: "1s" }}
           >
             {error.digest}
-          </motion.code>
+          </code>
         )}
 
         {/* Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 1.1 }}
-          className="flex items-center gap-4"
+        <div
+          className="flex items-center gap-4 rc-err-r" style={{ animationDelay: "1.1s" }}
         >
           <button
             type="button"
@@ -142,7 +139,7 @@ export default function Error({
           >
             Return Home
           </Link>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

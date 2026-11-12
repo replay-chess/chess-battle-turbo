@@ -1,0 +1,47 @@
+{
+  "name": "analysis-worker",
+  "version": "0.1.0",
+  "description": "Replay Chess analysis worker: grades finished games with native Stockfish 18 (phase-03 plan §8.12)",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "build": "node scripts/build.mjs",
+    "start": "node dist/main.cjs",
+    "test": "tsx --test \"src/**/*.test.ts\" \"scripts/**/*.test.ts\"",
+    "test:int": "tsx --test \"src/**/*.int.test.ts\"",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src scripts --no-error-on-unmatched-pattern --max-warnings 0",
+    "bench": "tsx scripts/bench.ts",
+    "seed:evalcache": "tsx scripts/seed-evalcache.ts",
+    "upload:evalcache": "tsx scripts/upload-evalcache-seed.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "1.2.0",
+    "@repo/analytics": "workspace:*",
+    "@repo/chess-analysis": "workspace:*",
+    "@repo/contracts": "workspace:*",
+    "@repo/db": "workspace:*",
+    "@sentry/node": "10.38.0",
+    "better-sqlite3": "13.0.3",
+    "chess.js": "1.4.0",
+    "lru-cache": "11.5.3",
+    "pg": "8.23.1",
+    "posthog-node": "5.56.4",
+    "zod": "4.1.12"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "3.1159.0",
+    "@repo/chess-fixtures": "workspace:*",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/better-sqlite3": "9.6.0",
+    "@types/node": "24.8.1",
+    "@types/pg": "8.23.1",
+    "esbuild": "0.25.11",
+    "eslint": "^9.34.0",
+    "tsx": "4.20.6",
+    "typescript": "5.9.2"
+  }
+}

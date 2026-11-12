@@ -15,6 +15,7 @@ import { membershipReconcile } from "./membership-reconcile";
 import { rateLimitSweep } from "./rate-limit-sweep";
 import { staleBotGames } from "./stale-bot-games";
 import { webhookRetention } from "./webhook-retention";
+import { workerAlive } from "./worker-alive";
 
 export type CronContext = {
   /** Start time of the run. */
@@ -52,8 +53,15 @@ export type CronRunReport = {
   durationMs: number;
 };
 
-/** The tasks, in run order (P1, then P2's stale bot-game sweep and idempotency-key prune). */
-export const CRON_TASKS: readonly CronTask[] = [rateLimitSweep, webhookRetention, membershipReconcile, staleBotGames, idempotencyPrune];
+/** The tasks, in run order (P1, then P2's stale bot-game sweep and idempotency-key prune, then P3's worker backstop). */
+export const CRON_TASKS: readonly CronTask[] = [
+  rateLimitSweep,
+  webhookRetention,
+  membershipReconcile,
+  staleBotGames,
+  idempotencyPrune,
+  workerAlive,
+];
 
 /** Route budget: `maxDuration = 60`; long tasks stop taking new work after this many ms. */
 export const CRON_SOFT_BUDGET_MS = 45_000;

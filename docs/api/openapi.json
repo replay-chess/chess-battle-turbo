@@ -16,6 +16,67 @@
       }
     },
     "schemas": {
+      "AnalyseBody": {
+        "properties": {
+          "reason": {
+            "default": "opened",
+            "enum": [
+              "opened",
+              "regrade"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AnalyseResponse": {
+        "properties": {
+          "etaSec": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "position": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "done"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "position",
+          "etaSec"
+        ],
+        "type": "object"
+      },
+      "AnalysisFailureCode": {
+        "enum": [
+          "engine_failed",
+          "worker_stalled",
+          "timeout",
+          "internal"
+        ],
+        "type": "string"
+      },
+      "AnalysisStatusWire": {
+        "enum": [
+          "none",
+          "queued",
+          "running",
+          "done",
+          "failed",
+          "skipped"
+        ],
+        "type": "string"
+      },
       "AppEnv": {
         "enum": [
           "dev",
@@ -114,6 +175,39 @@
         ],
         "type": "string"
       },
+      "ComparisonStatusWire": {
+        "enum": [
+          "facts_ready",
+          "narrating",
+          "ready",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "CompleteAnalysis": {
+        "properties": {
+          "etaSec": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/AnalysisStatusWire"
+          }
+        },
+        "required": [
+          "status",
+          "etaSec"
+        ],
+        "type": "object"
+      },
       "CompleteBody": {
         "properties": {
           "assists": {
@@ -164,21 +258,133 @@
         ],
         "type": "object"
       },
+      "CompleteMoment": {
+        "properties": {
+          "bestSan": {
+            "pattern": "^(?:O-O(?:-O)?|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?$",
+            "type": "string"
+          },
+          "fenAfter": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "judgement": {
+            "$ref": "#/components/schemas/JKey"
+          },
+          "moveLabel": {
+            "pattern": "^[1-9]\\d{0,3}(?:\\.|…)$",
+            "type": "string"
+          },
+          "playedSan": {
+            "pattern": "^(?:O-O(?:-O)?|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?$",
+            "type": "string"
+          },
+          "ply": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MomentResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "why0": {
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ply",
+          "moveLabel",
+          "fenAfter",
+          "playedSan",
+          "bestSan",
+          "judgement",
+          "why0",
+          "result"
+        ],
+        "type": "object"
+      },
+      "CompleteOut": {
+        "properties": {
+          "accuracy": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bestThisMonth": {
+            "type": "boolean"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "found": {
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "isClean": {
+            "type": "boolean"
+          },
+          "moments": {
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "revealed": {
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "accuracy",
+          "moments",
+          "found",
+          "revealed",
+          "isClean",
+          "bestThisMonth",
+          "completedAt"
+        ],
+        "type": "object"
+      },
       "CompleteResponse": {
         "properties": {
           "analysis": {
-            "properties": {
-              "status": {
-                "enum": [
-                  "none"
-                ],
-                "type": "string"
+            "$ref": "#/components/schemas/CompleteAnalysis"
+          },
+          "comparison": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LegendSummaryDTO"
+              },
+              {
+                "type": "null"
               }
-            },
-            "required": [
-              "status"
-            ],
-            "type": "object"
+            ]
           },
           "method": {
             "$ref": "#/components/schemas/EndMethod"
@@ -204,7 +410,8 @@
           "status",
           "outcome",
           "method",
-          "analysis"
+          "analysis",
+          "comparison"
         ],
         "type": "object"
       },
@@ -216,6 +423,44 @@
           "aborted"
         ],
         "type": "string"
+      },
+      "CompleteStandout": {
+        "properties": {
+          "caption": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "fenAfter": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "judgement": {
+            "$ref": "#/components/schemas/JKey"
+          },
+          "moveLabel": {
+            "pattern": "^[1-9]\\d{0,3}(?:\\.|…)$",
+            "type": "string"
+          },
+          "ply": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "san": {
+            "pattern": "^(?:O-O(?:-O)?|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ply",
+          "moveLabel",
+          "fenAfter",
+          "san",
+          "judgement",
+          "caption"
+        ],
+        "type": "object"
       },
       "CronDailyData": {
         "properties": {
@@ -266,6 +511,13 @@
           "ms"
         ],
         "type": "object"
+      },
+      "DivergenceBy": {
+        "enum": [
+          "user",
+          "opponent"
+        ],
+        "type": "string"
       },
       "EndMethod": {
         "enum": [
@@ -421,7 +673,8 @@
               "in_flight",
               "idempotency_key_reused",
               "illegal_position",
-              "illegal_moves"
+              "illegal_moves",
+              "gone"
             ],
             "type": "string"
           },
@@ -468,6 +721,96 @@
         },
         "required": [
           "error"
+        ],
+        "type": "object"
+      },
+      "ExplanationSegment": {
+        "properties": {
+          "endTime": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "narration": {
+            "type": "string"
+          },
+          "startTime": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "visuals": {
+            "items": {
+              "$ref": "#/components/schemas/ExplanationVisual"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "visuals",
+          "narration",
+          "startTime",
+          "endTime"
+        ],
+        "type": "object"
+      },
+      "ExplanationVisual": {
+        "additionalProperties": {},
+        "properties": {
+          "color": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "san": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          },
+          "square": {
+            "type": "string"
+          },
+          "squares": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "triggerTime": {
+            "type": "number"
+          },
+          "type": {
+            "enum": [
+              "highlight",
+              "arrow",
+              "showMove",
+              "clearVisuals",
+              "resetBoard",
+              "undoMoves",
+              "annotateSquare",
+              "annotate",
+              "showEvalBar"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
         ],
         "type": "object"
       },
@@ -658,6 +1001,192 @@
         },
         "required": [
           "ref"
+        ],
+        "type": "object"
+      },
+      "GameResultFilter": {
+        "enum": [
+          "win",
+          "loss",
+          "draw"
+        ],
+        "type": "string"
+      },
+      "GameRowDTO": {
+        "properties": {
+          "accuracy": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "analysisStatus": {
+            "$ref": "#/components/schemas/AnalysisStatusWire"
+          },
+          "color": {
+            "$ref": "#/components/schemas/Color"
+          },
+          "finalFen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "hasComparison": {
+            "type": "boolean"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "momentsCount": {
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "opening": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Opening"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "opponent": {
+            "properties": {
+              "kind": {
+                "$ref": "#/components/schemas/PlayerKind"
+              },
+              "name": {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              "rating": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "rating",
+              "kind"
+            ],
+            "type": "object"
+          },
+          "playedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "playedAtLabel": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "positionTitle": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ratingDelta": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/GameResultFilter"
+          },
+          "source": {
+            "$ref": "#/components/schemas/GameSourceWire"
+          },
+          "tc": {
+            "properties": {
+              "label": {
+                "maxLength": 40,
+                "type": "string"
+              },
+              "timeClass": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "bullet",
+                      "blitz",
+                      "rapid",
+                      "classical",
+                      "untimed"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "label",
+              "timeClass"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "ref",
+          "color",
+          "result",
+          "opponent",
+          "headline",
+          "opening",
+          "positionTitle",
+          "tc",
+          "playedAt",
+          "playedAtLabel",
+          "ratingDelta",
+          "source",
+          "finalFen",
+          "analysisStatus",
+          "momentsCount",
+          "accuracy",
+          "hasComparison"
         ],
         "type": "object"
       },
@@ -1400,6 +1929,14 @@
         ],
         "type": "object"
       },
+      "GameSourceWire": {
+        "enum": [
+          "replay",
+          "chesscom",
+          "lichess"
+        ],
+        "type": "string"
+      },
       "GameState": {
         "properties": {
           "bot": {
@@ -2130,6 +2667,82 @@
         ],
         "type": "string"
       },
+      "GameTcFilter": {
+        "enum": [
+          "bullet",
+          "blitz",
+          "rapid",
+          "classical"
+        ],
+        "type": "string"
+      },
+      "GamesPageMeta": {
+        "properties": {
+          "counts": {
+            "properties": {
+              "all": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "all"
+            ],
+            "type": "object"
+          },
+          "filteredTotal": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "GamesQuery": {
+        "properties": {
+          "cursor": {
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "type": "string"
+          },
+          "limit": {
+            "default": 30,
+            "maximum": 30,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "moments": {
+            "type": "string"
+          },
+          "q": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "result": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "tc": {
+            "maxLength": 60,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "HealthData": {
         "properties": {
           "buildId": {
@@ -2178,6 +2791,561 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "JKey": {
+        "enum": [
+          "brilliant",
+          "great",
+          "best",
+          "excellent",
+          "good",
+          "book",
+          "forced",
+          "interesting",
+          "inaccuracy",
+          "mistake",
+          "miss",
+          "blunder"
+        ],
+        "type": "string"
+      },
+      "LegendCompareDTO": {
+        "properties": {
+          "analysisStatus": {
+            "$ref": "#/components/schemas/AnalysisStatusWire"
+          },
+          "attempts": {
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "audioUrl": {
+            "anyOf": [
+              {
+                "format": "uri",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "compared": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "divergence": {
+            "anyOf": [
+              {
+                "properties": {
+                  "by": {
+                    "$ref": "#/components/schemas/DivergenceBy"
+                  },
+                  "fenBefore": {
+                    "maxLength": 100,
+                    "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+                    "type": "string"
+                  },
+                  "legendSan": {
+                    "pattern": "^(?:O-O(?:-O)?|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?$",
+                    "type": "string"
+                  },
+                  "legendUci": {
+                    "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+                    "type": "string"
+                  },
+                  "moveLabel": {
+                    "pattern": "^[1-9]\\d{0,3}(?:\\.|…)$",
+                    "type": "string"
+                  },
+                  "ply": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "userSan": {
+                    "pattern": "^(?:O-O(?:-O)?|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?$",
+                    "type": "string"
+                  },
+                  "userUci": {
+                    "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "ply",
+                  "moveLabel",
+                  "by",
+                  "userUci",
+                  "userSan",
+                  "legendUci",
+                  "legendSan",
+                  "fenBefore"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evalAtDivergence": {
+            "anyOf": [
+              {
+                "properties": {
+                  "legendWin": {
+                    "maximum": 100,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "userWin": {
+                    "maximum": 100,
+                    "minimum": 0,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "userWin",
+                  "legendWin"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaticExplanation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hasExplanation": {
+            "type": "boolean"
+          },
+          "legend": {
+            "properties": {
+              "fullName": {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              "positionRef": {
+                "pattern": "^c[a-z0-9]{20,31}$",
+                "type": "string"
+              },
+              "title": {
+                "maxLength": 160,
+                "type": "string"
+              },
+              "year": {
+                "anyOf": [
+                  {
+                    "maximum": 2100,
+                    "minimum": 1400,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "fullName",
+              "year",
+              "title",
+              "positionRef"
+            ],
+            "type": "object"
+          },
+          "legendLine": {
+            "$ref": "#/components/schemas/LegendLine"
+          },
+          "legendResult": {
+            "$ref": "#/components/schemas/LegendResult"
+          },
+          "legendTotalMoves": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "matched": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "outcomeLine": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "paragraph": {
+            "maxLength": 600,
+            "type": "string"
+          },
+          "players": {
+            "properties": {
+              "b": {
+                "$ref": "#/components/schemas/PlayerCard"
+              },
+              "w": {
+                "$ref": "#/components/schemas/PlayerCard"
+              }
+            },
+            "required": [
+              "w",
+              "b"
+            ],
+            "type": "object"
+          },
+          "practice": {
+            "properties": {
+              "botElo": {
+                "maximum": 3200,
+                "minimum": 400,
+                "type": "integer"
+              },
+              "href": {
+                "pattern": "^\\/practice\\?.*",
+                "type": "string"
+              },
+              "ply": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "ply",
+              "href",
+              "botElo"
+            ],
+            "type": "object"
+          },
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "startFen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "startPly": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ComparisonStatusWire"
+          },
+          "summaryLine": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "userResult": {
+            "enum": [
+              "win",
+              "loss",
+              "draw"
+            ],
+            "type": "string"
+          },
+          "v": {
+            "const": 1,
+            "type": "number"
+          },
+          "you": {
+            "$ref": "#/components/schemas/Color"
+          },
+          "yourLine": {
+            "$ref": "#/components/schemas/LegendLine"
+          }
+        },
+        "required": [
+          "v",
+          "ref",
+          "status",
+          "attempts",
+          "analysisStatus",
+          "legend",
+          "you",
+          "players",
+          "startFen",
+          "startPly",
+          "matched",
+          "compared",
+          "divergence",
+          "evalAtDivergence",
+          "legendResult",
+          "legendTotalMoves",
+          "userResult",
+          "summaryLine",
+          "paragraph",
+          "outcomeLine",
+          "yourLine",
+          "legendLine",
+          "practice",
+          "hasExplanation",
+          "explanation",
+          "audioUrl",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "LegendCompareQuery": {
+        "properties": {
+          "include": {
+            "enum": [
+              "explanation"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LegendComputeBody": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "LegendComputeResponse": {
+        "properties": {
+          "status": {
+            "const": "computing",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "LegendLine": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/LegendLineRow"
+            },
+            "maxItems": 61,
+            "type": "array"
+          },
+          "uci": {
+            "maxLength": 720,
+            "type": "string"
+          }
+        },
+        "required": [
+          "uci",
+          "rows"
+        ],
+        "type": "object"
+      },
+      "LegendLineRow": {
+        "properties": {
+          "b": {
+            "anyOf": [
+              {
+                "maxLength": 10,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mark": {
+            "$ref": "#/components/schemas/LegendRowMark"
+          },
+          "n": {
+            "pattern": "^[1-9]\\d{0,3}\\.$",
+            "type": "string"
+          },
+          "w": {
+            "anyOf": [
+              {
+                "maxLength": 10,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "n",
+          "w",
+          "b",
+          "mark"
+        ],
+        "type": "object"
+      },
+      "LegendResult": {
+        "enum": [
+          "white_won",
+          "black_won",
+          "draw"
+        ],
+        "type": "string"
+      },
+      "LegendRowMark": {
+        "enum": [
+          "match",
+          "split",
+          "none"
+        ],
+        "type": "string"
+      },
+      "LegendSummaryDTO": {
+        "properties": {
+          "compareHref": {
+            "pattern": "^\\/review\\/.*",
+            "type": "string"
+          },
+          "compared": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "divergence": {
+            "anyOf": [
+              {
+                "properties": {
+                  "by": {
+                    "$ref": "#/components/schemas/DivergenceBy"
+                  },
+                  "legendSan": {
+                    "pattern": "^(?:O-O(?:-O)?|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?$",
+                    "type": "string"
+                  },
+                  "moveLabel": {
+                    "pattern": "^[1-9]\\d{0,3}(?:\\.|…)$",
+                    "type": "string"
+                  },
+                  "ply": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "userSan": {
+                    "pattern": "^(?:O-O(?:-O)?|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "ply",
+                  "moveLabel",
+                  "userSan",
+                  "legendSan",
+                  "by"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "legendName": {
+            "maxLength": 40,
+            "minLength": 1,
+            "type": "string"
+          },
+          "legendResult": {
+            "$ref": "#/components/schemas/LegendResult"
+          },
+          "matched": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "outcomeLine": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "replayHref": {
+            "anyOf": [
+              {
+                "pattern": "^\\/practice\\?.*",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rows": {
+            "items": {
+              "properties": {
+                "legend": {
+                  "maxLength": 10,
+                  "type": "string"
+                },
+                "mark": {
+                  "$ref": "#/components/schemas/LegendRowMark"
+                },
+                "n": {
+                  "pattern": "^[1-9]\\d{0,3}(?:\\.|…)$",
+                  "type": "string"
+                },
+                "yours": {
+                  "maxLength": 10,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "n",
+                "yours",
+                "legend",
+                "mark"
+              ],
+              "type": "object"
+            },
+            "maxItems": 6,
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ComparisonStatusWire"
+          }
+        },
+        "required": [
+          "status",
+          "legendName",
+          "legendResult",
+          "matched",
+          "compared",
+          "divergence",
+          "rows",
+          "outcomeLine",
+          "compareHref",
+          "replayHref"
+        ],
         "type": "object"
       },
       "MeData": {
@@ -2279,6 +3447,189 @@
         ],
         "type": "string"
       },
+      "MomentBankBody": {
+        "properties": {
+          "inBank": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "inBank"
+        ],
+        "type": "object"
+      },
+      "MomentBankResponse": {
+        "properties": {
+          "card": {
+            "type": "null"
+          },
+          "inBank": {
+            "type": "boolean"
+          },
+          "ply": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ply",
+          "inBank",
+          "card"
+        ],
+        "type": "object"
+      },
+      "MomentDTO": {
+        "properties": {
+          "accept": {
+            "items": {
+              "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "type": "array"
+          },
+          "ask": {
+            "maxLength": 300,
+            "type": "string"
+          },
+          "attempts": {
+            "maximum": 50,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "bestSan": {
+            "pattern": "^(?:O-O(?:-O)?|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?$",
+            "type": "string"
+          },
+          "bestUci": {
+            "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+            "type": "string"
+          },
+          "inBank": {
+            "type": "boolean"
+          },
+          "intent": {
+            "$ref": "#/components/schemas/PlanKey"
+          },
+          "judgement": {
+            "$ref": "#/components/schemas/JKey"
+          },
+          "line": {
+            "maxLength": 60,
+            "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?(?: [a-h][1-8][a-h][1-8][qrbn]?){0,7}$",
+            "type": "string"
+          },
+          "lineSan": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "moveLabel": {
+            "pattern": "^[1-9]\\d{0,3}(?:\\.|…)$",
+            "type": "string"
+          },
+          "plan": {
+            "additionalProperties": {
+              "maxLength": 200,
+              "type": "string"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/PlanKey"
+            },
+            "type": "object"
+          },
+          "playedSan": {
+            "pattern": "^(?:O-O(?:-O)?|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?$",
+            "type": "string"
+          },
+          "playedUci": {
+            "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+            "type": "string"
+          },
+          "ply": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MomentResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "why": {
+            "items": {
+              "$ref": "#/components/schemas/Sentence"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "type": "array"
+          },
+          "winAfter": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          },
+          "winBefore": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "ply",
+          "moveLabel",
+          "judgement",
+          "playedUci",
+          "playedSan",
+          "bestUci",
+          "bestSan",
+          "accept",
+          "line",
+          "lineSan",
+          "winBefore",
+          "winAfter",
+          "intent",
+          "ask",
+          "why",
+          "plan",
+          "inBank",
+          "result",
+          "attempts"
+        ],
+        "type": "object"
+      },
+      "MomentParams": {
+        "properties": {
+          "ply": {
+            "maximum": 1200,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref",
+          "ply"
+        ],
+        "type": "object"
+      },
+      "MomentResult": {
+        "enum": [
+          "found",
+          "found_retry",
+          "revealed"
+        ],
+        "type": "string"
+      },
       "OkMeta": {
         "properties": {
           "nextCursor": {
@@ -2297,6 +3648,24 @@
             "type": "integer"
           }
         },
+        "type": "object"
+      },
+      "Opening": {
+        "properties": {
+          "eco": {
+            "pattern": "^[A-E]\\d{2}$",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "eco",
+          "name"
+        ],
         "type": "object"
       },
       "OpeningIndexEntry": {
@@ -2384,6 +3753,1200 @@
         ],
         "type": "object"
       },
+      "PgnResult": {
+        "enum": [
+          "1-0",
+          "0-1",
+          "1/2-1/2",
+          "*"
+        ],
+        "type": "string"
+      },
+      "PlanKey": {
+        "enum": [
+          "attack",
+          "defend",
+          "trade",
+          "improve",
+          "unsure"
+        ],
+        "type": "string"
+      },
+      "PlayerCard": {
+        "properties": {
+          "initials": {
+            "maxLength": 2,
+            "minLength": 1,
+            "type": "string"
+          },
+          "isYou": {
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PlayerKind"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "rating",
+          "initials",
+          "kind",
+          "isYou"
+        ],
+        "type": "object"
+      },
+      "PlayerKind": {
+        "enum": [
+          "member",
+          "bot",
+          "external",
+          "legend"
+        ],
+        "type": "string"
+      },
+      "PracticeContextDTO": {
+        "properties": {
+          "backHref": {
+            "pattern": "^\\/.*",
+            "type": "string"
+          },
+          "botElo": {
+            "maximum": 3200,
+            "minimum": 400,
+            "type": "integer"
+          },
+          "compareHref": {
+            "anyOf": [
+              {
+                "pattern": "^\\/review\\/.*",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "fromLabel": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "humanColor": {
+            "$ref": "#/components/schemas/Color"
+          },
+          "planLine": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sideToMove": {
+            "$ref": "#/components/schemas/Color"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PracticeSource"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "fen",
+          "sideToMove",
+          "humanColor",
+          "title",
+          "fromLabel",
+          "botElo",
+          "backHref",
+          "compareHref",
+          "planLine"
+        ],
+        "type": "object"
+      },
+      "PracticeQuery": {
+        "properties": {
+          "fen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "game": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "ply": {
+            "maximum": 1200,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "position": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PracticeSource": {
+        "enum": [
+          "game",
+          "position",
+          "fen"
+        ],
+        "type": "string"
+      },
+      "ProgressBody": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressEvent"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "momentIndex": {
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "momentIndex",
+          "events"
+        ],
+        "type": "object"
+      },
+      "ProgressEvent": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "chip": {
+            "$ref": "#/components/schemas/PlanKey"
+          },
+          "correct": {
+            "type": "boolean"
+          },
+          "ply": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": {
+            "enum": [
+              "viewed",
+              "attempt",
+              "plan_picked",
+              "revealed",
+              "show_line"
+            ],
+            "type": "string"
+          },
+          "uci": {
+            "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "ply",
+          "at"
+        ],
+        "type": "object"
+      },
+      "QueueInfo": {
+        "properties": {
+          "etaSec": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "position": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "position",
+          "etaSec"
+        ],
+        "type": "object"
+      },
+      "RetryBody": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "RetryResponse": {
+        "properties": {
+          "etaSec": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "resumeFromPly": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "const": "queued",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "resumeFromPly",
+          "etaSec"
+        ],
+        "type": "object"
+      },
+      "ReviewAnalysis": {
+        "properties": {
+          "accuracy": {
+            "properties": {
+              "b": {
+                "anyOf": [
+                  {
+                    "maximum": 100,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "w": {
+                "anyOf": [
+                  {
+                    "maximum": 100,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "w",
+              "b"
+            ],
+            "type": "object"
+          },
+          "best": {
+            "maxLength": 7200,
+            "pattern": "^(?:(?:[a-h][1-8][a-h][1-8][qrbn]?|-)(?: (?:[a-h][1-8][a-h][1-8][qrbn]?|-))*)?$",
+            "type": "string"
+          },
+          "counts": {
+            "properties": {
+              "b": {
+                "items": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "maxItems": 13,
+                "minItems": 13,
+                "type": "array"
+              },
+              "w": {
+                "items": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "maxItems": 13,
+                "minItems": 13,
+                "type": "array"
+              }
+            },
+            "required": [
+              "w",
+              "b"
+            ],
+            "type": "object"
+          },
+          "depthLabel": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "engineLabel": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "evals": {
+            "items": {
+              "maximum": 30000,
+              "minimum": -30000,
+              "type": "integer"
+            },
+            "maxItems": 1201,
+            "type": "array"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewFailure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gradedPlies": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "j": {
+            "maxLength": 1200,
+            "pattern": "^[.BGbEgkFNIMSX]*$",
+            "type": "string"
+          },
+          "phaseAccuracy": {
+            "properties": {
+              "b": {
+                "items": {
+                  "maximum": 100,
+                  "minimum": -1,
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "type": "array"
+              },
+              "w": {
+                "items": {
+                  "maximum": 100,
+                  "minimum": -1,
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "type": "array"
+              }
+            },
+            "required": [
+              "w",
+              "b"
+            ],
+            "type": "object"
+          },
+          "phases": {
+            "properties": {
+              "endgamePly": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "middlegamePly": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "middlegamePly",
+              "endgamePly"
+            ],
+            "type": "object"
+          },
+          "queue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QueueInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "totalPlies": {
+            "maximum": 1200,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "engineLabel",
+          "depthLabel",
+          "gradedPlies",
+          "totalPlies",
+          "evals",
+          "best",
+          "j",
+          "accuracy",
+          "phaseAccuracy",
+          "phases",
+          "counts",
+          "failure",
+          "queue"
+        ],
+        "type": "object"
+      },
+      "ReviewCompleteView": {
+        "properties": {
+          "accuracy": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bestDecision": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bestThisMonth": {
+            "type": "boolean"
+          },
+          "brilliant": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "found": {
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "header": {
+            "properties": {
+              "eyebrow": {
+                "maxLength": 160,
+                "type": "string"
+              },
+              "opponentName": {
+                "maxLength": 120,
+                "type": "string"
+              },
+              "resultLabel": {
+                "maxLength": 12,
+                "type": "string"
+              }
+            },
+            "required": [
+              "eyebrow",
+              "opponentName",
+              "resultLabel"
+            ],
+            "type": "object"
+          },
+          "isClean": {
+            "type": "boolean"
+          },
+          "moments": {
+            "items": {
+              "$ref": "#/components/schemas/CompleteMoment"
+            },
+            "maxItems": 3,
+            "type": "array"
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "reviewed": {
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shareEnabled": {
+            "type": "boolean"
+          },
+          "standouts": {
+            "items": {
+              "$ref": "#/components/schemas/CompleteStandout"
+            },
+            "maxItems": 3,
+            "type": "array"
+          },
+          "v": {
+            "const": 1,
+            "type": "number"
+          }
+        },
+        "required": [
+          "v",
+          "ref",
+          "header",
+          "accuracy",
+          "moments",
+          "found",
+          "reviewed",
+          "isClean",
+          "bestDecision",
+          "brilliant",
+          "standouts",
+          "bestThisMonth",
+          "partial",
+          "shareEnabled"
+        ],
+        "type": "object"
+      },
+      "ReviewContentDTO": {
+        "properties": {
+          "bestDecision": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bestPly": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coachLine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sentence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isClean": {
+            "type": "boolean"
+          },
+          "moments": {
+            "items": {
+              "$ref": "#/components/schemas/MomentDTO"
+            },
+            "maxItems": 3,
+            "type": "array"
+          },
+          "phaseLine": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/ReviewProgressDTO"
+          },
+          "summary": {
+            "items": {
+              "$ref": "#/components/schemas/Sentence"
+            },
+            "maxItems": 4,
+            "type": "array"
+          },
+          "textStatus": {
+            "$ref": "#/components/schemas/TextStatus"
+          }
+        },
+        "required": [
+          "textStatus",
+          "summary",
+          "coachLine",
+          "phaseLine",
+          "headline",
+          "isClean",
+          "bestPly",
+          "bestDecision",
+          "moments",
+          "progress"
+        ],
+        "type": "object"
+      },
+      "ReviewDTO": {
+        "properties": {
+          "analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewAnalysis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clocks": {
+            "items": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 1200,
+            "type": "array"
+          },
+          "game": {
+            "$ref": "#/components/schemas/ReviewGame"
+          },
+          "moves": {
+            "maxLength": 7200,
+            "type": "string"
+          },
+          "players": {
+            "properties": {
+              "b": {
+                "$ref": "#/components/schemas/PlayerCard"
+              },
+              "w": {
+                "$ref": "#/components/schemas/PlayerCard"
+              }
+            },
+            "required": [
+              "w",
+              "b"
+            ],
+            "type": "object"
+          },
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewContentDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "san": {
+            "maxLength": 9600,
+            "type": "string"
+          },
+          "share": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewShareInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/AnalysisStatusWire"
+          },
+          "v": {
+            "const": 1,
+            "type": "number"
+          },
+          "you": {
+            "$ref": "#/components/schemas/Color"
+          }
+        },
+        "required": [
+          "v",
+          "ref",
+          "status",
+          "game",
+          "players",
+          "you",
+          "moves",
+          "san",
+          "clocks",
+          "analysis",
+          "review",
+          "share"
+        ],
+        "type": "object"
+      },
+      "ReviewFailure": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/AnalysisFailureCode"
+          },
+          "failedAtPly": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "retryAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "failedAtPly",
+          "retryable",
+          "retryAt",
+          "code"
+        ],
+        "type": "object"
+      },
+      "ReviewGame": {
+        "properties": {
+          "endLabel": {
+            "maxLength": 80,
+            "type": "string"
+          },
+          "legend": {
+            "anyOf": [
+              {
+                "properties": {
+                  "compareHref": {
+                    "pattern": "^\\/review\\/.*",
+                    "type": "string"
+                  },
+                  "name": {
+                    "maxLength": 40,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "compareHref"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ReviewGameMode"
+          },
+          "opening": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Opening"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "playedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "playedAtLabel": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/PgnResult"
+          },
+          "source": {
+            "$ref": "#/components/schemas/GameSourceWire"
+          },
+          "startFen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "startPly": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tc": {
+            "properties": {
+              "incSec": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "initialSec": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "label": {
+                "maxLength": 40,
+                "type": "string"
+              },
+              "timeClass": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "bullet",
+                      "blitz",
+                      "rapid",
+                      "classical",
+                      "untimed"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "label",
+              "timeClass",
+              "initialSec",
+              "incSec"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "mode",
+          "source",
+          "startFen",
+          "startPly",
+          "tc",
+          "result",
+          "endLabel",
+          "playedAt",
+          "playedAtLabel",
+          "opening",
+          "legend"
+        ],
+        "type": "object"
+      },
+      "ReviewGameMode": {
+        "enum": [
+          "online",
+          "friend",
+          "bot",
+          "legend_bot",
+          "tournament",
+          "imported"
+        ],
+        "type": "string"
+      },
+      "ReviewProgressDTO": {
+        "properties": {
+          "completedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "momentIndex": {
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "momentIndex",
+          "startedAt",
+          "completedAt"
+        ],
+        "type": "object"
+      },
+      "ReviewRefParams": {
+        "properties": {
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref"
+        ],
+        "type": "object"
+      },
+      "ReviewShareInfo": {
+        "properties": {
+          "code": {
+            "pattern": "^[0-9a-hjkmnp-tv-z]{8}$",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "showUsername": {
+            "type": "boolean"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "url",
+          "expiresAt",
+          "showUsername"
+        ],
+        "type": "object"
+      },
+      "ReviewStatusDTO": {
+        "properties": {
+          "analysis": {
+            "properties": {
+              "code": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AnalysisFailureCode"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "etaSec": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "failedAtPly": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "gradedPlies": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "retryAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "retryable": {
+                "type": "boolean"
+              },
+              "status": {
+                "$ref": "#/components/schemas/AnalysisStatusWire"
+              },
+              "totalPlies": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "status",
+              "gradedPlies",
+              "totalPlies",
+              "failedAtPly",
+              "retryable",
+              "retryAt",
+              "code",
+              "etaSec"
+            ],
+            "type": "object"
+          },
+          "bank": {
+            "type": "null"
+          },
+          "comparison": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LegendSummaryDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review": {
+            "properties": {
+              "accuracy": {
+                "anyOf": [
+                  {
+                    "maximum": 100,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "coachLine": {
+                "anyOf": [
+                  {
+                    "maxLength": 160,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "isClean": {
+                "type": "boolean"
+              },
+              "momentsCount": {
+                "maximum": 3,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "ready": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ready",
+              "accuracy",
+              "momentsCount",
+              "isClean",
+              "coachLine"
+            ],
+            "type": "object"
+          },
+          "v": {
+            "const": 1,
+            "type": "number"
+          }
+        },
+        "required": [
+          "v",
+          "analysis",
+          "review",
+          "comparison",
+          "bank"
+        ],
+        "type": "object"
+      },
       "ScheduledPlanChange": {
         "properties": {
           "effectiveAt": {
@@ -2410,6 +4973,103 @@
         ],
         "type": "object"
       },
+      "Sentence": {
+        "properties": {
+          "t": {
+            "maxLength": 400,
+            "type": "string"
+          },
+          "v": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "t",
+          "v"
+        ],
+        "type": "object"
+      },
+      "ShareCodeParams": {
+        "properties": {
+          "code": {
+            "pattern": "^[0-9a-hjkmnp-tv-z]{8}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      },
+      "ShareCreateBody": {
+        "properties": {
+          "from": {
+            "$ref": "#/components/schemas/ShareFrom",
+            "default": "review_menu"
+          },
+          "momentPly": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "showUsername": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "ShareDTO": {
+        "properties": {
+          "code": {
+            "pattern": "^[0-9a-hjkmnp-tv-z]{8}$",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "imageUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "showUsername": {
+            "type": "boolean"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "url",
+          "imageUrl",
+          "expiresAt",
+          "showUsername"
+        ],
+        "type": "object"
+      },
+      "ShareFrom": {
+        "enum": [
+          "review_menu",
+          "complete"
+        ],
+        "type": "string"
+      },
+      "ShareUpdateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "showUsername": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "showUsername"
+        ],
+        "type": "object"
+      },
       "SocketTokenData": {
         "properties": {
           "expiresAt": {
@@ -2427,6 +5087,58 @@
         ],
         "type": "object"
       },
+      "StaticExplanation": {
+        "properties": {
+          "alignment": {
+            "properties": {
+              "endTimes": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "startTimes": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "words": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "words",
+              "startTimes",
+              "endTimes"
+            ],
+            "type": "object"
+          },
+          "audioFile": {
+            "type": "string"
+          },
+          "fen": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "type": "string"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/ExplanationSegment"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "fen",
+          "segments"
+        ],
+        "type": "object"
+      },
       "SubscriptionStatus": {
         "enum": [
           "pending",
@@ -2437,6 +5149,15 @@
           "failed",
           "expired",
           "past_due"
+        ],
+        "type": "string"
+      },
+      "TextStatus": {
+        "enum": [
+          "pending",
+          "template",
+          "ready",
+          "fallback"
         ],
         "type": "string"
       },
@@ -4181,6 +6902,176 @@
         ]
       }
     },
+    "/api/me/games": {
+      "get": {
+        "operationId": "me.games",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 40,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "result",
+            "required": false,
+            "schema": {
+              "maxLength": 40,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tc",
+            "required": false,
+            "schema": {
+              "maxLength": 60,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "moments",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 256,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 30,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/GameRowDTO"
+                      },
+                      "maxItems": 30,
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified (If-None-Match matched the ETag)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "The viewer's finished games, newest first (keyset pages)",
+        "tags": [
+          "archive"
+        ],
+        "x-auth": "user",
+        "x-cache": "private-etag",
+        "x-class": "R2"
+      }
+    },
     "/api/openings": {
       "get": {
         "operationId": "catalog.openings.index",
@@ -4247,6 +7138,2283 @@
         }
       }
     },
+    "/api/practice/context": {
+      "get": {
+        "operationId": "practice.context",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "game",
+            "required": false,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ply",
+            "required": false,
+            "schema": {
+              "maximum": 1200,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "position",
+            "required": false,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fen",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PracticeContextDTO"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified (If-None-Match matched the ETag)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "The start position and copy of a practice session",
+        "tags": [
+          "practice"
+        ],
+        "x-auth": "member",
+        "x-cache": "private-etag",
+        "x-class": "R1"
+      }
+    },
+    "/api/review/{ref}": {
+      "get": {
+        "operationId": "review.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewDTO"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified (If-None-Match matched the ETag)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "The game review of one of the viewer's games",
+        "tags": [
+          "review"
+        ],
+        "x-auth": "user",
+        "x-cache": "private-etag",
+        "x-class": "R2",
+        "x-side-effects": [
+          "kick_cas"
+        ]
+      }
+    },
+    "/api/review/{ref}/analyse": {
+      "post": {
+        "operationId": "review.analyse",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "default": {
+                  "reason": "opened"
+                },
+                "properties": {
+                  "reason": {
+                    "default": "opened",
+                    "enum": [
+                      "opened",
+                      "regrade"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AnalyseResponse"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Accepted",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Gone: `gone`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Starts the analysis of a game",
+        "tags": [
+          "review"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W2",
+        "x-max-body-bytes": 1024,
+        "x-rate-limit": [
+          {
+            "bucket": "review-analyse",
+            "by": "user",
+            "limit": 10,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/review/{ref}/complete": {
+      "post": {
+        "operationId": "review.complete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "default": {},
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CompleteOut"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Marks the review walkthrough complete",
+        "tags": [
+          "review"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 1024,
+        "x-rate-limit": [
+          {
+            "bucket": "review-write",
+            "by": "user",
+            "limit": 120,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/review/{ref}/legend": {
+      "get": {
+        "operationId": "review.legend",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "enum": [
+                "explanation"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LegendCompareDTO"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified (If-None-Match matched the ETag)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "The legend comparison of a game from a legend position",
+        "tags": [
+          "review"
+        ],
+        "x-auth": "user",
+        "x-cache": "private-etag",
+        "x-class": "R2",
+        "x-side-effects": [
+          "legend_facts"
+        ]
+      }
+    },
+    "/api/review/{ref}/legend/compute": {
+      "post": {
+        "operationId": "review.legend.compute",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "default": {},
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LegendComputeResponse"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Accepted",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Gone: `gone`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Computes the engine evals of a legend comparison",
+        "tags": [
+          "review"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W2",
+        "x-max-body-bytes": 1024,
+        "x-rate-limit": [
+          {
+            "bucket": "review-analyse",
+            "by": "user",
+            "limit": 10,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/review/{ref}/moments/{ply}": {
+      "patch": {
+        "operationId": "review.moment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ply",
+            "required": true,
+            "schema": {
+              "maximum": 1200,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "inBank": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "inBank"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MomentBankResponse"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Keeps a key moment in or out of the Mistake Bank",
+        "tags": [
+          "review"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 1024,
+        "x-rate-limit": [
+          {
+            "bucket": "review-write",
+            "by": "user",
+            "limit": 120,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/review/{ref}/pgn": {
+      "get": {
+        "operationId": "review.pgn",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Downloads the annotated PGN of a reviewed game",
+        "tags": [
+          "review"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "R1"
+      }
+    },
+    "/api/review/{ref}/progress": {
+      "patch": {
+        "operationId": "review.progress",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "events": {
+                    "items": {
+                      "properties": {
+                        "at": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "chip": {
+                          "enum": [
+                            "attack",
+                            "defend",
+                            "trade",
+                            "improve",
+                            "unsure"
+                          ],
+                          "type": "string"
+                        },
+                        "correct": {
+                          "type": "boolean"
+                        },
+                        "ply": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "type": {
+                          "enum": [
+                            "viewed",
+                            "attempt",
+                            "plan_picked",
+                            "revealed",
+                            "show_line"
+                          ],
+                          "type": "string"
+                        },
+                        "uci": {
+                          "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "ply",
+                        "at"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 50,
+                    "type": "array"
+                  },
+                  "momentIndex": {
+                    "maximum": 3,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "momentIndex",
+                  "events"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Records walkthrough progress",
+        "tags": [
+          "review"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 8192,
+        "x-rate-limit": [
+          {
+            "bucket": "review-write",
+            "by": "user",
+            "limit": 120,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/review/{ref}/retry": {
+      "post": {
+        "operationId": "review.retry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "default": {},
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RetryResponse"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Accepted",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Gone: `gone`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Retries a failed analysis",
+        "tags": [
+          "review"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W2",
+        "x-max-body-bytes": 1024,
+        "x-rate-limit": [
+          {
+            "bucket": "review-analyse",
+            "by": "user",
+            "limit": 10,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/review/{ref}/share": {
+      "post": {
+        "operationId": "share.create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "from": {
+                    "default": "review_menu",
+                    "enum": [
+                      "review_menu",
+                      "complete"
+                    ],
+                    "type": "string"
+                  },
+                  "momentPly": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "showUsername": {
+                    "default": true,
+                    "type": "boolean"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ShareDTO"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`, `in_flight`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content: `idempotency_key_reused`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Creates (or reuses) a public link to the review of one of the viewer's games",
+        "tags": [
+          "share"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W2",
+        "x-max-body-bytes": 1024,
+        "x-rate-limit": [
+          {
+            "bucket": "share-create",
+            "by": "user",
+            "limit": 5,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/review/{ref}/status": {
+      "get": {
+        "operationId": "review.status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewStatusDTO"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified (If-None-Match matched the ETag)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "The analysis status of one of the viewer's games",
+        "tags": [
+          "review"
+        ],
+        "x-auth": "user",
+        "x-cache": "private-etag",
+        "x-class": "R1",
+        "x-side-effects": [
+          "kick_cas",
+          "legend_facts"
+        ]
+      }
+    },
     "/api/session/clear": {
       "post": {
         "operationId": "session.clear",
@@ -4303,6 +9471,322 @@
         "x-auth": "optional",
         "x-cache": "no-store",
         "x-class": "W1"
+      }
+    },
+    "/api/share/{code}": {
+      "delete": {
+        "operationId": "share.revoke",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-hjkmnp-tv-z]{8}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Turns a public review link off",
+        "tags": [
+          "share"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-rate-limit": [
+          {
+            "bucket": "share-edit",
+            "by": "user",
+            "limit": 10,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "share.update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-hjkmnp-tv-z]{8}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "showUsername": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "showUsername"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ShareDTO"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Gone: `gone`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Shows or hides the sharer's username on a public review link",
+        "tags": [
+          "share"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 1024,
+        "x-rate-limit": [
+          {
+            "bucket": "share-edit",
+            "by": "user",
+            "limit": 10,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
       }
     },
     "/api/socket-token": {
@@ -4648,6 +10132,9 @@
   ],
   "tags": [
     {
+      "name": "archive"
+    },
+    {
       "name": "billing"
     },
     {
@@ -4660,7 +10147,16 @@
       "name": "me"
     },
     {
+      "name": "practice"
+    },
+    {
       "name": "realtime"
+    },
+    {
+      "name": "review"
+    },
+    {
+      "name": "share"
     },
     {
       "name": "system"
@@ -4689,6 +10185,7 @@
     "already_subscribed": 409,
     "conflict": 409,
     "forbidden": 403,
+    "gone": 410,
     "idempotency_key_reused": 422,
     "illegal_moves": 422,
     "illegal_position": 422,

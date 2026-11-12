@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { destinationHref, tabBarDestinations } from "@/lib/nav/destinations";
+import { destinationHref, tabBarDestinations, type NavFlags } from "@/lib/nav/destinations";
 import type { DestinationKey } from "@/lib/shell/types";
 
 /** Phone and iPad-portrait tab bar: Play, Learn, Profile in Phase 1. */
 export function TabBar({
   me,
   current,
+  navFlags,
   demo = false,
   preview = false,
   previewLabel,
@@ -15,12 +16,14 @@ export function TabBar({
 }: {
   me: { referenceId: string };
   current: Set<DestinationKey>;
+  /** Flag-gated destinations (P3: Review). */
+  navFlags?: NavFlags;
   demo?: boolean;
   preview?: boolean;
   previewLabel?: string;
   onNavigate?: (key: DestinationKey) => void;
 }) {
-  const items = tabBarDestinations();
+  const items = tabBarDestinations(navFlags);
   return (
     <nav
       aria-label={previewLabel ?? "Main navigation"}

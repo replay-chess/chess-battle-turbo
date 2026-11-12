@@ -7,9 +7,10 @@
 // canonicalisation in p00 always runs before any path rule. A later phase that needs a 307 on dev and a 308 in
 // production sets `permanent: env.APP_ENV === "production"` (P8 D8-5).
 import * as p00 from "./p00-legacy.mjs";
+import * as p03 from "./p03.mjs";
 
 /** Oldest first; one line per phase file. */
-const PHASES = [p00];
+const PHASES = [p00, p03];
 
 /**
  * @param {Record<string, string | undefined>} env

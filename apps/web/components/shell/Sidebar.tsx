@@ -15,6 +15,7 @@ import {
   topLevelDestinations,
   trialLabel,
   type Destination,
+  type NavFlags,
 } from "@/lib/nav/destinations";
 import type { DestinationKey, ShellUser } from "@/lib/shell/types";
 import { AccountMenu } from "./AccountMenu";
@@ -29,6 +30,8 @@ const SUB =
 export type SidebarProps = {
   user: ShellUser;
   current: Set<DestinationKey>;
+  /** Flag-gated destinations (P3: Review). */
+  navFlags?: NavFlags;
   demo?: boolean;
   /** Gallery previews: every href becomes `#<key>`. */
   preview?: boolean;
@@ -44,6 +47,7 @@ export type SidebarProps = {
 export function Sidebar({
   user,
   current,
+  navFlags,
   demo = false,
   preview = false,
   variant = "auto",
@@ -58,7 +62,7 @@ export function Sidebar({
   const profileCurrent = current.has("profile");
 
   const subs = (parent: DestinationKey) => {
-    const list = childrenOf(parent);
+    const list = childrenOf(parent, navFlags);
     if (!list.length) return null;
     return (
       <div className="flex flex-col pt-0.5 pb-1 pl-[42px] rail:hidden vh640:hidden">
@@ -104,7 +108,7 @@ export function Sidebar({
       </div>
 
       <div className="flex flex-col gap-0.5">
-        {topLevelDestinations().map((d) => {
+        {topLevelDestinations(navFlags).map((d) => {
           const Icon = d.icon;
           const isCurrent = current.has(d.key);
           const showSubs = d.key === "play" || (d.key === "learn" && isCurrent);

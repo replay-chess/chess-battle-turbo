@@ -6,8 +6,8 @@ import { COARSE_MQ } from "@/lib/layout/media-queries";
 import {
   CHORD_TIMEOUT_MS,
   MODAL_OPEN_SELECTOR,
-  SHELL_CHORDS,
   SHELL_DIALOG_ATTR,
+  shellChords,
   classifyKeydown,
   createChordMachine,
   isEditableTarget,
@@ -15,7 +15,7 @@ import {
 } from "@/lib/shell/keys";
 import { singleKeyEnabledNow } from "@/lib/shell/prefs";
 
-const CHORD_DEST: Record<string, "play" | "legends"> = { "/play": "play", "/legends": "legends" };
+const CHORD_DEST: Record<string, "play" | "legends" | "review"> = { "/play": "play", "/legends": "legends", "/games": "review" };
 
 /** A modal that is not one of the shell's own dialogs is open (legacy modals, Clerk, iOS install). */
 function nonShellModalOpen(): boolean {
@@ -37,6 +37,7 @@ export function useShellKeys({
   setShortcutsOpen,
   navigate,
   demo = false,
+  reviewV3 = false,
 }: {
   paletteOpen: boolean;
   shortcutsOpen: boolean;
@@ -44,12 +45,16 @@ export function useShellKeys({
   setShortcutsOpen: (open: boolean) => void;
   navigate: (href: string) => void;
   demo?: boolean;
+  /** `review-v3`: G then R goes to My Games (P3). */
+  reviewV3?: boolean;
 }) {
-  const chords = useRef<ChordMachine | null>(null);
+  const chords = useRef<{ reviewV3: boolean; machine: ChordMachine } | null>(null);
 
   useEffect(() => {
-    chords.current ??= createChordMachine({ timeoutMs: CHORD_TIMEOUT_MS, chords: SHELL_CHORDS });
-    const machine = chords.current;
+    if (chords.current?.reviewV3 !== reviewV3) {
+      chords.current = { reviewV3, machine: createChordMachine({ timeoutMs: CHORD_TIMEOUT_MS, chords: shellChords({ reviewV3 }) }) };
+    }
+    const machine = chords.current.machine;
 
     const onKeyDown = (e: KeyboardEvent) => {
       const action = classifyKeydown(e, {
@@ -99,5 +104,5 @@ export function useShellKeys({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [paletteOpen, shortcutsOpen, setPaletteOpen, setShortcutsOpen, navigate, demo]);
+  }, [paletteOpen, shortcutsOpen, setPaletteOpen, setShortcutsOpen, navigate, demo, reviewV3]);
 }

@@ -1,0 +1,38 @@
+Replay Chess analysis worker — third-party notices
+=================================================
+
+This image runs third-party software. The worker image is private (GHCR package "replay-chess-analysis-worker",
+ghcr.io/replay-chess/replay-chess-analysis-worker, never published; the deploy workflow fails unless GHCR reports it
+private): running Stockfish as a service is not distribution (phase-03 plan §11.4, P3-Q9, LIC-3). This file records
+what would be needed to comply with the GPL if the image were ever shared.
+
+Stockfish 18
+------------
+- Upstream: https://github.com/official-stockfish/Stockfish
+- Version: tag sf_18, commit cb3d4ee9b47d0c5aae855b12379378ea1439675c (checked by the Dockerfile at build time)
+- Build: `make profile-build ARCH=armv8-dotprod COMP=gcc` on debian:bookworm-slim (arm64), stripped
+- Networks (embedded in the binary; file names are the first 12 hex digits of their SHA-256):
+    big   nn-c288c895ea92.nnue
+    small nn-37f18f62d772.nnue
+- Licence: GNU General Public License v3.0. The full text, the AUTHORS file and the exact build record
+  (net and binary SHA-256 digests) are in the image at /usr/local/share/doc/stockfish/{Copying.txt,AUTHORS,BUILD_INFO}.
+- Corresponding source: the upstream tag and commit above, unmodified.
+- The worker talks to the engine over UCI (stdin/stdout) as a separate process; no Stockfish code is linked into the
+  worker.
+
+Lichess evaluation database
+---------------------------
+- `lichess_db_eval.jsonl.zst` from https://database.lichess.org/#evals, CC0 1.0 (public domain dedication).
+- Used offline only (scripts/seed-evalcache.ts) to seed the eval cache with opening positions; the attribution
+  "Opening evaluations from the Lichess open database, CC0" appears on How we grade.
+
+Lichess chess-openings
+----------------------
+- The opening lines the seed builder replays (apps/web/public/openings/*.tsv) are the Lichess chess-openings dataset,
+  CC0 1.0.
+
+npm dependencies
+----------------
+- The worker's production dependency tree is checked by `pnpm --filter @repo/chess-analysis license-check` (no
+  AGPL/GPL npm packages; CI step "Licence gate for the grading library and the worker").
+- better-sqlite3 (MIT) bundles SQLite (public domain).

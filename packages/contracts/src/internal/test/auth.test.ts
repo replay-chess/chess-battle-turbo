@@ -1,6 +1,9 @@
 // Internal request signing (phase-02 plan §7.5.1, §12.1): a valid signature passes; unknown kid, |now − ts| > 60 s,
 // a changed method, path or body, and a replayed signature each fail; a bare legacy secret is read as kid `web`;
 // the allow-list refuses `entitlement:changed` from kid `wk` and `/internal/broadcast` from kid `web`.
+// Phase-03 plan §8.17 / §12.1 (D1b): the P3 hops (web → worker kick, ws → worker kick, wk → socket emit and load)
+// round-trip; a wrong key, ±61 s skew, a replay within 120 s, a body changed after signing and a caller swap are
+// refused; the timing-safe compare handles unequal lengths; the worker's receiver policy.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { describe, it } from "node:test";
@@ -19,10 +22,19 @@ import {
   parseKeyRing,
   ReplayGuard,
   restrictKeyRing,
+  safeEqual,
   sha256Hex,
   signInternal,
   verifyInternal,
+  WORKER_ACCEPTED_KIDS,
+  WORKER_FORBIDDEN_KIDS,
+  WEB_TO_WORKER_KID,
+  OPS_TO_WORKER_KID,
+  WORKER_INTERNAL_PATHS,
+  WORKER_POLICY,
+  workerKidMayCall,
 } from "../auth";
+import { KICK_PATH, KickBodyV1 } from "../kick";
 
 const web = randomBytes(32).toString("base64");
 const ops = randomBytes(32).toString("base64");
@@ -223,9 +235,135 @@ describe("internal auth: per-kid allow-lists", () => {
     assert.equal(kidMayEmit("evil", "test:echo"), false);
   });
 
+  it("wk reaches the socket's /internal/load probe; nobody else does", () => {
+    assert.ok((INTERNAL_PATHS as readonly string[]).includes("/internal/load"));
+    assert.equal(kidMayCall("wk", "/internal/load"), true);
+    for (const kid of ["web", "ops", "ws", "evil"]) assert.equal(kidMayCall(kid, "/internal/load"), false, kid);
+  });
+
   it("every policy path is a known internal path", () => {
     for (const kid of INTERNAL_KIDS) {
       for (const path of INTERNAL_POLICY[kid].paths) assert.ok((INTERNAL_PATHS as readonly string[]).includes(path), `${kid} ${path}`);
     }
+  });
+});
+
+describe("internal auth: the P3 hops (phase-03 §8.17)", () => {
+  const wsKey = randomBytes(32).toString("base64");
+  const webwkKey = randomBytes(32).toString("base64");
+  const opswkKey = randomBytes(32).toString("base64");
+  // The worker's ring: it signs with wk and accepts ws, webwk and opswk (never web or ops: FIX-1).
+  const workerRing = parseKeyRing(`wk:${wk},ws:${wsKey},webwk:${webwkKey},opswk:${opswkKey}`);
+  // The web signs socket calls with web and worker calls with webwk.
+  const webToWorker = parseKeyRing(`webwk:${webwkKey}`);
+  // The socket's P3 ring: it signs with ws and accepts web, wk and ops.
+  const socketRing = parseKeyRing(`ws:${wsKey},web:${web},wk:${wk},ops:${ops}`);
+  const kick = JSON.stringify(KickBodyV1.parse({ v: 1, reason: "live_end", watch: "cm3k9x2p10007slzpqa8hd4fe" }));
+
+  function sendTo(receiver: typeof workerRing, from: typeof workerRing, path: string, body: string, replay?: ReplayGuard, nowMs = NOW) {
+    const headers = signInternal({ keys: from, method: "POST", path, body, nowMs });
+    return { headers, result: verifyInternal({ headers, method: "POST", path, body, keys: receiver, nowMs: NOW, replay }) };
+  }
+
+  it("web → worker kick, ws → worker kick and wk → socket emit round-trip and name their kid", () => {
+    assert.deepEqual(sendTo(workerRing, webToWorker, KICK_PATH, kick).result, { ok: true, kid: "webwk" });
+    assert.deepEqual(sendTo(workerRing, webSender, KICK_PATH, kick).result, { ok: false, reason: "unknown_kid" });
+    assert.deepEqual(sendTo(workerRing, socketRing, KICK_PATH, kick).result, { ok: true, kid: "ws" });
+    assert.deepEqual(sendTo(socketRing, workerRing, "/internal/emit", BODY).result, { ok: true, kid: "wk" });
+    assert.deepEqual(sendTo(socketRing, workerRing, "/internal/load", "").result, { ok: true, kid: "wk" });
+  });
+
+  it("a wrong key under a valid kid is refused", () => {
+    const impostor = parseKeyRing(`ws:${randomBytes(32).toString("base64")}`);
+    assert.deepEqual(sendTo(workerRing, impostor, KICK_PATH, kick).result, { ok: false, reason: "bad_sig" });
+  });
+
+  it("±61 s of skew is refused, ±60 s passes", () => {
+    for (const delta of [61_000, -61_000]) {
+      assert.deepEqual(sendTo(workerRing, webToWorker, KICK_PATH, kick, undefined, NOW + delta).result, { ok: false, reason: "stale" });
+    }
+    for (const delta of [60_000, -60_000]) {
+      assert.deepEqual(sendTo(workerRing, webToWorker, KICK_PATH, kick, undefined, NOW + delta).result, { ok: true, kid: "webwk" });
+    }
+  });
+
+  it("an exact replay inside 120 s is refused", () => {
+    const replay = new ReplayGuard();
+    const { headers } = sendTo(workerRing, webToWorker, KICK_PATH, kick, replay);
+    const again = verifyInternal({ headers, method: "POST", path: KICK_PATH, body: kick, keys: workerRing, nowMs: NOW + 59_000, replay });
+    assert.deepEqual(again, { ok: false, reason: "replay" });
+  });
+
+  it("a body changed after signing is refused (a watch swapped to another game)", () => {
+    const { headers } = sendTo(workerRing, webToWorker, KICK_PATH, kick);
+    const tampered = kick.replace("cm3k9x2p10007slzpqa8hd4fe", "cm3k9xq7r0009slzpw2e5bn1k");
+    assert.deepEqual(
+      verifyInternal({ headers, method: "POST", path: KICK_PATH, body: tampered, keys: workerRing, nowMs: NOW }),
+      { ok: false, reason: "bad_sig" },
+    );
+  });
+
+  it("a caller swap (ws signature presented as webwk) is refused", () => {
+    const { headers } = sendTo(workerRing, socketRing, KICK_PATH, kick);
+    const swapped = { ...headers, [HEADER_KID]: "webwk" };
+    assert.deepEqual(
+      verifyInternal({ headers: swapped, method: "POST", path: KICK_PATH, body: kick, keys: workerRing, nowMs: NOW }),
+      { ok: false, reason: "bad_sig" },
+    );
+  });
+
+  it("the timing-safe compare answers false on unequal lengths and on equal-length differences", () => {
+    assert.equal(safeEqual("abc", "abc"), true);
+    assert.equal(safeEqual("abc", "abcd"), false);
+    assert.equal(safeEqual("", "a"), false);
+    assert.equal(safeEqual("abcd", "abce"), false);
+    const { headers } = sendTo(workerRing, webToWorker, KICK_PATH, kick);
+    const sig = headers[HEADER_SIG];
+    assert.equal(safeEqual(sig, sig.slice(0, -1)), false);
+  });
+});
+
+describe("internal auth: the worker's receiver policy", () => {
+  it("webwk and ws kick; webwk and opswk read metrics; opswk kicks for the deploy smoke; wk, web and ops call nothing", () => {
+    assert.equal(workerKidMayCall("webwk", KICK_PATH), true);
+    assert.equal(workerKidMayCall("ws", KICK_PATH), true);
+    assert.equal(workerKidMayCall("opswk", KICK_PATH), true);
+    assert.equal(workerKidMayCall("webwk", "/internal/metrics"), true);
+    assert.equal(workerKidMayCall("opswk", "/internal/metrics"), true);
+    assert.equal(workerKidMayCall("ws", "/internal/metrics"), false);
+    for (const path of WORKER_INTERNAL_PATHS) {
+      assert.equal(workerKidMayCall("web", path), false, path);
+      assert.equal(workerKidMayCall("ops", path), false, path);
+    }
+    for (const path of WORKER_INTERNAL_PATHS) assert.equal(workerKidMayCall("wk", path), false, path);
+  });
+
+  it("refuses unknown kids, unknown paths and the socket's paths", () => {
+    assert.equal(workerKidMayCall("evil", KICK_PATH), false);
+    for (const kid of INTERNAL_KIDS) {
+      for (const path of ["/internal/emit", "/internal/load", "/engine/analyse", "/health", `${KICK_PATH}/`, `${KICK_PATH}?x=1`]) {
+        assert.equal(workerKidMayCall(kid, path), false, `${kid} ${path}`);
+      }
+    }
+  });
+
+  it("every worker policy path is a worker path, and the kick path constant matches", () => {
+    assert.ok((WORKER_INTERNAL_PATHS as readonly string[]).includes(KICK_PATH));
+    for (const kid of INTERNAL_KIDS) {
+      for (const path of WORKER_POLICY[kid]) assert.ok((WORKER_INTERNAL_PATHS as readonly string[]).includes(path), `${kid} ${path}`);
+    }
+    assert.deepEqual([...WORKER_ACCEPTED_KIDS].sort(), ["opswk", "webwk", "ws"]);
+  });
+
+  // regression: worker-holds-web-key (FIX-1). The worker accepted `web` and `ops`, so its ring held the keys the
+  // socket accepts for every event and for drain: a compromised worker could sign as either.
+  it("no kid the worker accepts can do anything on the socket, and the worker may never hold web or ops", () => {
+    for (const kid of WORKER_ACCEPTED_KIDS) {
+      assert.deepEqual(INTERNAL_POLICY[kid].paths, [], kid);
+      assert.deepEqual(INTERNAL_POLICY[kid].events, [], kid);
+    }
+    assert.deepEqual([...WORKER_FORBIDDEN_KIDS].sort(), ["ops", "web"]);
+    assert.equal(WEB_TO_WORKER_KID, "webwk");
+    assert.equal(OPS_TO_WORKER_KID, "opswk");
   });
 });

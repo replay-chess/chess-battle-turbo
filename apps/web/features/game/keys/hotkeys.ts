@@ -4,7 +4,7 @@
 // Arrow keys work with any pointer but never inside a field, a modal or a widget that owns arrows (the board grid,
 // menus, listboxes). Q R B N belong to the promotion picker, which listens on its own while it is open.
 
-import type { KeyLike } from "@/lib/shell/keys";
+import type { KeyLike } from "@/lib/shell/key-target";
 
 export type GameHotkey = "prev" | "next" | "first" | "last" | "flip" | "sound" | "draw" | "hint" | "undo" | "escape";
 

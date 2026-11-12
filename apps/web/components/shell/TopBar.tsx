@@ -9,9 +9,10 @@ import { inAppNavCount } from "@/lib/shell/nav-history";
 import type { ShellUser } from "@/lib/shell/types";
 import { AccountMenu } from "./AccountMenu";
 import { Brand } from "./Brand";
+import { TOPBAR_TITLE_ID } from "./topbar-ids";
 
 /** The element a screen portals its top-bar title into (see `TopBarTitle`). */
-export const TOPBAR_TITLE_ID = "shell-topbar-title";
+export { TOPBAR_TITLE_ID };
 
 /**
  * Phone and iPad-portrait top bar (the ViewportStage CSS shows it in tab-bar

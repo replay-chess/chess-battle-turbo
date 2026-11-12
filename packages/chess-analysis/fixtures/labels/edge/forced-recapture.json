@@ -1,0 +1,37 @@
+{
+  "name": "forced-recapture",
+  "provenance": "constructed",
+  "note": "FORCED (rule 1): 1…Rxd1+ leaves White exactly one legal move, the recapture Nxd1. A FEN start, so no ply is BOOK even though every EPD is in the book set.",
+  "games": [
+    {
+      "id": "forced-recapture",
+      "startFen": "3r2k1/5ppp/8/8/8/2N5/5PPP/3R2K1 b - - 0 1",
+      "moves": [
+        "Rxd1+",
+        "Nxd1",
+        "Kf8",
+        "Kf1"
+      ],
+      "evals": [
+        300,
+        290,
+        300,
+        300,
+        290
+      ],
+      "best": [
+        "Rxd1+",
+        "Nxd1",
+        "Kf8",
+        "Kf1"
+      ],
+      "bookAll": true,
+      "expected": [
+        "best",
+        "forced",
+        "best",
+        "best"
+      ]
+    }
+  ]
+}

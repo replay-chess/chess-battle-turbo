@@ -174,8 +174,18 @@ describe("registry", () => {
     for (const name of [...SERVER_EVENT_NAMES, ...COMMAND_NAMES]) assert.match(name, /^[a-z]+:[a-z_]+$/, name);
   });
 
-  it("P2 registers only test:echo for /internal/emit, refused in production", () => {
-    assert.deepEqual(Object.keys(EMIT_EVENTS), ["test:echo"]);
+  it("the emit registry: P2's test:echo (refused in production) and P3's analysis events", () => {
+    assert.deepEqual(Object.keys(EMIT_EVENTS), [
+      "test:echo",
+      "analysis:queued",
+      "analysis:progress",
+      "analysis:writing",
+      "analysis:done",
+      "analysis:failed",
+      "analysis:batch",
+      "compare:ready",
+      "games:changed",
+    ]);
     const dev = emitEventFor("test:echo", "dev");
     assert.ok(dev.ok);
     assert.equal(dev.schema.safeParse({ text: "hi" }).success, true);

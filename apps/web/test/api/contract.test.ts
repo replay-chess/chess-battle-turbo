@@ -73,6 +73,22 @@ const HAPPY_PATH_ELSEWHERE: Record<string, string> = {
   "games.checkpoint": "test/api/games-routes.test.ts",
   "games.complete": "test/api/games-routes.test.ts",
   "games.pgn": "test/api/games-routes.test.ts",
+  // P3 review (phase-03 plan §12.2): real SQL on Docker Postgres.
+  "review.get": "test/api/review.contract.int.test.ts",
+  "review.status": "test/api/review.contract.int.test.ts",
+  "review.analyse": "test/api/review.contract.int.test.ts",
+  "review.retry": "test/api/review.contract.int.test.ts",
+  "review.progress": "test/api/review.contract.int.test.ts",
+  "review.moment": "test/api/review.contract.int.test.ts",
+  "review.complete": "test/api/review.contract.int.test.ts",
+  "review.pgn": "test/api/review.contract.int.test.ts",
+  "review.legend": "test/api/review.contract.int.test.ts",
+  "review.legend.compute": "test/api/review.contract.int.test.ts",
+  "share.create": "test/api/share.contract.int.test.ts",
+  "share.update": "test/api/share.contract.int.test.ts",
+  "share.revoke": "test/api/share.contract.int.test.ts",
+  "me.games": "test/api/archive.contract.int.test.ts",
+  "practice.context": "test/api/archive.contract.int.test.ts",
 };
 
 /** Requests that make a route's rate limit apply (rateLimitWhen). */

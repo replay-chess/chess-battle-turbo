@@ -9,6 +9,7 @@
 // A fragment is registered with `registerFinishFragment()` at module load of its owner's file.
 import { Prisma } from "#generated";
 import type { GameMetaV1 } from "../json/game-meta";
+import { P3_FINISH_FRAGMENTS } from "./finish.fragments.p3";
 import {
   END_METHOD_TO_DB,
   intMs,
@@ -59,7 +60,7 @@ export interface FinishFragment {
   select?: (input: FinishGameInput) => Prisma.Sql[];
 }
 
-const fragments: FinishFragment[] = [];
+const fragments: FinishFragment[] = [...P3_FINISH_FRAGMENTS];
 
 /** Appends a fragment (idempotent by name: re-registering replaces, so hot reloads do not duplicate). */
 export function registerFinishFragment(fragment: FinishFragment): void {

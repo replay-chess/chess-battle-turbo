@@ -2097,7 +2097,7 @@ An older worker image never claims a job whose payload version it cannot read. S
      - E1 LRU (200k entries) → E2 SQLite `evals(epd, engine, nodes, multipv)`;
      - used only when `nodes`, `multipv` and `engine` match exactly (determinism), or for a `lichess-db` seed entry at ply < 20 from the initial position;
      - **bypassed** when the EPD occurred earlier in the game, when the half-move clock is ≥ 90 (ARCH §1.9.3), or when `EVAL_CACHE=off`.
-   - **Search:** `ucinewgame` (once per game), `position fen <fen at lastIrreversible[i]> moves <uci …>`, `go nodes 120000` with `MultiPV 2`, `Threads 1`, `Hash 64`. Parse the final `info … multipv 1/2 … score cp|mate … pv …` and `bestmove`. Store `evals[i]`, `second[i]` and `best[i]`.
+   - **Search:** `ucinewgame` (before every search since REGRESSION-3: once per game left resumed runs non-deterministic; `CA/README.md`), `position fen <fen at lastIrreversible[i]> moves <uci …>`, `go nodes 120000` with `MultiPV 2`, `Threads 1`, `Hash 64`. Parse the final `info … multipv 1/2 … score cp|mate … pv …` and `bestmove`. Store `evals[i]`, `second[i]` and `best[i]`.
    - Convert to White POV.
    - **Classify** ply `i−1` as soon as `evals[i]` is known. If `streams`, emit a delta every 2 plies or 300 ms.
    - **Lag pause:** between searches, if `GET websocket:3002/internal/load` (polled at most once a second) reports `loopLagP99Ms > LAG_PAUSE_MS` or `draining`, wait 200 ms and check again.

@@ -1,6 +1,11 @@
 # WebSocket stack on the OCI server, run from /opt/replay-chess. The Next.js
 # app runs on Vercel. The image is built by .github/workflows/deploy-oci.yml;
 # the same workflow writes .env next to this file (secrets + WS_IMAGE tag).
+#
+# The analysis worker (phase-03 plan §3.2, P3-D8) is in compose profile `worker`:
+# only the dev bundle's .env sets COMPOSE_PROFILES=worker, WORKER_IMAGE and ships
+# .env.worker (secret WORKER_DEV_ENV_FILE). The prod bundle has none of them, so
+# a push to main never starts a worker on prod (the prod worker is P13's VM).
 
 services:
   websocket:
@@ -32,6 +37,46 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  analysis-worker:
+    profiles: ["worker"]
+    image: ${WORKER_IMAGE:-replay-chess-analysis-worker:not-deployed}
+    env_file:
+      - path: .env.worker
+        required: false
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - ENGINE_PATH=/usr/local/bin/stockfish
+      - EVAL_CACHE_PATH=/data/evalcache/evals.sqlite
+      - WS_INTERNAL_URL=http://websocket:3002
+    # APP_ENV=dev, WORKER_DATABASE_URL (role replay_worker), INTERNAL_API_SECRET (ring: wk first, then ws, webwk, opswk;
+    # never web or ops, the worker refuses to boot holding them), WORKER_ID=dev-worker, EVAL_CACHE_SEED_URL,
+    # SENTRY_DSN, POSTHOG_PROJECT_KEY, POSTHOG_HOST come from .env.worker. Every worker that runs at the same time
+    # needs its own WORKER_ID (a laptop worker without one gets <APP_ENV>-<host>).
+    #
+    # CPU isolation (P3-D8): the container's cgroup lives under worker-idle.slice (CPUWeight=idle, so cpu.idle = 1,
+    # created by setup-server.sh): under contention the socket container always wins. On top of that a hard cap of
+    # 0.75 core and the worker's own lag pause (it waits while the socket's loop-lag p99 > LAG_PAUSE_MS).
+    cgroup_parent: worker-idle.slice
+    cpus: "0.75"
+    mem_limit: 1g
+    restart: unless-stopped
+    # SIGTERM: stop claiming, checkpoint the running analysis, release it without counting the attempt, exit.
+    stop_grace_period: 30s
+    volumes:
+      - worker_evalcache:/data/evalcache
+    # /ready: 200 once the engine answered readyok and the eval cache is open. Never published on the host; Caddy
+    # proxies only the signed /internal/analysis/* to it.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3003/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - websocket
+    logging: *logging
+
   caddy:
     image: caddy:2-alpine
     ports:
@@ -44,6 +89,8 @@ services:
       - caddy_config:/config
     environment:
       - WS_HOST=${WS_HOST:-ws-chess.playchess.tech}
+      # `worker` on the dev box only (the deploy writes it into .env): the Caddyfile proxies the worker routes then.
+      - COMPOSE_PROFILES=${COMPOSE_PROFILES:-}
     depends_on:
       - websocket
     restart: unless-stopped
@@ -53,3 +100,4 @@ volumes:
   caddy_data:
   caddy_config:
   ws_journal:
+  worker_evalcache:

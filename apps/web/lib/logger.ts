@@ -1,7 +1,8 @@
-import * as Sentry from "@sentry/nextjs";
+import { loadedSentry, withSentry } from "@/lib/sentry/lazy";
 
 // The one logger for web code (server, edge and client). `lib/sentry/logger.ts` was merged
-// into this file (plan §3.2 H7, AA F-05).
+// into this file (plan §3.2 H7, AA F-05). Sentry is reached through lib/sentry/lazy.ts, so this module (imported by
+// browser components) never puts the SDK into a route's first load (FIX-2).
 //
 // Rules:
 // - Never log bodies, emails, tokens or exception text into a response; context values are
@@ -14,8 +15,9 @@ const isDev = process.env.NODE_ENV === "development";
 export type LogContext = Record<string, string | number | boolean | null | undefined>;
 
 function getTraceId(): string | undefined {
-  const span = Sentry.getActiveSpan();
-  if (!span) return undefined;
+  const Sentry = loadedSentry();
+  const span = Sentry?.getActiveSpan();
+  if (!Sentry || !span) return undefined;
   const rootSpan = Sentry.getRootSpan(span);
   return rootSpan?.spanContext().traceId ?? span.spanContext().traceId;
 }
@@ -45,24 +47,25 @@ function prefixed(message: string, context?: LogContext): string {
 function captureError(message: string, err: unknown, context?: LogContext): void {
   const extra: Record<string, unknown> = { ...context, log_message: message };
   if (err instanceof Error) {
-    Sentry.captureException(err, { extra });
+    withSentry((Sentry) => Sentry.captureException(err, { extra }));
     return;
   }
   extra.thrown_type = err === null ? "null" : typeof err;
-  Sentry.captureException(new Error(message), { extra });
+  const wrapped = new Error(message);
+  withSentry((Sentry) => Sentry.captureException(wrapped, { extra }));
 }
 
 export const logger = {
   info(message: string, context?: LogContext): void {
     const formatted = prefixed(message, context);
     if (isDev) console.log(formatted);
-    Sentry.logger.info(formatted);
+    withSentry((Sentry) => Sentry.logger.info(formatted));
   },
 
   warn(message: string, context?: LogContext): void {
     const formatted = prefixed(message, context);
     if (isDev) console.warn(formatted);
-    Sentry.logger.warn(formatted);
+    withSentry((Sentry) => Sentry.logger.warn(formatted));
   },
 
   /**
@@ -78,7 +81,7 @@ export const logger = {
         console.error(formatted);
       }
     }
-    Sentry.logger.error(formatted);
+    withSentry((Sentry) => Sentry.logger.error(formatted));
     if (err !== undefined) captureError(message, err, context);
   },
 

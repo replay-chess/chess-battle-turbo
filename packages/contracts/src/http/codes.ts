@@ -1,7 +1,7 @@
 // The one error-code ledger (phase-01 plan §7.1, CC R-06). Append-only: adding a code is an additive contract change,
 // made by the first phase that produces it. P2 added `in_flight` 409, `idempotency_key_reused` 422,
-// `illegal_position` 422 and `illegal_moves` 422. Codes later phases add (so nobody adds them twice): `gone` 410 (P3);
-// `fair_use_limit` 429 (P7); `reverification_required` 403 (P10, or P12 if it merges first); `precondition_failed` 412 (P12).
+// `illegal_position` 422 and `illegal_moves` 422; P3 added `gone` 410. Codes later phases add (so nobody adds them
+// twice): `fair_use_limit` 429 (P7); `reverification_required` 403 (P10, or P12 if it merges first); `precondition_failed` 412 (P12).
 // Never codes: `membership_ended`, `origin_mismatch`, `upstream_timeout`, `upstream_error`, `refresh_failed`,
 // `upstream_rate_limited`, `unauthenticated`, `bad_request`, `unsupported_media_type` (see the plan for their replacements).
 
@@ -27,6 +27,9 @@ export const ERROR_STATUS = {
   idempotency_key_reused: 422,
   illegal_position: 422,
   illegal_moves: 422,
+  // P3 (phase-03 plan §7.1): a terminal resource. A FAILED analysis whose attempts are used up (A3, A4), a legend
+  // comparison whose 3 compute attempts are used up (A9b), a revoked or expired share on the API (A11).
+  gone: 410,
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_STATUS;
@@ -46,15 +49,32 @@ export type SubscriptionReason = (typeof SUBSCRIPTION_REASONS)[number];
  * details.reason for 409 conflict. Append-only; each phase registers the reasons it introduces (CC R-06 list:
  * P2 already_started, already_completed, not_bot_game, not_finished, rev_gap; P4 …; P12 …).
  */
-export const CONFLICT_REASONS = ["already_started", "already_completed", "not_bot_game", "not_finished", "rev_gap"] as const;
+export const CONFLICT_REASONS = [
+  "already_started",
+  "already_completed",
+  "not_bot_game",
+  "not_finished",
+  "rev_gap",
+  // P3 (phase-03 plan §7.1, §7.2): `skipped` A3 on a game under 6 plies or aborted; `already_running` A4 while the
+  // job runs; `not_failed` A4 on a done job; `analysis_not_done` A7, A8 and A10 before the analysis is done;
+  // `already_ready` A9b when the comparison is already READY.
+  "skipped",
+  "already_running",
+  "not_failed",
+  "analysis_not_done",
+  "already_ready",
+] as const;
 export type ConflictReason = (typeof CONFLICT_REASONS)[number];
 
 /** details.reason for 403 forbidden. Append-only. */
 export const FORBIDDEN_REASONS = ["cooldown"] as const;
 export type ForbiddenReason = (typeof FORBIDDEN_REASONS)[number];
 
-/** details.reason for 400 validation_failed beyond field errors. Append-only (P2: LEGEND_BOT before P8's flag). */
-export const VALIDATION_REASONS = ["mode_not_available"] as const;
+/**
+ * details.reason for 400 validation_failed beyond field errors. Append-only (P2: LEGEND_BOT before P8's flag; P3:
+ * PR1's `?fen=` that parses but is not a legal position, phase-03 §7.2).
+ */
+export const VALIDATION_REASONS = ["mode_not_available", "illegal_position"] as const;
 export type ValidationReason = (typeof VALIDATION_REASONS)[number];
 
 /** details.reason for 422 illegal_moves. Append-only (P2: claimed result not consistent with the board, §8.16). */

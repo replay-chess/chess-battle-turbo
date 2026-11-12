@@ -21,8 +21,10 @@ import {
   type Viewer,
 } from "@repo/game-core";
 import { ROOM } from "@repo/contracts/socket/rooms";
+import { ANALYSIS_MIN_PLIES } from "@repo/contracts/internal/jobs";
+import type { FinishAnalysis } from "@repo/db/live";
 import type { Timing } from "../config/timing";
-import type { LivePersistence, Logger, Metrics, Telemetry } from "../ports";
+import type { FinishOutcome, LivePersistence, Logger, Metrics, Telemetry } from "../ports";
 import { SpectatorCounter } from "./spectators";
 import { GameTimer } from "./timers";
 
@@ -62,7 +64,7 @@ export class LiveSession {
   private prewarmed = false;
   private destroyed = false;
   /** Resolves when the finish/abort statement settled (createRematch waits for it: the parent must be COMPLETED). */
-  private ending: Promise<{ committed: boolean }> | null = null;
+  private ending: Promise<FinishOutcome> | null = null;
   /** True while a finish/abort statement of this process has not settled (the DB row may still be IN_PROGRESS). */
   private endingPending = false;
   /** The session was built from a row that had already ended (DB load), so its end is committed already. */
@@ -197,7 +199,7 @@ export class LiveSession {
         if (effect.result.method === "abandoned") metrics.count("ws.abandon");
         this.trackEnding(persistence.finish(this, effect.result).then(
           (outcome) => {
-            if (outcome.committed && !this.destroyed) this.emitResult();
+            if (outcome.committed && !this.destroyed) this.emitResult(outcome.analysis?.review);
             if (outcome.committed) this.deps.onFinished?.(this, effect.result);
             return outcome;
           },
@@ -236,7 +238,7 @@ export class LiveSession {
    * journal had ended). Until it settles the session must stay in memory: evicting it would let the next join rebuild
    * a live game from the still-IN_PROGRESS row (FIX-A, evict race).
    */
-  trackEnding(statement: Promise<{ committed: boolean }>): Promise<{ committed: boolean }> {
+  trackEnding(statement: Promise<FinishOutcome>): Promise<FinishOutcome> {
     this.endingPending = true;
     const tracked = statement.then(
       (outcome) => {
@@ -284,16 +286,23 @@ export class LiveSession {
     for (const resolve of this.rematchWaiters.splice(0)) resolve(ack);
   }
 
-  /** `game:result` (plan 7.4.5) once the finish committed; P3/P9/P12 fill the fields. */
-  private emitResult(): void {
+  /**
+   * `game:result` (plan 7.4.5) once the finish committed; P9/P12 fill their fields. `review` (P3 §7.4) is what the
+   * finish statement's jobs fragment did; a persistence without a database (in-memory tests) reports nothing, and the
+   * same eligibility rule stands in for it (with no ETA: there is no queue to estimate from).
+   */
+  private emitResult(review?: FinishAnalysis["review"]): void {
     const seq = this._state.seq + 1;
     this._state = { ...this._state, seq };
+    const plies = this._state.moves.length;
     this.deps.emit(ROOM.game(this.ref), "game:result", {
       seq,
       ref: this.ref,
       ratings: null,
       tournament: null,
-      review: { status: "none" },
+      review:
+        review ??
+        (plies >= ANALYSIS_MIN_PLIES ? { status: "queued", etaSec: null } : { status: "skipped", etaSec: null }),
     });
   }
 

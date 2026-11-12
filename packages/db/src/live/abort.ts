@@ -42,7 +42,8 @@ export function abortGameSql(input: AbortGameInput): Prisma.Sql {
              "whiteTimeMs" = COALESCE(${input.whiteTimeMs ?? null}::int, "whiteTimeMs"),
              "blackTimeMs" = COALESCE(${input.blackTimeMs ?? null}::int, "blackTimeMs"),
              meta = COALESCE(meta, '{}'::jsonb) || ${meta}::jsonb,
-             "completedAt" = ${input.endedAt}::timestamp(3), "updatedAt" = now()
+             "completedAt" = ${input.endedAt}::timestamp(3), "updatedAt" = now(),
+             "analysisStatus" = 'SKIPPED'
        WHERE id = ${input.gameId} AND status = 'IN_PROGRESS'
       RETURNING id
     ), gp AS (

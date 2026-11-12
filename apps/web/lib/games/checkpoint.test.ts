@@ -168,13 +168,15 @@ describe("stored complete result", () => {
       status: "ABORTED",
       outcome: "NONE",
       method: "aborted",
-      analysis: { status: "none" },
+      analysis: { status: "none", etaSec: null },
+      comparison: null,
     });
     assert.deepEqual(storedResult({ status: "COMPLETED", outcome: "WHITE", endMethod: "FIFTY_MOVE" }), {
       status: "COMPLETED",
       outcome: "WHITE",
       method: "fifty_move",
-      analysis: { status: "none" },
+      analysis: { status: "none", etaSec: null },
+      comparison: null,
     });
     assert.equal(storedResult({ status: "COMPLETED", outcome: "WHITE", endMethod: "OTHER" }), null);
     assert.equal(storedResult({ status: "CANCELLED", outcome: null, endMethod: null }), null);

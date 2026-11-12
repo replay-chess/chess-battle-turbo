@@ -1,0 +1,59 @@
+/*
+ * The P3 game-over slots (phase-03 plan §4.7; boards V3GameOverLegend, V3Game over_analysing / over_legend and the
+ * result.coach line of the over_* states). Loaded with the lazy chunk. DS tokens only; the legend's moves use the
+ * legend colour (sky-500), ✓ good and × bad. Only opacity/transform would animate; the bar width changes stepwise.
+ */
+@layer components {
+  .rv-go-primary { min-height: 48px; width: 100%; }
+
+  .rv-go-acc { display: flex; flex-direction: column; gap: 4px; }
+  /* The card tints its labels by result (game.css `.g-result[data-kind] .g-lbl`); the slot labels keep the board's
+     neutral / legend colours whatever the result. */
+  .g-result .rv-go-acc > .g-lbl.g-lbl, .g-result .rv-go-lgrid .g-lbl.g-lbl { color: var(--cb-text-soft); }
+  .g-result .rv-go-legend .rv-go-legend__lbl.g-lbl, .g-result .rv-go-lgrid .rv-go-legend__theirs.g-lbl { color: var(--cb-sky-500); }
+  .rv-go-bar { position: relative; height: 4px; overflow: hidden; background: var(--cb-border-subtle); }
+  .rv-go-bar > span { position: absolute; inset: 0 auto 0 0; background: var(--cb-accent); }
+
+  .rv-go-coach { display: flex; gap: 10px; align-items: flex-start; }
+  .rv-go-rk {
+    width: 24px; height: 24px; flex: none; border: 1px solid var(--cb-border-strong); border-radius: 9999px;
+    display: flex; align-items: center; justify-content: center;
+    font: 0.6875rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace;
+  }
+  .rv-go-coach__text { font-size: 0.875rem; line-height: 1.45; overflow-wrap: anywhere; }
+
+  .rv-go-legend {
+    display: flex; flex-direction: column; gap: 6px; padding: 10px;
+    background: var(--cb-fill); border: 1px solid var(--cb-border-subtle);
+  }
+  .rv-go-legend__lbl, .rv-go-legend__theirs { color: var(--cb-sky-500); }
+  .rv-go-legend__line { font-size: 0.875rem; line-height: 1.45; }
+  .rv-go-legend__line b { font-weight: 600; }
+  /* A move ("12.O-O-O") never breaks across lines (FIX-1). */
+  .rv-go-legend__line .g-mono { white-space: nowrap; }
+  .rv-go-legend__outcome { font-size: 0.8125rem; color: var(--cb-text-soft); }
+  .rv-go-lgrid {
+    display: grid; grid-template-columns: 32px minmax(0, 1fr) minmax(0, 1fr) 18px; gap: 2px 8px; align-items: center;
+    font: 0.75rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace;
+  }
+  .rv-go-lgrid__row { display: contents; }
+  .rv-go-lgrid .g-lbl { font-size: 0.5625rem; }
+  /* Text, not decoration: cb-text-faint (0.15) failed contrast at 1.4:1 (FIX-1); the board uses 0.55. */
+  .rv-go-lgrid__n { color: var(--cb-text-soft); }
+  .rv-go-lgrid__mark[data-mark="match"] { color: var(--cb-good); }
+  .rv-go-lgrid__mark[data-mark="split"] { color: var(--cb-bad); }
+  .rv-go-legend__replay { min-height: 32px; font-size: 0.8125rem; position: relative; }
+  /* 44 px effective hit box on the drawn 32 px link (the tap-target pattern, FIX-2). */
+  .rv-go-legend__replay::after { content: ""; position: absolute; inset-inline: 0; inset-block: min(0px, calc((100% - 44px) / 2)); }
+  .rv-go-legend__compare { align-self: stretch; min-height: 44px; }
+
+  /* One viewport (plan §4.7, FIX-1), as the board V3GameOverLegend: below 760 px of height the move table goes
+     (`.tall`), below 620 px the coach line too (`.short-hide`), so the primary and Rematch / New Game / Share stay on
+     screen at 125 % and 150 % zoom. */
+  @media (max-height: 760px) {
+    .rv-go-lgrid { display: none; }
+  }
+  @media (max-height: 620px) {
+    .rv-go-coach { display: none; }
+  }
+}

@@ -6,22 +6,9 @@
  * DS `mq-*` tokens are colours only, used by the one label without an icon.
  */
 import { displayPos, pieceColor, type Placement } from "./geometry";
+import { BADGE_ICON as ICON } from "./badge-icons";
 import type { BadgeKind, BoardBadge, Side, Sq } from "./types";
 
-const ICON: Partial<Record<BadgeKind, string>> = {
-  brilliant: "brilliant",
-  great: "great_find",
-  best: "best",
-  excellent: "excellent",
-  good: "good",
-  book: "book",
-  forced: "forced",
-  inaccuracy: "inaccuracy",
-  mistake: "mistake",
-  miss: "missed_win",
-  blunder: "blunder",
-  win: "winner",
-};
 
 /** End-of-game icons that come in a white and a black version (the colour of the king on the square). */
 const BY_COLOR: Partial<Record<BadgeKind, string>> = { mate: "checkmate", flag: "resign", draw: "draw" };

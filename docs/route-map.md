@@ -15,6 +15,7 @@ Status: Phase 1 deliverable **1A·DOC**, 2026-11-05, branch `dev`. This is the c
 | Class | Who gets the page | Enforced by | Signed-out visitor |
 |---|---|---|---|
 | `public` | everyone | nothing (page may still personalise when signed in) | sees the page |
+| `public_static` | everyone | nothing, and Clerk does not run (the page reads no session: ISR snapshots such as P3's `/r/<code>`) | sees the page |
 | `public (dev only)` | everyone in dev and test; **404** in a production-mode build | `devRoutesEnabled()` (SPEC D11) and the test-hook registry (`prod-guard.spec.ts`) | sees the page on dev |
 | `signed_in` | any signed-in user, member or not (onboarding, checkout, account and membership settings) | middleware (`redirectToSignIn`) | → `/sign-in?redirect_url=…` |
 | `member` | an entitled member or trialist (and admins) | middleware sign-in redirect; member gate on the `md.entitled` claim when `MIDDLEWARE_MEMBER_GATE=on` (plan §7.6 step 6); the page-level `requireMemberPage()` decides when the claim is missing | → `/sign-in`; non-member → `/pricing?reason=required`, lapsed → `/pricing?reason=ended` |
@@ -173,7 +174,7 @@ One row per route (or family of routes that share boards and class). **Boards** 
 | `/review/[ref]/complete` | V3RvComplete, V3RvCompleteClean | P3 | `review-v3` | member | signed_in (default) | `(app)` |  |
 | `/review/[ref]/share` | V3RvShare | P3 | `review-v3`, `review-share` | member | signed_in (default) | `(app)` |  |
 | `/review/[ref]/legend` | V3LegendCompare, V3TryCompare, V3GameOverLegend (teaser) | P3 | `review-v3` | member | signed_in (default) | `(app)` |  |
-| `/r/[code]` | V3RvShare (public snapshot) | P3 | `review-share` | public | signed_in (default) | root `app/r` | ISR snapshot (`revalidate = 3600`) |
+| `/r/[code]` | V3RvShare (public snapshot) | P3 | `review-share` | public_static | signed_in (default) | root `app/r` (a route handler, `route.ts`) | plain HTML with one inline island, no root layout or Next client runtime (Lighthouse G5); ISR (`force-static`, `revalidate = 3600`); no Clerk in middleware |
 | `/games` | V3GamesArchive, V3GamesArchiveFilters, V3GamesArchiveEmpty | P3 | `review-v3` | member | member | `(app)` | nav item Review |
 | `/practice` | V3Practice | P3 | `review-v3` | member | signed_in (default) | `(app)/(immersive)` |  |
 | `/how-we-grade` | V3HowWeGrade | P3 | — | public | signed_in (default) | `(marketing)` | indexable |

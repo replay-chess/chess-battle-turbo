@@ -1,6 +1,6 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
+import { withSentry } from "@/lib/sentry/lazy";
 import localFont from "next/font/local";
 import { Instrument_Serif } from "next/font/google";
 import { useEffect } from "react";
@@ -31,7 +31,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    withSentry((Sentry) => Sentry.captureException(error));
   }, [error]);
 
   return (

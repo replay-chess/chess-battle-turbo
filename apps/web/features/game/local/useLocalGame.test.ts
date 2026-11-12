@@ -161,7 +161,7 @@ function rig(
       opts.complete ??
       (async (b) => {
         r.completes.push(b);
-        return { status: "COMPLETED", outcome: "DRAW", method: b.method, analysis: { status: "none" } };
+        return { status: "COMPLETED", outcome: "DRAW", method: b.method, analysis: { status: "none", etaSec: null }, comparison: null };
       }),
     now: () => t,
     random: () => 0,
@@ -559,7 +559,7 @@ test("engine failure shows the engine error; Try again (sync) retries and the bo
       onLoading: () => () => {},
     },
     createGame: () => {},
-    complete: async () => ({ status: "COMPLETED", outcome: "DRAW", method: "agreement", analysis: { status: "none" } }),
+    complete: async () => ({ status: "COMPLETED", outcome: "DRAW", method: "agreement", analysis: { status: "none", etaSec: null }, comparison: null }),
     now: () => t,
     random: () => 0,
     journal: { read: () => null, write: () => {}, remove: () => {} },

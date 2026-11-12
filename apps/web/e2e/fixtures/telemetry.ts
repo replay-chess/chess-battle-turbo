@@ -44,7 +44,13 @@ export type TelemetryOptions = {
 type Recorder = { client: CapturedEvent[]; forbidden: string[]; since: number };
 
 export type Match = Record<string, unknown>;
-export type ExpectOptions = { count?: number; source?: "client" | "server" | "any"; timeout?: number };
+export type ExpectOptions = {
+  count?: number;
+  source?: "client" | "server" | "any";
+  timeout?: number;
+  /** Server events only from this `distinct_id` (the user ref): the sink is shared by every parallel test. */
+  distinctId?: string;
+};
 
 export type Telemetry = {
   /** Waits until `name` was captured (exactly `count` times when given) with props containing `match`. */
@@ -165,7 +171,13 @@ export const test = guarded.extend<TelemetryOptions & { telemetry: Telemetry; _t
         if (options.source === "server" && !telemetrySinkUrl) {
           throw new Error("telemetry.expect(source: server) needs the PostHog sink; tag the spec @local-only");
         }
-        const find = async () => (await all(options.source)).filter((e) => e.event === name && matchesProps(e.props, match));
+        const find = async () =>
+          (await all(options.source)).filter(
+            (e) =>
+              e.event === name &&
+              matchesProps(e.props, match) &&
+              (options.distinctId === undefined || e.distinctId === options.distinctId),
+          );
         const poll = expect.poll(async () => (await find()).length, {
           timeout: options.timeout ?? 10_000,
           message: `telemetry event ${name} ${JSON.stringify(match ?? {})}`,

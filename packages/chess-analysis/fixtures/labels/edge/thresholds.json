@@ -1,0 +1,54 @@
+{
+  "name": "thresholds",
+  "provenance": "constructed",
+  "note": "Severity thresholds (rule 4, ≥). Each ply's after-eval is the nearest integer centipawn value on one side of 5, 10 or 15 Win% loss (losses: 4.96, 5.06, 9.95, 10.04, 14.95, 15.04, 5.06, 4.97, 10.04, 9.95, 15.02, 14.93). Movers alternate so the eval stays within ±151 cp, below MISS's +200, and no ply is a MISS. Best moves unknown, no book.",
+  "games": [
+    {
+      "id": "thresholds",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "moves": [
+        "e4",
+        "e5",
+        "Nf3",
+        "Nc6",
+        "Bb5",
+        "a6",
+        "Ba4",
+        "Nf6",
+        "O-O",
+        "Be7",
+        "Re1",
+        "b5"
+      ],
+      "evals": [
+        15,
+        -39,
+        16,
+        -93,
+        17,
+        -149,
+        18,
+        -37,
+        17,
+        -93,
+        16,
+        -151,
+        15
+      ],
+      "expected": [
+        "good",
+        "inaccuracy",
+        "inaccuracy",
+        "mistake",
+        "mistake",
+        "blunder",
+        "inaccuracy",
+        "good",
+        "mistake",
+        "inaccuracy",
+        "blunder",
+        "mistake"
+      ]
+    }
+  ]
+}

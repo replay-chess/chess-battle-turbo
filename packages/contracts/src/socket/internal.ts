@@ -72,6 +72,24 @@ export const MetricsResponse = z.object({
 });
 export type MetricsResponse = z.infer<typeof MetricsResponse>;
 
+// ── GET /internal/load (kid `wk`; P3 task E2, plan §7.4, P3-D8) ─────────────────────────────────────────────
+/**
+ * The worker's lag-pause probe, served from the socket's own lag monitor with no I/O. Signed, docker network only (not
+ * in the Caddy allow-list). The worker pauses between searches while `loopLagP99Ms` is above its LAG_PAUSE_MS or the
+ * socket is draining for a deploy.
+ */
+export const LoadResponse = z.object({
+  /** Event-loop delay p99 (ms) since the last metrics push window reset. */
+  loopLagP99Ms: z.number().min(0),
+  /** Sessions in study, first_move or playing. */
+  liveGames: z.number().int().min(0),
+  /** Connected sockets. */
+  sockets: z.number().int().min(0),
+  /** A restart was announced or the SIGTERM drain runs (no new sessions). */
+  draining: z.boolean(),
+});
+export type LoadResponse = z.infer<typeof LoadResponse>;
+
 // ── GET /health, GET /ready (no auth) ───────────────────────────────────────────────────────────────────────────
 export const HealthResponse = z.object({ ok: z.boolean(), loopLagMs: z.number().min(0) });
 export type HealthResponse = z.infer<typeof HealthResponse>;

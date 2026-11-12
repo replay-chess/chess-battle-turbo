@@ -31,7 +31,7 @@ const json = (status: number, body: unknown, headers: Record<string, string> = {
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
 
 const COMPLETE = { rev: 1, moves: [], clocksMs: [], result: "aborted" as const, method: "aborted" as const, assists: { hints: 0, undos: 0 }, endedAtClient: 0 };
-const RESULT = { status: "ABORTED", outcome: "NONE", method: "aborted", analysis: { status: "none" } };
+const RESULT = { status: "ABORTED", outcome: "NONE", method: "aborted", analysis: { status: "none", etaSec: null }, comparison: null };
 
 describe("Idempotency-Key per create body", () => {
   it("reuses the key for the same body within 60 s, then mints a new UUID v4; another body gets another key", async () => {

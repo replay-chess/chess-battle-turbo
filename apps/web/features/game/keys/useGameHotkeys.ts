@@ -9,7 +9,7 @@ import { useEffect } from "react";
 import { absPly } from "@repo/game-core/client/reducer";
 import { trackGame } from "@/lib/analytics/game-events";
 import { COARSE_MQ } from "@/lib/layout/media-queries";
-import { MODAL_OPEN_SELECTOR, isEditableTarget } from "@/lib/shell/keys";
+import { MODAL_OPEN_SELECTOR, isEditableTarget } from "@/lib/shell/key-target";
 import { singleKeyEnabledNow } from "@/lib/shell/prefs";
 import { useController, usePrefs } from "../screen/GameContext";
 import { viewSourceFor } from "../viewState";

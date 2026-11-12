@@ -192,3 +192,48 @@ test("every enabled destination href and the account links have a page", () => {
   for (const href of hrefs) assert.ok(exists(href), `no app/**/page.tsx for ${href}`);
   assert.equal(exists("/home"), false, "the /home route exists now: revisit the hidden Home destination");
 });
+
+test("Review (P3) is on only with review-v3: nav item, tab bar, current on /games, /review/* and /practice", () => {
+  const on = { "review-v3": true } as const;
+  assert.ok(!enabledDestinations().some((d) => d.key === "review"));
+  assert.ok(!enabledDestinations({ "review-v3": false }).some((d) => d.key === "review"));
+  assert.ok(enabledDestinations(on).some((d) => d.key === "review"));
+  assert.deepEqual(
+    tabBarDestinations(on).map((d) => d.key),
+    ["play", "learn", "review", "profile"],
+  );
+  assert.equal(destination("review").href(me), "/games");
+  assert.deepEqual(keys(currentDestinations("/games", me, on)), ["review"]);
+  assert.deepEqual(keys(currentDestinations("/review/cm3k9x2p10007slzpqa8hd4fe", me, on)), ["review"]);
+  assert.deepEqual(keys(currentDestinations("/games", me)), [], "never current with the flag off");
+  assert.deepEqual(keys(currentDestinations("/reviews", me, on)), []);
+  assert.deepEqual(keys(currentDestinations("/practice", me, on)), ["review"]);
+  assert.deepEqual(keys(currentDestinations("/practices", me, on)), []);
+});
+
+test("a review is a full-screen detail: Back to My games, no phone tab bar", () => {
+  assert.deepEqual(backTarget("/review/abc", me), { key: "review", href: "/games", label: "My Games" });
+  assert.equal(hidesTabBar("/review/abc"), true);
+  assert.equal(hidesTabBar("/review/abc/complete"), true);
+  assert.equal(hidesTabBar("/games"), false);
+  assert.equal(hidesTabBar("/game/abc"), true);
+});
+
+// regression: practice-phone-back (FIX-1): practice on phones and iPad portrait had no Back control.
+test("practice is a detail with Back on phones (the game layout's top bar); the page names its origin", () => {
+  assert.deepEqual(backTarget("/practice", me), { key: "review", href: "/games", label: "My Games" });
+  assert.equal(backTarget("/practices", me), null);
+});
+
+// regression: review-back-wrong-target (FIX-2, review round 2). Every review sub-screen's Back said "Back to Review"
+// and went to /games, so Compare on a phone had no way back to the review it came from.
+test("a review's own screens go back to that review; the label names the target", () => {
+  for (const sub of ["complete", "share", "legend"]) {
+    assert.deepEqual(backTarget(`/review/cm3k9x2p10007slzpqa8hd4fe/${sub}`, me), {
+      key: "review",
+      href: "/review/cm3k9x2p10007slzpqa8hd4fe",
+      label: "Review",
+    });
+  }
+  assert.deepEqual(backTarget("/review/cm3k9x2p10007slzpqa8hd4fe/other", me), { key: "review", href: "/games", label: "My Games" });
+});

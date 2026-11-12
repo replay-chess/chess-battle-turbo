@@ -3,6 +3,7 @@
 // `game:error`, `server:restarting` and `session:hello` carry no `seq`. Room routing and size budgets are in
 // registry.ts and limits.ts.
 import { z } from "zod";
+import { GameResultReview } from "./analysis";
 import { SocketErrorCode } from "./codes";
 import { AbortedBy, Clocks, EndMethod, GameState, MoveApplied, Phase, ReadyPair, Ref, Side } from "./game";
 
@@ -76,13 +77,16 @@ export const GameEndedEvent = z.object({
 });
 export type GameEndedEvent = z.infer<typeof GameEndedEvent>;
 
-/** After `finishGame()` committed. P3 widens `review.status`, P9 fills `ratings`, P12 `tournament`. */
+/**
+ * After `finishGame()` committed. P9 fills `ratings`, P12 `tournament`. `review` (P3, CON 3.9) is the game-over card's
+ * analysis seed: `queued` (≥ 6 plies: the finish statement enqueued the job) with an ETA, or `skipped` (shorter).
+ */
 export const GameResultEvent = z.object({
   seq: Seq,
   ref: Ref,
   ratings: z.null(),
   tournament: z.null(),
-  review: z.object({ status: z.enum(["none"]) }),
+  review: GameResultReview,
 });
 export type GameResultEvent = z.infer<typeof GameResultEvent>;
 

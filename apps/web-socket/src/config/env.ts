@@ -20,6 +20,13 @@ export interface ServerEnv {
   /** INTERNAL_API_SECRET (service HMAC keys, plan 7.5.1). */
   internalKeys: KeyRing;
   webAppUrl: string | null;
+  /**
+   * ANALYSIS_WORKER_URL (P3 §7.4): where the socket kicks the analysis worker after a finish commits
+   * (`http://analysis-worker:3003` on the dev box; `http://localhost:3003` locally). Required with APP_ENV=dev; optional
+   * elsewhere (production has no worker until P13, test/local run without one). Null = no kicks (the worker's own
+   * drain-end sweep and the web's lost-kick heal still pick the jobs up).
+   */
+  analysisWorkerUrl: string | null;
   databaseUrl: string | null;
   journalDir: string | null;
   /** `TIMING_PROFILE=fast` (APP_ENV=test only). */
@@ -126,6 +133,14 @@ export function loadEnv(raw: RawEnv = process.env): ServerEnv {
     throw new EnvError("SOCKET_TOKEN_SECRET is required when APP_ENV is dev or production");
   }
 
+  const analysisWorkerUrl = str(raw, "ANALYSIS_WORKER_URL")?.replace(/\/+$/, "") ?? null;
+  if (analysisWorkerUrl === null && appEnv === "dev") {
+    throw new EnvError("ANALYSIS_WORKER_URL is required when APP_ENV is dev (the socket kicks the analysis worker)");
+  }
+  if (analysisWorkerUrl !== null && !/^https?:\/\/[^/\s?#]+$/.test(analysisWorkerUrl)) {
+    throw new EnvError("ANALYSIS_WORKER_URL must be an origin like http://analysis-worker:3003");
+  }
+
   const posthogKey = str(raw, "POSTHOG_PROJECT_KEY");
   const logLevelRaw = str(raw, "LOG_LEVEL") ?? (appEnv === "test" ? "warn" : "info");
   if (!["debug", "info", "warn", "error"].includes(logLevelRaw)) throw new EnvError("LOG_LEVEL must be debug, info, warn or error");
@@ -138,6 +153,7 @@ export function loadEnv(raw: RawEnv = process.env): ServerEnv {
     socketKeys,
     internalKeys,
     webAppUrl: str(raw, "WEB_APP_URL"),
+    analysisWorkerUrl,
     databaseUrl: str(raw, "DATABASE_URL"),
     journalDir: str(raw, "JOURNAL_DIR"),
     timingProfile: profileRaw === "fast" ? "fast" : "real",

@@ -12,6 +12,7 @@ import { pgnSiteOrigin } from "./site-origin";
 import { endMethodFromDb, snapshotOf, winnerFromOutcome, type GameRecord, type GameSnapshot } from "@repo/game-core/snapshot";
 import { ApiError } from "@/lib/api/api-error";
 import { prisma } from "@/lib/prisma";
+import type { PrismaClient } from "@repo/db";
 import { isFinishedStatus, roleIn, type GameRole } from "./access.server";
 
 export type GamesDb = {
@@ -37,6 +38,18 @@ export function rawDb(db: UnsafeRawClient): GamesDb {
     $queryRaw: <T>(sql: Prisma.Sql) => db.$queryRawUnsafe<T>(sql.text, ...sql.values),
     $executeRaw: (sql: Prisma.Sql) => db.$executeRawUnsafe(sql.text, ...sql.values),
   };
+}
+
+/**
+ * Statements run in order inside ONE transaction, each returning its rows (Prisma's batch `$transaction`). In READ
+ * COMMITTED each statement takes its own snapshot, so a statement after a lock sees what the lock waited for.
+ */
+export type SqlTransaction = (statements: readonly Prisma.Sql[]) => Promise<unknown[][]>;
+
+/** A SqlTransaction over a Prisma client (the same *Unsafe path as rawDb, for the same Sql-class reason). */
+export function rawTransaction(db: Pick<PrismaClient, "$transaction" | "$queryRawUnsafe">): SqlTransaction {
+  return async (statements) =>
+    (await db.$transaction(statements.map((s) => db.$queryRawUnsafe<unknown[]>(s.text, ...s.values)))) as unknown[][];
 }
 
 /** One `games` row as the services read it (BigInt ids stay server-side; never serialised). */

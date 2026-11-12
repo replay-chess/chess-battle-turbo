@@ -9,7 +9,9 @@
     "./live": "./src/live/index.ts",
     "./games": "./src/games/index.ts",
     "./json": "./src/json/index.ts",
+    "./jobs": "./src/jobs.ts",
     "./seed-guards": "./prisma/seed-guards.ts",
+    "./seed/*": "./seed/*.ts",
     "./runtime/library": {
       "types": "./generated/prisma/runtime/library.d.ts",
       "default": "./generated/prisma/runtime/library.js"
@@ -28,17 +30,24 @@
     "seed": "tsx prisma/seed.ts",
     "seed:openings": "tsx prisma/opening-seed.ts",
     "seed:content": "tsx prisma/seed-content.ts",
-    "test": "tsx --test \"prisma/**/*.test.ts\" \"src/**/*.test.ts\"",
+    "seed:review": "tsx seed/review.ts",
+    "seed:smoke": "tsx seed/smoke.ts",
+    "seed:perf": "tsx seed/perf-archive.ts",
+    "seed:bench": "tsx seed/bench.ts",
+    "seed:public-share": "tsx seed/public-share.ts",
+    "test": "tsx --test \"prisma/**/*.test.ts\" \"src/**/*.test.ts\" \"scripts/**/*.test.ts\" \"seed/**/*.test.ts\"",
     "test:int": "tsx --test \"test/**/*.int.test.ts\"",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "6.17.1",
+    "@repo/contracts": "workspace:*",
     "chess.js": "1.4.0",
     "dotenv": "17.3.1",
     "zod": "4.1.12"
   },
   "devDependencies": {
+    "@repo/chess-analysis": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "22.15.3",
     "prisma": "6.17.1",

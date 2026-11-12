@@ -1,4 +1,6 @@
 import { createPrismaClient } from '../src/client';
+import { DEFAULT_MEMBER_EMAIL, runReviewSeed } from '../seed/review';
+import { checkTripwire, resolveWriteTarget, SeedGuardError } from '../seed/target';
 
 const prisma = createPrismaClient();
 
@@ -287,7 +289,37 @@ async function main() {
     console.log(`♟️  Created chess position: ${displayName} - Reference ID: ${position.referenceId}`);
   }
 
+  await seedReviewFixtures();
+
   console.log('🎉 Database seed completed successfully!');
+}
+
+/**
+ * Phase 3 (phase-03 plan §6.9): member A's review fixtures (`seed/review.ts`), called from the dev seed entry so a
+ * fresh dev database gets the P3 fixtures with `pnpm --filter @repo/db seed`. It goes through the review seed's own
+ * guards: the dev branch or a local Postgres only, the user-count tripwire, and its preconditions (member A provisioned
+ * in Clerk, the legend positions of `seed:content`). A missing precondition skips the fixtures with the command to run,
+ * so the base seed still succeeds on a database that has none yet; `seed:review --apply` adds them later.
+ */
+async function seedReviewFixtures() {
+  try {
+    const target = resolveWriteTarget();
+    const db = createPrismaClient({ datasourceUrl: target.url });
+    try {
+      await checkTripwire(db);
+      const r = await runReviewSeed(db, { apply: true, memberEmail: DEFAULT_MEMBER_EMAIL, resetProgress: false });
+      const changed = r.plan.filter((p) => p.action !== 'unchanged').length;
+      console.log(`📝 Review fixtures for ${DEFAULT_MEMBER_EMAIL}: ${r.plan.length} games (${changed} written), ${r.shares.length} shares`);
+    } finally {
+      await db.$disconnect();
+    }
+  } catch (err) {
+    if (err instanceof SeedGuardError) {
+      console.log(`⏭️  Review fixtures skipped: ${err.message} (then: pnpm --filter @repo/db seed:review --apply)`);
+      return;
+    }
+    throw err;
+  }
 }
 
 main()

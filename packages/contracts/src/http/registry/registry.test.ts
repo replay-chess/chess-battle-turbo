@@ -73,12 +73,17 @@ describe("endpoint registry", () => {
     for (const f of areaFiles) assert.match(index, new RegExp(`from "\\./${f}"`), f);
   });
 
-  it("declares the P1 endpoints of plan §7.3/§7.4 and the P2 games endpoints (phase-02 §7.1)", () => {
+  it("declares the P1 endpoints of plan §7.3/§7.4, the P2 games endpoints (phase-02 §7.1) and the P3 review, share, archive and practice endpoints (phase-03 §7.2)", () => {
     assert.deepEqual(HTTP_ENDPOINTS.map((e) => e.id).sort(), [
       "billing.refresh", "catalog.openings.index", "cron.daily",
       "games.checkpoint", "games.complete", "games.create", "games.detail", "games.pgn",
       "health.get", "healthcheck.get",
-      "me.get", "session.clear", "socket-token.get", "subscription.get", "webhook.clerk", "webhook.dodo",
+      "me.games", "me.get",
+      "practice.context",
+      "review.analyse", "review.complete", "review.get", "review.legend", "review.legend.compute", "review.moment",
+      "review.pgn", "review.progress", "review.retry", "review.status",
+      "session.clear", "share.create", "share.revoke", "share.update", "socket-token.get", "subscription.get",
+      "webhook.clerk", "webhook.dodo",
     ]);
     const me = getEndpoint("me.get");
     assert.equal(me.path, "/api/me");

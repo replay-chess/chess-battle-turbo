@@ -3,6 +3,9 @@ import { requireSubscribedUser } from "@/lib/auth/require-subscription";
 import { prisma } from "../../../../lib/prisma";
 import { Chess, Move } from "chess.js";
 import { logger } from "@/lib/logger";
+import { getViewer } from "@/lib/auth/viewer";
+import { getFlags } from "@/lib/flags";
+import { legacyApiTarget, permanentRedirectResponse } from "@/lib/services/analysis/legacy-redirect";
 
 interface AnalysisData {
   // Game info
@@ -149,6 +152,11 @@ export async function GET(
 ) {
   try {
     const { gameId } = await params;
+
+    // H3 (phase-03 plan §7.2 R1): with `analysis-redirect` on, the legacy payload moves to the review's A1.
+    const flags = await getFlags(await getViewer());
+    const target = flags["analysis-redirect"] ? legacyApiTarget(gameId) : null;
+    if (target) return permanentRedirectResponse(target, request.url);
 
     // Members only (trial counts). The caller is always the signed-in user;
     // the client no longer chooses whose view of the game it gets.

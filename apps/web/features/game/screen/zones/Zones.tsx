@@ -9,6 +9,8 @@ import { restartStage } from "@repo/game-core/client/viewState";
 import { FIRST_MOVE_MS, GRACE_MS, STUDY_SECONDS_NON_INITIAL } from "@repo/game-core/constants";
 import { isInitialFen } from "@repo/game-core/rules/chess";
 import { useCancelLegacyChallenge } from "@/lib/api/mutations/games";
+import { useFlag } from "@/lib/flags/client";
+import { reviewHref } from "@/lib/routes";
 import { useCountdown } from "../../clock/useCountdown";
 import { alreadyEndedLine, BUTTONS, copyCtx, ZONE } from "../../copy";
 import { reloadVisible } from "../../live/outbox";
@@ -302,13 +304,15 @@ export function EndedZone() {
   const state = useGame((g) => g.state);
   const ctx = copyCtx(state);
   const player = !ctx.spectator;
+  // P3 (P3-D29): the game's review replaces the legacy /analysis page with review-v3 on.
+  const reviewV3 = useFlag("review-v3");
   return (
     <div className="g-zone" data-testid="zone-ended">
       <span style={{ fontWeight: 500 }}>{ZONE.endedTitle}</span>
       <span className="g-body">{alreadyEndedLine(view.result, ctx)}</span>
       <div style={{ display: "flex", gap: 6 }}>
         {player && state.result?.method !== "aborted" ? (
-          <Link className="g-btn-p" href={`/analysis/${state.ref}`} style={{ flex: "1 1 auto" }}>
+          <Link className="g-btn-p" href={reviewHref(state.ref, reviewV3, { from: "game_over" })} style={{ flex: "1 1 auto" }} data-testid="ended-review">
             {BUTTONS.analyse}
           </Link>
         ) : null}

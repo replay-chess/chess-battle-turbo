@@ -198,18 +198,35 @@ export function verifyInternal({ headers, method, path, body, keys, nowMs, repla
   return { ok: true, kid };
 }
 
-// ── Per-caller allow-lists (§7.5.1) ─────────────────────────────────────────────────────────────────────────────
-/** Kids: `web` (Vercel → socket), `ops` (CLI and deploy inside the container); P3 adds `wk`, P12 may add `ws`. */
-export const INTERNAL_KIDS = ["web", "ops", "wk", "ws"] as const;
+// ── Per-caller allow-lists (§7.5.1; phase-03 plan §8.17, P3-D21) ────────────────────────────────────────────────
+/**
+ * Kids: `web` (Vercel functions), `ops` (CLI, deploy and smoke scripts inside a container), `wk` (the analysis
+ * worker, P3), and the three kids that sign calls TO the worker (P3): `ws` (the socket server), `webwk` (the web)
+ * and `opswk` (the deploy smoke). Each service's INTERNAL_API_SECRET ring lists its own signing kid first, then every
+ * kid it accepts.
+ *
+ * One key per receiver (FIX-1): an HMAC receiver holds the key of every kid it accepts, so the worker, which runs a
+ * native engine on untrusted game data, must not accept `web` or `ops`: holding those keys would let a compromised
+ * worker sign as the web (any socket event, the internal chess routes) or as ops (drain the socket). The web and ops
+ * therefore call the worker with keys of their own (`webwk`, `opswk`) that the socket never accepts, and the worker
+ * refuses to boot with a `web` or `ops` key in its ring (WORKER_FORBIDDEN_KIDS).
+ */
+export const INTERNAL_KIDS = ["web", "ops", "wk", "ws", "webwk", "opswk"] as const;
+
+/** The kid the web signs its worker calls with (kick, metrics). */
+export const WEB_TO_WORKER_KID = "webwk";
+/** The kid the deploy smoke signs its worker calls with. */
+export const OPS_TO_WORKER_KID = "opswk";
 export type InternalKid = (typeof INTERNAL_KIDS)[number];
 
-/** The socket server's internal paths. */
+/** The socket server's internal paths. `/internal/load` (P3) is the worker's lag-pause probe. */
 export const INTERNAL_PATHS = [
   "/internal/emit",
   "/internal/tournament-event",
   "/internal/broadcast",
   "/internal/drain",
   "/internal/metrics",
+  "/internal/load",
 ] as const;
 export type InternalPath = (typeof INTERNAL_PATHS)[number];
 
@@ -224,17 +241,20 @@ export type KidPolicy = {
 
 /**
  * The default policy the socket server enforces (WS/src/http/allow.ts reads it). `web` may emit every registered
- * event; `wk` (P3+) only its analysis-side domains; `ops` only reaches broadcast, drain and metrics. A forged
- * `entitlement:changed` therefore needs the web key.
+ * event; `wk` (P3+) only its analysis-side domains, plus the `/internal/load` probe; `ops` only reaches broadcast,
+ * drain and metrics; `ws` is the socket itself and calls nothing on it. A forged `entitlement:changed` therefore
+ * needs the web key.
  */
 export const INTERNAL_POLICY: Readonly<Record<InternalKid, KidPolicy>> = {
   web: { paths: ["/internal/emit", "/internal/tournament-event", "/internal/metrics"], events: "all" },
   wk: {
-    paths: ["/internal/emit"],
+    paths: ["/internal/emit", "/internal/load"],
     events: ["analysis:*", "import:*", "weakness:*", "bank:*", "compare:*", "review:*", "games:changed", "export:ready"],
   },
   ops: { paths: ["/internal/broadcast", "/internal/drain", "/internal/metrics"], events: [] },
   ws: { paths: [], events: [] },
+  webwk: { paths: [], events: [] },
+  opswk: { paths: [], events: [] },
 };
 
 function isInternalKid(kid: string): kid is InternalKid {
@@ -256,4 +276,39 @@ export function kidMayEmit(kid: string, event: string, policy = INTERNAL_POLICY)
   if (!isInternalKid(kid) || !kidMayCall(kid, "/internal/emit", policy)) return false;
   const events = policy[kid].events;
   return events === "all" || events.some((p) => eventMatches(p, event));
+}
+
+// ── The analysis worker as a receiver (phase-03 plan §7.5, §8.17, §11.1) ────────────────────────────────────────
+/** The worker's signed paths. `/health` and `/ready` are unsigned and reachable on the docker network only. */
+export const WORKER_INTERNAL_PATHS = ["/internal/analysis/kick", "/internal/metrics"] as const;
+export type WorkerInternalPath = (typeof WORKER_INTERNAL_PATHS)[number];
+
+/**
+ * Who may call the worker. The web (`webwk`) kicks after an enqueue (A3, A4, A9b, bot complete, the kick CAS) and
+ * reads metrics for the daily cron backstop; the socket (`ws`) kicks after a live finish commits; ops (`opswk`) is the
+ * deploy smoke inside the worker container (§12.8: a signed kick on localhost, then a metrics read). `wk` never calls
+ * itself, and `web` / `ops` never reach the worker (see INTERNAL_KIDS). The worker accepts nothing but HMAC (no static
+ * token, P3-D21).
+ */
+export const WORKER_POLICY: Readonly<Record<InternalKid, readonly WorkerInternalPath[]>> = {
+  web: [],
+  ws: ["/internal/analysis/kick"],
+  ops: [],
+  wk: [],
+  webwk: ["/internal/analysis/kick", "/internal/metrics"],
+  opswk: ["/internal/analysis/kick", "/internal/metrics"],
+};
+
+/** The kids a worker's key ring must hold to serve WORKER_POLICY (its own `wk` key signs its emits). */
+export const WORKER_ACCEPTED_KIDS = INTERNAL_KIDS.filter((kid) => WORKER_POLICY[kid].length > 0);
+
+/** Kids whose keys a worker ring must never hold: the socket accepts them with powers the worker must not have. */
+export const WORKER_FORBIDDEN_KIDS = INTERNAL_KIDS.filter(
+  (kid) => kid !== "wk" && INTERNAL_POLICY[kid].paths.length > 0,
+);
+
+/** May this kid call this worker path? Unknown kids and unknown paths may call nothing. */
+export function workerKidMayCall(kid: string, path: string, policy = WORKER_POLICY): boolean {
+  if (!isInternalKid(kid)) return false;
+  return (policy[kid] as readonly string[]).includes(path);
 }

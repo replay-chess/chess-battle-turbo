@@ -50,12 +50,17 @@ test.describe("Membership and trial", () => {
   test("game reviews are members-only and private to the players", async ({ authedPage: page }) => {
     const sub = await (await page.request.get("/api/subscription")).json();
     const res = await page.request.get("/api/analysis/not-a-real-game");
+    // P3 (phase-03 plan §12.5): the same rule on the review API (the legacy route above goes at H4).
+    const review = await page.request.get("/api/review/cnotarealgameref00000000aa");
     if (sub.entitled || sub.paywall === false) {
       // Members get a plain 404 for games that don't exist or aren't theirs.
       expect(res.status()).toBe(404);
+      expect(review.status()).toBe(404);
+      expect((await review.json()).error.code).toBe("not_found");
     } else {
       expect(res.status()).toBe(402);
       expect((await res.json()).code).toBe("subscription_required");
+      expect(review.status()).toBe(402);
     }
   });
 });
@@ -70,6 +75,12 @@ test.describe("Non-member (never had a trial)", () => {
     const review = await page.request.get("/api/analysis/not-a-real-game");
     expect(review.status()).toBe(402);
     expect((await review.json()).code).toBe("subscription_required");
+    // P3: the review API and the archive answer 402 trial_available (phase-03 plan §11.1, §12.5).
+    for (const path of ["/api/review/cnotarealgameref00000000aa", "/api/me/games"]) {
+      const p3 = await page.request.get(path);
+      expect(p3.status(), path).toBe(402);
+      expect(((await p3.json()) as { error: { details?: { reason?: string } } }).error.details?.reason, path).toBe("trial_available");
+    }
 
     // P2: bot games are created through POST /api/games (create-ai-game is gone); member-only, Idempotency-Key required.
     const play = await page.request.post("/api/games", {

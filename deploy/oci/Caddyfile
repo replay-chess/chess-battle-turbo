@@ -10,19 +10,45 @@
 	request_body @internal {
 		max_size 64KB
 	}
-
-	# Ops endpoints are reached only from inside the container
-	# (docker compose exec websocket node dist/cli/internal.js …), never from outside.
-	@opsOnly path /internal/broadcast /internal/drain /internal/metrics
-	respond @opsOnly 404
-
-	# Unsigned pre-check (feasibility SEC-8): a request without the HMAC signature header never reaches Node on
-	# the 1-OCPU box. The socket server still verifies every signature (kid, ts, sig, replay).
-	@unsigned {
-		path /internal/* /engine/*
-		not header X-Rc-Sig *
+	# The worker's kick body is ≤ 1 KB (phase-03 plan §7.5): 4 KB is the edge limit.
+	@worker path /internal/analysis/*
+	request_body @worker {
+		max_size 4KB
 	}
-	respond @unsigned 401
 
-	reverse_proxy websocket:3002
+	# `route` keeps the order below exactly as written (Caddy would otherwise sort `handle` before `respond`).
+	route {
+		# The socket's ops endpoints and its load probe are reached only from inside the docker network
+		# (docker compose exec websocket node dist/cli/internal.js …; the worker's lag pause), never from outside.
+		@opsOnly path /internal/broadcast /internal/drain /internal/load
+		respond @opsOnly 404
+
+		# Unsigned pre-check (feasibility SEC-8): a request without the HMAC signature header never reaches Node on
+		# the 1-OCPU box. The socket server and the worker still verify every signature (kid, ts, sig, replay).
+		@unsigned {
+			path /internal/* /engine/*
+			not header X-Rc-Sig *
+		}
+		respond @unsigned 401
+
+		# Reserved for P7's engine API: not served in phase 3.
+		respond /engine/* 404
+
+		# The analysis worker (compose profile `worker`, dev box only): the signed kick from Vercel and the socket, and
+		# the signed in-memory metrics the web's daily cron backstop reads (worker-alive; the worker accepts only the
+		# kids ws, webwk and opswk). The socket's own /internal/metrics stays docker-only (dist/cli/internal.js). The
+		# worker's /health and /ready are not proxied.
+		# This one file serves both boxes: the worker routes exist only where the stack runs the `worker` profile
+		# (COMPOSE_PROFILES, substituted when Caddy loads this file). Elsewhere (production, no worker) they answer 404,
+		# never a 502 from an upstream that is not there (FIX-2).
+		@toWorker {
+			path /internal/analysis/* /internal/metrics
+			expression `'{$COMPOSE_PROFILES:none}' == 'worker'`
+		}
+		reverse_proxy @toWorker analysis-worker:3003
+		respond /internal/analysis/* 404
+		respond /internal/metrics 404
+
+		reverse_proxy websocket:3002
+	}
 }

@@ -6,7 +6,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { DESTINATIONS, backFor, enabledDestinations } from "../nav/destinations";
-import { SHORTCUT_SECTIONS } from "./keys";
+import { SHORTCUT_SECTIONS } from "./shortcuts";
 import { PALETTE_GROUPS, buildPaletteRows } from "./palette";
 
 const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");

@@ -1,11 +1,12 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useSyncExternalStore } from "react";
 import { Dialog, DialogBody, DialogContent } from "@/components/ui/dialog";
 import { Kbd, ModKey } from "@/components/ui/kbd";
 import { SwitchRow } from "@/components/ui/switch";
 import { trackShell } from "@/lib/analytics/shell-events";
-import { SHORTCUT_SECTIONS } from "@/lib/shell/keys";
+import { useFlag } from "@/lib/flags/client";
+import { shortcutRegistryVersion, shortcutSections, subscribeShortcutRegistry } from "@/lib/shell/shortcuts";
 import { setSingleKeyEnabled, useSingleKeyShortcuts } from "@/lib/shell/prefs";
 import { cn } from "@/lib/utils";
 
@@ -39,13 +40,22 @@ export function ShortcutsDialog({
   open,
   onOpenChange,
   demo = false,
+  flags,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   demo?: boolean;
+  /** The shell's flags, when a page fixes them (the /dev/ui demos pass the real route's values); else the viewer's. */
+  flags?: { "review-v3"?: boolean; "review-share"?: boolean };
 }) {
   const singleKey = useSingleKeyShortcuts();
-  const sections = SHORTCUT_SECTIONS.filter((s) => s.rows.length);
+  const viewerReviewV3 = useFlag("review-v3");
+  const viewerReviewShare = useFlag("review-share");
+  const reviewV3 = flags?.["review-v3"] ?? viewerReviewV3;
+  const reviewShare = flags?.["review-share"] ?? viewerReviewShare;
+  // Pages register their own sections while mounted (registerReviewShortcuts); re-render when one comes or goes.
+  useSyncExternalStore(subscribeShortcutRegistry, shortcutRegistryVersion, () => 0);
+  const sections = shortcutSections({ reviewV3, reviewShare }).filter((s) => s.rows.length);
   const columns =
     sections.length >= 3 ? "grid-cols-4 narrow:grid-cols-2" : sections.length === 2 ? "grid-cols-2" : "grid-cols-1";
 

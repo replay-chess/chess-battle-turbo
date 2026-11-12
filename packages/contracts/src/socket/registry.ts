@@ -4,8 +4,9 @@
 //
 // Only events in EMIT_EVENTS may be sent through `/internal/emit`, and only by a kid whose allow-list admits them
 // (../internal/auth.ts INTERNAL_POLICY). Game-room events are emitted by the socket server itself and can never be
-// injected over HTTP. P2 registers one emit event, `test:echo`, outside production.
+// injected over HTTP. P2 registers one emit event, `test:echo`, outside production; P3 the analysis events.
 import { z } from "zod";
+import { ANALYSIS_EVENTS, ANALYSIS_EVENT_BUDGETS, type AnalysisEventName } from "./analysis";
 import { GAME_EVENTS, type GameEventName } from "./events";
 import { eventBudget } from "./limits";
 import type { RoomKind } from "./rooms";
@@ -60,8 +61,24 @@ export type EmitEventSpec = EventSpec & {
   readonly devOnly?: boolean;
 };
 
+/** A P3 analysis event (./analysis.ts): user rooms only, no per-room seq (the user room's `useq` orders them). */
+function analysisSpec<N extends AnalysisEventName>(name: N) {
+  return { schema: ANALYSIS_EVENTS[name], to: ["user"], seq: false, budget: ANALYSIS_EVENT_BUDGETS[name] } as const;
+}
+
 export const EMIT_EVENTS = {
   "test:echo": { schema: TestEchoEvent, to: ["user", "game", "spectate", "tournament"], seq: false, budget: 300, devOnly: true },
+  // ── P3 server analysis (phase-03 plan §5.11, §7.4). Only the game's member players receive them. The web emits
+  // `analysis:queued` (A3/A4) and the socket server emits `analysis:queued` + `games:changed` in-process after a finish;
+  // the worker (kid `wk`) emits the rest. INTERNAL_POLICY limits `wk` to these domains.
+  "analysis:queued": analysisSpec("analysis:queued"),
+  "analysis:progress": analysisSpec("analysis:progress"),
+  "analysis:writing": analysisSpec("analysis:writing"),
+  "analysis:done": analysisSpec("analysis:done"),
+  "analysis:failed": analysisSpec("analysis:failed"),
+  "analysis:batch": analysisSpec("analysis:batch"),
+  "compare:ready": analysisSpec("compare:ready"),
+  "games:changed": analysisSpec("games:changed"),
 } as const satisfies Record<string, EmitEventSpec>;
 
 export type EmitEventName = keyof typeof EMIT_EVENTS;

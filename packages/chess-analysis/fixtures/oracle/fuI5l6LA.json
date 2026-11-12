@@ -1,0 +1,84 @@
+{
+  "id": "fuI5l6LA",
+  "url": "https://lichess.org/fuI5l6LA",
+  "source": "Lichess game export (public game data, CC0), evals=true&accuracy=true&division=true&opening=true&clocks=false&literate=false, fetched 2026-11-11",
+  "speed": "bullet",
+  "status": "mate",
+  "winner": "black",
+  "players": {
+    "white": {
+      "rating": 1470,
+      "accuracy": 44,
+      "acpl": 119,
+      "inaccuracy": 2,
+      "mistake": 2,
+      "blunder": 1,
+      "phases": {
+        "opening": 77,
+        "middlegame": 23
+      }
+    },
+    "black": {
+      "rating": 1405,
+      "accuracy": 78,
+      "acpl": 75,
+      "inaccuracy": 2,
+      "mistake": 1,
+      "blunder": 2,
+      "phases": {
+        "opening": 77,
+        "middlegame": 64
+      }
+    }
+  },
+  "division": {
+    "middle": 24
+  },
+  "moves": "e4 g6 d4 Bg7 Nf3 c6 Nc3 d6 Be3 Be6 Qd2 Na6 Ng5 Qc8 d5 Bg4 f3 Bd7 O-O-O Nf6 dxc6 Bxc6 Nd5 Qd7 Nxf6+ Bxf6 Bc4 Rd8 Nxf7 Rf8 Nxd8 Qxd8 Be6 b6 Bh6 Qc7 Bxf8 Kxf8 h4 Ba4 Qh6+ Ke8 Qxh7 Qxc2#",
+  "analysis": [
+    {"eval":18},
+    {"eval":55},
+    {"eval":48},
+    {"eval":48},
+    {"eval":32},
+    {"eval":60},
+    {"eval":42},
+    {"eval":53},
+    {"eval":48},
+    {"eval":113,"best":"g8f6","judgment":"Inaccuracy"},
+    {"eval":115},
+    {"eval":178,"best":"e6g4","judgment":"Inaccuracy"},
+    {"eval":148},
+    {"eval":185},
+    {"eval":107,"best":"g5e6","judgment":"Inaccuracy"},
+    {"eval":160},
+    {"eval":145},
+    {"eval":109},
+    {"eval":91},
+    {"eval":311,"best":"h7h6","judgment":"Blunder"},
+    {"eval":122,"best":"e4e5","judgment":"Mistake"},
+    {"eval":122},
+    {"eval":1,"best":"h2h4","judgment":"Mistake"},
+    {"eval":147,"best":"c6d5","judgment":"Mistake"},
+    {"eval":153},
+    {"eval":133},
+    {"eval":155},
+    {"eval":662,"best":"f6g5","judgment":"Blunder"},
+    {"eval":642},
+    {"eval":738},
+    {"eval":725},
+    {"eval":704},
+    {"eval":652},
+    {"eval":670},
+    {"eval":658},
+    {"eval":693},
+    {"eval":702},
+    {"eval":938},
+    {"eval":650,"best":"d2h6","judgment":"Inaccuracy"},
+    {"eval":732},
+    {"eval":610},
+    {"eval":623},
+    {"mate":-1,"best":"h6d2","judgment":"Blunder"},
+    {"mate":0}
+  ]
+}

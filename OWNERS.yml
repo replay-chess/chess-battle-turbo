@@ -96,19 +96,70 @@ phases:
       - .github/workflows/deploy-oci.yml
 
   p03:
+    # phase-03 plan §13.1 (WP-A … WP-H). Active from the P3 stage-A build; done at the P3 sign-off.
     name: Server analysis and Game Review
-    status: planned
+    status: active
     weeks: 10-15
     globs:
+      - packages/chess-analysis/**
+      - packages/chess-fixtures/grades/**
+      - apps/analysis-worker/**
+      - packages/db/seed/**
+      - packages/db/scripts/backfill/**
+      - packages/db/scripts/roles/**
+      - packages/db/scripts/explain-hot.ts
+      - packages/db/src/jobs.ts
+      - packages/db/src/json/review.ts
+      - packages/db/src/json/legend.ts
+      - packages/db/src/json/share.ts
+      - packages/db/src/live/finish.fragments.p3.ts
+      - packages/contracts/src/http/review.ts
+      - packages/contracts/src/http/share.ts
+      - packages/contracts/src/http/practice.ts
+      - packages/contracts/src/http/legend.ts
+      - packages/contracts/src/http/plain.ts
+      - packages/contracts/src/socket/analysis.ts
+      - packages/contracts/src/internal/jobs.ts
+      - packages/contracts/src/internal/kick.ts
+      - packages/analytics/src/events/review.ts
       - apps/web/features/review/**
+      - apps/web/features/share/**
+      - apps/web/features/games/**
+      - apps/web/features/legend-compare/**
+      - apps/web/features/practice/**
       - apps/web/app/analysis/**
       - apps/web/app/(app)/games/**
       - apps/web/app/(app)/review/**
+      - apps/web/app/(app)/practice/**
+      - apps/web/app/how-we-grade/**
       - apps/web/app/r/**
+      - apps/web/app/api/review/**
+      - apps/web/app/api/share/**
+      - apps/web/app/api/me/games/**
+      - apps/web/app/api/practice/**
+      - apps/web/app/dev/ui/review/**
+      - apps/web/app/dev/ui/game-over/**
+      - apps/web/app/dev/ui/games/**
+      - apps/web/app/dev/ui/compare/**
+      - apps/web/app/dev/ui/practice/**
       - apps/web/lib/og/**
+      - apps/web/lib/services/analysis/**
+      - apps/web/lib/realtime/handlers/analysis.ts
       - apps/web/lib/api/keys/review.ts
-      - packages/chess-analysis/**
-      - apps/analysis-worker/**
+      - apps/web/lib/api/queries/review.ts
+      - apps/web/lib/api/queries/games.ts
+      - apps/web/lib/api/mutations/review.ts
+      - apps/web/lib/api/mutations/share.ts
+      - apps/web/lib/flags/registry/p03.ts
+      - apps/web/lib/cron/tasks/worker-alive.ts
+      - apps/web/e2e/specs/review/**
+      - apps/web/e2e/devices/layout/review.*.ts
+      - apps/web/e2e/fixtures/analysis-worker.ts
+      - apps/web/e2e/personas/p03.ts
+      - apps/web/scripts/qa/posthog-event-check.ts
+      - perf/k6/src/scenarios/review-read.ts
+      - perf/k6/src/scenarios/games-list.ts
+      - perf/k6/src/lib/clerk-sessions.ts
 
   p04:
     name: Game import and onboarding v3

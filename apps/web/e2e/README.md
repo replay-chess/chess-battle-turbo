@@ -36,6 +36,19 @@ Hook-dependent specs (the `x-rc-fault` buttons on `/dev/ui/data`, the session br
 | Design-state tags | test titles | `@state:<Board>.<value>` (reached on a real route) and `@demo:<Board>.<value>` (on a `/dev/ui` demo). `scripts/qa/state-coverage.ts` reads them; see `docs/qa/README.md`. |
 | Phase tags | test titles | `@p<N>`, `@smoke` (the CI e2e-smoke job), `@public` (signed out), `@local-only` (needs the local sinks or socket), `@prod-build` (needs a production build: skipped against `next dev`). |
 
+## Phase 3: review specs and the analysis worker
+
+`e2e/specs/review/**` (phase-03 plan §12.3) import `test`/`expect` from `specs/review/_lib/review.ts`: `member(letter)` signs the test's own page in (guarded, telemetry recorded), `seeded` makes sure member A has the P3 review seed (packages/db/seed/review.ts; idempotent, under an advisory lock) and returns its refs, `persona(name)` leases a P3 persona (`e2e/personas/p03.ts`: `review-empty`, `review-terminal`, `review-lapsed`), `resetProgress(ref)` clears the walkthrough of the one seeded game a spec owns. `specs/review/demo/**` run the `/dev/ui` demos.
+
+| Piece | What |
+|---|---|
+| Analysis worker | `fixtures/analysis-worker.ts`: Playwright starts it on :3003 from source. Against a local database (CI, Docker) it is `APP_ENV=test`, `ENGINE=fake`, role `E2E_WORKER_DATABASE_URL` (replay_worker); against the Neon dev branch `APP_ENV=dev` with the native Stockfish and role of `apps/analysis-worker/.env.local-dev`. |
+| Key ring | `INTERNAL_API_SECRET` holds `web`, `ws` and `wk` keys; the web signs with the first, the socket and the worker reorder the ring to sign with `ws` / `wk` (`ringSignedBy`). |
+| Worker faults | `kickWorker({ watch, fault })` (`specs/review/_lib/games.ts`) arms `hold_queue`, `pause_at:<phase>:<ms>`, `fail_at_ply:<n>` through the signed kick body; only an `APP_ENV=test` worker honours it, so those tests carry `@worker-faults` and a run on the Neon dev branch leaves them out. A dev-branch run of `review-live.spec.ts` needs the worker started with `E2E_WORKER_FAULT=pause_at:writing:5000`. |
+| Serial specs | `specs/review/serial/**` run in the one-worker `game-serial` project: `hold_queue` holds the whole worker, and every leased persona then lands on pool user 1. |
+| `lapsed-read` | `--project=lapsed-read` serves the same build with `review-lapsed-read:on` (:3111) and runs the `@lapsed-read-on` test of `serial/review-lapsed.spec.ts`. |
+| Another env file | `E2E_ENV_FILE=/abs/path` replaces `.env.test` for both configs, e.g. a copy pointing at a local Docker database for a CI-like run. |
+
 ## Visual tooling
 
 Baselines live in `e2e/__screenshots__/` (`toHaveScreenshot`, `@visual` tests in the devices config). Update them only through CI: add the `update-snapshots` label to the PR, and `.github/workflows/update-snapshots.yml` regenerates them on Linux and pushes a commit. Local macOS renders differ, so never commit locally made baselines.

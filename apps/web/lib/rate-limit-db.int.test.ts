@@ -32,9 +32,12 @@ describe("rate-limit-db (Postgres)", { skip: url ? false : "TEST_DATABASE_URL no
   });
 
   it("the burst table is UNLOGGED and the durable one is logged", async () => {
+    // Only the app's tables: other suites (the analysis worker's int tests) create same-named copies in their own
+    // schemas while this one runs, so an unqualified pg_class lookup would see them too.
     const rows = await db.$queryRawUnsafe<{ relname: string; relpersistence: string }[]>(
       `SELECT relname, relpersistence::text AS relpersistence FROM pg_class
-       WHERE relname IN ('rate_limit_buckets','rate_limit_windows') ORDER BY relname`,
+       WHERE relname IN ('rate_limit_buckets','rate_limit_windows') AND relnamespace = 'public'::regnamespace
+       ORDER BY relname`,
     );
     assert.deepEqual(
       rows.map((r) => [r.relname, r.relpersistence]),

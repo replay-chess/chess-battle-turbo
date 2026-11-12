@@ -1,6 +1,7 @@
 // Single source of truth for the app shell's destinations (SPEC 8.2; 03 §6.2).
 // Sidebar, rail, tab bar, SubNav, Back, the palette and the chords all read it.
 import { BookOpen, Crosshair, House, Play, RotateCcw, Settings, UserRound, type LucideIcon } from "lucide-react";
+import type { FlagKey } from "../flags/registry";
 import type { DestinationKey } from "../shell/types";
 
 export type Me = { referenceId: string };
@@ -18,8 +19,18 @@ export type Destination = {
   match: (pathname: string, me: Me) => boolean;
   /** Phase 1: static. Hidden destinations appear nowhere. */
   enabled: boolean;
+  /** A destination behind a feature flag is enabled when the flag is on for the viewer (P3: Review, `review-v3`). */
+  flag?: FlagKey;
   showInTabBar: boolean;
 };
+
+/** The viewer's flags that switch destinations on (the shell reads them with useFlag()). */
+export type NavFlags = Partial<Record<FlagKey, boolean>>;
+
+/** A destination is on when it is enabled, or when its flag is on for this viewer. */
+export function isEnabled(d: Destination, flags?: NavFlags): boolean {
+  return d.enabled || (d.flag !== undefined && flags?.[d.flag] === true);
+}
 
 export type ShellMode = "sidebar" | "rail" | "tabbar";
 
@@ -126,13 +137,16 @@ export const DESTINATIONS: Destination[] = [
     showInTabBar: false,
   },
   {
+    // P3 (plan §1 item 6): Review opens My Games; a review itself is a detail of it. Behind `review-v3`.
+    // Practice (§4.8) is reached from a review, Compare or the game-over card in P3, so it stays under Review.
     key: "review",
     label: "Review",
-    href: () => "/review",
+    href: () => "/games",
     icon: RotateCcw,
     chord: "g r",
-    match: never,
+    match: (p) => under(p, "/games") || under(p, "/review") || under(p, "/practice"),
     enabled: false,
+    flag: "review-v3",
     showInTabBar: true,
   },
   {
@@ -163,28 +177,28 @@ export function destination(key: DestinationKey): Destination {
   return d;
 }
 
-export function enabledDestinations(): Destination[] {
-  return DESTINATIONS.filter((d) => d.enabled);
+export function enabledDestinations(flags?: NavFlags): Destination[] {
+  return DESTINATIONS.filter((d) => isEnabled(d, flags));
 }
 
-/** Enabled top-level destinations, in nav order (Play, Learn, Profile). */
-export function topLevelDestinations(): Destination[] {
-  return enabledDestinations().filter((d) => !d.parent);
+/** Enabled top-level destinations, in nav order (Play, Learn, Profile; Review with `review-v3`). */
+export function topLevelDestinations(flags?: NavFlags): Destination[] {
+  return enabledDestinations(flags).filter((d) => !d.parent);
 }
 
 /** Enabled subs of a parent, in nav order. */
-export function childrenOf(parent: DestinationKey): Destination[] {
-  return enabledDestinations().filter((d) => d.parent === parent);
+export function childrenOf(parent: DestinationKey, flags?: NavFlags): Destination[] {
+  return enabledDestinations(flags).filter((d) => d.parent === parent);
 }
 
-export function tabBarDestinations(): Destination[] {
-  return enabledDestinations().filter((d) => d.showInTabBar);
+export function tabBarDestinations(flags?: NavFlags): Destination[] {
+  return enabledDestinations(flags).filter((d) => d.showInTabBar);
 }
 
 /** Every enabled destination that matches; a matching child also makes its parent current. */
-export function currentDestinations(pathname: string, me: Me): Set<DestinationKey> {
+export function currentDestinations(pathname: string, me: Me, flags?: NavFlags): Set<DestinationKey> {
   const out = new Set<DestinationKey>();
-  for (const d of enabledDestinations()) {
+  for (const d of enabledDestinations(flags)) {
     if (!d.match(pathname, me)) continue;
     out.add(d.key);
     if (d.parent) out.add(d.parent);
@@ -193,11 +207,11 @@ export function currentDestinations(pathname: string, me: Me): Set<DestinationKe
 }
 
 /** The current set for an explicit key (demo routes): the key plus its parent. */
-export function currentFromKey(key: DestinationKey | null): Set<DestinationKey> {
+export function currentFromKey(key: DestinationKey | null, flags?: NavFlags): Set<DestinationKey> {
   const out = new Set<DestinationKey>();
   if (!key) return out;
   const d = BY_KEY.get(key);
-  if (!d || !d.enabled) return out;
+  if (!d || !isEnabled(d, flags)) return out;
   out.add(d.key);
   if (d.parent) out.add(d.parent);
   return out;
@@ -241,12 +255,30 @@ export function backTarget(pathname: string, me: Me): BackTarget | null {
     return backFor("play", me);
   }
   if (detailOf(p, "/profile") && !isOwnProfile(p, me)) return backFor("play", me);
+  // A review's own screens (complete, share, the legend comparison) go back to that review; the review itself goes back
+  // to My games. Each label names where the link goes (WCAG 2.4.4; regression: review-back-wrong-target, FIX-2).
+  const reviewSub = REVIEW_SUBSCREEN.exec(p);
+  if (reviewSub) return { key: "review", href: `/review/${reviewSub[1]}`, label: "Review" };
+  if (detailOf(p, "/review")) return MY_GAMES_BACK;
+  // Practice (P3 plan §4.8): phones and iPad portrait use the game layout, whose top bar has Back (FIX-1). The path
+  // alone does not say where practice came from, so this is My games; the page names its real origin (the review,
+  // the comparison, the position) with ShellBackOverride.
+  if (under(p, "/practice")) return MY_GAMES_BACK;
   return null;
 }
 
-/** Routes that take the whole phone screen: no tab bar while a game is on screen (P2 plan 4.1, one viewport). */
+/** `/review/<ref>/(complete|share|legend)`: a screen of one review. */
+const REVIEW_SUBSCREEN = /^\/review\/([^/]+)\/(?:complete|share|legend)$/;
+/** Back from a review (or from practice of unknown origin): My games, the Review section's landing. */
+const MY_GAMES_BACK: BackTarget = { key: "review", href: "/games", label: "My Games" };
+
+/**
+ * Routes that take the whole phone screen: no tab bar while a game (P2 plan 4.1) or a review (P3 plan §4.1, the
+ * review's own control bar) is on screen, one viewport.
+ */
 export function hidesTabBar(pathname: string): boolean {
-  return detailOf(normalizePath(pathname), "/game");
+  const p = normalizePath(pathname);
+  return detailOf(p, "/game") || detailOf(p, "/review");
 }
 
 /**
@@ -256,13 +288,13 @@ export function hidesTabBar(pathname: string): boolean {
  * - rail: top level + SubNav (subs of the current group).
  * - tabbar: tab items + SubNav, except on detail routes (Back shows instead).
  */
-export function visibleKeys(mode: ShellMode, current: Set<DestinationKey>, isDetail: boolean): Set<DestinationKey> {
+export function visibleKeys(mode: ShellMode, current: Set<DestinationKey>, isDetail: boolean, flags?: NavFlags): Set<DestinationKey> {
   const out = new Set<DestinationKey>();
-  const top = mode === "tabbar" ? tabBarDestinations() : topLevelDestinations();
+  const top = mode === "tabbar" ? tabBarDestinations(flags) : topLevelDestinations(flags);
   for (const d of top) out.add(d.key);
   if (mode === "sidebar") {
-    for (const d of childrenOf("play")) out.add(d.key);
-    if (current.has("learn")) for (const d of childrenOf("learn")) out.add(d.key);
+    for (const d of childrenOf("play", flags)) out.add(d.key);
+    if (current.has("learn")) for (const d of childrenOf("learn", flags)) out.add(d.key);
     return out;
   }
   const sub = subnavFor(current);

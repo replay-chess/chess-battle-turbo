@@ -80,7 +80,10 @@ let current: GameRow & { pgn?: string | null } = gameRow();
     }
     if (text.includes("LEFT JOIN games r")) return (values[0] === current.referenceId ? [current] : []);
     if (text.includes("g.pgn")) return (values[0] === current.referenceId ? [current] : []);
-    if (text.includes("status = 'COMPLETED'")) return [{ finished: 1, players: 1, standings: 0, versions: 1 }];
+    // The finish CTE with P3's jobs fragment columns (DB/src/live/finish.fragments.p3.ts).
+    if (text.includes("status = 'COMPLETED'")) {
+      return [{ finished: 1, players: 1, standings: 0, versions: 1, analysisQueued: 0, analysisAhead: 0, analysisStatusBefore: "NONE" }];
+    }
     if (text.includes("status = 'ABORTED'")) return [{ aborted: 1, players: 1 }];
     throw new Error(`unexpected query: ${text.slice(0, 120)}`);
   },
@@ -224,7 +227,9 @@ describe("P2 game routes (in-memory client)", () => {
       status: "COMPLETED",
       outcome: "BLACK",
       method: "resignation",
-      analysis: { status: "none" },
+      // P3: a 2-ply game is too short to analyse (no job), and a plain bot game has no legend block.
+      analysis: { status: "skipped", etaSec: null },
+      comparison: null,
     });
     current = gameRow({ status: "COMPLETED", endMethod: "RESIGNATION", outcome: "BLACK" });
     const replay = await call(complete.POST!, `/api/games/${REF}/complete`, { method: "POST", ref: REF, body });

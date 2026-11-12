@@ -151,7 +151,7 @@ export function eventFixtures(): { [N in GameEventName]: GameEventPayload<N> } {
       clocks: { w: 0, b: 291_802, run: null, at: T0 + 612_345 },
       rated: false,
     },
-    "game:result": { ...base, ratings: null, tournament: null, review: { status: "none" } },
+    "game:result": { ...base, ratings: null, tournament: null, review: { status: "queued", etaSec: 47 } },
     "session:hello": { bootId: "b7Hq2xKp9LmZ4wRt", useq: 1_234, serverNow: T0 + 612_345 },
     "rematch:offered": { ...base, by: "w", expiresAt: T0 + 642_345, youPlay: "w" },
     "rematch:declined": { ...base, by: "b" },

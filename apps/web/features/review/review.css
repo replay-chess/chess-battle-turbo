@@ -1,0 +1,280 @@
+/*
+ * The review screen (phase-03 plan §4.1; boards V3ReviewSummary / Analysing / Failed / Clean (desktop 1440×900),
+ * V3iPadLReview, V3iPadPReview, V3iPhoneReview, V3AndroidReview). Sizes come from BoardStage
+ * (components/layout/board-stage.css); this file sets the review's own values on top of it, scoped to
+ * [data-rc-review]:
+ *   side mode   desktop > 1100: panel 400 px, pad 24; ≤ 1100 (rail, iPad L, 125–150 % zoom): panel 330 px, pad 16;
+ *               the eval bar (14 px + 8 px gap) sits left of the board inside the board column's budget;
+ *               bars 42 px (the board's 96 px for two bars); height ≤ 620: 34 px bars, pad 10, secondary lines hide.
+ *   stack mode  phones and iPad portrait: one opponent strip with a horizontal eval bar, the board, the 7-move strip,
+ *               the docked sheet (flex 1, min-height 0, the only scroller) and the bottom action bar.
+ * Mode switches are container queries on BoardStage's container, so the first render never depends on JS.
+ * Only opacity/transform/width/colour animate; prefers-reduced-motion turns them off.
+ */
+@layer components {
+  /* ── the phone tab bar hides on the review (the action bar replaces it; DS: a control bar or a tab bar) ── */
+  .rc-vs.rc-vs:has([data-rc-review]) { --tabbar: 0px; }
+  .rc-vs:has([data-rc-review]) > .rc-vs__tab { display: none !important; }
+
+  /* ── BoardStage values for the review (0,2,0 beats BoardStage's own 0,1,0 rules) ── */
+  [data-rc-review] .rc-stage__in {
+    --rv-eb: 22px;                                   /* eval bar 14 + gap 8 (V3ReviewSummary --eb) */
+    --rc-bar-h: 42px; --rc-bar-gap: 6px;
+    --rc-aside-min: 400px; --rc-aside-max: 400px;
+    --rc-board-max: 860px;
+    --rc-aside-room: calc(var(--rc-aside-min) + var(--rc-gap) + var(--rv-eb));
+  }
+  [data-rc-review] .rc-stage__col { margin-left: var(--rv-eb); }
+  @media (max-width: 1100px), (hover: none) and (pointer: coarse) {
+    [data-rc-review] .rc-stage__in { --rc-aside-min: 330px; --rc-aside-max: 330px; --rc-px: 16px; }
+    /* the 330 px panel: tighter counts so "Brilliant" and "Inaccuracy" fit their column */
+    .rv-counts { gap: 0 10px; }
+    .rv-counts__half { font-size: 0.8125rem; }
+    .rv-counts__half col:nth-child(1) { width: 26px !important; }
+    .rv-counts__half col:nth-child(3), .rv-counts__half col:nth-child(4) { width: 24px !important; }
+  }
+  @container rc-stage (height <= 620px) {
+    [data-rc-review] .rc-stage__in { --rc-bar-h: 34px; --rc-bar-gap: 4px; --rc-py: 10px; --rc-px: 10px; }
+  }
+  @container rc-stage (orientation: portrait) or (width < 590px) {
+    [data-rc-review] .rc-stage__in {
+      --rv-eb: 0px;
+      --rc-px: 0px; --rc-py: 0px; --rc-gap: 0px;   /* undo the side-mode pads set above (same specificity, later) */
+      --rc-aside-room: 0px;
+      --rc-bar-h: 40px; --rc-bar-gap: 0px;
+      /* one bar only (the opponent strip); BoardStage counts both, so the review recomputes the bars' height */
+      --rc-bars: calc(var(--rc-bar-h) + var(--rc-bar-gap));
+      --rc-strip-min: 132px;                         /* the strip + a few lines of the sheet stay under the board */
+    }
+    [data-rc-review] .rc-stage__col { margin-left: 0; }
+    [data-rc-review] [data-rc-bar="bottom"] { display: none; }
+    [data-rc-review] .rc-stage__in[data-footer] { --rc-foot: calc(64px + var(--safe-bottom)); }
+  }
+  @container rc-stage ((orientation: portrait) or (width < 590px)) and (height <= 620px) {
+    [data-rc-review] .rc-stage__in { --rc-bar-h: 36px; --rc-strip-min: max(0px, min(88px, 100cqh - var(--rc-bars) - var(--rc-foot) - 222px)); }
+    /* the strip gives way before the board goes under the 220 px floor: 220 px of squares + the 2 px frame (phones at 125–150 % zoom; regression: zoom-board-floor) */
+  }
+  @container rc-stage (orientation: portrait) and (width >= 600px) {
+    [data-rc-review] .rc-stage__in { --rc-bar-h: 48px; --rc-strip-min: 200px; --rc-board-max: 600px; }   /* iPad portrait: the 600 px board of V3iPadPReview */
+  }
+
+  /* ── shared atoms ── */
+  .rv-lbl { font: 500 0.6875rem/1.3 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); }
+  .rv-mono { font-family: var(--font-geist-mono, ui-monospace), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .rv-soft { color: var(--cb-text-soft); }
+  .rv-h2 { margin: 0; font-family: var(--font-instrument-serif, "Instrument Serif"), Georgia, serif; font-weight: 400; font-size: 1.625rem; line-height: 1.15; letter-spacing: -0.01em; }
+  .rv-p { margin: 0; font-size: 0.875rem; line-height: 1.45; color: var(--cb-text-soft); }
+  .rv-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .rv-av { width: 32px; height: 32px; flex: none; border-radius: 9999px; background: var(--cb-fill); border: 1px solid var(--cb-border-strong); display: inline-flex; align-items: center; justify-content: center; font: 500 0.6875rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; color: var(--cb-text-soft); }
+  .rv-av[data-ink] { background: var(--cb-accent); color: var(--cb-accent-fg, #fff); border-color: var(--cb-accent); }
+  .rv-av[data-size="28"] { width: 28px; height: 28px; }
+  .rv-av[data-size="24"] { width: 24px; height: 24px; font-size: 9px; }
+
+  .rv-btn-p { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 20px; border: 0; background: var(--cb-accent); color: var(--cb-accent-fg, #fff); font: 500 0.9375rem var(--font-geist-sans, system-ui), system-ui, sans-serif; cursor: pointer; text-decoration: none; white-space: nowrap; box-sizing: border-box; min-width: 0; }
+  .rv-btn-p:hover { background: var(--cb-accent-hover, var(--cb-text)); }
+  .rv-btn-p:disabled, .rv-btn-p[aria-disabled="true"] { background: color-mix(in srgb, var(--cb-accent) 35%, transparent); cursor: not-allowed; }
+  .rv-btn-s { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 16px; border: 1px solid var(--cb-border-strong); background: var(--cb-surface); color: var(--cb-text); font: 0.9375rem var(--font-geist-sans, system-ui), system-ui, sans-serif; cursor: pointer; text-decoration: none; white-space: nowrap; box-sizing: border-box; }
+  .rv-btn-s:hover { background: var(--cb-fill); }
+  .rv-ib { width: 44px; height: 44px; flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--cb-border-strong); background: var(--cb-surface); color: var(--cb-text); cursor: pointer; box-sizing: border-box; }
+  .rv-ib:hover { background: var(--cb-fill); }
+  .rv-ib:disabled { color: var(--cb-text-disabled, var(--cb-text-muted)); cursor: not-allowed; background: var(--cb-surface); }
+  .rv-ib[aria-expanded="true"], .rv-ib[aria-pressed="true"] { background: var(--cb-accent); color: var(--cb-accent-fg, #fff); border-color: var(--cb-accent); }
+  .rv-ib[data-round] { border-radius: 9999px; }
+  .rv-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border: 1px solid var(--cb-border-strong); background: var(--cb-surface); color: var(--cb-text); font: 0.875rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; cursor: pointer; white-space: nowrap; }
+  .rv-chip:hover { background: var(--cb-fill); }
+
+  .rv-note { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; background: var(--cb-fill); border: 1px solid var(--cb-border); font-size: 0.875rem; line-height: 1.45; }
+  .rv-note > svg { flex: none; margin-top: 1px; }
+  .rv-note[data-tone="bad"] { background: color-mix(in srgb, var(--cb-bad) 6%, transparent); border-color: color-mix(in srgb, var(--cb-bad) 30%, transparent); }
+  .rv-note[data-tone="bad"] > svg { color: var(--cb-bad); }
+  .rv-note[data-tone="good"] { background: color-mix(in srgb, var(--cb-good) 7%, transparent); border-color: color-mix(in srgb, var(--cb-good) 30%, transparent); }
+  .rv-note[data-tone="good"] > svg { color: var(--cb-good); }
+
+  .rv-bar { height: 4px; background: var(--cb-border); position: relative; overflow: hidden; }
+  .rv-bar > span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--cb-accent); transition: width 200ms linear; }
+  .rv-spin { display: inline-block; width: 14px; height: 14px; flex: none; box-sizing: border-box; border: 2px solid currentColor; border-right-color: transparent; border-radius: 9999px; animation: rv-spin 0.8s linear infinite; }
+  @keyframes rv-spin { to { transform: rotate(360deg); } }
+  .rv-fade { animation: rv-fade 300ms ease-out; }
+  @keyframes rv-fade { from { opacity: 0; } to { opacity: 1; } }
+
+  .rv-badge { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; box-sizing: border-box; border-radius: 9999px; vertical-align: middle; overflow: hidden; }
+  .rv-badge > img { width: 100%; height: 100%; display: block; }
+  .rv-badge[data-glyph] { color: #fff; font: 700 0.6em/1 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: -0.06em; box-shadow: 0 1px 0 rgba(0,0,0,0.18), inset 0 -1px 0 rgba(0,0,0,0.12); }
+
+  /* ── player strips (BoardStage bars) ── */
+  .rv-pbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; height: 100%; min-width: 0; font-size: 0.875rem; }
+  .rv-pbar__who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; overflow: hidden; }
+  .rv-pbar__who > .rv-name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .rv-pbar__meta { font-size: 0.8125rem; color: var(--cb-text-soft); white-space: nowrap; }
+  .rv-pbar__right { display: inline-flex; gap: 10px; align-items: baseline; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8125rem; }
+  .rv-pbar__pos { font-size: 0.8125rem; color: var(--cb-text-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .rv-hevalbar { display: none; margin-left: auto; width: 96px; height: 8px; flex: none; background: #2a2a2a; position: relative; }
+  .rv-hevalbar > span { position: absolute; left: 0; top: 0; bottom: 0; background: #d9d4cb; transition: width 250ms ease-out; }
+  .rv-hevalbar[data-flip] > span { left: auto; right: 0; }
+
+  /* ── board area (the eval bar left of the board in side mode) ── */
+  .rv-boardarea { position: relative; width: 100%; height: 100%; }
+  .rv-evalbar { position: absolute; top: 0; bottom: 0; left: calc(-1 * var(--rv-eb, 22px)); width: 14px; background: #2a2a2a; border: 1px solid var(--cb-border-strong); box-sizing: border-box; }
+  .rv-evalbar > span { position: absolute; left: 0; right: 0; bottom: 0; background: #ece9e3; transition: height 250ms ease-out; }
+  .rv-evalbar[data-flip] > span { bottom: auto; top: 0; }
+  .rv-evalbar::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid rgba(160,160,160,0.8); }
+
+  /* ── the panel (aside) ── */
+  .rv-side { position: relative; display: flex; flex-direction: column; min-height: 0; height: 100%; width: 100%; box-sizing: border-box; background: var(--cb-surface); border: 1px solid var(--cb-border); }
+  .rv-head { flex: none; padding: 12px 14px 6px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .rv-head > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rv-tabs { flex: none; display: flex; border-bottom: 1px solid var(--cb-border); }
+  .rv-tab { flex: 1 1 0; min-height: 48px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--cb-text-soft); font: 500 0.6875rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; margin-bottom: -1px; }
+  .rv-tab[aria-selected="true"] { color: var(--cb-text); border-bottom-color: var(--cb-accent); }
+  .rv-pwrap { flex: 1 1 auto; min-height: 0; position: relative; display: flex; flex-direction: column; }
+  .rv-pwrap > .rv-body { flex: 1 1 auto; min-height: 0; }
+  /* position: relative makes the scroller the containing block of its absolutely positioned descendants (the
+     visually hidden table captions, `.rv-vh`): otherwise they are positioned against an ancestor outside it, escape
+     its clipping and give main a safety scroll at 150 % zoom (regression: review-panel-escaping-caption). */
+  .rv-body { position: relative; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .rv-section { padding: 14px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--cb-border); }
+  .rv-section[data-plain] { border-bottom: 0; gap: 14px; }
+  .rv-section__row { display: flex; align-items: center; gap: 10px; }
+  .rv-pin { flex: none; }
+  .rv-pin:empty { display: none; }
+  .rv-morecue { position: absolute; left: 1px; right: 1px; bottom: 0; height: 64px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; pointer-events: none; background: linear-gradient(to bottom, color-mix(in srgb, var(--cb-surface) 0%, transparent), var(--cb-surface) 72%); z-index: 5; }
+  .rv-morecue > span { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--cb-surface); border: 1px solid var(--cb-border-strong); font: 500 0.625rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); }
+  .rv-foot { flex: none; border-top: 1px solid var(--cb-border); padding: 10px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) 44px; gap: 6px; }
+  .rv-foot > .rv-ib { width: auto; }
+
+  /* ── coach card ── */
+  .rv-coach { display: flex; gap: 10px; align-items: flex-start; }
+  .rv-coach__body { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1 1 auto; }
+  .rv-coach__text { margin: 0; font-size: 1rem; line-height: 1.5; }
+  .rv-sent { transition: color 150ms, background-color 150ms; }
+  .rv-coach__text[data-narrating] .rv-sent { color: color-mix(in srgb, var(--cb-text) 50%, transparent); }
+  .rv-coach__text[data-narrating] .rv-sent[data-on] { color: var(--cb-text); background: rgba(235, 185, 60, 0.22); font-weight: 500; }
+  .rv-ver { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; padding: 2px 6px; border: 1px solid color-mix(in srgb, var(--cb-good) 45%, transparent); color: var(--cb-good); background: var(--cb-surface); font: 500 0.625rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; white-space: nowrap; }
+  .rv-narr { display: flex; align-items: center; gap: 8px; }
+  .rv-narr > .rv-bar { flex: 1 1 auto; }
+  .rv-narr__time { font-size: 0.75rem; color: var(--cb-text-soft); white-space: nowrap; }
+  /* The speed chip is a control: 44 px hit target (plan §4, FIX-1). */
+  .rv-narr > .rv-chip { min-width: 44px; min-height: 44px; justify-content: center; }
+
+  /* ── eval graph ── */
+  .rv-graph { display: flex; flex-direction: column; gap: 4px; }
+  .rv-graph__box { position: relative; }
+  .rv-graph svg { width: 100%; height: 72px; display: block; background: var(--cb-bg); border: 1px solid var(--cb-border); box-sizing: border-box; }
+  .rv-graph__mid { stroke: color-mix(in srgb, var(--cb-text) 20%, transparent); }
+  .rv-graph__area { fill: color-mix(in srgb, var(--cb-accent) 12%, transparent); }
+  .rv-graph__line { stroke: var(--cb-accent); }
+  .rv-graph__cur { stroke: var(--cb-text); }
+  .rv-graph__btns { position: absolute; inset: 0; display: flex; }
+  .rv-graph__btns > button { flex: 1 1 0; min-width: 0; border: 0; padding: 0; background: transparent; cursor: pointer; }
+  .rv-graph__btns > button:disabled { cursor: default; }
+  .rv-graph__btns > button:hover:not(:disabled) { background: color-mix(in srgb, var(--cb-text) 6%, transparent); }
+  .rv-graph__btns > button:focus-visible { outline: 2px solid var(--cb-text); outline-offset: -2px; }
+  .rv-graph__axis { display: flex; justify-content: space-between; font-size: 0.6875rem; color: var(--cb-text-soft); }
+
+  /* ── label counts ── */
+  .rv-counts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; align-items: start; }
+  .rv-counts__half { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.875rem; }
+  .rv-counts__half td, .rv-counts__half th { height: 30px; padding: 0 0 0 6px; vertical-align: middle; font-weight: 400; }
+  .rv-counts__half td:first-child { padding-left: 0; line-height: 0; }
+  .rv-counts__half th[scope="row"] { text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rv-counts__half td:nth-child(3), .rv-counts__half td:nth-child(4), .rv-counts__head th:nth-child(3), .rv-counts__head th:nth-child(4) { text-align: right; }
+  .rv-counts__half tbody td:nth-child(4) { color: var(--cb-text-soft); }
+  .rv-counts__head th, .rv-counts__head td { height: auto; padding-bottom: 2px; font: 500 0.625rem/1.3 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); text-align: left; }
+  .rv-phase { margin: 0; font: 500 0.625rem/1.3 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); }
+
+  /* ── move list ── */
+  .rv-cur { position: sticky; top: 0; z-index: 2; display: flex; gap: 10px; align-items: center; min-height: 48px; padding: 6px 14px; border-bottom: 1px solid var(--cb-border); background: var(--cb-surface); }
+  .rv-cur > p { margin: 0; font-size: 0.875rem; min-width: 0; }
+  .rv-moves { padding: 4px 6px; display: grid; grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr); align-items: center; }
+  .rv-moves__no { font: 0.75rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; color: var(--cb-text-soft); padding-left: 6px; }
+  .rv-mv { display: flex; align-items: center; gap: 6px; border: 0; background: transparent; font: 0.875rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; text-align: left; padding: 0 8px; min-height: 32px; cursor: pointer; color: var(--cb-text); min-width: 0; }
+  .rv-mv:hover { background: color-mix(in srgb, var(--cb-text) 5%, transparent); }
+  .rv-mv[aria-current="true"] { background: color-mix(in srgb, var(--cb-accent) 14%, transparent); }
+
+  /* ── phone / iPad portrait strip and sheet ── */
+  .rv-strip { position: relative; flex: none; height: 48px; display: flex; align-items: center; gap: 4px; padding: 0 12px; overflow-x: auto; white-space: nowrap; border-bottom: 1px solid var(--cb-border); font: 13px var(--font-geist-mono, ui-monospace), ui-monospace, monospace; scrollbar-width: none; }
+  .rv-strip::-webkit-scrollbar { display: none; }
+  .rv-strip > button { border: 0; background: transparent; font: inherit; min-height: 44px; padding: 0 6px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--cb-text); flex: none; }
+  .rv-strip > button[aria-current="true"] { background: color-mix(in srgb, var(--cb-accent) 14%, transparent); }
+  .rv-grab { align-self: center; width: 36px; height: 4px; flex: none; background: var(--cb-border-strong); border-radius: 9999px; }
+  .rv-sheet__acc { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .rv-sheet__acc > .rv-lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .rv-sheet__acc > .rv-mono { flex: none; white-space: nowrap; }
+
+  /* ── bottom action bar (stack mode, BoardStage footer) ── */
+  /* As V3iPhoneReview: 44 px icon buttons (.ib) and a one-line primary (.btn-p nowrap); a label longer than its
+     column ends in an ellipsis and keeps its full accessible name (FIX-1). */
+  .rv-abar { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px 44px; gap: 8px; width: 100%; height: 100%; padding: 8px 16px calc(8px + var(--safe-bottom)); box-sizing: border-box; border-top: 1px solid var(--cb-border); background: var(--cb-bg); align-items: center; }
+  .rv-abar > .rv-ib { width: 44px; height: 44px; }
+  .rv-abar > .rv-btn-p, .rv-abar > .rv-btn-s { display: block; height: 48px; line-height: 48px; text-align: center; padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Phones at 150 % zoom (a ~260 px stage): the primary column is ~50 px wide and a wrapped label grew the bar past its
+     64 px, so main needed its safety scroll. One line, ellipsised; the full label stays the accessible name
+     (regression: review-abar-wrap). */
+  @container rc-stage (width < 330px) {
+    .rv-abar { padding-inline: 8px; gap: 6px; }
+    .rv-abar > .rv-btn-p, .rv-abar > .rv-btn-s { display: block; height: 48px; line-height: 48px; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  }
+
+  /* ── key moments (V3KeyMoments: header + dots, chips, the answer block, the best line) ── */
+  .rv-mhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .rv-dots { display: flex; gap: 4px; flex: none; }
+  .rv-dots > span { width: 18px; height: 3px; background: var(--cb-border-strong); }
+  .rv-dots > span[data-on] { background: var(--cb-accent); }
+  .rv-dots > span[data-cur] { width: 28px; }
+  .rv-mask { display: flex; flex-direction: column; gap: 10px; }
+  .rv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rv-pchip { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border: 1px solid var(--cb-border-strong); background: var(--cb-surface); color: var(--cb-text); font: 0.875rem var(--font-geist-sans, system-ui), system-ui, sans-serif; cursor: pointer; white-space: nowrap; box-sizing: border-box; }
+  .rv-pchip:hover { background: var(--cb-fill); }
+  .rv-pchip[aria-pressed="true"] { background: var(--cb-accent); color: var(--cb-accent-fg, #fff); border-color: var(--cb-accent); }
+  p.rv-note { margin: 0; }
+  .rv-mrows { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 10px; align-items: center; padding: 10px; border: 1px solid var(--cb-border); background: var(--cb-bg); font-size: 0.9375rem; }
+  .rv-mactions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .rv-mline { margin: 0; font-size: 0.875rem; display: flex; flex-wrap: wrap; gap: 0 8px; }
+  .rv-mline > span { color: color-mix(in srgb, var(--cb-text) 45%, transparent); }
+  .rv-mline > span[data-on] { color: var(--cb-text); }
+  .rv-fadein { animation: rv-fadein 150ms ease-out; }
+  @keyframes rv-fadein { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+  /* ── empty / terminal states ── */
+  .rv-empty { padding: 20px 14px; display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── side vs stack: each element hides only in the other mode, so its own display value is never reverted ── */
+  @container rc-stage not ((orientation: portrait) or (width < 590px)) {
+    [data-rv-stack] { display: none !important; }
+  }
+  @container rc-stage not ((orientation: portrait) or (width < 590px)) {
+    [data-rv-side-hide] { display: none !important; }
+  }
+  @container rc-stage (orientation: portrait) or (width < 590px) {
+    [data-rv-side] { display: none !important; }
+    /* the panel body becomes the docked sheet (V3iPhoneReview .sheet) */
+    .rv-pwrap { border-top: 1px solid var(--cb-border); }
+    .rv-body { background: var(--cb-surface); padding: 8px 16px 12px; display: flex; flex-direction: column; gap: 10px; }
+    .rv-body .rv-section { padding: 0 0 10px; }
+    .rv-body .rv-section[data-plain] { padding: 0; gap: 10px; border-bottom: 0; }
+    .rv-body .rv-coach__text { font-size: 15px; }
+    .rv-body .rv-empty { padding: 4px 0; }
+    .rv-pin { background: var(--cb-surface); border-top: 1px solid var(--cb-border); }
+    .rv-pin > .rv-section { padding: 10px 16px; }
+    .rv-side { border: 0; background: transparent; }
+    .rv-evalbar { display: none; }
+    .rv-hevalbar { display: block; }
+    .rv-pbar__pos { display: none; }
+    .rv-pbar__meta [data-colour] { display: none; }
+  }
+  @container rc-stage (orientation: portrait) and (width >= 600px) {
+    .rv-body { padding: 10px 24px; }
+  }
+  @container rc-stage (height <= 620px) {
+    .rv-tall { display: none !important; }
+    .rv-head { padding: 8px 12px 4px; }
+    .rv-h2 { font-size: 1.375rem; }
+    .rv-section { padding: 10px 12px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rv-spin, .rv-fade, .rv-fadein { animation: none; }
+    .rv-bar > span, .rv-evalbar > span, .rv-hevalbar > span, .rv-sent { transition: none; }
+  }
+}

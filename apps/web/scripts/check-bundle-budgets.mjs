@@ -10,7 +10,8 @@
 //   3. any client chunk contains the TanStack Query devtools (dev-only, plan §9.5);
 //   4. a route in ROUTE_BUDGETS is over its First Load JS (gzip, the page entry as `next build` prints it), or loads
 //      engine code it must not (phase-02 plan 12.8 / DoD: `/game/[ref]` ≤ 600 kB gz, owner-approved 2026-11-06, and
-//      no engine chunk on the PvP path; the bot screen and the engine stay lazy chunks).
+//      no engine chunk on the PvP path; the bot screen and the engine stay lazy chunks; phase-03 plan §9.6 for the
+//      review, archive, practice, share and How we grade routes).
 //
 //   node apps/web/scripts/check-bundle-budgets.mjs [--dist <dir>] [--markdown <file>] [--json <file>]
 //   node apps/web/scripts/check-bundle-budgets.mjs --record-baseline     prints a BASELINE literal for this file
@@ -45,11 +46,30 @@ const BUDGET_KB = 25;
 const isZod = (text) => text.includes("$ZodError") || (/ZodError(?![A-Za-z0-9_$])/.test(text) && text.includes("invalid_type"));
 const DEVTOOLS_MARKER = /ReactQueryDevtools|TanstackQueryDevtools/;
 const DEV_ONLY_ROUTE = /^\/dev(\/|$)/;
-// Engine glue (features/engine): the shim path, the Stockfish build and the UCI handshake. Only lazy chunks may hold it.
-const ENGINE_MARKER = /engine-shim|stockfish|sf18-|uciok/i;
+// Engine glue (features/engine): the shim path, the Stockfish build files, the hashed worker folder and the UCI
+// handshake. Only lazy chunks may hold it. Product copy that names the engine ("Stockfish 18 · depth 18", the review's
+// engine line) and the server analysis profile id ("sf18-v1") are not glue, so the patterns name the glue itself.
+const ENGINE_MARKER = /engine-shim|stockfish-[\w.-]+\.(?:js|wasm)|\/workers\/sf18-|uciok/i;
 /** Per-route First Load budgets (app-build-manifest page entries). regression: REGRESSION-2 (the P2 row was missing). */
-const ROUTE_BUDGETS = [{ route: "/(app)/game/[ref]/page", label: "/game/[ref]", maxKB: 600, noEngine: true }];
-
+const ROUTE_BUDGETS = [
+  { route: "/(app)/game/[ref]/page", label: "/game/[ref]", maxKB: 600, noEngine: true },
+  // Phase 3 (phase-03 plan §9.6), blocking like every row (FIX-2: they were report-only while the shared First Load JS
+  // was 338 kB; lazy Sentry, the shell's title slot apart from TopBar and the lean /r chrome brought every P3 route under
+  // its budget). Compare, complete and share sit inside the review's budget. /practice starts the engine on mount by
+  // design: its Stockfish build and WASM are lazy (hashed, immutable, SW CacheFirst), only the engine's controller is
+  // eager. /r/[code] ≤ 120 kB and /how-we-grade ≤ 180 kB are the marketing budgets (OPT §5.7).
+  { route: "/(app)/review/[ref]/page", label: "/review/[ref]", maxKB: 300, noEngine: true },
+  { route: "/(app)/review/[ref]/complete/page", label: "/review/[ref]/complete", maxKB: 300, noEngine: true },
+  { route: "/(app)/review/[ref]/share/page", label: "/review/[ref]/share", maxKB: 300, noEngine: true },
+  { route: "/(app)/review/[ref]/legend/page", label: "/review/[ref]/legend", maxKB: 300, noEngine: true },
+  { route: "/(app)/games/page", label: "/games", maxKB: 230, noEngine: true },
+  { route: "/(app)/practice/page", label: "/practice", maxKB: 300, noEngine: false },
+  // /r/[code] is a route handler answering plain HTML (app/r/[code]/route.ts, FIX-2): no client chunk at all, its one
+  // script is inlined (≤ 6 kB, app/r/[code]/page.test.ts). The row checks it stays that way: an App Router page there
+  // again would be measured against the same 120 kB.
+  { route: "/r/[code]/page", handler: "/r/[code]/route", label: "/r/[code]", maxKB: 120, noEngine: true },
+  { route: "/how-we-grade/page", label: "/how-we-grade", maxKB: 180, noEngine: true },
+];
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const opt = (name) => {
@@ -142,9 +162,21 @@ for (const h of zodHits) {
 for (const c of devtoolsHits) failures.push(`TanStack Query devtools in client chunk ${c} (must stay dev-only)`);
 
 // 4. Route budgets.
+const appPaths = (() => {
+  try {
+    return JSON.parse(readFileSync(path.join(distDir, "server", "app-paths-manifest.json"), "utf8"));
+  } catch {
+    return {};
+  }
+})();
 const routeRows = [];
 for (const b of ROUTE_BUDGETS) {
   const files = [...new Set(appManifest.pages[b.route] ?? [])].filter((f) => f.endsWith(".js"));
+  if (files.length === 0 && b.handler && b.handler in appPaths) {
+    // A route handler: the browser gets the document and nothing from /_next/static.
+    routeRows.push({ ...b, gzipBytes: 0, files: 0, engine: [], kind: "route handler, no client JS" });
+    continue;
+  }
   if (files.length === 0) {
     failures.push(`route ${b.label} (${b.route}) is not in app-build-manifest.json`);
     continue;
@@ -170,7 +202,8 @@ const lines = [
   `| zod in client chunks | ${zodHits.length ? `**${zodHits.length}**` : "0"}${zodExempt.length ? ` (+${zodExempt.length} on /dev/** only, exempt)` : ""} |`,
   `| Query devtools in client chunks | ${devtoolsHits.length} |`,
   ...routeRows.map(
-    (r) => `| ${r.label} First Load JS | ${kB(r.gzipBytes)} kB (budget ${r.maxKB} kB${r.noEngine ? `, engine chunks ${r.engine.length}` : ""}) |`,
+    (r) =>
+      `| ${r.label} First Load JS | ${kB(r.gzipBytes)} kB (budget ${r.maxKB} kB${r.kind ? `, ${r.kind}` : ""}${r.noEngine ? `, engine chunks ${r.engine.length}` : ""}) |`,
   ),
   "",
   "<details><summary>Shared files</summary>",

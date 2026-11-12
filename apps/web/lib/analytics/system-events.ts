@@ -8,7 +8,7 @@
 // - sends to PostHog only when it is loaded and the page is not a `/dev/**` demo;
 // - never throws, and never sends query text, emails or ids other than refs (the schemas allow none).
 import type { EventProps, SystemClientEventName } from "@repo/analytics";
-import posthog from "posthog-js";
+import { capturePosthog } from "@/lib/analytics/posthog-client";
 import { ENDPOINT_IDS, endpoints } from "@/lib/api/endpoints";
 import { pushToTelemetrySink } from "./shell-events";
 
@@ -25,8 +25,7 @@ export function trackSystem<N extends SystemClientEventName>(name: N, props: Sys
   try {
     pushToTelemetrySink(name, props as Record<string, unknown>);
     if (onDevRoute()) return;
-    if (!(posthog as unknown as { __loaded?: boolean }).__loaded) return;
-    posthog.capture(name, props as Record<string, unknown>);
+    capturePosthog(name, props as Record<string, unknown>);
   } catch {
     // Telemetry never breaks the UI.
   }

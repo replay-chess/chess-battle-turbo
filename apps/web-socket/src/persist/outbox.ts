@@ -18,6 +18,7 @@ import {
   createPoolReset,
   createRematch,
   dbErrorCode,
+  finishAnalysisOf,
   finishGame,
   loadLiveGame,
   loadRestoreCandidates,
@@ -29,6 +30,7 @@ import {
   type StaleSweepResult,
 } from "@repo/db/live";
 import { buildPgn, type AbortedBy, type GameResult, type Side } from "@repo/game-core";
+import type { EndCommitted } from "../analysis/afterEnd";
 import type { Timing } from "../config/timing";
 import type { LiveSession } from "../game/LiveSession";
 import type { LivePersistence, Logger, Metrics, OutboxStats, RematchOutcome } from "../ports";
@@ -102,6 +104,14 @@ export interface OutboxDeps {
   staleSweepEveryMs?: number;
   /** First-join loads in flight at once (default LOAD_CONCURRENCY, the pool size). */
   loadConcurrency?: number;
+  /**
+   * P3: called once a finish or abort statement of a session settled as committed (live end, retried end, boot
+   * restore), with what the finish's jobs fragment did. The worker kick and the user-room emits hang here
+   * (src/analysis/afterEnd.ts). Must not throw.
+   */
+  onEndCommitted?(session: LiveSession, end: EndCommitted): void;
+  /** P3: the stale sweep abandoned games (their finish enqueued analysis jobs): wake the worker. */
+  onSweepFinished?(abandoned: readonly string[]): void;
 }
 
 export interface OutboxPersistence extends LivePersistence {
@@ -337,6 +347,7 @@ export function createOutboxPersistence(deps: OutboxDeps): OutboxPersistence {
             metrics.count("ws.sweep.abandoned", {}, r.abandoned.length);
             log.info("stale sweep", { aborted: r.aborted.length, abandoned: r.abandoned.length });
           }
+          if (r.abandoned.length) deps.onSweepFinished?.(r.abandoned);
           return r;
         },
         (error: unknown) => {
@@ -349,6 +360,14 @@ export function createOutboxPersistence(deps: OutboxDeps): OutboxPersistence {
       });
     return sweeping;
   }
+
+  const endCommitted = (session: LiveSession, end: EndCommitted) => {
+    try {
+      deps.onEndCommitted?.(session, end);
+    } catch (error) {
+      log.error("onEndCommitted failed", { game: session.ref }, error);
+    }
+  };
 
   const finishCommitted = (session: LiveSession, plies: number) => {
     const o = outboxOf(session.ref);
@@ -421,7 +440,10 @@ export function createOutboxPersistence(deps: OutboxDeps): OutboxPersistence {
         log.warn("finish conflict: the stored end differs (the DB wins)", { game: session.ref });
       }
       finishCommitted(session, s.moves.length);
-      return { committed: out.finished || !out.conflict };
+      const committed = out.finished || !out.conflict;
+      const analysis = finishAnalysisOf(out, s.moves.length);
+      if (committed) endCommitted(session, { kind: "finish", analysis });
+      return { committed, analysis };
     },
 
     async abort(session, result: GameResult, abortedBy: AbortedBy) {
@@ -450,7 +472,9 @@ export function createOutboxPersistence(deps: OutboxDeps): OutboxPersistence {
       );
       if (!out) return { committed: false };
       finishCommitted(session, s.moves.length);
-      return { committed: out.aborted || out.storedStatus === "ABORTED" };
+      const committed = out.aborted || out.storedStatus === "ABORTED";
+      if (committed) endCommitted(session, { kind: "abort" });
+      return { committed };
     },
 
     async createRematch(session, offeredBy: Side, acceptedBy: Side): Promise<RematchOutcome> {

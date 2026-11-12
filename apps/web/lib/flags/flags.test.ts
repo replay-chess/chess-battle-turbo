@@ -294,3 +294,25 @@ test("lib/flags/client.ts reads the viewer payload only (no PostHog, no server m
   assert.doesNotMatch(src, /from\s+["']@\/lib\/flags["']/);
   assert.match(src, /qk\.me\(\)/);
 });
+
+test("regression: flag-update-in-render: cache writes reach useFlag after the current task, once per burst", async () => {
+  const { QueryClient } = await import("@tanstack/react-query");
+  const { subscribeDeferred } = await import("./client");
+  const { qk } = await import("@/lib/api/keys");
+  const client = new QueryClient();
+  let calls = 0;
+  const off = subscribeDeferred(client, () => calls++);
+  // What HydrationBoundary does during a render after `queryClient.clear()`: queries come back synchronously.
+  client.setQueryData(qk.me(), { flags: { "review-v3": true } });
+  client.setQueryData(["other"], 1);
+  assert.equal(calls, 0, "never synchronously (that would update useFlag callers mid-render)");
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(calls, 1, "one deferred call for the burst");
+  client.setQueryData(qk.me(), { flags: { "review-v3": false } });
+  off();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(calls, 1, "nothing after unsubscribe");
+  client.clear();
+});

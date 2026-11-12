@@ -5,7 +5,8 @@
 //   1. scanner probe → 404, nothing else (no Clerk; only X-Robots-Tag off production);
 //   2. x-request-id / x-mw-start / x-rc-pathname on the forwarded request; X-Robots-Tag on non-production responses;
 //   7. (EDGE_DOC_LIMIT=on) per-isolate document limiter on /legends and /openings → rewrite to /too-many-requests, 429;
-//   3. api_no_clerk (webhooks, cron, health, /api/openings) → straight through, Clerk never runs;
+//   3. api_no_clerk (webhooks, cron, health, /api/openings) and public_static pages (P3 `/r/<code>`: ISR snapshots that
+//      read no session) → straight through, Clerk never runs;
 //   4. cookie-authenticated cross-site API mutation → 403 envelope;
 //   5. Clerk: public pages pass; any other page needs a session (→ sign-in); API calls always pass (handlers 401/402);
 //   6. (MIDDLEWARE_MEMBER_GATE=on) member pages: claim md.entitled === false → /pricing?reason=required|ended.
@@ -109,8 +110,8 @@ export default async function middleware(req: NextRequest, ev: NextFetchEvent): 
     }
   }
 
-  // Step 3: self-verifying and public CDN-cached APIs skip Clerk entirely.
-  if (p.cls === "api_no_clerk") return finish(pass(p), p);
+  // Step 3: self-verifying and public CDN-cached APIs, and the session-free public pages, skip Clerk entirely.
+  if (p.cls === "api_no_clerk" || p.cls === "public_static") return finish(pass(p), p);
 
   // Step 4: a cookie-authenticated mutation must come from this site.
   if (

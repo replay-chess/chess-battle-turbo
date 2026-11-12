@@ -37,7 +37,7 @@ describe("codes", () => {
     }
   });
 
-  it("pins the P1 + P2 ledger (append-only: removing or remapping a code is a breaking change)", () => {
+  it("pins the P1 + P2 + P3 ledger (append-only: removing or remapping a code is a breaking change)", () => {
     assert.deepEqual(ERROR_STATUS, {
       invalid_json: 400, validation_failed: 400, unauthorized: 401,
       subscription_required: 402, payment_update_required: 402,
@@ -46,9 +46,11 @@ describe("codes", () => {
       maintenance: 503, not_configured: 503, unavailable: 503,
       // P2
       in_flight: 409, idempotency_key_reused: 422, illegal_position: 422, illegal_moves: 422,
+      // P3
+      gone: 410,
     });
-    // Ledger order is append-only too: P1's codes keep their positions.
-    assert.deepEqual(ERROR_CODES.slice(-4), ["in_flight", "idempotency_key_reused", "illegal_position", "illegal_moves"]);
+    // Ledger order is append-only too: P1's and P2's codes keep their positions.
+    assert.deepEqual(ERROR_CODES.slice(-5), ["in_flight", "idempotency_key_reused", "illegal_position", "illegal_moves", "gone"]);
     assert.deepEqual([...SUBSCRIPTION_REASONS], ["trial_available", "trial_used", "expired", "payment_failed"]);
     assert.deepEqual([...FORBIDDEN_REASONS], ["cooldown"]);
   });
@@ -63,10 +65,22 @@ describe("codes", () => {
     }
     assert.deepEqual([...CONFLICT_REASONS].slice(0, 5), ["already_started", "already_completed", "not_bot_game", "not_finished", "rev_gap"]);
     // mode_not_available is a validation_failed reason (400), claim_mismatch an illegal_moves reason (422): not codes.
-    assert.deepEqual([...VALIDATION_REASONS], ["mode_not_available"]);
+    assert.deepEqual([...VALIDATION_REASONS].slice(0, 1), ["mode_not_available"]);
     assert.deepEqual([...ILLEGAL_MOVES_REASONS], ["claim_mismatch"]);
     assert.equal(isErrorCode("mode_not_available"), false);
     assert.equal(isErrorCode("claim_mismatch"), false);
+  });
+
+  it("has the P3 rows of phase-03 §7.1: gone → 410 and the five conflict reasons, appended after P2's", () => {
+    assert.equal(statusFor("gone"), 410);
+    assert.equal(isErrorCode("gone"), true);
+    assert.equal(codeForStatus(410), "gone");
+    assert.deepEqual([...CONFLICT_REASONS], [
+      "already_started", "already_completed", "not_bot_game", "not_finished", "rev_gap",
+      "skipped", "already_running", "not_failed", "analysis_not_done", "already_ready",
+    ]);
+    // PR1: a FEN that parses but is not a legal position is a 400 validation_failed reason (not the P2 422 code).
+    assert.deepEqual([...VALIDATION_REASONS], ["mode_not_available", "illegal_position"]);
   });
 
   it("never infers a P2 code from a bare status", () => {

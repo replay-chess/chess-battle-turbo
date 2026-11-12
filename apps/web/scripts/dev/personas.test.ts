@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { isEntitled } from "../../lib/billing/entitlement-rules";
 import { isInTrial, trialDaysLeft } from "../../lib/billing/trial-rules";
-import { PERSONAS, assertPersonaTarget, getPersona, personaRow, resolvePersonaTarget } from "./personas";
+import { P01_PERSONAS } from "../../e2e/personas/p01";
+import { isP03Persona } from "../../e2e/personas/p03";
+import { PERSONAS, assertPersonaTarget, getPersona, personaRow, resetPersona, resolvePersonaTarget } from "./personas";
 
 const NOW = new Date("2026-11-05T12:00:00Z");
 const HOUR = 3_600_000;
@@ -75,5 +77,41 @@ describe("P01 personas reach the states the viewer derives (plan §8.2)", () => 
       if (r.subscriptionId) assert.equal(r.subscriptionId, "e2e_persona_x@chessbattle.dev");
       assert.ok(r.subscriptionProductId === null || r.subscriptionProductId === "e2e-fixture", p.name);
     }
+  });
+});
+
+describe("P03 personas (phase-03 plan §12.3): billing and the games they own", () => {
+  it("review-empty and review-terminal are members; review-lapsed is the P1 lapsed state (402 expired)", () => {
+    assert.equal(isEntitled(row("review-empty"), NOW), true);
+    assert.equal(isEntitled(row("review-terminal"), NOW), true);
+    const lapsed = row("review-lapsed");
+    assert.equal(isEntitled(lapsed, NOW), false);
+    assert.equal(lapsed.subscriptionStatus, "expired");
+    assert.deepEqual(lapsed, row("lapsed"));
+  });
+
+  it("each P3 persona clears the user's games, then writes only its own fixtures", () => {
+    const games = (name: string) => {
+      const p = getPersona(name);
+      assert.ok(isP03Persona(p), name);
+      return p.games;
+    };
+    assert.deepEqual(games("review-empty"), { clear: true, fixtures: [] });
+    assert.deepEqual(games("review-terminal"), { clear: true, fixtures: ["TERMINAL"] });
+    assert.deepEqual(games("review-lapsed"), { clear: true, fixtures: ["GAME"] });
+    for (const name of Object.keys(P01_PERSONAS)) assert.equal(isP03Persona(getPersona(name)), false, name);
+  });
+
+  it("a dry run of a P3 persona writes nothing and names its games", async () => {
+    const lines: string[] = [];
+    const r = await resetPersona("E2E_POOL_03", "review-terminal", {
+      dryRun: true,
+      now: NOW,
+      databaseUrl: "postgresql://u:p@localhost:5433/db",
+      log: (l) => lines.push(l),
+    });
+    assert.equal(r.applied, false);
+    assert.deepEqual(r.refs, {});
+    assert.ok(lines.some((l) => l.includes('"fixtures":["TERMINAL"]')), lines.join("\n"));
   });
 });

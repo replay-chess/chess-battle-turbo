@@ -3,11 +3,38 @@
 # OCI images log in as `ubuntu` with sudo, not root:
 #   ssh -i ~/.ssh/oci_deploy ubuntu@<server-ip> 'sudo bash -s' < deploy/oci/setup-server.sh
 # Creates a `deploy` user (with ubuntu's authorized SSH keys), opens 80/443 in
-# the host firewall, installs Docker, adds swap, and disables password SSH.
+# the host firewall, installs Docker, adds swap, disables password SSH, and
+# creates the worker-idle.slice the analysis worker container runs in.
+#
+# On a box that is already set up, only the slice (idempotent, no restart of
+# anything that runs):
+#   ssh -i ~/.ssh/oci_deploy ubuntu@<server-ip> 'sudo bash -s -- --worker-slice' < deploy/oci/setup-server.sh
 set -euo pipefail
 
 DEPLOY_USER=deploy
 APP_DIR=/opt/replay-chess
+
+# The analysis worker's CPU slice (phase-03 plan P3-D8): CPUWeight=idle sets cpu.idle=1 on the cgroup, so under
+# cgroup v2 the worker container (compose `cgroup_parent: worker-idle.slice`) only gets CPU the socket container
+# does not want. Check after the worker started: cat /sys/fs/cgroup/worker-idle.slice/cpu.idle  → 1
+worker_slice() {
+  cat > /etc/systemd/system/worker-idle.slice <<'UNIT'
+[Unit]
+Description=Replay Chess analysis worker (idle CPU weight; phase-03 plan P3-D8)
+Before=slices.target
+
+[Slice]
+CPUWeight=idle
+UNIT
+  systemctl daemon-reload
+  systemctl start worker-idle.slice
+  echo "worker-idle.slice: cpu.idle=$(cat /sys/fs/cgroup/worker-idle.slice/cpu.idle 2>/dev/null || echo '?')"
+}
+
+if [ "${1:-}" = "--worker-slice" ]; then
+  worker_slice
+  exit 0
+fi
 
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
@@ -55,5 +82,7 @@ PasswordAuthentication no
 PermitRootLogin no
 CONF
 systemctl restart ssh
+
+worker_slice
 
 echo "Done. Log in as: ssh $DEPLOY_USER@<server-ip>"

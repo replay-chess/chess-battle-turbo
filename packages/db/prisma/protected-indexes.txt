@@ -8,3 +8,12 @@ games_white_player_idx
 games_black_player_idx
 games_rematch_of_idx
 games_open_idx
+
+# M3 (P3, phase-03 plan 6.3)
+jobs_ready_idx
+jobs_running_idx
+jobs_finished_idx
+openings_epd_idx
+shares_owner_idx
+shares_expires_idx
+shares_game_idx

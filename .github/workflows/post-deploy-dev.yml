@@ -9,12 +9,21 @@
 # It shares the `e2e-dev-shared` concurrency group with nightly's dev-url job, so
 # two runs never use the dev database and the Clerk dev users at the same time.
 #
+# P3 (phase-03 plan §12.8 step 3, owner test T22): `worker-smoke-telemetry` runs after a successful "Deploy WebSocket
+# to OCI" run on dev (which ran the worker's real-engine smoke) and waits for the dev PostHog project to show the
+# smoke's `analysis_ready {regrade: false, ms_from_game_end: null}` (secrets POSTHOG_PERSONAL_API_KEY,
+# POSTHOG_DEV_PROJECT_ID; read-only HogQL).
+#
 # [V] The environment name Vercel reports ("Production – replay-chess-dev" or
 # "Preview – replay-chess-dev"): adjust the job's `if:` if it differs.
 name: Post-deploy (dev)
 
 on:
   deployment_status:
+  workflow_run:
+    workflows: ["Deploy WebSocket to OCI"]
+    types: [completed]
+    branches: [dev]
   workflow_dispatch:
     inputs:
       url:
@@ -139,3 +148,23 @@ jobs:
           path: apps/web/playwright-report/
           retention-days: 14
           if-no-files-found: ignore
+
+  worker-smoke-telemetry:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with: { ref: "${{ github.event.workflow_run.head_sha }}" }
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: analysis_ready of the worker smoke reached the dev PostHog project (≤ 180 s)
+        env:
+          POSTHOG_PERSONAL_API_KEY: ${{ secrets.POSTHOG_PERSONAL_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_DEV_PROJECT_ID }}
+        run: >-
+          pnpm --filter web exec tsx scripts/qa/posthog-event-check.ts --event analysis_ready
+          --where "properties.regrade = false AND properties.ms_from_game_end IS NULL"
+          --since-minutes 30 --timeout-sec 180

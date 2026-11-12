@@ -7,6 +7,8 @@
 // list and stale sweep, and the opportunistic sweep after a finish. With no live games the server sends no query
 // at all (plan 7.7), so the Neon compute can scale to zero.
 import type { SqlClient } from "@repo/db/live";
+import { createAnalysisHook } from "./analysis/afterEnd";
+import { createWorkerKicker, type WorkerKicker } from "./analysis/kick";
 import { createSocketServer, type SocketServerHandle } from "./app";
 import type { ServerEnv } from "./config/env";
 import { timingFor, type Timing } from "./config/timing";
@@ -47,6 +49,8 @@ export interface BootOptions {
   metricsPush?: { metrics: AggregatingMetrics; sink: MetricsSink; everyMs?: number };
   outbox?: { backoffBaseMs?: number; statementBudgetMs?: number; staleSweepEveryMs?: number };
   onEmitParse?: (event: string) => void;
+  /** P3: the worker kick's transport (tests capture the signed kicks); default `fetch` to ANALYSIS_WORKER_URL. */
+  kickFetch?: typeof fetch;
 }
 
 export interface BootedServer {
@@ -76,6 +80,23 @@ export async function bootServer(options: BootOptions): Promise<BootedServer> {
 
   let handle: SocketServerHandle | null = null;
   const liveRefs = () => (handle ? [...handle.registry.all()].map((s) => s.ref) : []);
+  // P3 (§7.4): after a finish commits, kick the analysis worker and tell both members (in-process user-room emits).
+  const kicker: WorkerKicker = createWorkerKicker({
+    baseUrl: env.analysisWorkerUrl,
+    keys: env.internalKeys,
+    now: Date.now,
+    log,
+    metrics,
+    ...(options.kickFetch ? { fetchImpl: options.kickFetch } : {}),
+  });
+  const afterEnd = createAnalysisHook({
+    kicker,
+    emitToUser: (userRef, event, data) => handle?.userRooms.emitToUser(userRef, event, data),
+    log,
+    metrics,
+    telemetry,
+    appEnv: env.appEnv,
+  });
   const persistence = createOutboxPersistence({
     db,
     journal,
@@ -86,6 +107,8 @@ export async function bootServer(options: BootOptions): Promise<BootedServer> {
     liveRefs,
     ...(env.webAppUrl ? { siteOrigin: env.webAppUrl } : {}),
     ...(options.outbox ?? {}),
+    onEndCommitted: afterEnd,
+    onSweepFinished: () => void kicker.kick({ v: 1, reason: "live_end" }),
   });
 
   handle = createSocketServer({

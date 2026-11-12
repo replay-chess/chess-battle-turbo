@@ -52,7 +52,12 @@ describe("TIMING_PROFILE and the environment", () => {
   });
 
   test("a bare LEGACY secret is accepted as kid s0 outside production only (rollout fallback, plan 7.1.7)", () => {
-    const dev = loadEnv({ APP_ENV: "dev", ALLOWED_ORIGINS: "https://a.example", LEGACY_INTERNAL_API_SECRET: "old-bare" });
+    const dev = loadEnv({
+      APP_ENV: "dev",
+      ALLOWED_ORIGINS: "https://a.example",
+      LEGACY_INTERNAL_API_SECRET: "old-bare",
+      ANALYSIS_WORKER_URL: "http://analysis-worker:3003",
+    });
     assert.equal(dev.socketKeys.keys.has("s0"), true);
     assert.throws(
       () => loadEnv({ APP_ENV: "production", ALLOWED_ORIGINS: "https://a.example", LEGACY_INTERNAL_API_SECRET: "old" }),

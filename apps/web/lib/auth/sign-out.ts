@@ -20,6 +20,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
 import { purgeRuntimeCaches } from "@/lib/shell/pwa";
+import { loadedSentry } from "@/lib/sentry/lazy";
 import { postAuthMessage, setSignOutIntent } from "@/components/system/session-guard";
 
 /** `/api/session/clear` budget (plan §8.9). */
@@ -53,12 +54,11 @@ const defaultDeps: SignOutDeps = {
     await api(endpoints.sessionClear, { method: "POST", keepalive: true, timeoutMs: SESSION_CLEAR_TIMEOUT_MS });
   },
   resetAnalytics: async () => {
-    const { default: posthog } = await import("posthog-js");
-    if ((posthog as unknown as { __loaded?: boolean }).__loaded) posthog.reset();
+    const { withPosthog } = await import("@/lib/analytics/posthog-client");
+    withPosthog((posthog) => posthog.reset());
   },
-  resetSentryUser: async () => {
-    const Sentry = await import("@sentry/nextjs");
-    Sentry.setUser(null);
+  resetSentryUser: () => {
+    loadedSentry()?.setUser(null);
   },
   broadcast: () => postAuthMessage("signed_out"),
   navigate: (url) => window.location.assign(url),

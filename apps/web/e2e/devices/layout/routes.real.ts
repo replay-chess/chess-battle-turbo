@@ -146,4 +146,52 @@ test.describe("real routes @p1", () => {
       });
     }
   });
+
+  // P3 (phase-03 plan §12.3 "Real-route layer"): member A's seeded review, its legend comparison and the archive. The
+  // review and the comparison are immersive board screens (no tab bar, one viewport, the board in view); /games keeps
+  // the shell and scrolls inside its list only.
+  test("P3 pages: the review, the comparison and /games @p3", async ({ page }) => {
+    test.setTimeout(300_000);
+    const project = test.info().project.name;
+    test.skip(!(REAL_ROUTE_PROJECTS as readonly string[]).includes(project), `real routes run on ${REAL_ROUTE_PROJECTS.join(", ")}`);
+    const email = process.env[`E2E_USER_${MEMBER}_EMAIL`];
+    test.skip(!email, `E2E_USER_${MEMBER}_EMAIL is not set (.env.test)`);
+    const { prepareReviewData } = await import("../../specs/review/_lib/review");
+    const refs = await prepareReviewData();
+    await signIn(page, email!, process.env[`E2E_USER_${MEMBER}_PASSWORD`] ?? "");
+
+    for (const [path, ready] of [
+      [`/review/${refs.GAME}`, "review-screen"],
+      [`/review/${refs.LEGEND}/legend`, "compare-screen"],
+    ] as const) {
+      await test.step(path, async () => {
+        const res = await page.goto(path, { waitUntil: "domcontentloaded", timeout: 90_000 });
+        expect(res?.status(), `${path} status`).toBe(200);
+        await expect(page.getByTestId(ready)).toBeVisible({ timeout: 60_000 });
+        await waitForStable(page);
+        await expect(page.locator("[data-rc-tabbar]:visible"), `${path}: no tab bar on an immersive route`).toHaveCount(0);
+        const m = await page.evaluate(() => ({
+          sh: document.scrollingElement!.scrollHeight,
+          ih: innerHeight,
+          sw: document.scrollingElement!.scrollWidth,
+          iw: document.documentElement.clientWidth,
+        }));
+        expect(m.sh, `${path}: no document scroll`).toBeLessThanOrEqual(m.ih + 1);
+        expect(m.sw, `${path}: no sideways scroll`).toBeLessThanOrEqual(m.iw + 1);
+        const board = await page.locator('[data-testid="chess-board"]').first().boundingBox();
+        expect(board, `${path}: board`).not.toBeNull();
+        expect(board!.y + board!.height, `${path}: board inside the viewport`).toBeLessThanOrEqual(m.ih + 1);
+        expect(board!.width, `${path}: board ≥ 220 px`).toBeGreaterThanOrEqual(220);
+      });
+    }
+
+    await test.step("/games", async () => {
+      await gotoReal(page, "/games");
+      await expect(page.getByTestId("games-archive")).toHaveAttribute("data-state", "default", { timeout: 60_000 });
+      const m = await scrollAndMeasure(page);
+      expect(m.scrollW, `/games: no horizontal page scroll ${JSON.stringify(m)}`).toBeLessThanOrEqual(m.vw + 1);
+      const list = page.getByTestId("games-list");
+      expect(await list.evaluate((el) => el.scrollHeight >= el.clientHeight), "/games: the list is the scroller").toBe(true);
+    });
+  });
 });

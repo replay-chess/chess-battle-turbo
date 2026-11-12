@@ -12,6 +12,7 @@
     "test:e2e:headed": "pnpm --filter web run test:e2e:headed"
   },
   "devDependencies": {
+    "license-checker": "25.0.1",
     "prettier": "^3.6.2",
     "tsx": "^4.20.6",
     "turbo": "^2.5.8",
@@ -23,5 +24,10 @@
   },
   "dependencies": {
     "webreel": "^0.1.4"
+  },
+  "pnpm": {
+    "neverBuiltDependencies": [
+      "better-sqlite3"
+    ]
   }
 }

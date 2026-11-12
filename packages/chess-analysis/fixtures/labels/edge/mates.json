@@ -1,0 +1,199 @@
+{
+  "name": "mates",
+  "provenance": "constructed",
+  "note": "Mate rules (rule 3) and MISS from a missed mate (rule 5). Evals are stored values: +29999 = White mates in 1, +30000 = Black is checkmated.",
+  "games": [
+    {
+      "id": "scholars-mate",
+      "note": "3…Nf6?? allows Qxf7# (MateCreated at −5 cp → BLUNDER); 4.Qxf7# keeps the mate (MateDelayed → no negative label) and is the best move → BEST.",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "moves": [
+        "e4",
+        "e5",
+        "Qh5",
+        "Nc6",
+        "Bc4",
+        "Nf6",
+        "Qxf7#"
+      ],
+      "evals": [
+        15,
+        30,
+        35,
+        0,
+        10,
+        5,
+        29999,
+        30000
+      ],
+      "best": [
+        "e4",
+        "e5",
+        "Nf3",
+        "Nc6",
+        "Bc4",
+        "g6",
+        "Qxf7#"
+      ],
+      "expected": [
+        "best",
+        "best",
+        "good",
+        "best",
+        "best",
+        "blunder",
+        "best"
+      ]
+    },
+    {
+      "id": "missed-mate",
+      "note": "After 3…Nf6?? White has mate in 1; 4.Nc3?? lets Black take the queen (−650). MateLost with cpAfter ≤ 700 → BLUNDER, and the opponent's previous ply lost ≥ 10 while White had a mate → MISS.",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "moves": [
+        "e4",
+        "e5",
+        "Qh5",
+        "Nc6",
+        "Bc4",
+        "Nf6",
+        "Nc3"
+      ],
+      "evals": [
+        15,
+        30,
+        35,
+        0,
+        10,
+        5,
+        29999,
+        -650
+      ],
+      "best": [
+        "e4",
+        "e5",
+        "Nf3",
+        "Nc6",
+        "Bc4",
+        "g6",
+        "Qxf7#"
+      ],
+      "expected": [
+        "best",
+        "best",
+        "good",
+        "best",
+        "best",
+        "blunder",
+        "miss"
+      ]
+    },
+    {
+      "id": "mate-lost-inaccuracy",
+      "note": "Ra8# and Qd8# were on; 1.Qd5 stays a queen and a rook up (+1500, no mate): MateLost with cpAfter > 999 → INACCURACY (MISS replaces only MISTAKE and BLUNDER).",
+      "startFen": "6k1/5ppp/8/8/8/8/5PPP/R2Q2K1 w - - 0 1",
+      "moves": [
+        "Qd5"
+      ],
+      "evals": [
+        29999,
+        1500
+      ],
+      "best": [
+        "Ra8#"
+      ],
+      "expected": [
+        "inaccuracy"
+      ]
+    },
+    {
+      "id": "mate-lost-mistake",
+      "note": "Same position; after 1.Qd5 the constructed eval is +800: MateLost with 700 < cpAfter ≤ 999 → MISTAKE.",
+      "startFen": "6k1/5ppp/8/8/8/8/5PPP/R2Q2K1 w - - 0 1",
+      "moves": [
+        "Qd5"
+      ],
+      "evals": [
+        29999,
+        800
+      ],
+      "best": [
+        "Ra8#"
+      ],
+      "expected": [
+        "mistake"
+      ]
+    },
+    {
+      "id": "mate-delayed",
+      "note": "Same position; 1.Qd7 keeps a forced mate (in 2 instead of 1): MateDelayed gives no negative label; the loss is 0 and the best move was Ra8#, so EXCELLENT.",
+      "startFen": "6k1/5ppp/8/8/8/8/5PPP/R2Q2K1 w - - 0 1",
+      "moves": [
+        "Qd7"
+      ],
+      "evals": [
+        29999,
+        29998
+      ],
+      "best": [
+        "Ra8#"
+      ],
+      "expected": [
+        "excellent"
+      ]
+    },
+    {
+      "id": "mate-created-1000",
+      "note": "Black is a queen for a rook up; 1.Ra7?? allows Qd1#. MateCreated with cpBefore −1000 (< −999) → INACCURACY.",
+      "startFen": "3q2k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1",
+      "moves": [
+        "Ra7"
+      ],
+      "evals": [
+        -1000,
+        -29999
+      ],
+      "best": [
+        "h3"
+      ],
+      "expected": [
+        "inaccuracy"
+      ]
+    },
+    {
+      "id": "mate-created-800",
+      "note": "Same move with cpBefore −800 (−999 ≤ cp < −700) → MISTAKE.",
+      "startFen": "3q2k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1",
+      "moves": [
+        "Ra7"
+      ],
+      "evals": [
+        -800,
+        -29999
+      ],
+      "best": [
+        "h3"
+      ],
+      "expected": [
+        "mistake"
+      ]
+    },
+    {
+      "id": "mate-created-500",
+      "note": "Same move with cpBefore −500 (≥ −700) → BLUNDER.",
+      "startFen": "3q2k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1",
+      "moves": [
+        "Ra7"
+      ],
+      "evals": [
+        -500,
+        -29999
+      ],
+      "best": [
+        "h3"
+      ],
+      "expected": [
+        "blunder"
+      ]
+    }
+  ]
+}

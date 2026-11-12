@@ -167,7 +167,8 @@ describe("play", () => {
     assert.equal(end.winner, "w");
     assert.equal(end.ply, 33);
     const res = await result;
-    assert.deepEqual(res.review, { status: "none" });
+    // P3: the in-memory persistence has no jobs table, so the session's own eligibility rule answers (33 plies ≥ 6).
+    assert.deepEqual(res.review, { status: "queued", etaSec: null });
     await until(() => seen.some((e) => e.event === "game:result"));
     for (const { payload } of seen) {
       assert.equal(payload.seq, lastSeq + 1, `every game-room event carries seq + 1: ${JSON.stringify(seen.map((e) => [e.event, e.payload.seq]))}`);

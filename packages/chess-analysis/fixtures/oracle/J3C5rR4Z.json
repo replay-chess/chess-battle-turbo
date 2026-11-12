@@ -1,0 +1,76 @@
+{
+  "id": "J3C5rR4Z",
+  "url": "https://lichess.org/J3C5rR4Z",
+  "source": "Lichess game export (public game data, CC0), evals=true&accuracy=true&division=true&opening=true&clocks=false&literate=false, fetched 2026-11-11",
+  "speed": "blitz",
+  "status": "resign",
+  "winner": "black",
+  "players": {
+    "white": {
+      "rating": 2853,
+      "accuracy": 62,
+      "acpl": 44,
+      "inaccuracy": 0,
+      "mistake": 0,
+      "blunder": 1,
+      "phases": {
+        "opening": 96,
+        "middlegame": 47
+      }
+    },
+    "black": {
+      "rating": 3153,
+      "accuracy": 98,
+      "acpl": 7,
+      "inaccuracy": 0,
+      "mistake": 0,
+      "blunder": 0,
+      "phases": {
+        "opening": 98,
+        "middlegame": 97
+      }
+    }
+  },
+  "division": {
+    "middle": 17
+  },
+  "moves": "e4 c5 Nf3 d6 Bb5+ Nd7 d4 cxd4 Qxd4 a6 Bxd7+ Bxd7 Bg5 h6 Bh4 Qa5+ Nc3 e5 Qd3 g5 Bg3 Nf6 O-O-O Rc8 Nd2 Be6 a3 Be7 h4 g4 Kb1 h5 f4 gxf3 Bf4 fxg2",
+  "analysis": [
+    {"eval":18},
+    {"eval":32},
+    {"eval":20},
+    {"eval":31},
+    {"eval":5},
+    {"eval":12},
+    {"eval":9},
+    {"eval":11},
+    {"eval":25},
+    {"eval":11},
+    {"eval":11},
+    {"eval":5},
+    {"eval":-23},
+    {"eval":-11},
+    {"eval":-18},
+    {"eval":-9},
+    {"eval":-15},
+    {"eval":-25},
+    {"eval":-18},
+    {"eval":16},
+    {"eval":10},
+    {"eval":9},
+    {"eval":8},
+    {"eval":9},
+    {"eval":4},
+    {"eval":4},
+    {"eval":10},
+    {"eval":15},
+    {"eval":11},
+    {"eval":11},
+    {"eval":16},
+    {"eval":31},
+    {"eval":19},
+    {"eval":36},
+    {"eval":-643,"best":"g2f3","judgment":"Blunder"},
+    {"eval":-652}
+  ]
+}

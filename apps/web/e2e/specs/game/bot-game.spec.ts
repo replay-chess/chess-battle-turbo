@@ -69,6 +69,8 @@ test.describe("bot game", { tag: p2("@smoke", "@local-only") }, () => {
       await expectOneGameScreen(page);
 
       const completes = () => requests.filter((r) => r.startsWith("POST") && r.endsWith("/complete")).length;
+      // The game itself never touches the socket server (it runs in the browser).
+      expect(me.link.connections, "no socket connection while the bot game is played").toBe(0);
       await me.board.resign();
       await expect(page.getByTestId("game-result")).toBeVisible({ timeout: 30_000 });
       await expect.poll(completes, { timeout: 30_000 }).toBe(1);
@@ -78,8 +80,10 @@ test.describe("bot game", { tag: p2("@smoke", "@local-only") }, () => {
 
       await expectServerEvents(telemetry, "bot_game_started", [me], 1);
       await expectServerEvents(telemetry, "bot_game_completed", [me], 1, { hints: 2, undos: 1, method: "resignation", result: "loss" });
-      // No game traffic to the socket server.
-      expect(me.link.connections).toBe(0);
+      // No game traffic to the socket server. After the end the game-over card may follow the analysis over the
+      // socket's user room (phase-03 plan §5.8, a watched view), which sends no game command
+      // (regression: bot-game-analysis-feed: the P2 assertion counted that connection as game traffic).
+      expect(me.link.sent().filter((f) => /^42\d*\["game:/.test(f))).toEqual([]);
     },
   );
 });

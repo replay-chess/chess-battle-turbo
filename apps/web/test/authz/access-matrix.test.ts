@@ -33,6 +33,24 @@ const REGISTRY_ROWS: [string, AuthMode][] = [
   ["POST /api/games/{ref}/checkpoint", "user"],
   ["POST /api/games/{ref}/complete", "user"],
   ["GET /api/games/{ref}/pgn", "member"],
+  // Phase 3 (§11.1 of the P3 plan): reads answer 402 from the handler (review-lapsed-read), writes are member.
+  ["GET /api/review/{ref}", "user"],
+  ["GET /api/review/{ref}/status", "user"],
+  ["POST /api/review/{ref}/analyse", "member"],
+  ["POST /api/review/{ref}/retry", "member"],
+  ["PATCH /api/review/{ref}/progress", "member"],
+  ["PATCH /api/review/{ref}/moments/{ply}", "member"],
+  ["POST /api/review/{ref}/complete", "member"],
+  ["GET /api/review/{ref}/pgn", "user"],
+  ["GET /api/review/{ref}/legend", "user"],
+  ["POST /api/review/{ref}/legend/compute", "member"],
+  // A10 (member), A11 (user: any signed-in owner can anonymise or stop a link, even after the membership lapsed;
+  // owner-scoped in the statement → 404, FIX-1), G1 (handler 402, review-lapsed-read), PR1 (member).
+  ["POST /api/review/{ref}/share", "member"],
+  ["PATCH /api/share/{code}", "user"],
+  ["DELETE /api/share/{code}", "user"],
+  ["GET /api/me/games", "user"],
+  ["GET /api/practice/context", "member"],
 ];
 
 /** §11.1 rows still served by legacy handlers: file + method → signed out / signed in non-admin. */

@@ -21,6 +21,11 @@ export const RETURN_PATH_PREFIXES: readonly string[] = [
   "/openings",
   "/position",
   "/profile",
+  // Phase 3 (phase-03 plan §3.2): the review, archive and practice pages send a lapsed or never-member viewer to
+  // /pricing with redirect_url = the page. `/analysis` goes at H4, when the legacy pages are deleted.
+  "/review",
+  "/games",
+  "/practice",
   "/analysis",
 ];
 

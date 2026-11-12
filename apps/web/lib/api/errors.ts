@@ -9,6 +9,7 @@ import { codeForStatus, isErrorCode, type ErrorCode } from "@repo/contracts/http
 import type { QueryClient } from "@tanstack/react-query";
 import { currentAppPath, paywallUrl, stripCheckoutParams } from "@/lib/billing/client";
 import { qk } from "@/lib/api/keys";
+import { withSentry } from "@/lib/sentry/lazy";
 
 /** Codes the client produces itself; never sent by a server. */
 export const CLIENT_ERROR_CODES = ["network", "timeout", "offline", "aborted", "contract_mismatch"] as const;
@@ -261,13 +262,13 @@ const lazyNotify: ApiErrorNotify = {
 
 const lazyCapture: ApiErrorCapture = {
   exception: (err, extra) => {
-    void import("@sentry/nextjs").then((S) => S.captureException(err, { extra })).catch(() => {});
+    withSentry((S) => S.captureException(err, { extra }));
   },
   message: (message, extra) => {
-    void import("@sentry/nextjs").then((S) => S.captureMessage(message, { level: "error", extra })).catch(() => {});
+    withSentry((S) => S.captureMessage(message, { level: "error", extra }));
   },
   breadcrumb: (message, data) => {
-    void import("@sentry/nextjs").then((S) => S.addBreadcrumb({ category: "api", message, data })).catch(() => {});
+    withSentry((S) => S.addBreadcrumb({ category: "api", message, data }));
   },
 };
 

@@ -1,0 +1,7 @@
+/*
+ * P3 slot wrappers on P2's result card: a slot whose lazy component rendered nothing (spectator, aborted, skipped, not
+ * loaded yet) leaves an empty `[data-slot]` div; collapse it so the card's 10 px gaps do not stack up.
+ */
+@layer components {
+  .g-result > [data-slot]:empty { display: none; }
+}

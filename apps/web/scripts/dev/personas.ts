@@ -18,12 +18,17 @@
  * - One UPDATE by email inside a transaction; nothing is created or deleted.
  *
  * Each later phase adds its personas file to PERSONAS below.
+ *
+ * Phase 3 personas (e2e/personas/p03.ts) also own games: after the billing UPDATE the reset deletes the user's games
+ * and writes the persona's review fixtures with the P3 seed writers (@repo/db/seed/review: `clearMemberGames`,
+ * `writePersonaFixtures`), which carry the same guards (no shared letter, the user-count tripwire).
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parse as parseEnv } from "dotenv";
 import { P01_PERSONAS, type BillingColumns, type Persona } from "../../e2e/personas/p01";
+import { P03_PERSONAS, isP03Persona } from "../../e2e/personas/p03";
 import { PERSONA_LETTER, letterEmail, poolEmail, POOL_SIZE, roleOfEmail } from "../../e2e/fixtures/users";
 import {
   DEV_ENV_FILE,
@@ -35,7 +40,7 @@ import {
   resolveEnvVar,
 } from "@repo/db/seed-guards";
 
-export const PERSONAS: Record<string, Persona> = { ...P01_PERSONAS };
+export const PERSONAS: Record<string, Persona> = { ...P01_PERSONAS, ...P03_PERSONAS };
 
 /** Plan §4 personas row: the user-count tripwire comes from prisma/seed-guards.ts (SPEC 11.2 guard 5, <= 60). */
 export const PERSONA_USER_TRIPWIRE = MAX_TARGET_USERS;
@@ -126,8 +131,8 @@ export async function resetPersona(target: string, personaName: string, opts: Re
   const host = assertPersonaTarget(url);
   log(`[personas] target host ${host} (from ${origin}); ${email} → ${persona.name}`);
   if (opts.dryRun) {
-    log(`[personas] dry run: ${JSON.stringify(row)}`);
-    return { email, persona: persona.name, row, applied: false };
+    log(`[personas] dry run: ${JSON.stringify(row)}${isP03Persona(persona) ? ` games ${JSON.stringify(persona.games)}` : ""}`);
+    return { email, persona: persona.name, row, applied: false, refs: {} as Record<string, string> };
   }
 
   const { PrismaClient } = await import("@repo/db");
@@ -163,8 +168,18 @@ export async function resetPersona(target: string, personaName: string, opts: Re
         `no users row for ${email}; provision the pool first (npx tsx e2e/scripts/provision-test-users.ts --pool)`,
       );
     }
+    // Phase 3: the persona's games (exact: everything else of this user is deleted first).
+    let refs: Record<string, string> = {};
+    if (isP03Persona(persona)) {
+      const { clearMemberGames, writePersonaFixtures } = await import("@repo/db/seed/review");
+      if (persona.games.clear) {
+        const n = await clearMemberGames(db, email);
+        log(`[personas] cleared ${n} game(s) of ${email}`);
+      }
+      if (persona.games.fixtures.length > 0) refs = await writePersonaFixtures(db, email, persona.games.fixtures, { log });
+    }
     log(`[personas] applied ${persona.name} to ${email}`);
-    return { email, persona: persona.name, row, applied: true };
+    return { email, persona: persona.name, row, applied: true, refs };
   } finally {
     await db.$disconnect();
   }

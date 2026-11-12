@@ -1,0 +1,95 @@
+{
+  "name": "followed",
+  "provenance": "historical game score (public domain) + a constructed member line",
+  "note": "The member plays Morphy's moves to 17.Rd8#: no divergence, and the game ends where the legend's did.",
+  "legendPgn": "[Event \"Paris\"]\n[Site \"Paris FRA\"]\n[Date \"1858.??.??\"]\n[White \"Paul Morphy\"]\n[Black \"Duke Karl / Count Isouard\"]\n[Result \"1-0\"]\n\n1.e4 e5 2.Nf3 d6 3.d4 Bg4 4.dxe5 Bxf3 5.Qxf3 dxe5 6.Bc4 Nf6 7.Qb3 Qe7 8.Nc3 c6 9.Bg5 b5 10.Nxb5 cxb5 11.Bxb5+ Nbd7 12.O-O-O Rd8 13.Rxd7 Rxd7 14.Rd1 Qe6 15.Bxd7+ Nxd7 16.Qb8+ Nxb8 17.Rd8# 1-0",
+  "metadata": null,
+  "historicalName": "Morphy",
+  "opponentHistoricalName": null,
+  "year": 1858,
+  "startFen": "rn2kb1r/p3qppp/2p2n2/1p2p1B1/2B1P3/1QN5/PPP2PPP/R3K2R w KQkq - 0 10",
+  "member": "w",
+  "userResult": "win",
+  "game": [
+    "Nxb5",
+    "cxb5",
+    "Bxb5+",
+    "Nbd7",
+    "O-O-O",
+    "Rd8",
+    "Rxd7",
+    "Rxd7",
+    "Rd1",
+    "Qe6",
+    "Bxd7+",
+    "Nxd7",
+    "Qb8+",
+    "Nxb8",
+    "Rd8#"
+  ],
+  "expected": {
+    "facts": {
+      "v": 1,
+      "side": "w",
+      "historicalName": "Morphy",
+      "startPly": 18,
+      "comparedPlies": 8,
+      "matchedPlies": 8,
+      "divergencePly": null,
+      "divergenceBy": null,
+      "userUci": null,
+      "userSan": null,
+      "legendUci": null,
+      "legendSan": null,
+      "legendResult": "white_won",
+      "legendTotalMoves": 17,
+      "userLineUci": "c3b5 c6b5 c4b5 b8d7 e1c1 a8d8 d1d7 d8d7 h1d1 e7e6 b5d7 f6d7 b3b8 d7b8 d1d8",
+      "legendLineUci": "c3b5 c6b5 c4b5 b8d7 e1c1 a8d8 d1d7 d8d7 h1d1 e7e6 b5d7 f6d7 b3b8 d7b8 d1d8",
+      "evalAtDivergence": null
+    },
+    "followedToTheEnd": true,
+    "summaryLine": "You found every one of Morphy’s moves.",
+    "matchedLine": "You followed Morphy to the end.",
+    "outcomeLine": "Morphy won this; you won.",
+    "paragraph": "You found every one of Morphy’s moves from move 10.",
+    "replayHref": null,
+    "rows": [
+      {
+        "n": "12.",
+        "yours": "O-O-O",
+        "legend": "O-O-O",
+        "mark": "match"
+      },
+      {
+        "n": "13.",
+        "yours": "Rxd7",
+        "legend": "Rxd7",
+        "mark": "match"
+      },
+      {
+        "n": "14.",
+        "yours": "Rd1",
+        "legend": "Rd1",
+        "mark": "match"
+      },
+      {
+        "n": "15.",
+        "yours": "Bxd7+",
+        "legend": "Bxd7+",
+        "mark": "match"
+      },
+      {
+        "n": "16.",
+        "yours": "Qb8+",
+        "legend": "Qb8+",
+        "mark": "match"
+      },
+      {
+        "n": "17.",
+        "yours": "Rd8#",
+        "legend": "Rd8#",
+        "mark": "match"
+      }
+    ]
+  }
+}

@@ -65,6 +65,9 @@ model User {
   gamesAsWhite         Game[]             @relation("WhiteGames")
   gamesAsBlack         Game[]             @relation("BlackGames")
   gamePlayers          GamePlayer[]
+  /// M3 (P3). Legend comparisons and public share links owned by this member.
+  legendComparisons    LegendComparison[]
+  shares               Share[]
 
   @@index([googleId])
   @@index([email])
@@ -163,6 +166,17 @@ model Game {
   rematchOf     Game?         @relation("Rematches", fields: [rematchOfId], references: [id], onDelete: SetNull)
   rematches     Game[]        @relation("Rematches")
   players       GamePlayer[]
+
+  // ── M3 (Phase 3): server analysis (phase-03 plan 6.2). Expand-only.
+  /// NONE until the game is enqueued; SKIPPED for aborted games and games under 6 plies (no job)
+  analysisStatus    AnalysisStatus     @default(NONE)
+  /// opening of the game (deepest EPD match, written by the worker when null; R-01, CON 3.4). Not the same thing as
+  /// the existing openingId, which means "started from this opening line" and is never written by the worker.
+  ecoCode           String?            @db.VarChar(3)
+  openingName       String?            @db.VarChar(80)
+  analysis          GameAnalysis?
+  legendComparisons LegendComparison[]
+  shares            Share[]
 
   // P4 import upsert; REPLAY rows have externalId NULL and never collide
   @@unique([source, externalId], map: "games_source_externalId_key")
@@ -294,6 +308,8 @@ model ChessPosition {
   whiteLegend Legend? @relation("WhiteLegendGames", fields: [whitePlayerId], references: [id], onDelete: SetNull)
   blackLegend Legend? @relation("BlackLegendGames", fields: [blackPlayerId], references: [id], onDelete: SetNull)
   tournaments Tournament[]
+  /// M3 (P3). POSITION shares from P9; REVIEW shares of legend games keep it for the card.
+  shares      Share[]
 
   @@index([referenceId])
   @@index([sourceType])
@@ -364,6 +380,10 @@ model Opening {
   explanationAudioUrl String?
 
   isActive    Boolean      @default(true)
+  /// M3 (P3). The first four FEN fields of `fen` (the position after the line): transposition-safe opening-name
+  /// lookup (deepest EPD match) and the book seed. Filled by DB/scripts/backfill/opening-epd.ts; partial index
+  /// openings_epd_idx (raw SQL in M3).
+  epd         String?      @db.VarChar(90)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   games       Game[]       @relation("OpeningGames")
@@ -476,10 +496,23 @@ model GamePlayer {
   /// denormalised, no FK
   tournamentId   BigInt?
   source         GameSource    @default(REPLAY)
+  // ── M3 (Phase 3): written by the analysis worker's final batch (phase-03 plan 6.2).
+  accuracy       Float?        @db.Real
+  /// archive note, e.g. "Missed Rxf5 · move 19" | "Clean game" (plan 8.7)
+  headline       String?       @db.VarChar(80)
+  momentsCount   Int           @default(0) @db.SmallInt
+  /// 13 counters indexed by JudgementCode (this side only; [0] unused)
+  counts         Int[]         @default([]) @db.SmallInt
+  /// [opening, middlegame, endgame]; -1 = phase not reached
+  phaseAccuracy  Float[]       @default([]) @db.Real
+  /// copy of games.ecoCode for per-user opening stats (P4, P6 read it)
+  ecoCode        String?       @db.VarChar(3)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   game           Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// M3 (P3). The review of this member side (1:1 through the unique (gameId, color)).
+  review         PlayerReview?
 
   @@id([gameId, userId])
   @@unique([gameId, color])
@@ -503,6 +536,248 @@ model IdempotencyKey {
   @@id([userId, key])
   @@index([createdAt])
   @@map("idempotency_keys")
+}
+
+// ══ M3 (Phase 3): server analysis and Game Review (phase-03 plan 6.1-6.2). ══════════════════════════════════════
+// Every value of every enum below ships in M3 and is first written in M3's own release (enum rollback rule, plan
+// 6.1). The partial indexes, the lz4 settings and review_progress_merge() are raw SQL in the migration; their index
+// names are in prisma/protected-indexes.txt. Role grants live in packages/db/scripts/roles/*.sql, not here.
+
+/// M3. Job kinds (R-05 ledger). P3 writes ANALYZE_GAME, LEGEND_COMPARE and HOUSEKEEPING; the rest are reserved for
+/// P4/P6/P7/P10 so their phases need no ADD VALUE migration. No HOURLY_TICK (P3-D22).
+enum JobKind {
+  ANALYZE_GAME
+  REVIEW_TEXT
+  LEGEND_COMPARE
+  IMPORT_SYNC
+  IMPORT_PURGE
+  RECOMPUTE_WEAKNESS
+  EXPORT_BUILD
+  ACCOUNT_PURGE
+  DODO_CUSTOMER_SYNC
+  HOUSEKEEPING
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+  CANCELLED
+}
+
+/// games."analysisStatus". SKIPPED = aborted or under 6 plies (never enqueued).
+enum AnalysisStatus {
+  NONE
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+  SKIPPED
+}
+
+enum EvalSource {
+  ENGINE
+  LICHESS
+  MIXED
+}
+
+/// The 12 move labels (B8). Per-ply judgements are stored as smallint codes (CA/src/codec.ts), never as this enum;
+/// it exists for typed JSON validation and for P5's Mistake.judgement.
+enum Judgement {
+  BRILLIANT
+  GREAT
+  BEST
+  EXCELLENT
+  GOOD
+  BOOK
+  FORCED
+  INTERESTING
+  INACCURACY
+  MISTAKE
+  MISS
+  BLUNDER
+}
+
+enum ComparisonStatus {
+  FACTS_READY
+  NARRATING
+  READY
+  FAILED
+}
+
+/// One public-link table (DM D17): REVIEW (/r/<code>) from P3, POSITION (/s/<code>) from P9.
+enum ShareKind {
+  POSITION
+  REVIEW
+}
+
+/// M3. One queue for every background job on the OCI worker (SKIP LOCKED claim, push wake-up). DM §5.4 + heartbeatAt,
+/// fairSeq (R-05.1) and lastKickAt (AP-09). Claim/reaper/prune use the partial indexes jobs_ready_idx,
+/// jobs_running_idx and jobs_finished_idx (raw SQL). Enqueue only through packages/db/src/jobs.ts.
+model Job {
+  id          BigInt    @id @default(autoincrement())
+  kind        JobKind
+  status      JobStatus @default(QUEUED)
+  /// JOB_PRIORITY.* only (P3-D7): 100 user waiting · 80 game just ended · 60/50/20/15 imports, batch, weakness · 10 backlog · 0 housekeeping
+  priority    Int       @default(10) @db.SmallInt
+  /// per-user ordinal inside a batch, so equal-priority jobs interleave users (ARCH §1.10.4); 0 for single enqueues
+  fairSeq     Int       @default(0)
+  /// "analyze:<gameId>", "legend:<gameId>:<userId>", "housekeeping:<yyyy-mm-dd>", "regrade-sweep:<yyyy-mm-dd>"
+  dedupeKey   String?   @unique @db.VarChar(120)
+  /// no FK (DM D5): survives the deletion it may be cleaning up after
+  userId      BigInt?
+  /// no FK
+  gameId      BigInt?
+  /// JobPayloadV1 per kind (CT/internal/jobs.ts); always carries `v`
+  payload     Json      @default("{\"v\":1}")
+  result      Json?
+  runAt       DateTime  @default(now())
+  attempts    Int       @default(0) @db.SmallInt
+  maxAttempts Int       @default(4) @db.SmallInt
+  /// "<env>-worker-<bootId>"
+  lockedBy    String?   @db.VarChar(40)
+  lockedAt    DateTime?
+  /// refreshed by every checkpoint and at least every 30 s while RUNNING (stale detection: plan 8.12)
+  heartbeatAt DateTime?
+  /// last web-side re-kick (CAS, at most one per 30 s per job; AP-09)
+  lastKickAt  DateTime?
+  /// "<code>: <short message>"; never PII
+  lastError   String?   @db.VarChar(1000)
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+
+  @@map("jobs")
+}
+
+/// M3. Packed engine facts for BOTH colours, one row per game (DM D3). Array index i = ply offset from Game.startPly.
+/// Checkpointed every 10 plies while RUNNING (P3-D6); completedAt is set once at the end.
+model GameAnalysis {
+  gameId        BigInt     @id
+  /// GRADING_VERSION (classifier); re-grade from stored evals when it changes (engine-free, P3-D28)
+  version       Int        @db.SmallInt
+  /// "sf18-armv8dp-<net8>/sf18-v1" (engine build id + profile)
+  engine        String     @db.VarChar(48)
+  nodesPass1    Int
+  nodesPass2    Int
+  evalSource    EvalSource @default(ENGINE)
+  totalPlies    Int        @db.SmallInt
+  gradedPlies   Int        @db.SmallInt
+  failedAtPly   Int?       @db.SmallInt
+  /// length gradedPlies+1 while running, totalPlies+1 when done. White POV; cp clamped ±9999; mate in n = sign·(30000 − n)
+  evals         Int[]      @db.SmallInt
+  /// MultiPV-2 score per position, same encoding; 32767 = no second legal move (P3-D28)
+  second        Int[]      @db.SmallInt
+  /// MoveCode per ply = from + 64·to + 4096·promo (promo 0 none, 1 n, 2 b, 3 r, 4 q); 0 = unknown/forced
+  best          Int[]      @db.SmallInt
+  /// JudgementCode per ply (0 = ungraded)
+  judgements    Int[]      @db.SmallInt
+  /// LinesV1, flagged plies only: {"<ply>": {"pv": "<uci …>", "alts": ["<uci>", …], "d": <winLoss×10>}} (lz4)
+  lines         Json?
+  middlegamePly Int?       @db.SmallInt
+  endgamePly    Int?       @db.SmallInt
+  accuracyWhite Float?     @db.Real
+  accuracyBlack Float?     @db.Real
+  /// 13 counters each (index = JudgementCode; [0] unused)
+  countsWhite   Int[]      @db.SmallInt
+  countsBlack   Int[]      @db.SmallInt
+  /// median search depth reached in pass 1 (How we grade "about N plies deep")
+  depthP50      Int?       @db.SmallInt
+  /// games.completedAt → analysis:done emit, ms (server-side SLO truth, AP-15); null for regrades and backfills
+  readyMs       Int?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  completedAt   DateTime?
+  game          Game       @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@map("game_analyses")
+}
+
+/// M3. Text + key moments + walkthrough state for one MEMBER side (DM D4). 1:1 with GamePlayer via its unique
+/// (gameId, color). Key moments live in content.moments (≤ 3, P3-D3): there is no key_moments table.
+model PlayerReview {
+  gameId        BigInt
+  /// 'w' | 'b'
+  color         String     @db.Char(1)
+  /// ReviewContentV1 (packages/db/src/json/review.ts). P3 writes source "template". (lz4)
+  content       Json?
+  /// PENDING | TEMPLATE | READY | FALLBACK (P3-D16)
+  textStatus    String     @default("PENDING") @db.VarChar(10)
+  /// P7
+  model         String?    @db.VarChar(40)
+  /// P7
+  promptVersion Int?       @db.SmallInt
+  /// ReviewProgressV1 (packages/db/src/json/review.ts). Written by A5/A6 only (a different writer than content),
+  /// A5 through the SQL function review_progress_merge() (raw SQL in M3).
+  progress      Json?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  gamePlayer    GamePlayer @relation(fields: [gameId, color], references: [gameId, color], onDelete: Cascade)
+
+  @@id([gameId, color])
+  @@map("player_reviews")
+}
+
+/// M3 (pulled forward from DM "M8", P3-D5). Legend comparison per (game, member).
+model LegendComparison {
+  gameId          BigInt
+  userId          BigInt
+  /// no FK: the legend position the game started from (copied from games.chessPositionId)
+  chessPositionId BigInt?
+  status          ComparisonStatus @default(FACTS_READY)
+  /// ComparisonFactsV1 (packages/db/src/json/legend.ts)
+  facts           Json
+  /// NarrationV1, P7/P8 (personalised narration); null in P3
+  narration       Json?
+  model           String?          @db.VarChar(40)
+  costMicroUsd    Int?
+  /// LEGEND_COMPARE runs requested through A9b; capped at 3 (then 410)
+  attempts        Int              @default(0) @db.SmallInt
+  error           String?          @db.VarChar(500)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  game            Game             @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([gameId, userId])
+  @@index([userId])
+  @@map("legend_comparisons")
+}
+
+/// M3 (P3-D4). One public-link table: REVIEW (/r/<code>) now, POSITION (/s/<code>) from P9. DM D17: no view counters.
+/// Partial indexes shares_owner_idx, shares_expires_idx and shares_game_idx are raw SQL in M3.
+model Share {
+  id              BigInt         @id @default(autoincrement())
+  /// 8 chars of Crockford base32, lowercase (e.g. "8kq2xh4m"); 40 random bits from crypto.randomBytes
+  code            String         @unique @db.VarChar(10)
+  kind            ShareKind
+  /// SetNull for POSITION; REVIEW shares are deleted explicitly by the account-deletion flow (P10)
+  ownerId         BigInt?
+  fen             String?
+  chessPositionId BigInt?
+  gameId          BigInt?
+  ply             Int?           @db.SmallInt
+  /// 'w' | 'b'
+  color           String?        @db.Char(1)
+  title           String?        @db.VarChar(80)
+  subtitle        String?        @db.VarChar(40)
+  note            String?        @db.VarChar(140)
+  themes          String[]       @default([])
+  showUsername    Boolean        @default(true)
+  /// ShareSnapshotV1 (packages/db/src/json/share.ts): the frozen public payload (lz4)
+  snapshot        Json?
+  imageVersion    Int            @default(1) @db.SmallInt
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime       @default(now())
+  owner           User?          @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  game            Game?          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  chessPosition   ChessPosition? @relation(fields: [chessPositionId], references: [id], onDelete: SetNull)
+
+  @@map("shares")
 }
 
 enum GameResult {

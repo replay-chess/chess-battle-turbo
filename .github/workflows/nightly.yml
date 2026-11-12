@@ -3,6 +3,10 @@
 # Scheduled workflows run from the default branch, so this file is committed to
 # `main` (workflow-only commit) and to `dev`; every job checks out `ref: dev`.
 # Later phases append jobs (P3 arm64 goldens, P4 provider canary, P6 weakness recompute).
+# P3 (phase-03 plan §12, WP-H): e2e-full runs the analysis worker from source (ENGINE=fake) with the review flags and
+# also the `lapsed-read` project (review-lapsed-read on); devices-full gets a Docker database (the review seed for
+# /r/<code> and the real-route layer); p3-goldens, p3-label-stability and p3-eval-provenance run on the Blacksmith
+# arm64 runner with Stockfish 18 built from the worker's Dockerfile stage (`--target stockfish`).
 # P2 (plan 12.6–12.9): e2e-full also runs the @slow real-timing game specs (E2E_SLOW=1) and the game-serial
 # project (restart-resume); devices-full also runs the game one-viewport and visual specs (playwright.devices.config.ts
 # matches e2e/devices/game/** since REGRESSION-2), so the visual job compares the game baselines too; neon-suspend (weekly: Sundays UTC, gated inside the job) plays a game on the dev URL through a compute
@@ -61,7 +65,9 @@ jobs:
       NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
       E2E_INCLUDE_QUARANTINED: "1"
       E2E_SLOW: "1"
-      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on
+      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on,review-v3:on,review-share:on
+      ANALYSIS_WORKER_URL: http://127.0.0.1:3003
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
       E2E_TEST_TOKEN: ${{ secrets.E2E_TEST_TOKEN }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
@@ -119,7 +125,7 @@ jobs:
       - name: Random socket keys for this run (web ↔ socket token and HMAC rings)
         run: |
           tok="d1:$(openssl rand -base64 32)"
-          int="web:$(openssl rand -base64 32)"
+          int="web:$(openssl rand -base64 32),ws:$(openssl rand -base64 32),wk:$(openssl rand -base64 32),webwk:$(openssl rand -base64 32)"
           echo "::add-mask::$tok"
           echo "::add-mask::$int"
           echo "SOCKET_TOKEN_SECRET=$tok" >> "$GITHUB_ENV"
@@ -132,17 +138,25 @@ jobs:
           pnpm --filter @repo/db seed
           pnpm --filter @repo/db seed:openings
           pnpm --filter @repo/db seed:content -- --apply
-      - name: Socket role (packages/db/sql/roles.sql), as on OCI
+      - name: Socket and worker roles (roles.sql, socket.p3.sql, replay_worker.sql), as on OCI
         run: |
           command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
           RT_PW=$(openssl rand -hex 16)
+          WK_PW=$(openssl rand -hex 16)
           echo "::add-mask::$RT_PW"
+          echo "::add-mask::$WK_PW"
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v rt_password="$RT_PW" -f packages/db/sql/roles.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/socket.p3.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v wk_password="$WK_PW" -f packages/db/scripts/roles/replay_worker.sql
           echo "E2E_SOCKET_DATABASE_URL=postgresql://replay_realtime:$RT_PW@localhost:5432/replay" >> "$GITHUB_ENV"
+          echo "E2E_WORKER_DATABASE_URL=postgresql://replay_worker:$WK_PW@localhost:5432/replay" >> "$GITHUB_ENV"
       - name: Build (test app env, hooks on, sinks on)
         run: pnpm --filter web build
       - name: Playwright (main config incl. @slow game timers and game-serial, quarantined tests included)
         run: pnpm --filter web exec playwright test --project=chromium --project=play-queue --project=game-serial --shard=${{ matrix.shard }}/4
+      - name: "P3 lapsed-read project (review-lapsed-read on: its own `pnpm start` on :3111)"
+        if: matrix.shard == 1
+        run: pnpm --filter web exec playwright test --project=lapsed-read
       - if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -160,8 +174,19 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
+    # P3: /r/<seeded code> and the real-route layer read member A's review seed (_lib/review.ts prepareReviewData).
+    services:
+      db:
+        image: postgres:17-alpine
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: replay }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
     env:
       CI: "1"
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/replay
+      E2E_USER_A_EMAIL: ${{ secrets.E2E_USER_A_EMAIL }}
+      E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
       NEXT_PUBLIC_APP_ENV: test
       NEXT_PUBLIC_POSTHOG_KEY: ""
       NEXT_PUBLIC_SENTRY_DSN: ""
@@ -177,7 +202,12 @@ jobs:
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium webkit
-      - run: pnpm --filter @repo/db generate
+      - name: Migrate and seed the Docker database
+        run: |
+          pnpm --filter @repo/db generate
+          pnpm --filter @repo/db migrate:deploy
+          pnpm --filter @repo/db seed
+          pnpm --filter @repo/db seed:openings
       - name: All 40 layout projects + UI + motion (builds .next-devices, serves :3100)
         run: pnpm --filter web test:devices --shard=${{ matrix.shard }}/4
       - if: always()
@@ -206,7 +236,7 @@ jobs:
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @repo/db generate
-      - name: toHaveScreenshot specs (@visual, incl. the game screen baselines of e2e/devices/game)
+      - name: toHaveScreenshot specs (@visual, incl. the game baselines of e2e/devices/game and the P3 layout/review.visual.spec.ts)
         run: pnpm --filter web test:devices --grep @visual --pass-with-no-tests
 
   neon-suspend:
@@ -305,6 +335,56 @@ jobs:
         with:
           name: lighthouse
           path: apps/web/lhci-report/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  lighthouse-share:
+    # Lighthouse CI (mobile) on the public share page /r/<code> (phase-03 plan G5: performance ≥ 95, FIX-1):
+    # apps/web/lighthouserc.share.cjs; a local `next build && next start` with the test app env and a local Postgres
+    # holding the seeded public share (packages/db/seed/public-share.ts), never the dev URL.
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    services:
+      db:
+        image: postgres:17-alpine
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: replay }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      CI: "1"
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/replay
+      NEXT_PUBLIC_APP_ENV: test
+      NEXT_PUBLIC_DEV_WIDGETS: "0"
+      NEXT_PUBLIC_POSTHOG_KEY: ""
+      NEXT_PUBLIC_SENTRY_DSN: ""
+      SENTRY_DSN: ""
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { ref: "${{ env.REF }}" }
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Migrate and seed the public share
+        run: |
+          pnpm --filter @repo/db generate
+          pnpm --filter @repo/db migrate:deploy
+          pnpm --filter @repo/db seed
+          pnpm --filter @repo/db seed:public-share --apply
+      - run: pnpm --filter web build
+      - name: Lighthouse CI (/r)
+        working-directory: apps/web
+        run: npx --yes @lhci/cli@0.14.0 autorun --config=lighthouserc.share.cjs
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lighthouse-share
+          path: apps/web/lhci-report-share/
           if-no-files-found: ignore
           retention-days: 14
 
@@ -520,3 +600,142 @@ jobs:
           name: dev-url-report
           path: apps/web/playwright-report/
           retention-days: 14
+
+  # ── P3 chess correctness on arm64 (phase-03 plan §12.4, TST X13) ───────────────────────────────────────────────
+  # Stockfish 18 is built from the worker image's own stage (apps/analysis-worker/Dockerfile `--target stockfish`:
+  # sf_18 at the pinned commit, `make profile-build ARCH=armv8-dotprod`), so the nightly engine is the dev box's.
+  p3-goldens:
+    # Byte-identical GameAnalysis + PlayerReview.content for the 10 committed goldens (packages/chess-analysis/fixtures/
+    # golden/*.json) under the determinism rules (cache off, a fresh engine per game, Threads 1, no resume); plus the
+    # real-engine UCI driver test. With no goldens committed yet the job fails and uploads the proposed files to review.
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with: { ref: "${{ env.REF }}" }
+      - uses: useblacksmith/setup-docker-builder@v1
+      - name: Stockfish 18 (the worker Dockerfile's stockfish stage)
+        uses: useblacksmith/build-push-action@v2
+        with:
+          context: .
+          file: apps/analysis-worker/Dockerfile
+          target: stockfish
+          platforms: linux/arm64
+          load: true
+          push: false
+          tags: rc-stockfish:nightly
+      - name: Extract the binary
+        run: |
+          id=$(docker create rc-stockfish:nightly)
+          docker cp "$id:/out/stockfish" "$RUNNER_TEMP/stockfish"
+          docker cp "$id:/out/doc/BUILD_INFO" "$RUNNER_TEMP/BUILD_INFO"
+          docker rm "$id"
+          cat "$RUNNER_TEMP/BUILD_INFO"
+          echo "SF_PATH=$RUNNER_TEMP/stockfish" >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Real-engine UCI driver test (src/engine/uci.test.ts runs its engine cases with ENGINE_PATH)
+        run: ENGINE_PATH="$SF_PATH" pnpm --filter analysis-worker exec tsx --test src/engine/uci.test.ts
+      - name: Goldens byte-identical (make-golden --check)
+        run: |
+          mkdir -p perf/results
+          pnpm --filter analysis-worker exec tsx scripts/make-golden.ts --engine "$SF_PATH" --check \
+            --report "$GITHUB_WORKSPACE/perf/results/p03-goldens-${GITHUB_SHA}.json"
+      - name: Proposed goldens (when the check failed; review, then commit under fixtures/golden)
+        if: failure()
+        run: pnpm --filter analysis-worker exec tsx scripts/make-golden.ts --engine "$SF_PATH" --write --out "$RUNNER_TEMP/golden-proposed"
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: p3-goldens
+          path: |
+            perf/results/p03-goldens-*.json
+            ${{ runner.temp }}/golden-proposed/
+            ${{ runner.temp }}/BUILD_INFO
+          retention-days: 30
+          if-no-files-found: ignore
+
+  p3-label-stability:
+    # The same 10 games with the eval cache warm and with a forced failure at ply 20 + the resumed retry: labels equal
+    # on ≥ 98 % of plies and on every key moment, accuracy within ±0.5. On a failure, record the P3-D10 decision
+    # (graded positions bypass the cache) in packages/chess-analysis/README.md "Decisions recorded here".
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with: { ref: "${{ env.REF }}" }
+      - uses: useblacksmith/setup-docker-builder@v1
+      - uses: useblacksmith/build-push-action@v2
+        with:
+          context: .
+          file: apps/analysis-worker/Dockerfile
+          target: stockfish
+          platforms: linux/arm64
+          load: true
+          push: false
+          tags: rc-stockfish:nightly
+      - name: Extract the binary
+        run: |
+          id=$(docker create rc-stockfish:nightly)
+          docker cp "$id:/out/stockfish" "$RUNNER_TEMP/stockfish"
+          docker rm "$id"
+          echo "SF_PATH=$RUNNER_TEMP/stockfish" >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Label stability (make-golden --stability)
+        run: |
+          mkdir -p perf/results
+          pnpm --filter analysis-worker exec tsx scripts/make-golden.ts --engine "$SF_PATH" --stability \
+            --report "$GITHUB_WORKSPACE/perf/results/p03-label-stability-${GITHUB_SHA}.json"
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: p3-label-stability
+          path: perf/results/p03-label-stability-*.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+  p3-eval-provenance:
+    # Every stored eval in FX/grades/positions.jsonl, CA fixtures/labels and fixtures/golden is within ±30 cp of the
+    # sf18-v1 pass-1 search (or the same mate), so the corpora never drift from the real engine.
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with: { ref: "${{ env.REF }}" }
+      - uses: useblacksmith/setup-docker-builder@v1
+      - uses: useblacksmith/build-push-action@v2
+        with:
+          context: .
+          file: apps/analysis-worker/Dockerfile
+          target: stockfish
+          platforms: linux/arm64
+          load: true
+          push: false
+          tags: rc-stockfish:nightly
+      - name: Extract the binary
+        run: |
+          id=$(docker create rc-stockfish:nightly)
+          docker cp "$id:/out/stockfish" "$RUNNER_TEMP/stockfish"
+          docker rm "$id"
+          echo "SF_PATH=$RUNNER_TEMP/stockfish" >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Eval provenance (exit 1 = drift)
+        run: |
+          mkdir -p perf/results
+          ENGINE_PATH="$SF_PATH" pnpm --filter @repo/chess-analysis eval-provenance \
+            --report "$GITHUB_WORKSPACE/perf/results/p03-eval-provenance-${GITHUB_SHA}.json"
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: p3-eval-provenance
+          path: perf/results/p03-eval-provenance-*.json
+          retention-days: 30
+          if-no-files-found: ignore

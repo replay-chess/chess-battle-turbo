@@ -41,6 +41,11 @@ test.describe("Paid-only product @public", () => {
   test("member APIs refuse signed-out callers", async ({ request }) => {
     const analysis = await request.get("/api/analysis/does-not-exist");
     expect([401, 403]).toContain(analysis.status());
+    // P3 (phase-03 plan §12.5): the review API is the paywalled read now; the legacy route above goes at H4.
+    const review = await request.get("/api/review/cnotarealgameref00000000aa");
+    expect(review.status()).toBe(401);
+    const games = await request.get("/api/me/games");
+    expect(games.status()).toBe(401);
     const checkout = await request.post("/api/checkout", { data: { plan: "monthly" } });
     expect([401, 403]).toContain(checkout.status());
   });

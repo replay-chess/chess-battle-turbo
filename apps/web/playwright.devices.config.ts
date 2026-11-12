@@ -37,7 +37,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { BASE_DEVICES, MOTION_PROJECTS, UI_PROJECTS, ZOOMS, baseDevice, projectName, zoomed } from "./e2e/devices/matrix";
 
-loadEnv({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env.test"), override: true });
+// E2E_ENV_FILE: another env file (outside the repo), as in playwright.config.ts.
+loadEnv({ path: process.env.E2E_ENV_FILE || path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env.test"), override: true });
 
 const PR_TIER = new Set(["desktop-1440@100", "desktop-1280@125", "iphone@100", "ipad-portrait@100"]);
 const tier = process.env.DEVICES_TIER === "pr" ? "pr" : "full";

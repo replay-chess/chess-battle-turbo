@@ -58,6 +58,11 @@ export interface SocketServerOptions {
   /** Event-loop lag source for /health and /internal/metrics (default: a live monitor). */
   loopLag?: LoopLag;
   /**
+   * P3 `/internal/load`'s lag source, reset on every probe (default: its own live monitor, never `loopLag`, whose
+   * window belongs to the metrics push).
+   */
+  loadLag?: LoopLag;
+  /**
    * False until the boot restore finished (`/ready` 503 meanwhile); src/boot.ts passes false and calls
    * `markRestored()`. Default true (in-memory tests have nothing to restore).
    */
@@ -117,6 +122,7 @@ export function createSocketServer(options: SocketServerOptions): SocketServerHa
   const bootId = newBootId();
 
   const loopLag = options.loopLag ?? createLoopLag();
+  const loadLag = options.loadLag ?? createLoopLag();
   let restored = options.restored ?? true;
   const outboxStats = (): OutboxStats =>
     persistence.stats?.() ?? { depth: 0, oldestMs: 0, dbOkAt: null, lastFailAt: null };
@@ -233,6 +239,7 @@ export function createSocketServer(options: SocketServerOptions): SocketServerHa
       tournaments.destroy();
       v1?.destroy();
       if (!options.loopLag) loopLag.stop();
+      if (!options.loadLag) loadLag.stop();
     })();
     return closing;
   };
@@ -252,6 +259,7 @@ export function createSocketServer(options: SocketServerOptions): SocketServerHa
     log,
     metrics,
     loopLag,
+    loadLag,
     outbox: outboxStats,
     restored: () => restored,
     draining: () => registry.draining,

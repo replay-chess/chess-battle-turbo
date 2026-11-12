@@ -3,7 +3,7 @@
 //
 // The adapters live in src/obs/{logger,metrics,sentry,posthog}.ts and src/persist/{outbox,journal}.ts; src/boot.ts
 // wires them. Tests pass in-memory fakes (test/helpers.ts) behind the same interfaces.
-import type { LiveGameRecord } from "@repo/db/live";
+import type { FinishAnalysis, LiveGameRecord } from "@repo/db/live";
 import type { AbortedBy, GameResult, JournalLine, Side, SocketErrorCode } from "@repo/game-core";
 import type { LiveSession } from "./game/LiveSession";
 
@@ -107,6 +107,12 @@ export interface OutboxStats {
   lastFailAt: number | null;
 }
 
+/** A settled finish statement. `analysis` (P3): what the finish CTE's jobs fragment did; absent without a DB. */
+export interface FinishOutcome {
+  committed: boolean;
+  analysis?: FinishAnalysis | null;
+}
+
 /**
  * Everything the live game core asks of storage. Every call except `load` and `createRematch` is fire-and-forget
  * from the game's point of view: play never waits on the database (plan 9.1 "no I/O in the move path").
@@ -118,8 +124,11 @@ export interface LivePersistence {
   journal(session: LiveSession, line: JournalLine): void;
   /** A checkpoint opportunity (`move`, `phase`, `freeze`); the adapter decides when to write (B4: 10 plies / 15 s). */
   checkpoint(session: LiveSession, reason: "move" | "phase" | "freeze"): void;
-  /** The finish CTE. Resolves when committed (or given up); the session then emits `game:result`. */
-  finish(session: LiveSession, result: GameResult): Promise<{ committed: boolean }>;
+  /**
+   * The finish CTE. Resolves when committed (or given up); the session then emits `game:result` with
+   * `analysis.review` (P3) as its `review` seed.
+   */
+  finish(session: LiveSession, result: GameResult): Promise<FinishOutcome>;
   /** The abort statement (`ABORTED`, no stats). */
   abort(session: LiveSession, result: GameResult, abortedBy: AbortedBy): Promise<{ committed: boolean }>;
   /** `createRematch` after the parent's finish committed; colours swapped (plan 6.6.6). */

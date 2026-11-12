@@ -6,6 +6,7 @@ export * from "./errors";
 export * from "./loadLiveGame";
 export * from "./checkpoint";
 export * from "./finish";
+export * from "./finish.fragments.p3";
 export * from "./abort";
 export * from "./createRematch";
 export * from "./restoreList";

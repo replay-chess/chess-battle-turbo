@@ -7,6 +7,12 @@ describe("paged", () => {
     assert.deepEqual(pagedEnvelope(paged([1], "c2", 9)), { data: [1], meta: { nextCursor: "c2", total: 9 } });
     assert.deepEqual(pagedEnvelope(paged([], null)), { data: [], meta: { nextCursor: null } });
   });
+  it("adds contract-specific meta after nextCursor, never replacing nextCursor or total (P3 G1)", () => {
+    const page = paged([1], null, undefined, { filteredTotal: 7, counts: { all: 12 } });
+    assert.deepEqual(pagedEnvelope(page), { data: [1], meta: { nextCursor: null, filteredTotal: 7, counts: { all: 12 } } });
+    const sneaky = paged([], "c2", 3, { nextCursor: "x", total: 99, skipped: undefined });
+    assert.deepEqual(pagedEnvelope(sneaky).meta, { nextCursor: "c2", total: 3 });
+  });
   it("is recognised only through the marker", () => {
     assert.equal(isPaged(paged([], null)), true);
     assert.equal(isPaged({ items: [], nextCursor: null }), false);

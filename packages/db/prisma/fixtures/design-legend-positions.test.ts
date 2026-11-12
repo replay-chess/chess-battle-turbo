@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Chess } from "chess.js";
+import { legendLineFrom, legendResultOf } from "@repo/chess-analysis/legend/slice";
 import {
   FIXTURE_LEGENDS,
   FIXTURE_POSITIONS,
   OPERA_GAME_PGN,
+  type FixturePosition,
   famousGamesFor,
   moveNumberFromFen,
   sideToMoveFromFen,
@@ -40,14 +42,27 @@ test("the side to move matches the FEN, and moveNumber is the full-move field", 
   assert.throws(() => moveNumberFromFen("8/8/8/8/8/8/8/8 w - - 0 x"));
 });
 
-test("the mo PGN reaches exactly the mo FEN; only mo has a PGN", () => {
-  const mo = FIXTURE_POSITIONS.find((p) => p.key === "mo");
-  assert.ok(mo);
-  assert.equal(mo.pgn, OPERA_GAME_PGN);
-  const c = new Chess();
-  c.loadPgn(OPERA_GAME_PGN);
-  assert.equal(c.fen(), mo.fen);
-  for (const p of FIXTURE_POSITIONS.filter((x) => x.key !== "mo")) assert.equal(p.pgn, null, p.key);
+test("every position carries its legend game: the score reaches the position, continues past it, and has a result", () => {
+  const ends: Record<FixturePosition["key"], { plies: number; result: string; mate: boolean }> = {
+    mo: { plies: 15, result: "1-0", mate: true },
+    kt: { plies: 41, result: "1-0", mate: false },
+    bf: { plies: 49, result: "0-1", mate: true },
+    ak: { plies: 11, result: "1-0", mate: true },
+    ts: { plies: 13, result: "0-1", mate: false },
+  };
+  for (const p of FIXTURE_POSITIONS) {
+    const line = legendLineFrom(p.pgn, p.fen, moveNumberFromFen(p.fen));
+    assert.ok(line, `${p.key}: the score reaches the position`);
+    assert.equal(line.uci.length, ends[p.key].plies, `${p.key}: plies after the position`);
+    assert.equal(legendResultOf(p.pgn, null), ends[p.key].result === "1-0" ? "white_won" : "black_won", p.key);
+    const c = new Chess();
+    c.loadPgn(p.pgn);
+    assert.equal(c.isCheckmate(), ends[p.key].mate, `${p.key}: ends as recorded`);
+  }
+  const opera = new Chess();
+  opera.loadPgn(OPERA_GAME_PGN);
+  assert.equal(opera.history().length, 33, "the Opera Game: 17.Rd8#");
+  assert.equal(FIXTURE_POSITIONS.find((p) => p.key === "mo")!.pgn, OPERA_GAME_PGN);
 });
 
 test("every legend referenced by a position exists in the legend list", () => {

@@ -9,6 +9,10 @@
 // game_players row + the human's user_stats + gamesVersion; the bot has no game_players row, so its hot stats row is
 // never touched, data-model D2) or abortGame for an abort. Both are idempotent on `status = 'IN_PROGRESS'`, so a
 // retried complete returns the stored result (`replayed`), which the route answers with `Idempotent-Replayed: true`.
+//
+// P3 (complete-analysis.server.ts): the finish statement also enqueues the analysis job; the response carries the
+// game-over seed `analysis: {status, etaSec}` and the legend block `comparison`, and `followUps` holds the route's
+// `after()` work (worker kick, `analysis:queued`, `games:changed`).
 import type { CompleteBody, CompleteResponse } from "@repo/contracts/http/games";
 import { abortGame, finishGame } from "@repo/db/live";
 import { adjudicate } from "@repo/game-core/adjudicate";
@@ -17,6 +21,7 @@ import { ApiError } from "@/lib/api/api-error";
 import { warnSafe } from "./access.server";
 import { assertBotPlayer, lastClocks } from "./checkpoint.server";
 import { pgnSiteOrigin } from "./site-origin";
+import { freshCompleteAnalysis, storedCompleteAnalysis, type CompleteFollowUps } from "./complete-analysis.server";
 import { readGameRow, type GameRow, type GamesDb } from "./snapshot.server";
 
 /** `completed`: the props of the `bot_game_completed` event (plan §10.1), set only when this call finished the game. */
@@ -24,17 +29,19 @@ export type CompleteOutcome = {
   response: CompleteResponse;
   replayed: boolean;
   completed?: { result: "win" | "loss" | "draw" | "aborted"; method: string; plies: number; hints: number; undos: number };
+  /** P3: the route's `after()` work (worker kick, user-room events); set only when this call ended the game. */
+  followUps?: CompleteFollowUps;
 };
 
-const NONE_ANALYSIS = { status: "none" } as const;
+const NONE_ANALYSIS = { status: "none", etaSec: null } as const;
 
 /** The stored end of a finished game as the complete response, or null when it cannot be expressed. */
 export function storedResult(row: Pick<GameRow, "status" | "outcome" | "endMethod">): CompleteResponse | null {
-  if (row.status === "ABORTED") return { status: "ABORTED", outcome: "NONE", method: "aborted", analysis: NONE_ANALYSIS };
+  if (row.status === "ABORTED") return { status: "ABORTED", outcome: "NONE", method: "aborted", analysis: NONE_ANALYSIS, comparison: null };
   if (row.status !== "COMPLETED") return null;
   const method = endMethodFromDb(row.endMethod);
   if (!method || !row.outcome) return null;
-  return { status: "COMPLETED", outcome: row.outcome, method, analysis: NONE_ANALYSIS };
+  return { status: "COMPLETED", outcome: row.outcome, method, analysis: NONE_ANALYSIS, comparison: null };
 }
 
 function displayName(row: GameRow, side: "w" | "b"): string {
@@ -53,7 +60,7 @@ export async function completeBotGame(
   if (row.status !== "IN_PROGRESS") {
     const stored = storedResult(row);
     if (!stored) throw new ApiError("conflict", { details: { reason: "already_completed" } });
-    return { response: stored, replayed: true };
+    return { response: await withStoredAnalysis(db, ref, viewerId, stored, now), replayed: true };
   }
 
   const untimed = row.timeClass === "UNTIMED";
@@ -101,11 +108,12 @@ export async function completeBotGame(
       whiteTimeMs,
       blackTimeMs,
     });
-    if (!res.aborted) return replayStored(db, ref);
+    if (!res.aborted) return replayStored(db, ref, viewerId, now);
     return {
-      response: { status: "ABORTED", outcome: "NONE", method: "aborted", analysis: NONE_ANALYSIS },
+      response: { status: "ABORTED", outcome: "NONE", method: "aborted", analysis: { status: "skipped", etaSec: null }, comparison: null },
       replayed: false,
       completed: { result: "aborted", method: "aborted", plies: verdict.plies, ...body.assists },
+      followUps: { kick: false, queued: null, memberRef: side === "w" ? row.wRef : row.bRef, gameRef: row.referenceId },
     };
   }
 
@@ -123,19 +131,35 @@ export async function completeBotGame(
     endedAt: now,
     metaPatch: { rev: Math.max(body.rev, 0), assists: body.assists },
   });
-  if (!res.finished) return replayStored(db, ref);
+  if (!res.finished) return replayStored(db, ref, viewerId, now);
   const result = verdict.winner === null ? "draw" : verdict.winner === side ? "win" : "loss";
+  const p3 = await freshCompleteAnalysis({
+    db,
+    viewerId,
+    viewerRef: side === "w" ? row.wRef : row.bRef,
+    ref: row.referenceId,
+    finish: res,
+    plies: verdict.plies,
+    isLegend: row.chessPositionId !== null,
+    nowMs: now.getTime(),
+  });
   return {
-    response: { status: "COMPLETED", outcome: verdict.outcome, method: verdict.method, analysis: NONE_ANALYSIS },
+    response: { status: "COMPLETED", outcome: verdict.outcome, method: verdict.method, ...p3.part },
     replayed: false,
     completed: { result, method: verdict.method, plies: verdict.plies, ...body.assists },
+    followUps: p3.followUps,
   };
 }
 
+/** P3: a replay answers the game's current analysis state and legend block (`storedResult` stays pure). */
+async function withStoredAnalysis(db: GamesDb, ref: string, viewerId: bigint, stored: CompleteResponse, now: Date): Promise<CompleteResponse> {
+  return { ...stored, ...(await storedCompleteAnalysis({ db, viewerId, ref, aborted: stored.status === "ABORTED", nowMs: now.getTime() })) };
+}
+
 /** A concurrent complete won the race: answer what it stored. */
-async function replayStored(db: GamesDb, ref: string): Promise<CompleteOutcome> {
+async function replayStored(db: GamesDb, ref: string, viewerId: bigint, now: Date): Promise<CompleteOutcome> {
   const row = await readGameRow(db, ref);
   const stored = row ? storedResult(row) : null;
   if (!stored) throw new ApiError("conflict", { details: { reason: "already_completed" } });
-  return { response: stored, replayed: true };
+  return { response: await withStoredAnalysis(db, ref, viewerId, stored, now), replayed: true };
 }

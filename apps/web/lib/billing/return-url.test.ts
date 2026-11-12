@@ -85,3 +85,18 @@ describe("resolveAppOrigin", () => {
     assert.equal(resolveAppOrigin({ DODO_PAYMENTS_RETURN_URL: "not a url" }, ORIGIN), ORIGIN);
   });
 });
+
+describe("Phase 3 return paths", () => {
+  it("accepts the Phase 3 review, archive and practice pages (phase-03 plan §12.1)", () => {
+    assert.equal(isAllowedReturnPath("/review/x"), true);
+    assert.equal(isAllowedReturnPath("/review/x/complete"), true);
+    assert.equal(isAllowedReturnPath("/games"), true);
+    assert.equal(isAllowedReturnPath("/games?result=loss&tc=rapid"), true);
+    assert.equal(isAllowedReturnPath("/practice?game=x&ply=12"), true);
+    assert.equal(
+      buildReturnUrl("/review/cabc?ply=12", ORIGIN),
+      `${ORIGIN}/review/cabc?ply=12&checkout=success`,
+    );
+    assert.equal(isAllowedReturnPath("/r/8kq2xh4m"), false, "public share pages never need a checkout return");
+  });
+});

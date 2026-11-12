@@ -1,0 +1,73 @@
+{
+  "id": "fPm2xBUC",
+  "url": "https://lichess.org/fPm2xBUC",
+  "source": "Lichess game export (public game data, CC0), evals=true&accuracy=true&division=true&opening=true&clocks=false&literate=false, fetched 2026-11-11",
+  "speed": "classical",
+  "status": "mate",
+  "winner": "white",
+  "players": {
+    "white": {
+      "rating": 2148,
+      "accuracy": 98,
+      "acpl": 13,
+      "inaccuracy": 0,
+      "mistake": 0,
+      "blunder": 0,
+      "phases": {
+        "opening": 98,
+        "middlegame": 100
+      }
+    },
+    "black": {
+      "rating": 1994,
+      "accuracy": 82,
+      "acpl": 69,
+      "inaccuracy": 2,
+      "mistake": 2,
+      "blunder": 0,
+      "phases": {
+        "opening": 80,
+        "middlegame": 93
+      }
+    }
+  },
+  "division": {
+    "middle": 30
+  },
+  "moves": "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 a5 d4 exd4 cxd4 Bb4+ Nc3 Nf6 O-O Bxc3 bxc3 Nxe4 d5 Ne7 Re1 Nd6 Bd3 O-O Bxh7+ Kxh7 Ng5+ Kg6 h4 f5 h5+ Kf6 Qd4#",
+  "analysis": [
+    {"eval":18},
+    {"eval":22},
+    {"eval":18},
+    {"eval":22},
+    {"eval":7},
+    {"eval":20},
+    {"eval":9},
+    {"eval":116,"best":"g8f6","judgment":"Inaccuracy"},
+    {"eval":116},
+    {"eval":159},
+    {"eval":161},
+    {"eval":144},
+    {"eval":186},
+    {"eval":193},
+    {"eval":275},
+    {"eval":336},
+    {"eval":281},
+    {"eval":420,"best":"c6e7","judgment":"Inaccuracy"},
+    {"eval":420},
+    {"eval":404},
+    {"eval":397},
+    {"eval":361},
+    {"eval":398},
+    {"eval":784,"best":"b7b6","judgment":"Mistake"},
+    {"eval":714},
+    {"eval":800},
+    {"eval":806},
+    {"eval":792},
+    {"eval":761},
+    {"eval":941},
+    {"eval":919},
+    {"mate":1,"best":"g6h6","judgment":"Mistake"},
+    {"mate":0}
+  ]
+}

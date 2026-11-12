@@ -48,6 +48,30 @@ For the dev-box run, mint the manifest with `--env dev --ws wss://ws-dev.80-225-
 | 2026-11-06 | `p02-ws-smoke-local-a8798c9.json`: local smoke, uncommitted P2 tree on a8798c9, socket on this machine against the Neon dev branch (`connection_limit=3`) | 50/50 sockets, 25/25 games, 300 moves; move RTT avg 2.4 ms, p95 5 ms, max 8 ms; connect p95 6 ms. **Pass.** |
 | 2026-11-06 | same, all 25 games joining at once (no stagger) | 7/25 joins failed `internal`: the socket's game load exceeded its 8 s budget with 50 first joins queued on a 3-connection pool to Neon (WP-D follow-up: coalesce or widen the pool before the dev-box ramp; a deploy restore is the same burst). |
 
+## Phase 3: worker throughput and co-location (phase-03 plan §9.1, §12.7)
+
+Both gates run on the dev VM against the dev branch (stage B), with the worker deployed:
+
+```bash
+# Once, from a machine with the dev branch's DIRECT_URL (guarded: the dev branch or a local Postgres only):
+pnpm --filter @repo/db exec tsx seed/bench.ts --apply            # the bench member + 60 games, average ~60 plies
+
+# Throughput: ≥ 60 games/hour, 0 failed, 0 per-game emits at BACKLOG; the cache hit ratio and nps are reported.
+ssh -i ~/.ssh/oci_deploy deploy@80.225.200.210 \
+  'cd /opt/replay-chess && docker compose exec -T analysis-worker node dist/worker-flood.cjs --out /tmp/p03-worker-throughput.json'
+# copy /tmp/p03-worker-throughput.json to perf/results/p03-worker-throughput-<sha>.json
+
+# Co-location: socket loop lag p99 < 50 ms while the worker runs flat out (else P3-D8's fallback to cpus: 0.5).
+#   1. on the VM, start the flood with the socket probe (it samples GET /internal/load every 5 s, signed wk):
+docker compose exec -T analysis-worker node dist/worker-flood.cjs --colocation --out /tmp/p03-colocation.json
+#   2. at the same time, from a GitHub runner or the laptop, the P2 ramp against the dev socket (250 → 1,000 sockets):
+npx tsx setup/v2-manifest.ts --games 500 --ws wss://ws-dev.80-225-200-210.sslip.io --out setup/v2-manifest.json
+k6 run dist/ws-ramp.js -e MANIFEST=../setup/v2-manifest.json --summary-export ../results/p03-ws-ramp-colocation-<sha>.json
+```
+
+`worker-flood` exits 1 when a gate fails and lists why. Locally (Docker stack, fake or native engine):
+`pnpm --filter analysis-worker exec tsx scripts/worker-flood.ts --games 6` with the worker's env file sourced.
+
 ## Infrastructure (legacy perf environment)
 
 | Component | URL / Address |

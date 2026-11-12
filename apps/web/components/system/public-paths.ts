@@ -7,5 +7,6 @@ import { classify } from "@/lib/auth/route-classes";
 const DEV = /^\/dev(\/|$)/;
 
 export function isPublicByRouteClass(pathname: string): boolean {
-  return classify(pathname) === "public" && !DEV.test(pathname);
+  const cls = classify(pathname);
+  return (cls === "public" || cls === "public_static") && !DEV.test(pathname);
 }

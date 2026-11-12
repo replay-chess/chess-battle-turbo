@@ -6,7 +6,7 @@
 // effects), so the wrapper, the contract tests, the authz walker, the cache-tier lint and OpenAPI read one source.
 // Order of operations (each a tested branch in route.test.ts):
 //   0 module-load assertions · 1 request id · 2 test hooks · 3 auth ∥ 4 rate limit · 5 body · 6 validation ·
-//   7 handler (+ Prisma mapping, one GET retry) · 8 GET purity · 9 response + cache tier · 10 errors · 11 telemetry
+//   6b ETag probe (304 without the handler) · 7 handler (+ Prisma mapping, one GET retry) · 8 GET purity · 9 response + cache tier · 10 errors · 11 telemetry
 import type { SubscriptionReason } from "@repo/contracts/http/codes";
 import { SUBSCRIPTION_REASONS } from "@repo/contracts/http/codes";
 import {
@@ -82,6 +82,8 @@ export type HandlerResult<E extends EndpointDef> =
   | DataOf<E>
   | RouteResult<DataOf<E>>
   | Paged<unknown>
+  // A list with its own tag (P3 G1: `respondWith(paged(...), { etag })`).
+  | RouteResult<Paged<unknown>>
   | Response
   | undefined;
 
@@ -96,6 +98,11 @@ export type RouteSpec<E extends EndpointDef> = E & {
   rateLimitWhen?: (ctx: PreCtx) => boolean;
   /** Default for the ETag tiers: fnv1a64 of the serialised body. */
   etag?: (data: DataOf<E>) => string;
+  /**
+   * ETag tiers (phase-03 §7, A1/A2): the current tag from a cheap probe, run only when the request has If-None-Match.
+   * A match is a 304 without the handler; null (unknown) runs it. The handler must answer the same tag (respondWith).
+   */
+  etagProbe?: (ctx: CtxOf<E>) => Promise<string | null>;
 };
 
 export type RouteHandler = ((req: NextRequest, rc: { params: Promise<unknown> }) => Promise<Response>) & {
@@ -435,6 +442,18 @@ export function route<const E extends EndpointDef>(
       } as CtxOf<E>;
 
       if (spec.auth === "owner" && !(await spec.owner!(ctx))) throw new ApiError("not_found");
+
+      // Step 6b: ETag probe. A revalidation whose tag still matches costs the probe only (one statement).
+      const ifNoneMatch = req.headers.get("if-none-match");
+      if (spec.etagProbe && ifNoneMatch && ETAG_TIERS.has(tier)) {
+        const probed = await withConnectionRetry(spec.method, () => spec.etagProbe!(ctx), deps.sleep);
+        if (probed !== null && ifNoneMatchHit(ifNoneMatch, quoteEtag(probed))) {
+          const headers = new Headers(tierHeaders(spec));
+          headers.set(REQUEST_ID_HEADER, requestId);
+          headers.set("ETag", quoteEtag(probed));
+          return finish(new Response(null, { status: 304, headers }), undefined);
+        }
+      }
 
       // Step 7: handler (Prisma P1001/P1017: one retry for GETs).
       const tApp = deps.perf();

@@ -111,6 +111,121 @@
       "phase": "P2",
       "query": "daily prune DELETE … WHERE \"createdAt\" < now() - interval '24 hours'",
       "explain": "Index Scan using idempotency_keys_createdAt_idx"
+    },
+    {
+      "name": "jobs_ready_idx",
+      "table": "jobs",
+      "columns": ["priority DESC", "fairSeq", "runAt"],
+      "partial": "status = 'QUEUED'",
+      "protected": true,
+      "phase": "P3",
+      "query": "worker claim: UPDATE jobs … WHERE id = (SELECT id FROM jobs WHERE status='QUEUED' AND \"runAt\" <= now() AND kind::text = ANY($2) ORDER BY priority DESC, \"fairSeq\", \"runAt\" LIMIT 1 FOR UPDATE SKIP LOCKED)",
+      "explain": "Index Scan using jobs_ready_idx + LockRows, no Sort"
+    },
+    {
+      "name": "jobs_running_idx",
+      "table": "jobs",
+      "columns": ["heartbeatAt"],
+      "partial": "status = 'RUNNING'",
+      "protected": true,
+      "phase": "P3",
+      "query": "worker reaper (boot + drain end): … WHERE status='RUNNING' AND (\"heartbeatAt\" < now() - interval '3 minutes' OR \"lockedBy\" LIKE $prefix)",
+      "explain": "Index Scan / Bitmap Index Scan using jobs_running_idx"
+    },
+    {
+      "name": "jobs_finished_idx",
+      "table": "jobs",
+      "columns": ["finishedAt"],
+      "partial": "status IN ('DONE','FAILED','CANCELLED')",
+      "protected": true,
+      "phase": "P3",
+      "query": "HOUSEKEEPING prune-jobs: DELETE … WHERE status = 'DONE' AND \"finishedAt\" < now() - interval '14 days' (FAILED/CANCELLED 30 days)",
+      "explain": "Index Scan using jobs_finished_idx"
+    },
+    {
+      "name": "jobs_dedupeKey_key",
+      "table": "jobs",
+      "columns": ["dedupeKey"],
+      "unique": true,
+      "phase": "P3",
+      "query": "enqueue INSERT … ON CONFLICT (\"dedupeKey\") (packages/db/src/jobs.ts); A1/A2 probe LEFT JOIN jobs ON \"dedupeKey\" = 'analyze:' || g.id; healKick CAS UPDATE … WHERE \"dedupeKey\" = $k",
+      "explain": "Index Scan using jobs_dedupeKey_key"
+    },
+    {
+      "name": "game_analyses_pkey",
+      "table": "game_analyses",
+      "columns": ["gameId"],
+      "unique": true,
+      "phase": "P3",
+      "query": "A1 review load and probe; worker checkpoint upsert",
+      "explain": "Index Scan using game_analyses_pkey"
+    },
+    {
+      "name": "player_reviews_pkey",
+      "table": "player_reviews",
+      "columns": ["gameId", "color"],
+      "unique": true,
+      "phase": "P3",
+      "query": "A1 review load and probe; A5 progress UPDATE … WHERE \"gameId\" = $g AND color = $c",
+      "explain": "Index Scan using player_reviews_pkey"
+    },
+    {
+      "name": "legend_comparisons_pkey",
+      "table": "legend_comparisons",
+      "columns": ["gameId", "userId"],
+      "unique": true,
+      "phase": "P3",
+      "query": "A2/A9 reads, the lazy facts insert ON CONFLICT DO NOTHING, A9b attempts CTE, worker READY update",
+      "explain": "Index Scan using legend_comparisons_pkey"
+    },
+    {
+      "name": "openings_epd_idx",
+      "table": "openings",
+      "columns": ["epd"],
+      "partial": "epd IS NOT NULL",
+      "protected": true,
+      "phase": "P3",
+      "query": "worker deepest-match opening: SELECT eco, name FROM openings WHERE epd = ANY($1::text[]) AND \"isActive\"",
+      "explain": "Bitmap/Index Scan using openings_epd_idx"
+    },
+    {
+      "name": "shares_code_key",
+      "table": "shares",
+      "columns": ["code"],
+      "unique": true,
+      "phase": "P3",
+      "query": "/r/[code] page and image route (ISR miss only); A11 by code",
+      "explain": "Index Scan using shares_code_key"
+    },
+    {
+      "name": "shares_owner_idx",
+      "table": "shares",
+      "columns": ["ownerId", "createdAt DESC"],
+      "partial": "kind = 'REVIEW'",
+      "protected": true,
+      "phase": "P3",
+      "query": "A10 reuse lookup … WHERE \"ownerId\"=$1 AND kind='REVIEW' AND \"gameId\"=$2 … ORDER BY \"createdAt\" DESC LIMIT 1; the daily create cap count(*) … AND \"createdAt\" > now() - interval '1 day'; the A1/A2 probe's share LATERAL",
+      "explain": "Index Scan using shares_owner_idx, no Sort"
+    },
+    {
+      "name": "shares_expires_idx",
+      "table": "shares",
+      "columns": ["expiresAt"],
+      "partial": "\"expiresAt\" IS NOT NULL",
+      "protected": true,
+      "phase": "P3",
+      "query": "HOUSEKEEPING prune-shares: DELETE FROM shares WHERE kind='REVIEW' AND \"expiresAt\" < now() - interval '7 days'",
+      "explain": "Index Scan using shares_expires_idx"
+    },
+    {
+      "name": "shares_game_idx",
+      "table": "shares",
+      "columns": ["gameId"],
+      "partial": "\"gameId\" IS NOT NULL",
+      "protected": true,
+      "phase": "P3",
+      "query": "ON DELETE CASCADE from games (FK index)",
+      "explain": "Index Scan using shares_game_idx"
     }
   ]
 }

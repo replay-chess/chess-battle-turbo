@@ -1,0 +1,64 @@
+{
+  "name": "short-legend",
+  "provenance": "historical game score (public domain) + a constructed member line",
+  "note": "A legend PGN shorter than the game: the seed's Opera score stops at 9…b5 (packages/db/prisma/fixtures/design-legend-positions.ts) and has no result, which comes from the position metadata instead. From the position before 8.Nc3 the member plays on past the legend's record: no divergence, 2 of 2 compared, and the game did not end the legend's way.",
+  "legendPgn": "1.e4 e5 2.Nf3 d6 3.d4 Bg4 4.dxe5 Bxf3 5.Qxf3 dxe5 6.Bc4 Nf6 7.Qb3 Qe7 8.Nc3 c6 9.Bg5 b5",
+  "metadata": {
+    "result": "1-0"
+  },
+  "historicalName": "Morphy",
+  "opponentHistoricalName": null,
+  "year": 1858,
+  "startFen": "rn2kb1r/ppp1qppp/5n2/4p3/2B1P3/1Q6/PPP2PPP/RNB1K2R w KQkq - 4 8",
+  "member": "w",
+  "userResult": null,
+  "game": [
+    "Nc3",
+    "c6",
+    "Bg5",
+    "b5",
+    "Nxb5",
+    "cxb5"
+  ],
+  "expected": {
+    "facts": {
+      "v": 1,
+      "side": "w",
+      "historicalName": "Morphy",
+      "startPly": 14,
+      "comparedPlies": 2,
+      "matchedPlies": 2,
+      "divergencePly": null,
+      "divergenceBy": null,
+      "userUci": null,
+      "userSan": null,
+      "legendUci": null,
+      "legendSan": null,
+      "legendResult": "white_won",
+      "legendTotalMoves": 9,
+      "userLineUci": "b1c3 c7c6 c1g5 b7b5 c3b5 c6b5",
+      "legendLineUci": "b1c3 c7c6 c1g5 b7b5",
+      "evalAtDivergence": null
+    },
+    "followedToTheEnd": false,
+    "summaryLine": "You found every one of Morphy’s moves.",
+    "matchedLine": "You followed Morphy to the end.",
+    "outcomeLine": "Morphy won this.",
+    "paragraph": "You found every one of Morphy’s moves from move 8.",
+    "replayHref": null,
+    "rows": [
+      {
+        "n": "8.",
+        "yours": "Nc3",
+        "legend": "Nc3",
+        "mark": "match"
+      },
+      {
+        "n": "9.",
+        "yours": "Bg5",
+        "legend": "Bg5",
+        "mark": "match"
+      }
+    ]
+  }
+}

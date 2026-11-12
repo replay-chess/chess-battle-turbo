@@ -11,6 +11,12 @@ name: Deploy WebSocket to OCI
 #   push to main -> prod server  (OCI_HOST,     WS_ENV_FILE,     ws-chess.playchess.tech)
 #   push to dev  -> dev server   (OCI_DEV_HOST, WS_DEV_ENV_FILE, WS_DEV_HOST)
 #
+# The analysis worker (phase-03 plan §3.2, §12.8, task C7) is built and deployed on dev ONLY: the `build-worker`
+# job runs for dev, and only the dev bundle gets COMPOSE_PROFILES=worker, WORKER_IMAGE and .env.worker (secret
+# WORKER_DEV_ENV_FILE). The prod bundle has none of them, so a push to main never starts a worker on prod (P13 gives
+# it its own VM). After `up -d` on dev the job waits for the worker's healthcheck (/ready, ≤ 120 s), checks the
+# cgroup slice (cpu.idle = 1), and runs the real-engine smoke inside the container (dist/smoke.cjs).
+#
 # Secrets:
 #   WS_ENV_FILE / WS_DEV_ENV_FILE  websocket server .env for each environment
 #                (apps/web-socket/.env.example; DRAIN_NOTICE_SECONDS=30 on dev,
@@ -18,15 +24,20 @@ name: Deploy WebSocket to OCI
 #   OCI_HOST / OCI_DEV_HOST        server public IPs
 #   OCI_SSH_KEY  private key of the `deploy` user on both servers
 #                (deploy/oci/setup-server.sh)
+#   WORKER_DEV_ENV_FILE  analysis worker .env on the dev server (apps/analysis-worker/.env.example);
+#                written to /opt/replay-chess/.env.worker
 
 on:
   push:
     branches: [main, dev]
     paths:
       - "apps/web-socket/**"
+      - "apps/analysis-worker/**"
       - "packages/db/**"
       - "packages/game-core/**"
       - "packages/contracts/**"
+      - "packages/chess-analysis/**"
+      - "packages/analytics/**"
       - "deploy/oci/**"
       - ".github/workflows/deploy-oci.yml"
   workflow_dispatch:
@@ -41,6 +52,8 @@ permissions:
 
 env:
   WS_IMAGE: ghcr.io/${{ github.repository_owner }}/replay-chess-websocket:${{ github.sha }}
+  # Private GHCR package (the image holds a GPLv3 Stockfish build; running it as a service is not distribution).
+  WORKER_IMAGE: ghcr.io/${{ github.repository_owner }}/replay-chess-analysis-worker:${{ github.sha }}
 
 jobs:
   build:
@@ -65,8 +78,53 @@ jobs:
           push: true
           tags: ${{ env.WS_IMAGE }}
 
+  build-worker:
+    # Dev only: native Stockfish 18 (armv8-dotprod, profile-build) + the bundled worker, arm64 like the A1 boxes.
+    if: github.ref_name == 'dev'
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: useblacksmith/setup-docker-builder@v1
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push analysis worker
+        uses: useblacksmith/build-push-action@v2
+        with:
+          context: .
+          file: apps/analysis-worker/Dockerfile
+          push: true
+          tags: ${{ env.WORKER_IMAGE }}
+
+      - name: The worker image stays private (Stockfish GPL position, plan §11.4 / P3-Q9)
+        # Running the image as a service is not distribution only while nobody else can pull it. The repository is
+        # public, so a public package would distribute Stockfish: fail the deploy unless GHCR reports it private.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          visibility="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/orgs/$OWNER/packages/container/replay-chess-analysis-worker" | python3 -c 'import json, sys; print(json.load(sys.stdin)["visibility"])')" || {
+            echo "cannot read the visibility of ghcr.io/$OWNER/replay-chess-analysis-worker (give this repository access to the package)"
+            exit 1
+          }
+          echo "ghcr.io/$OWNER/replay-chess-analysis-worker visibility: $visibility"
+          if [ "$visibility" != "private" ]; then
+            echo "the worker image must be private (apps/analysis-worker/NOTICE); set it private in the org's package settings"
+            exit 1
+          fi
+
   deploy:
-    needs: build
+    needs: [build, build-worker]
+    # build-worker is skipped on main; the deploy still runs once the websocket image is built.
+    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.build-worker.result == 'success' || needs.build-worker.result == 'skipped') }}
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v5
@@ -82,8 +140,21 @@ jobs:
             echo "WS_IMAGE=$WS_IMAGE"
             echo "WS_HOST=$WS_HOST"
           } > bundle/.env
+          if [ "$WITH_WORKER" = "true" ]; then
+            if [ -z "$WORKER_ENV_FILE" ]; then echo "::error::secret WORKER_DEV_ENV_FILE is not set"; exit 1; fi
+            {
+              echo "COMPOSE_PROFILES=worker"
+              echo "WORKER_IMAGE=$WORKER_IMAGE"
+            } >> bundle/.env
+            printf '%s\n' "$WORKER_ENV_FILE" > bundle/.env.worker
+          else
+            # Production: no worker profile, no worker image, no worker env (the analysis worker is P13's VM).
+            : > bundle/.env.worker
+          fi
         env:
           WS_ENV_FILE: ${{ github.ref_name == 'main' && secrets.WS_ENV_FILE || secrets.WS_DEV_ENV_FILE }}
+          WITH_WORKER: ${{ github.ref_name == 'dev' }}
+          WORKER_ENV_FILE: ${{ github.ref_name == 'dev' && secrets.WORKER_DEV_ENV_FILE || '' }}
           # The dev host uses sslip.io (resolves to the IP inside the name) until
           # a ws-dev.playchess.tech DNS record exists.
           WS_HOST: ${{ github.ref_name == 'main' && 'ws-chess.playchess.tech' || 'ws-dev.80-225-200-210.sslip.io' }}
@@ -94,7 +165,7 @@ jobs:
           host: ${{ github.ref_name == 'main' && secrets.OCI_HOST || secrets.OCI_DEV_HOST }}
           username: deploy
           key: ${{ secrets.OCI_SSH_KEY }}
-          source: "bundle/docker-compose.yml,bundle/Caddyfile,bundle/.env"
+          source: "bundle/docker-compose.yml,bundle/Caddyfile,bundle/.env,bundle/.env.worker"
           target: /opt/replay-chess
           strip_components: 1
 
@@ -111,7 +182,7 @@ jobs:
           script_stop: true
           script: |
             cd /opt/replay-chess
-            chmod 600 .env
+            chmod 600 .env .env.worker
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             # The old container keeps serving while the new image downloads.
             docker compose pull
@@ -136,3 +207,21 @@ jobs:
             docker image prune -f
             docker compose ps
             if [ "$READY" != 1 ]; then echo "websocket did not report /ready within 90 s"; exit 1; fi
+            if grep -q '^COMPOSE_PROFILES=worker$' .env; then
+              # The analysis worker (dev only): healthcheck (/ready) within 120 s, the idle CPU slice, then the
+              # real-engine smoke inside the container (phase-03 plan §12.8, owner test T22).
+              WORKER="$(docker compose ps -q analysis-worker)"
+              HEALTHY=0
+              for i in $(seq 1 60); do
+                if [ "$(docker inspect --format '{{.State.Health.Status}}' "$WORKER" 2>/dev/null)" = healthy ]; then HEALTHY=1; break; fi
+                sleep 2
+              done
+              if [ "$HEALTHY" != 1 ]; then docker compose logs --tail 50 analysis-worker; echo "analysis-worker not healthy within 120 s"; exit 1; fi
+              IDLE="$(cat /sys/fs/cgroup/worker-idle.slice/cpu.idle 2>/dev/null || echo missing)"
+              echo "worker-idle.slice cpu.idle=$IDLE"
+              if [ "$IDLE" != 1 ]; then echo "worker-idle.slice is not idle: run deploy/oci/setup-server.sh --worker-slice on the box"; exit 1; fi
+              docker compose exec -T analysis-worker node dist/smoke.cjs
+            else
+              # Never a worker outside the worker profile (production).
+              if [ -n "$(docker compose ps -q analysis-worker 2>/dev/null)" ]; then echo "analysis-worker must not run here"; exit 1; fi
+            fi

@@ -1,0 +1,74 @@
+{
+  "id": "iVshKPMF",
+  "url": "https://lichess.org/iVshKPMF",
+  "source": "Lichess game export (public game data, CC0), evals=true&accuracy=true&division=true&opening=true&clocks=false&literate=false, fetched 2026-11-11",
+  "speed": "blitz",
+  "status": "resign",
+  "winner": "black",
+  "players": {
+    "white": {
+      "rating": 2230,
+      "accuracy": 68,
+      "acpl": 69,
+      "inaccuracy": 1,
+      "mistake": 1,
+      "blunder": 1,
+      "phases": {
+        "opening": 62,
+        "middlegame": 80
+      }
+    },
+    "black": {
+      "rating": 3177,
+      "accuracy": 95,
+      "acpl": 25,
+      "inaccuracy": 1,
+      "mistake": 0,
+      "blunder": 0,
+      "phases": {
+        "opening": 96,
+        "middlegame": 89
+      }
+    }
+  },
+  "division": {
+    "middle": 25
+  },
+  "moves": "d4 Nf6 Nc3 d5 Bf4 c5 e3 cxd4 exd4 a6 Nf3 Nc6 Ne5 e6 h4 Qb6 Rb1 Qxd4 Nxc6 Qxf4 g3 Qc7 Nd4 Bb4 Qd3 e5 Nb3 O-O Bg2 d4 O-O dxc3 bxc3 Bxc3",
+  "analysis": [
+    {"eval":15},
+    {"eval":15},
+    {"eval":-2},
+    {"eval":0},
+    {"eval":-10},
+    {"eval":0},
+    {"eval":0},
+    {"eval":0},
+    {"eval":-5},
+    {"eval":0},
+    {"eval":0},
+    {"eval":0},
+    {"eval":0},
+    {"eval":0},
+    {"eval":-19},
+    {"eval":7},
+    {"eval":-86,"best":"e5c6","judgment":"Inaccuracy"},
+    {"eval":-81},
+    {"eval":-630,"best":"d1d4","judgment":"Blunder"},
+    {"eval":-592},
+    {"eval":-636},
+    {"eval":-656},
+    {"eval":-636},
+    {"eval":-526},
+    {"eval":-568},
+    {"eval":-581},
+    {"eval":-635},
+    {"eval":-481,"best":"f6e4","judgment":"Inaccuracy"},
+    {"eval":-501},
+    {"eval":-428},
+    {"eval":-734,"best":"a2a3","judgment":"Mistake"},
+    {"eval":-730},
+    {"eval":-736},
+    {"eval":-747}
+  ]
+}

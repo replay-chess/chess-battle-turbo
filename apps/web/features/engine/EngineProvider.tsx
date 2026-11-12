@@ -10,7 +10,7 @@
 // also reported to Sentry. The worker is terminated 60 s after the last bot game released it.
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import * as Sentry from "@sentry/nextjs";
+import { withSentry } from "@/lib/sentry/lazy";
 import type { EventProps } from "@repo/analytics";
 import { trackGame } from "@/lib/analytics/game-events";
 import { ENGINE_HASH, ENGINE_SW_CACHE, engineUrls, remoteBase } from "./manifest";
@@ -81,7 +81,7 @@ function createSharedEngine(): SharedEngine {
         });
       } else {
         trackEngineEvent("engine_init", { ok: false, cached: false, ms: r.ms, elo_floor: null, source: r.source });
-        Sentry.captureException(r.error, { tags: { area: "engine", engine_hash: ENGINE_HASH } });
+        withSentry((Sentry) => Sentry.captureException(r.error, { tags: { area: "engine", engine_hash: ENGINE_HASH } }));
       }
     },
   });

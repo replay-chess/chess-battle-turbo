@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { TOPBAR_TITLE_ID } from "./TopBar";
+import { TOPBAR_TITLE_ID } from "./topbar-ids";
 
 /**
  * Renders `children` in the phone/iPad-portrait top bar's title slot (next to Back). Nothing on the server or when

@@ -1,0 +1,54 @@
+{
+  "name": "promotion",
+  "provenance": "constructed",
+  "note": "Promotions in the MoveCode round trip: the best move a8=Q+ matches only the queen promotion.",
+  "games": [
+    {
+      "id": "promotion-best",
+      "startFen": "7k/P7/8/8/8/8/8/K7 w - - 0 1",
+      "moves": [
+        "a8=Q+",
+        "Kg7",
+        "Qb7+",
+        "Kf6"
+      ],
+      "evals": [
+        29991,
+        29991,
+        29990,
+        29990,
+        29989
+      ],
+      "best": [
+        "a8=Q+",
+        "Kg7",
+        "Qb7+",
+        "Kf6"
+      ],
+      "expected": [
+        "best",
+        "best",
+        "best",
+        "best"
+      ]
+    },
+    {
+      "id": "underpromotion",
+      "note": "1.a8=R+ still mates (in 12 instead of 9): MateDelayed, loss 0, not the best move (a8=Q+) → EXCELLENT.",
+      "startFen": "7k/P7/8/8/8/8/8/K7 w - - 0 1",
+      "moves": [
+        "a8=R+"
+      ],
+      "evals": [
+        29991,
+        29988
+      ],
+      "best": [
+        "a8=Q+"
+      ],
+      "expected": [
+        "excellent"
+      ]
+    }
+  ]
+}

@@ -160,6 +160,13 @@ export function buildDemoFixture(p: DemoParams): DemoFixture {
   return withDerived({ requested: p.state, lit, game, serverNow: picked.serverNow, viewer: picked.viewer }, notes);
 }
 
+/** A fixture from a harness a later phase's demo built (P3's legend games, features/review/demo/game-over-games.ts). */
+export function demoFixtureOf(g: Harness, viewer: ViewerId, requested: DesignState): DemoFixture {
+  const picked = storeOf({ g, viewer }, null);
+  if (!picked) throw new Error(`demoFixtureOf: no ${viewer} client`);
+  return withDerived({ requested, lit: true, game: picked.game, serverNow: picked.serverNow, viewer: picked.viewer }, []);
+}
+
 function withDerived(f: Omit<DemoFixture, "derived" | "notes">, notes: string[]): DemoFixture {
   // The screen derives the hydration snapshot at `state.serverNow`: pin it to the moment the fixture is shown.
   const game = { ...f.game, state: { ...f.game.state, serverNow: f.serverNow } };

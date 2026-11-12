@@ -184,9 +184,11 @@ const nextConfig = {
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   // The devices build uses .next-devices so it never fights `next dev` (SPEC 5.2).
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  // Bundle attribution (scripts/bundle-breakdown.mjs): browser source maps only when asked for, never in CI/prod builds.
+  productionBrowserSourceMaps: process.env.NEXT_BUNDLE_SOURCEMAPS === "1",
   devIndicators: process.env.NEXT_PUBLIC_DEV_WIDGETS === "0" ? false : undefined,
   // Workspace packages ship TypeScript source (phase-01 plan 7.3, 10.1; phase-02 plan 6.9).
-  transpilePackages: ["@repo/contracts", "@repo/analytics", "@repo/db", "@repo/game-core"],
+  transpilePackages: ["@repo/contracts", "@repo/analytics", "@repo/db", "@repo/game-core", "@repo/chess-analysis"],
   // The Prisma client is generated into packages/db/generated/prisma (phase-02 plan 6.9). File tracing follows the
   // client's own path.join(__dirname, ...) annotations, but this keeps the query engines (darwin locally,
   // rhel-openssl on Vercel, linux-musl in Docker) and schema.prisma in every server bundle even if a bundler
@@ -325,6 +327,17 @@ const nextConfig = {
           },
         ],
       },
+      // Public review shares (phase-03 plan §4.4, §11.3, AP-14): opt-in links, never indexed on any environment. The
+      // page also sets `robots` metadata; the header covers the image route and any crawler that skips the HTML.
+      // `Referrer-Policy: no-referrer`: the code is a bearer capability, so a link followed from the page (Pricing,
+      // the trial) or an asset it loads never carries it to the next site or into its analytics (FIX-2).
+      {
+        source: "/r/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
       // Non-production builds are never indexed (P1-17, SEC-3). The middleware sets this header on everything it
       // handles; these are the API routes its matcher skips (they never run Clerk), so they get it here instead,
       // with the same value as lib/auth/route-classes/rules.ts ROBOTS_VALUE.
@@ -344,4 +357,6 @@ export default withSentryConfig(withMDX(withPWA(nextConfig)), {
   widenClientFileUpload: true,
   tunnelRoute: "/monitoring",
   automaticVercelMonitors: true,
+  // Keep the client maps of an attribution build (NEXT_BUNDLE_SOURCEMAPS=1); every other build keeps Sentry's default.
+  ...(process.env.NEXT_BUNDLE_SOURCEMAPS === "1" && { sourcemaps: { deleteSourcemapsAfterUpload: false } }),
 });

@@ -6,6 +6,8 @@
 // and, on dev, `x-e2e-token` / `x-perf-token`. This runs as `beforeSend` and `beforeSendTransaction`, so the
 // guarantee lives in code and not in Sentry's server-side scrubbing settings.
 
+import { redactShareDeep } from "@/lib/analytics/share-redaction";
+
 /** Headers kept on events: none of them identify a person or carry a credential. */
 export const SENTRY_HEADER_ALLOWLIST: ReadonlySet<string> = new Set([
   "accept",
@@ -49,8 +51,12 @@ function scrubUrl(url: string): string {
   return `${url.slice(0, q)}?${scrubQuery(url.slice(q + 1))}`;
 }
 
-/** Strips cookies, the body, non-allow-listed headers, secret query values and the IP. Mutates and returns. */
+/**
+ * Strips cookies, the body, non-allow-listed headers, secret query values and the IP, and rewrites share codes
+ * (`/r/<code>` → `/r/:code`, lib/analytics/share-redaction.ts) anywhere in the event. Mutates and returns.
+ */
 export function scrubEvent<E extends ScrubbableEvent>(event: E): E {
+  redactShareDeep(event);
   const req = event.request;
   if (req) {
     delete req.cookies;

@@ -15,15 +15,21 @@ import {
   WEB_PORT,
   socketServerEnv,
 } from "./e2e/fixtures/socket-server";
+import { WORKER_PORT, WORKER_SERVER_COMMAND, WORKER_URL, workerFaultsHonoured, workerServerEnv } from "./e2e/fixtures/analysis-worker";
 
 const WEB_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 // Load .env.test FIRST with override so E2E tests always use the dev/E2E database,
 // never prod — even if a dev server is already running or .env.local is present.
-config({ path: path.resolve(WEB_DIR, ".env.test"), override: true });
-// A shifted run (E2E_PORT_OFFSET, e.g. a second git worktree) points the app at its own main socket. `next dev` reads
-// it at runtime; a `next start` build must have been built with the same value (NEXT_PUBLIC_* is inlined).
-if (E2E_PORT_OFFSET) process.env.NEXT_PUBLIC_WEBSOCKET_URL = `ws://localhost:${MAIN_SOCKET_PORT}`;
+// E2E_ENV_FILE names another file (an absolute path outside the repo), e.g. .env.test with a local Docker database
+// for a CI-like run on a laptop; it is loaded the same way.
+config({ path: process.env.E2E_ENV_FILE || path.resolve(WEB_DIR, ".env.test"), override: true });
+// A shifted run (E2E_PORT_OFFSET, e.g. a second git worktree) points the app at its own main socket and worker. `next
+// dev` reads them at runtime; a `next start` build must have been built with the same value (NEXT_PUBLIC_* is inlined).
+if (E2E_PORT_OFFSET) {
+  process.env.NEXT_PUBLIC_WEBSOCKET_URL = `ws://localhost:${MAIN_SOCKET_PORT}`;
+  process.env.ANALYSIS_WORKER_URL = WORKER_URL;
+}
 
 // ── Targets (phase-01 plan §12.3, CT X2) ────────────────────────────────────
 // E2E_BASE_URL runs the suite against a deployed site (the dev URL): no local
@@ -51,7 +57,7 @@ const FLAGS_OFF =
 if (FLAGS_OFF) process.env.E2E_FLAGS_OFF = "1";
 const FLAGS_OFF_PORT = Number(process.env.FLAGS_OFF_PORT ?? 3110 + E2E_PORT_OFFSET);
 /** The open phase's flags, switched off. Every later phase appends its own `<key>:off`. */
-const FLAGS_OFF_OVERRIDE = "shell-v3:off,live-protocol-v2:off,game-v3:off";
+const FLAGS_OFF_OVERRIDE = "shell-v3:off,live-protocol-v2:off,game-v3:off,review-v3:off,review-share:off";
 // Phase 0 has no @smoke tags, so its specs are listed by file. tournament (≈ 10 min) stays in the main run; the
 // bot and friend games cover the game flow here. P2 plan 12.10: with live-protocol-v2 and game-v3 off, the legacy
 // play-with-friend and quick-match specs pass over protocol v1 until the parity gate.
@@ -64,6 +70,21 @@ const FLAGS_OFF_SPECS = [
   "**/play-with-bot.spec.ts",
   "**/play-with-friend.spec.ts",
 ];
+
+// ── review-lapsed-read on (phase-03 plan §12.3 review-lapsed.spec.ts, P3-Q1) ─────────────────────────────────────
+// The flag is off for the main run (the owner's default). `--project=lapsed-read` (or E2E_LAPSED_READ=1) switches to
+// one project served by its own web server with FLAGS_OVERRIDE + review-lapsed-read:on (port 3111, the same build in
+// CI) that runs only the `@lapsed-read-on` tests; the main projects leave those out. The same server also has the H3
+// switch `analysis-redirect` on (FIX-1): `@analysis-redirect-on` tests (analysis-redirects.spec.ts, the R1 308s) run
+// there, while the main run keeps the legacy /analysis page as stage A serves it.
+const LAPSED_READ =
+  process.env.E2E_LAPSED_READ === "1" ||
+  argv.some((a, i) => a === "--project=lapsed-read" || (a === "--project" && argv[i + 1] === "lapsed-read"));
+if (LAPSED_READ) process.env.E2E_LAPSED_READ = "1";
+const LAPSED_READ_PORT = Number(process.env.LAPSED_READ_PORT ?? 3111 + E2E_PORT_OFFSET);
+const LAPSED_READ_TAG = /@lapsed-read-on\b/;
+const ANALYSIS_REDIRECT_TAG = /@analysis-redirect-on\b/;
+const FLAG_SERVER_TAGS = /@lapsed-read-on\b|@analysis-redirect-on\b/;
 
 // ── Quarantine (CT X14) ─────────────────────────────────────────────────────
 // PR CI skips quarantined tests; nightly sets E2E_INCLUDE_QUARANTINED=1 and
@@ -124,6 +145,10 @@ const DEV_SERVER = !BASE_URL && !PROD_GUARD && !WEB_BUILD;
 const grepInvert = [
   ...(REMOTE ? [/@local-only\b/] : []),
   ...(DEV_SERVER ? [/@prod-build\b/] : []),
+  // P3: kick-body faults need an APP_ENV=test worker, which runs only against a local database (CI, Docker); a run on
+  // the Neon dev branch has an APP_ENV=dev worker that ignores them (fixtures/analysis-worker.ts).
+  ...(REMOTE || !workerFaultsHonoured() ? [/@worker-faults\b/] : []),
+  ...(LAPSED_READ ? [] : [LAPSED_READ_TAG, ANALYSIS_REDIRECT_TAG]),
   // Real-timing copies of the timer specs (*.real.spec.ts) run nightly only (P2 plan 12.6).
   ...(process.env.E2E_SLOW === "1" ? [] : [/@slow\b/]),
   ...(process.env.CI && process.env.E2E_INCLUDE_QUARANTINED !== "1" ? quarantine.map((q) => quarantinePattern(q.testId)) : []),
@@ -135,7 +160,8 @@ const QUEUE_SPECS = ["**/quick-match.spec.ts", "**/queue-*.spec.ts"];
 // Game specs that restart or replace a socket server (e2e/specs/game/serial/**) run alone, after every other project:
 // a socket that boots restores every live game of the shared database (fixtures/socket-server.ts). Locally,
 // `--project=game-serial --no-deps` runs them without the rest.
-const SERIAL_GAME_SPECS = ["**/game/serial/**/*.spec.ts"];
+// P3: review/serial/** holds the specs that hold the whole e2e worker (`hold_queue`), so they also run alone, last.
+const SERIAL_GAME_SPECS = ["**/game/serial/**/*.spec.ts", "**/review/serial/**/*.spec.ts"];
 const PROD_GUARD_SPEC = "**/prod-guard.spec.ts";
 const FLAGS_OFF_SPEC = "**/flags-off.spec.ts";
 
@@ -183,6 +209,19 @@ const socketServer = (kind: "main" | "fast", webAppUrl: string) => ({
   timeout: 90_000,
 });
 
+/**
+ * The e2e analysis worker (phase-03 plan §12.3; e2e/fixtures/analysis-worker.ts): from source on :3003, ENGINE=fake
+ * against a local database (CI), the native Stockfish against the Neon dev branch. The web (ANALYSIS_WORKER_URL) and
+ * the :3002 socket kick it; it emits analysis:* to :3002.
+ */
+const workerServer = () => ({
+  command: WORKER_SERVER_COMMAND,
+  url: `http://127.0.0.1:${WORKER_PORT}/ready`,
+  env: workerServerEnv({ sinkPort: SINK_PORT }),
+  reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
+  timeout: 120_000,
+});
+
 const localServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
   {
     command: WEB_BUILD
@@ -197,6 +236,26 @@ const localServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
   },
   socketServer("main", `http://localhost:${WEB_PORT}`),
   socketServer("fast", `http://localhost:${WEB_PORT}`),
+  workerServer(),
+  sinkServer,
+];
+
+// lapsed-read: the main test build with review-lapsed-read on, on its own port (CI: `pnpm start` of the same build;
+// locally a second `next dev` with its own dist dir). It shares the :3002 socket, the worker and the sink.
+const lapsedReadServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
+  {
+    command: WEB_BUILD ? `pnpm start --port ${LAPSED_READ_PORT}` : `pnpm exec next dev --port ${LAPSED_READ_PORT}`,
+    port: LAPSED_READ_PORT,
+    env: {
+      ...testServerEnv,
+      FLAGS_OVERRIDE: `${process.env.FLAGS_OVERRIDE ? `${process.env.FLAGS_OVERRIDE},` : ""}review-lapsed-read:on,analysis-redirect:on`,
+      ...(WEB_BUILD ? {} : { NEXT_DIST_DIR: ".next-lapsed" }),
+    },
+    reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
+    timeout: process.env.CI ? 60_000 : 180_000,
+  },
+  socketServer("main", `http://localhost:${LAPSED_READ_PORT}`),
+  workerServer(),
   sinkServer,
 ];
 
@@ -243,7 +302,9 @@ export default defineConfig<ConsoleGuardOptions & TelemetryOptions>({
       ? `http://localhost:${PROD_GUARD_PORT}`
       : FLAGS_OFF
         ? `http://localhost:${FLAGS_OFF_PORT}`
-        : (BASE_URL ?? `http://localhost:${WEB_PORT}`),
+        : LAPSED_READ
+          ? `http://localhost:${LAPSED_READ_PORT}`
+          : (BASE_URL ?? `http://localhost:${WEB_PORT}`),
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "on-first-retry",
@@ -264,7 +325,16 @@ export default defineConfig<ConsoleGuardOptions & TelemetryOptions>({
     ? [{ name: "prod-guard", testMatch: PROD_GUARD_SPEC, use: { ...devices["Desktop Chrome"] } }]
     : FLAGS_OFF
       ? [{ name: "flags-off", testMatch: FLAGS_OFF_SPECS, use: { ...devices["Desktop Chrome"] } }]
-      : [
+      : LAPSED_READ
+        ? [
+            {
+              name: "lapsed-read",
+              testMatch: ["**/review/serial/review-lapsed.spec.ts", "**/review/analysis-redirects.spec.ts"],
+              grep: FLAG_SERVER_TAGS,
+              use: { ...devices["Desktop Chrome"] },
+            },
+          ]
+        : [
           {
             name: "chromium",
             testIgnore: [...QUEUE_SPECS, ...SERIAL_GAME_SPECS, PROD_GUARD_SPEC, FLAGS_OFF_SPEC],
@@ -302,5 +372,13 @@ export default defineConfig<ConsoleGuardOptions & TelemetryOptions>({
             use: { ...devices["Desktop Chrome"] },
           },
         ],
-  webServer: PROD_GUARD ? prodGuardServer : BASE_URL ? undefined : FLAGS_OFF ? flagsOffServers() : localServers(),
+  webServer: PROD_GUARD
+    ? prodGuardServer
+    : BASE_URL
+      ? undefined
+      : FLAGS_OFF
+        ? flagsOffServers()
+        : LAPSED_READ
+          ? lapsedReadServers()
+          : localServers(),
 });

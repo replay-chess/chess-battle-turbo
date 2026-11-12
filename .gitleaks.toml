@@ -85,3 +85,13 @@ regexes = [
   '''^3f2b8c1e-9d4a-4b6f-8e2d-1a2b3c4d5e6f$''',
   '''^eyJ2IjoyfQ\.c2lnbmF0dXJlLW9mLXRoZS10b2tlbi1zaXh0eS1mb3VyLWNoYXJz$''',
 ]
+
+[[allowlists]]
+# Phase 3 (REGRESSION-3): the worker's env tests build made-up Neon URLs with the literal password `secretpw` to prove
+# the production and endpoint guards refuse them. Path AND exact value must both match, so a real password pasted
+# into the file is still reported.
+description = "Fixed test-only database password in the worker env tests"
+condition = "AND"
+paths = ['''^apps/analysis-worker/src/boot\.test\.ts$''']
+regexTarget = "secret"
+regexes = ['''^secretpw$''']

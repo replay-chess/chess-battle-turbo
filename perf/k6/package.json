@@ -9,9 +9,12 @@
     "test:ws": "node esbuild.config.mjs && k6 run dist/ws-games.js",
     "test:matchmaking": "node esbuild.config.mjs && k6 run dist/matchmaking.js",
     "test:tournament": "node esbuild.config.mjs && k6 run dist/tournament.js",
-    "test:combined": "node esbuild.config.mjs && k6 run dist/combined.js"
+    "test:combined": "node esbuild.config.mjs && k6 run dist/combined.js",
+    "test:review-read": "node esbuild.config.mjs && k6 run dist/review-read.js",
+    "test:games-list": "node esbuild.config.mjs && k6 run dist/games-list.js"
   },
   "devDependencies": {
+    "@types/k6": "2.3.1",
     "chess.js": "^1.4.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.9.2"

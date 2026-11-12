@@ -18,6 +18,7 @@ import { createLiveGame, joinLiveGame } from "@repo/db/games";
 import { staleBotSweepSql } from "@repo/db/live";
 import type { RouteHandler } from "@/lib/api/route";
 import { installTestDeps, jsonOf, noParams, request, viewerFixture } from "../../test/helpers/route-harness";
+import { createWithFreeFen } from "../../test/helpers/unique-fen";
 
 const url = process.env.TEST_DATABASE_URL;
 if (url) process.env.DATABASE_URL = url; // lib/prisma (imported by the routes) reads it on first use
@@ -81,9 +82,9 @@ describe("P2 game routes (Postgres)", { skip: url ? false : "TEST_DATABASE_URL n
       data: { name: `Paul Morphy ${run}`, era: "Romantic Era", isVisible: true, shortDescription: "Int test legend" },
       select: { id: true },
     });
-    const pos = await db.chessPosition.create({
+    const pos = await createWithFreeFen(OPERA_FEN, (fen) => db.chessPosition.create({
       data: {
-        fen: OPERA_FEN.replace(" 10", ` ${10 + (Date.now() % 50)}`),
+        fen,
         sideToMove: "white",
         pgn: OPERA_PGN,
         whitePlayerName: "Paul Morphy",
@@ -93,7 +94,7 @@ describe("P2 game routes (Postgres)", { skip: url ? false : "TEST_DATABASE_URL n
         eventDate: new Date("1858-11-02T00:00:00Z"),
       },
       select: { id: true, referenceId: true },
-    });
+    }));
     positionRef = pos.referenceId;
     positionId = pos.id;
     create = (await import("@/app/api/games/route")) as Handlers;
@@ -269,7 +270,9 @@ describe("P2 game routes (Postgres)", { skip: url ? false : "TEST_DATABASE_URL n
       status: "COMPLETED",
       outcome: "BLACK",
       method: "checkmate",
-      analysis: { status: "none" },
+      // P3: the 4-ply fool's mate is too short to analyse (SKIPPED, no job); a plain bot game has no legend block.
+      analysis: { status: "skipped", etaSec: null },
+      comparison: null,
     });
     const again = await call(complete, "POST", `/api/games/${ref}/complete`, "b", { params: { ref }, body });
     assert.equal(again.status, 200);

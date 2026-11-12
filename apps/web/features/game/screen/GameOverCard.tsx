@@ -7,7 +7,9 @@
 
 import { lazy, Suspense, useState } from "react";
 import Link from "next/link";
+import { ReviewPrimaryLazy } from "@/features/review/game-over/lazy";
 import { trackGame } from "@/lib/analytics/game-events";
+import { useFlag } from "@/lib/flags/client";
 import { gamePgnHref } from "@/lib/api/queries/games";
 import { BUTTONS, copyCtx, resultCopy } from "../copy";
 import { useController, useGame, useView } from "./GameContext";
@@ -31,6 +33,7 @@ export function GameOverCard({ slots = {}, inSheet = false }: { slots?: ResultSl
   const [watchOpen, setWatchOpen] = useState(false);
   // Mounted from the first open on, so later opens and every close keep the dialog's own transitions.
   const [watchMounted, setWatchMounted] = useState(false);
+  const reviewV3 = useFlag("review-v3"); // P3-D29: the review primary (lazy) replaces the /analysis link
   const r = view.result;
   if (!r) return null;
 
@@ -69,7 +72,8 @@ export function GameOverCard({ slots = {}, inSheet = false }: { slots?: ResultSl
         </div>
         {SLOT_ORDER.map((k) => (slots[k] ? <div key={k} data-slot={k}>{slots[k]}</div> : null))}
         <div className="g-cta">
-          {player && !aborted ? (
+          {player && !aborted && reviewV3 ? <ReviewPrimaryLazy /> : null}
+          {player && !aborted && !reviewV3 ? (
             <Link className="g-btn-p" href={`/analysis/${state.ref}`} style={{ minHeight: 48 }} prefetch={false} onClick={() => trackGame("game_over_cta", { cta: "analyse" })} data-testid="analyse-game">
               {BUTTONS.analyse}
               <IconArrow />

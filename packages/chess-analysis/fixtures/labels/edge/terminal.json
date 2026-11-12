@@ -1,0 +1,63 @@
+{
+  "name": "terminal",
+  "provenance": "constructed",
+  "note": "Final plies that end the game: a stalemate (terminal draw stored as 0) and a threefold repetition (final eval 0).",
+  "games": [
+    {
+      "id": "stalemate-final",
+      "note": "White has Qf8# but plays 1.Qf7, stalemate: MateLost with cpAfter 0 → BLUNDER.",
+      "startFen": "7k/8/6K1/8/8/8/8/5Q2 w - - 0 1",
+      "moves": [
+        "Qf7"
+      ],
+      "evals": [
+        29999,
+        0
+      ],
+      "best": [
+        "Qf8#"
+      ],
+      "expected": [
+        "blunder"
+      ],
+      "final": "stalemate"
+    },
+    {
+      "id": "threefold-final",
+      "note": "Knights out and back twice; 4…Ng8 repeats the initial position a third time. Best moves unknown: losses below 0.5 are BEST, up to 2 EXCELLENT.",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "moves": [
+        "Nf3",
+        "Nf6",
+        "Ng1",
+        "Ng8",
+        "Nf3",
+        "Nf6",
+        "Ng1",
+        "Ng8"
+      ],
+      "evals": [
+        15,
+        15,
+        15,
+        0,
+        10,
+        10,
+        10,
+        -5,
+        0
+      ],
+      "expected": [
+        "best",
+        "best",
+        "excellent",
+        "excellent",
+        "best",
+        "best",
+        "excellent",
+        "best"
+      ],
+      "final": "threefold"
+    }
+  ]
+}

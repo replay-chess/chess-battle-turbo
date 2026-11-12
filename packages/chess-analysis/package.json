@@ -1,0 +1,31 @@
+{
+  "name": "@repo/chess-analysis",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./fixtures/*": "./fixtures/*.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "test": "tsx --test \"src/**/*.test.ts\" \"scripts/**/*.test.ts\"",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src scripts fixtures --no-error-on-unmatched-pattern --max-warnings 0",
+    "license-check": "tsx scripts/license-check.ts",
+    "eval-provenance": "tsx scripts/eval-provenance.ts"
+  },
+  "dependencies": {
+    "chess.js": "1.4.0"
+  },
+  "devDependencies": {
+    "@repo/chess-fixtures": "workspace:*",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "22.15.3",
+    "eslint": "^9.34.0",
+    "tsx": "4.20.6",
+    "typescript": "5.9.2"
+  }
+}

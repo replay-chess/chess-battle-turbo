@@ -30,6 +30,8 @@ export const DEFAULT_ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = {
   idempotency_key_reused: "This request key was already used for a different request.",
   illegal_position: "This starting position is not valid.",
   illegal_moves: "These moves are not legal from the game's position.",
+  // Phase 3 ledger row (@repo/contracts/http/codes).
+  gone: "This is no longer available.",
 };
 
 export type ApiErrorInit = {

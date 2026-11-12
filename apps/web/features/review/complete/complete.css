@@ -1,0 +1,88 @@
+/*
+ * Review complete (phase-03 plan §4.2; V3RvComplete, V3RvCompleteClean). One viewport (lock mode): the document never
+ * scrolls; the moments card scrolls inside its own ScrollRegion.
+ *   wide         two columns (left: lead, tiles, primary, rows; right: the card), max 1180, height min(640, 100%)
+ *   ≤ 1100       pads 20; height ≤ 640: pads 14/24, the h1 shrinks
+ *   one column   iPad portrait and phones: lead, tiles (3-up), rows, the card (flex 1), the primary pinned at the bottom
+ */
+@layer components {
+  .rvc { box-sizing: border-box; height: 100%; min-height: 0; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); padding: 28px 32px; overflow: hidden; }
+  .rvc__grid { box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: stretch; align-self: center; justify-self: center; width: 100%; max-width: 1180px; height: min(640px, 100%); min-height: 0; }
+  .rvc__left { display: flex; flex-direction: column; justify-content: space-between; gap: 20px; min-height: 0; min-width: 0; overflow: hidden; }
+  .rvc__lead { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .rvc-lbl { font: 500 0.6875rem/1.3 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); margin: 0; overflow-wrap: anywhere; }
+  .rvc-h1 { margin: 0; font-family: var(--font-instrument-serif, "Instrument Serif"), Georgia, serif; font-weight: 400; font-size: clamp(2rem, 4.9vh, 3rem); line-height: 1.05; letter-spacing: -0.01em; }
+  .rvc-leadp { margin: 0; font-size: 1.0625rem; line-height: 1.45; color: var(--cb-text-soft); }
+  .rvc-mono { font-family: var(--font-geist-mono, ui-monospace), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .rvc-soft { font-size: 0.8125rem; color: var(--cb-text-soft); }
+  .rvc-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .rvc__tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; }
+  .rvc-tile { box-sizing: border-box; background: var(--cb-surface); border: 1px solid var(--cb-border); padding: 14px 16px; display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 6px; min-width: 0; }
+  .rvc-tile__n { margin: 0; font: 400 2.25rem/1 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rvc-tile[data-testid="stat-best-move"] .rvc-tile__n { font-size: 1.5rem; line-height: 1.5rem; }
+
+  .rvc__actions { display: flex; flex-direction: column; max-width: 520px; }
+  .rvc__primary { display: flex; flex-direction: column; }
+  .rvc-btn-p { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 20px; border: 0; background: var(--cb-accent); color: var(--cb-accent-fg, #fff); font: 500 0.9375rem var(--font-geist-sans, system-ui), system-ui, sans-serif; text-decoration: none; white-space: nowrap; }
+  .rvc-btn-p:hover { background: var(--cb-accent-hover, var(--cb-text)); color: var(--cb-accent-fg, #fff); }
+  .rvc__rows { display: flex; flex-direction: column; }
+  .rvc-row { box-sizing: border-box; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 14px; border-bottom: 1px solid var(--cb-border); color: var(--cb-text); text-decoration: none; }
+  .rvc-row:hover { background: var(--cb-fill); }
+  .rvc-row__icon { display: inline-flex; flex: none; }
+  .rvc-row__icon > svg { width: 18px; height: 18px; }
+  .rvc-row__text { flex: 1 1 auto; min-width: 0; }
+  .rvc-row__go { flex: none; }
+
+  .rvc__card { box-sizing: border-box; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--cb-surface); border: 1px solid var(--cb-border); }
+  .rvc__cardh { padding: 14px 16px 12px; flex: none; }
+  .rvc__list { flex: 1 1 auto; }
+  .rvc-mlist { list-style: none; margin: 0; padding: 0; }
+  .rvc-mrow { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 16px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--cb-border); }
+  .rvc-mini { display: block; width: 72px; height: 72px; line-height: 0; }
+  a.rvc-mini:focus-visible { outline: 2px solid var(--cb-text); outline-offset: 2px; }
+  .rvc-mini > svg { width: 100%; height: 100%; }
+  .rvc-mrow__body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .rvc-mrow__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .rvc-mrow__head > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+  .rvc-say { margin: 0; font-size: 0.875rem; line-height: 1.45; color: var(--cb-text-soft); }
+  .rvc-foot { margin: 0; padding: 12px 16px; border-top: 1px solid var(--cb-border); font-size: 0.875rem; color: var(--cb-text-soft); }
+
+  @media (max-width: 1100px) { .rvc { padding: 20px; } .rvc__grid { gap: 32px; } }
+  @media (max-height: 640px) {
+    .rvc { padding: 14px 24px; }
+    .rvc-h1 { font-size: 1.75rem; }
+    .rvc__lead { gap: 6px; }
+    .rvc-tile { padding: 10px 12px; }
+    .rvc-tile__n { font-size: 1.75rem; }
+    .rvc-mrow { padding: 8px 16px; }
+  }
+
+  /* One column: iPad portrait and phones (the shell's tab-bar mode). */
+  @media (max-width: 600px), (max-width: 900px) and (orientation: portrait) {
+    .rvc { padding: 12px 16px 0; }
+    .rvc__grid {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: "lead" "tiles" "rows" "card" "primary";
+      grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+      gap: 12px; height: 100%; max-width: 720px; align-self: stretch;
+    }
+    .rvc__left, .rvc__actions { display: contents; }
+    .rvc__lead { grid-area: lead; gap: 6px; }
+    .rvc-h1 { font-size: 2rem; }
+    .rvc-leadp { font-size: 0.9375rem; }
+    .rvc__tiles { grid-area: tiles; gap: 8px; }
+    .rvc-tile { padding: 10px 12px; }
+    .rvc-tile__n { font-size: 1.75rem; }
+    .rvc__rows { grid-area: rows; }
+    .rvc-row { min-height: 48px; }
+    .rvc__card { grid-area: card; min-height: 96px; }
+    .rvc-mrow { grid-template-columns: 56px minmax(0, 1fr); gap: 12px; padding: 10px 12px; }
+    .rvc-mini { width: 56px; height: 56px; }
+    .rvc__primary { grid-area: primary; max-width: none; margin: 0 -16px; padding: 8px 16px calc(8px + var(--safe-bottom, 0px)); border-top: 1px solid var(--cb-border); background: var(--cb-bg); }
+  }
+  @media (max-width: 600px) and (max-height: 700px), (max-width: 900px) and (orientation: portrait) and (max-height: 700px) {
+    .rvc-leadp { display: none; }
+    .rvc-row { min-height: 44px; }
+  }
+}

@@ -200,7 +200,8 @@ export interface GameResultEvent {
   ref: string;
   ratings: null;
   tournament: null;
-  review: { status: "none" };
+  /** P3 (CON 3.9): the game-over seed; CT/socket/analysis.ts GameResultReview. */
+  review: { status: "queued" | "skipped"; etaSec: number | null };
 }
 export interface RematchEvent {
   seq: number;

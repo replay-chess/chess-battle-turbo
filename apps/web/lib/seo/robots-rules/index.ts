@@ -4,6 +4,7 @@
 // Phases apply oldest first: a phase appends its `disallow` paths (a duplicate keeps its first position) and may
 // `undisallow` paths an earlier phase listed (P9 drops `/join/`), without editing that phase's file.
 import { rules as p01 } from "./p01";
+import { rules as p03 } from "./p03";
 
 export type RobotsRuleSet = {
   /** Paths to add to `Disallow`, in output order. */
@@ -13,7 +14,7 @@ export type RobotsRuleSet = {
 };
 
 /** Oldest first; one line per phase file. */
-const PHASES: readonly RobotsRuleSet[] = [p01];
+const PHASES: readonly RobotsRuleSet[] = [p01, p03];
 
 /** Folds the phase rule sets in order. Exported for tests. */
 export function foldDisallow(phases: readonly RobotsRuleSet[]): string[] {

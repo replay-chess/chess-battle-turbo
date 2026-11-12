@@ -6,18 +6,24 @@
 // class, so a later phase can move a P1 member page to public without editing p01.ts. REPO/docs/route-map.md §3 holds
 // the concrete paths each class must cover; route-classes.test.ts checks the two agree.
 import * as p01 from "./p01";
+import * as p03 from "./p03";
 
-export type RouteClass = "scanner" | "public" | "member" | "signed_in" | "api" | "api_no_clerk";
+export type RouteClass = "scanner" | "public" | "public_static" | "member" | "signed_in" | "api" | "api_no_clerk";
 
 export interface RouteClassSet {
   readonly publicPages: readonly string[];
   readonly memberPages: readonly string[];
   readonly signedInPages: readonly string[];
   readonly noClerkApi: readonly string[];
+  /**
+   * Public pages that never read a session (ISR snapshots served the same to everyone): middleware skips Clerk for
+   * them as for `noClerkApi`, so a first visit is never sent through Clerk's handshake redirect (P3 `/r/<code>`; FIX-1).
+   */
+  readonly staticPages?: readonly string[];
 }
 
 /** Oldest first; add one line per phase file. */
-const PHASES: readonly RouteClassSet[] = [p01];
+const PHASES: readonly RouteClassSet[] = [p01, p03];
 
 /**
  * Probe paths no real route uses (CA AP-33): answered 404 before Clerk. No route ends in .php/.env/.git/.asp(x)/.bak/
@@ -62,6 +68,7 @@ interface CompiledSet {
   member: PathMatcher;
   signedIn: PathMatcher;
   public: PathMatcher;
+  static: PathMatcher;
   noClerkApi: PathMatcher;
 }
 
@@ -69,6 +76,7 @@ const compileSet = (s: RouteClassSet): CompiledSet => ({
   member: matcherFor(s.memberPages),
   signedIn: matcherFor(s.signedInPages),
   public: matcherFor(s.publicPages),
+  static: matcherFor(s.staticPages ?? []),
   noClerkApi: matcherFor(s.noClerkApi),
 });
 
@@ -84,6 +92,7 @@ export function createClassifier(phases: readonly RouteClassSet[]): (pathname: s
       // Within one phase the stricter class wins an accidental overlap.
       if (s.member(pathname)) return "member";
       if (s.signedIn(pathname)) return "signed_in";
+      if (s.static(pathname)) return "public_static";
       if (s.public(pathname)) return "public";
     }
     // Plan §7.6 step 5: every page that is not listed public needs a session.

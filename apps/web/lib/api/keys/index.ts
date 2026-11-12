@@ -14,6 +14,7 @@ import { gameKeys } from "./game";
 import { learnKeys } from "./learn";
 import { meKeys } from "./me";
 import { playKeys } from "./play";
+import { practiceKeys } from "./practice";
 import { reviewKeys } from "./review";
 import { systemKeys } from "./system";
 import { tournamentKeys } from "./tournament";
@@ -30,6 +31,7 @@ export const KEY_FILES = {
   learn: learnKeys,
   me: meKeys,
   play: playKeys,
+  practice: practiceKeys,
   review: reviewKeys,
   system: systemKeys,
   tournament: tournamentKeys,
@@ -46,6 +48,7 @@ export const qk = {
   ...coachKeys,
   ...learnKeys,
   ...playKeys,
+  ...practiceKeys,
   ...accountKeys,
   ...tournamentKeys,
   ...adminKeys,
@@ -56,4 +59,5 @@ export type QueryKeys = typeof qk;
 
 export { norm, type Filters, type FilterValue } from "./norm";
 export type { GamesFilter } from "./game";
+export type { PracticeKey } from "./practice";
 export type { BankFilter } from "./train";

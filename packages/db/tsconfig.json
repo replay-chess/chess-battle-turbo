@@ -8,6 +8,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "prisma/**/*.ts", "test/**/*.ts"],
+  "include": ["src/**/*.ts", "prisma/**/*.ts", "test/**/*.ts", "scripts/**/*.ts", "seed/**/*.ts"],
   "exclude": ["generated"]
 }

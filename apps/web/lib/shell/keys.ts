@@ -1,26 +1,11 @@
 // Keyboard rules for the shell (SPEC 8.2 "Keys", D20). Pure: no DOM globals,
 // so every rule is unit-tested. useShellKeys wires them to one window listener.
 
-/** Anything that looks like an Element for the editable check. */
-type ElementLike = {
-  tagName?: string;
-  isContentEditable?: boolean;
-  closest?: (selector: string) => unknown;
-};
+// The editable-target check, the open-modal selector and the key shape live in ./key-target.ts, so screen hotkeys
+// (the game, the review) can use them without pulling this module's shortcut tables into their first load.
+import { isEditableTarget, MODAL_OPEN_SELECTOR, type KeyLike } from "./key-target";
 
-const EDITABLE_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
-
-/** input, textarea, select, contenteditable, or inside [role=combobox]. */
-export function isEditableTarget(el: unknown): boolean {
-  if (!el || typeof el !== "object") return false;
-  const node = el as ElementLike;
-  if (node.tagName && EDITABLE_TAGS.has(node.tagName.toUpperCase())) return true;
-  if (node.isContentEditable) return true;
-  if (typeof node.closest === "function") {
-    return Boolean(node.closest('[contenteditable=""], [contenteditable="true"], [role="combobox"]'));
-  }
-  return false;
-}
+export { isEditableTarget, MODAL_OPEN_SELECTOR, type KeyLike };
 
 export type NavigatorLike = {
   platform?: string;
@@ -34,24 +19,8 @@ export function isApplePlatform(nav: NavigatorLike | undefined): boolean {
   return /mac|iphone|ipad|ipod/i.test(platform);
 }
 
-/** A modal of any kind is open: Radix dialogs, legacy modals, Clerk, the iOS install modal. */
-export const MODAL_OPEN_SELECTOR =
-  '[aria-modal="true"], [role="dialog"]:not([data-state="closed"]), [role="alertdialog"]:not([data-state="closed"]), .cl-modalBackdrop, [data-rc-modal]';
-
 /** Marks the shell's own palette and shortcuts dialogs, so they don't count as "a modal is open". */
 export const SHELL_DIALOG_ATTR = "data-rc-shell-dialog";
-
-export type KeyLike = {
-  key: string;
-  code: string;
-  metaKey: boolean;
-  ctrlKey: boolean;
-  altKey: boolean;
-  repeat: boolean;
-  isComposing: boolean;
-  defaultPrevented: boolean;
-  getModifierState?: (key: string) => boolean;
-};
 
 export type KeyContext = {
   /** (hover: none) and (pointer: coarse) */
@@ -127,74 +96,7 @@ export function createChordMachine({
 export const SHELL_CHORDS: Record<string, string> = { KeyP: "/play", KeyL: "/legends" };
 export const CHORD_TIMEOUT_MS = 1000;
 
-/** "Mod" renders as ⌘ on Apple platforms and Ctrl elsewhere. */
-export type ShortcutRow = { id: string; label: string; keys: string[][] };
-export type ShortcutSection = { title: string; scope: "global" | "board" | "review"; rows: ShortcutRow[] };
-
-/**
- * The shortcut registry. Section titles are Title Case; row labels are sentence
- * case (SPEC 3.11). Phase 1 registers Everywhere; Phase 2 adds In a Game (the
- * game page's keys, features/game/keys/useGameHotkeys.ts, P2 plan 4.6.1). Esc on
- * the game page (cancel a premove, then close the top layer) is the Everywhere
- * row. Later page keys register here and must pass findCollisions.
- */
-export const SHORTCUT_SECTIONS: ShortcutSection[] = [
-  {
-    title: "Everywhere",
-    scope: "global",
-    rows: [
-      { id: "palette", label: "Command palette and search", keys: [["Mod", "K"], ["/"]] },
-      { id: "help", label: "This list", keys: [["?"]] },
-      { id: "go-play", label: "Go to Play", keys: [["G", "P"]] },
-      { id: "go-legends", label: "Go to Legends", keys: [["G", "L"]] },
-      { id: "notifications", label: "Jump to notifications", keys: [["Alt", "T"]] },
-      { id: "close", label: "Close a menu or sheet", keys: [["Esc"]] },
-    ],
-  },
-  {
-    title: "In a Game",
-    scope: "board",
-    rows: [
-      { id: "game-step", label: "Previous or next move", keys: [["←"], ["→"]] },
-      { id: "game-ends", label: "First or latest move", keys: [["↑"], ["↓"]] },
-      { id: "game-flip", label: "Flip the board", keys: [["F"]] },
-      { id: "game-sound", label: "Sound on or off", keys: [["M"]] },
-      { id: "game-draw", label: "Offer a draw", keys: [["D"]] },
-      { id: "game-hint", label: "Hint, again for the arrow", keys: [["H"]] },
-      { id: "game-undo", label: "Undo (bot games)", keys: [["U"]] },
-      { id: "game-promote", label: "Pick a promotion piece", keys: [["Q"], ["R"], ["B"], ["N"]] },
-    ],
-  },
-];
-
-export type Collision = { binding: string; ids: string[] };
-
-/** Duplicate bindings within one scope, and global bindings reused by any scope. */
-export function findCollisions(sections: ShortcutSection[]): Collision[] {
-  const byScope = new Map<string, Map<string, string[]>>();
-  for (const section of sections) {
-    const scope = byScope.get(section.scope) ?? new Map<string, string[]>();
-    byScope.set(section.scope, scope);
-    for (const row of section.rows) {
-      for (const seq of row.keys) {
-        const binding = seq.map((k) => k.toLowerCase()).join(" ");
-        scope.set(binding, [...(scope.get(binding) ?? []), row.id]);
-      }
-    }
-  }
-  const out: Collision[] = [];
-  for (const scope of byScope.values()) {
-    for (const [binding, ids] of scope) if (ids.length > 1) out.push({ binding, ids });
-  }
-  const global = byScope.get("global");
-  if (global) {
-    for (const [name, scope] of byScope) {
-      if (name === "global") continue;
-      for (const [binding, ids] of scope) {
-        const g = global.get(binding);
-        if (g) out.push({ binding, ids: [...g, ...ids] });
-      }
-    }
-  }
-  return out;
+/** The chords for this viewer: P3 adds G then R (Review → My Games) with `review-v3`. */
+export function shellChords(flags: { reviewV3?: boolean } = {}): Record<string, string> {
+  return flags.reviewV3 ? { ...SHELL_CHORDS, KeyR: "/games" } : SHELL_CHORDS;
 }

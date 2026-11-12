@@ -102,7 +102,7 @@ export function staleBotSweepSql(days: number = STALE_BOT_DAYS): Prisma.Sql {
       UPDATE games SET status = 'ABORTED', phase = 'ENDED', "endMethod" = 'ABORTED', outcome = 'NONE',
              "clockRunning" = NULL, "phaseEndsAt" = NULL,
              meta = COALESCE(meta, '{}'::jsonb) || '{"abortedBy":"stale"}'::jsonb,
-             "completedAt" = now(), "updatedAt" = now()
+             "completedAt" = now(), "updatedAt" = now(), "analysisStatus" = 'SKIPPED'
        WHERE status = 'IN_PROGRESS' AND mode = 'BOT' AND "lastMoveAt" < now() - (${days}::int * interval '1 day')
       RETURNING id
     ), gp AS (

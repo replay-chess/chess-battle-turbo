@@ -11,7 +11,7 @@
 // useCancelLegacyChallenge(): the legacy POST /api/chess/cancel-game (until P9's /api/challenges), then /play.
 import type { CompleteBody, CompleteResponse, GameCreateInput, GameCreateResponse, GameSnapshot } from "@repo/contracts/http/games";
 import { CompleteResponse as CompleteResponseSchema, GameCreateResponse as GameCreateResponseSchema } from "@repo/contracts/http/games";
-import * as Sentry from "@sentry/nextjs";
+import { withSentry } from "@/lib/sentry/lazy";
 import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -147,23 +147,28 @@ export async function completeBotGameRequest(
 }
 
 /** Seeds the finished game's snapshot and marks the game lists stale without refetching them. */
-export function applyCompleted(queryClient: QueryClient, ref: string, result: CompleteResponse): void {
+export function applyCompleted(queryClient: QueryClient, ref: string, result: CompleteResponse, plies: number): void {
   queryClient.setQueryData<GameSnapshot>(qk.games.detail(ref), (prev) =>
     prev ? { ...prev, status: result.status, phase: "ended" } : prev,
   );
   void queryClient.invalidateQueries({ queryKey: qk.games.detail(ref), refetchType: "none" });
   void queryClient.invalidateQueries({ queryKey: qk.games.all(), refetchType: "none" });
+  // P3 (phase-03 plan §5.8): seed the game-over card's analysis status and legend block (lazy: not in /game's first load).
+  void import("@/features/review/game-over/seed").then(
+    (m) => m.seedReviewStatusFromComplete(queryClient, ref, result, plies),
+    () => undefined,
+  );
 }
 
 export function useCompleteBotGame(ref: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: CompleteBody) => completeBotGameRequest(ref, body),
-    onSuccess: (result) => applyCompleted(queryClient, ref, result),
+    onSuccess: (result, body) => applyCompleted(queryClient, ref, result, body.moves.length),
     onError: (err) => {
       if (err instanceof ApiError && err.code === "illegal_moves") {
         toast.error(COMPLETE_SAVE_FAILED_TEXT, { id: `complete:${ref}` });
-        Sentry.captureMessage("bot_complete_refused", { level: "error", tags: { game_ref: ref, code: err.code } });
+        withSentry((Sentry) => Sentry.captureMessage("bot_complete_refused", { level: "error", tags: { game_ref: ref, code: err.code } }));
       }
     },
     meta: { object: "the game", errorUi: "inline" },

@@ -21,6 +21,22 @@ type EndpointPaths = {
   gameCheckpoint: PathOf<"games.checkpoint">;
   gameComplete: PathOf<"games.complete">;
   gamePgn: PathOf<"games.pgn">;
+  // P3 review (`{ref}` / `{ply}` filled with fillPath()).
+  review: PathOf<"review.get">;
+  reviewStatus: PathOf<"review.status">;
+  reviewAnalyse: PathOf<"review.analyse">;
+  reviewRetry: PathOf<"review.retry">;
+  reviewProgress: PathOf<"review.progress">;
+  reviewMoment: PathOf<"review.moment">;
+  reviewComplete: PathOf<"review.complete">;
+  reviewPgn: PathOf<"review.pgn">;
+  reviewLegend: PathOf<"review.legend">;
+  reviewLegendCompute: PathOf<"review.legend.compute">;
+  // P3 share (A10 `{ref}`, A11 `{code}`), archive (G1) and practice (PR1).
+  shareCreate: PathOf<"share.create">;
+  share: PathOf<"share.update">;
+  meGames: PathOf<"me.games">;
+  practiceContext: PathOf<"practice.context">;
 };
 
 export const endpoints = {
@@ -36,6 +52,20 @@ export const endpoints = {
   gameCheckpoint: "/api/games/{ref}/checkpoint",
   gameComplete: "/api/games/{ref}/complete",
   gamePgn: "/api/games/{ref}/pgn",
+  review: "/api/review/{ref}",
+  reviewStatus: "/api/review/{ref}/status",
+  reviewAnalyse: "/api/review/{ref}/analyse",
+  reviewRetry: "/api/review/{ref}/retry",
+  reviewProgress: "/api/review/{ref}/progress",
+  reviewMoment: "/api/review/{ref}/moments/{ply}",
+  reviewComplete: "/api/review/{ref}/complete",
+  reviewPgn: "/api/review/{ref}/pgn",
+  reviewLegend: "/api/review/{ref}/legend",
+  reviewLegendCompute: "/api/review/{ref}/legend/compute",
+  shareCreate: "/api/review/{ref}/share",
+  share: "/api/share/{code}",
+  meGames: "/api/me/games",
+  practiceContext: "/api/practice/context",
 } as const satisfies EndpointPaths;
 
 /** The registry id behind each entry (endpoints.test.ts). */
@@ -52,4 +82,18 @@ export const ENDPOINT_IDS = {
   gameCheckpoint: "games.checkpoint",
   gameComplete: "games.complete",
   gamePgn: "games.pgn",
+  review: "review.get",
+  reviewStatus: "review.status",
+  reviewAnalyse: "review.analyse",
+  reviewRetry: "review.retry",
+  reviewProgress: "review.progress",
+  reviewMoment: "review.moment",
+  reviewComplete: "review.complete",
+  reviewPgn: "review.pgn",
+  reviewLegend: "review.legend",
+  reviewLegendCompute: "review.legend.compute",
+  shareCreate: "share.create",
+  share: "share.update",
+  meGames: "me.games",
+  practiceContext: "practice.context",
 } as const satisfies Record<keyof typeof endpoints, EndpointId>;
