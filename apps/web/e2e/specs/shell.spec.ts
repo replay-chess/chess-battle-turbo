@@ -267,7 +267,10 @@ test.describe("App shell for members @p1", () => {
     await expectShell(page);
     await openAccountMenu(page);
     await page.getByTestId("account-item-signout").click();
-    await page.waitForURL((url) => url.pathname === "/", { timeout: 30_000 });
+    // The signed-out landing page lands when its document does: "load" also waits for ~50 third-party directory
+    // badge images (app/components/DirectoryBadges.tsx), and one slow badge host held it past 30 s
+    // (regression: signout-landing-load).
+    await page.waitForURL((url) => url.pathname === "/", { timeout: 30_000, waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("marketing-navbar")).toBeVisible();
   });
 
@@ -379,11 +382,15 @@ test.describe("Phone shell (Pixel 7) @p1", () => {
   });
 });
 
-// Plan phase-01 §8.6 / B4: Sign Out ends on "/" on every browser. regression: on WebKit (webkit-iphone) the phone
-// sheet's Sign Out from /play landed on /sign-in?redirect_url=%2Fplay: Clerk's post-sign-out router.refresh() (run
-// because WebKit fires `beforeunload` after location.assign returns) met the middleware's sign-in redirect and
-// replaced the load of "/" (lib/auth/sign-out.ts leavePage). Phone layout on every project; @smoke so CI runs it on
-// webkit-iphone too.
+// Plan phase-01 §8.6 / B4: Sign Out ends on "/" on every browser, and nothing navigates to /sign-in while the
+// sign-out intent is set. regression: CI runs 43246907343 (and before the first fix, every local webkit run): on
+// webkit-iphone the phone sheet's Sign Out from /play landed on /sign-in?redirect_url=%2Fplay. clerk-js signOut()
+// first awaits the Next provider's cache-invalidating server action (POST /play); its response re-rendered the tree
+// while still signed in and SessionWatcher's signed-in branch cleared `rc.signout`; so the post-sign-out
+// router.refresh() was not dropped (skipRefreshAfterSetActive), its RSC request met the middleware's sign-in redirect,
+// and that navigation replaced the load of "/". Whether the refresh beats the load of "/" depends on the browser's
+// timing, so the test checks the cause directly: the "/" document is held back 3 s (a refresh, if any, has time to
+// start), no router refresh or navigation request is made after Sign Out, and `rc.signout` reaches "/".
 test.describe("Phone sign-out @p1 @smoke", () => {
   test.use({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
 
@@ -394,15 +401,36 @@ test.describe("Phone sign-out @p1 @smoke", () => {
     page.on("framenavigated", (f) => {
       if (f === page.mainFrame()) visited.push(f.url());
     });
+    let heldHome = 0;
+    await page.route(
+      (url) => url.pathname === "/",
+      async (route) => {
+        if (route.request().resourceType() === "document") {
+          heldHome++;
+          await new Promise((r) => setTimeout(r, 3_000));
+        }
+        await route.continue().catch(() => undefined);
+      },
+    );
     await openAccountSheet(page);
+    // Router refreshes or navigations (RSC requests that are not prefetches) after Sign Out: there must be none, since
+    // a full document load of "/" is the only navigation a sign-out makes.
+    const refreshes: string[] = [];
+    page.on("request", (r) => {
+      const h = r.headers();
+      if (h["rsc"] && !h["next-router-prefetch"] && new URL(r.url()).pathname !== "/") refreshes.push(r.url());
+    });
     await page.getByTestId("account-item-signout").click();
-    // "commit", not "load": the marketing home page's media can hold `load` back past 30 s on a busy `next dev`.
+    // "commit", not "load": the marketing home page's third-party badges can hold `load` back past 30 s.
     await page.waitForURL((url) => url.pathname === "/", { timeout: 30_000, waitUntil: "commit" });
     await expect(page.getByTestId("marketing-navbar")).toBeVisible({ timeout: 30_000 });
-    // Settled: no late soft navigation to sign-in after the load of "/".
+    expect(heldHome, "the load of / was held back").toBeGreaterThan(0);
+    // Settled: no late navigation to sign-in after the load of "/", and the sign-out intent survived to "/".
     await page.waitForTimeout(2_000);
     expect(new URL(page.url()).pathname).toBe("/");
     expect(visited.filter((u) => new URL(u).pathname.startsWith("/sign-in")), "navigations to sign-in").toEqual([]);
+    expect(refreshes, "router refreshes after Sign Out").toEqual([]);
+    expect(await page.evaluate(() => sessionStorage.getItem("rc.signout")), "the sign-out intent reached /").toBe("1");
   });
 });
 

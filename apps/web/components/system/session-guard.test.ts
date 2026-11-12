@@ -11,8 +11,12 @@ import {
   openSessionExpired,
   defaultIsPublicPath,
   isSessionPublicPath,
+  hasSignOutIntent,
   postAuthMessage,
+  redirectSignedOutVisitor,
   refetchUnauthorizedQueries,
+  resetSignOutIntentForTests,
+  setSignOutIntent,
   safeReturnPath,
   sessionExpiredStore,
   setPublicPathClassifier,
@@ -290,5 +294,49 @@ describe("rc-auth broadcast (1B·J)", () => {
       unsubSelf();
       unsubOther();
     }
+  });
+});
+
+describe("the local sign-out intent", () => {
+  // regression: signout-intent-cleared-mid-signout (FIX-2, review round 2; P1 shared-device.spec.ts). Clerk still says
+  // signed in until its signOut() (the last step), and SessionWatcher's signed-in branch re-ran in between and
+  // cleared the flag, so "/" loaded without it.
+  it("a sign-out started in this document is never cleared by this document; a new document clears a stale one", () => {
+    const store = new Map<string, string>();
+    const g = globalThis as { sessionStorage?: unknown };
+    const had = g.sessionStorage;
+    g.sessionStorage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    };
+    try {
+      resetSignOutIntentForTests();
+      setSignOutIntent(false);
+      assert.equal(hasSignOutIntent(), false);
+      setSignOutIntent(true);
+      assert.equal(hasSignOutIntent(), true);
+      setSignOutIntent(false); // the signed-in branch, still signed in mid sign-out
+      assert.equal(hasSignOutIntent(), true, "kept until the document is gone");
+      resetSignOutIntentForTests(); // the next document (after the full load)
+      setSignOutIntent(false); // someone signs in there
+      assert.equal(hasSignOutIntent(), false);
+    } finally {
+      resetSignOutIntentForTests();
+      g.sessionStorage = had;
+    }
+  });
+});
+
+describe("redirectSignedOutVisitor (useRequireAuth)", () => {
+  // regression: CI run 43246907343 (webkit-iphone, shell.spec "Phone sign-out"): during our own sign-out the rule sent
+  // /play to /sign-in?redirect_url=%2Fplay, and on WebKit that navigation replaced the load of "/".
+  it("never navigates during our own sign-out", () => {
+    assert.equal(redirectSignedOutVisitor({ wasSignedIn: true, signOutIntent: true }), false);
+    assert.equal(redirectSignedOutVisitor({ wasSignedIn: false, signOutIntent: true }), false);
+  });
+  it("a session that ended on this page stays for the dialog; a visitor never signed in here goes to sign-in", () => {
+    assert.equal(redirectSignedOutVisitor({ wasSignedIn: true, signOutIntent: false }), false);
+    assert.equal(redirectSignedOutVisitor({ wasSignedIn: false, signOutIntent: false }), true);
   });
 });

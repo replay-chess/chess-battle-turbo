@@ -291,7 +291,28 @@ export function hasSignOutIntent(): boolean {
   }
 }
 
+/**
+ * Whether this document started a local sign-out (signOutEverywhere() step 1, or the `signed_out` broadcast). Such a
+ * sign-out always ends in a full document load, so the flag lives exactly as long as the sign-out it belongs to.
+ */
+let signingOutHere = false;
+
+/**
+ * Sets or clears the local sign-out intent. Once this document has started a sign-out it never clears it again
+ * (regression: signout-intent-cleared-mid-signout, FIX-2): Clerk still reports `isSignedIn: true` until its own
+ * signOut() runs, the last step, and a re-render in between (useAuth's mid-transition "Invalid state" render counts
+ * as not loaded, then loaded and signed in again) re-ran SessionWatcher's signed-in branch, which cleared the flag
+ * before the navigation to "/". The next document clears it when someone signs in.
+ *
+ * The re-render comes from Clerk itself: clerk-js signOut() awaits the Next provider's __unstable__onBeforeSetActive
+ * with no intent, which runs invalidateCacheAction, a server action POST to the current page; its response re-renders
+ * the tree while still signed in. With the flag gone, skipRefreshAfterSetActive no longer saw our sign-out, Clerk's
+ * router.refresh() ran, and on WebKit its sign-in redirect replaced the load of "/" (CI run 43246907343,
+ * webkit-iphone shell.spec "Phone sign-out": /play → /sign-in?redirect_url=%2Fplay).
+ */
 export function setSignOutIntent(on: boolean): void {
+  if (on) signingOutHere = true;
+  else if (signingOutHere) return;
   try {
     if (typeof sessionStorage === "undefined") return;
     if (on) sessionStorage.setItem(SIGNOUT_INTENT_KEY, "1");
@@ -299,6 +320,25 @@ export function setSignOutIntent(on: boolean): void {
   } catch {
     // ignore
   }
+}
+
+/**
+ * Whether a member page's signed-out check (useRequireAuth) may send the visitor to sign-in. Only a visitor who was
+ * never signed in on this page is sent there. Not one whose session ended here:
+ * - our own sign-out (the intent flag) ends in a full document load of "/" (signOutEverywhere); a navigation to
+ *   sign-in started meanwhile replaced that load on WebKit (regression: CI run 43246907343, webkit-iphone
+ *   shell.spec "Phone sign-out" landed on /sign-in?redirect_url=%2Fplay: useRequireAuth on /play pushed it when
+ *   Clerk emitted the signed-out state, because this rule was inverted for the intent);
+ * - a session revoked or expired elsewhere: SessionWatcher shows "You've Been Signed Out" over the page and its
+ *   "Sign In Again" returns here (plan §4.9, sign-off D8).
+ */
+export function redirectSignedOutVisitor(s: { wasSignedIn: boolean; signOutIntent: boolean }): boolean {
+  return !s.wasSignedIn && !s.signOutIntent;
+}
+
+/** Test seam: a new document (no sign-out started yet). */
+export function resetSignOutIntentForTests(): void {
+  signingOutHere = false;
 }
 
 // ---------------------------------------------------------------------------------------------------------------

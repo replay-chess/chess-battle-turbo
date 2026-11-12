@@ -51,7 +51,10 @@ test.describe("shared device @p1", () => {
     const clearHeaders = await clearRes.allHeaders();
     expect(clearHeaders["clear-site-data"]).toBe('"cache"');
     expect(clearHeaders["cache-control"]).toContain("no-store");
-    await page.waitForURL((u) => u.pathname === "/", { timeout: 30_000 });
+    // The signed-out landing page lands when its document does: "load" also waits for ~50 third-party directory
+    // badge images (app/components/DirectoryBadges.tsx), and one slow badge host held it past 30 s
+    // (regression: signout-landing-load).
+    await page.waitForURL((u) => u.pathname === "/", { timeout: 30_000, waitUntil: "domcontentloaded" });
     expect(await page.evaluate(() => sessionStorage.getItem("rc.signout"))).toBe("1");
 
     // B signs in in the same context.

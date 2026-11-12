@@ -41,7 +41,10 @@ test.describe("shared device (games)", { tag: p2("@local-only") }, () => {
     await page.getByTestId("shell-account-button").click();
     // (P1's shared-device.spec.ts asserts the session/clear answer itself.)
     await page.getByTestId("account-item-signout").click();
-    await page.waitForURL((u) => u.pathname === "/", { timeout: 30_000 });
+    // The signed-out landing page lands when its document does: "load" also waits for ~50 third-party directory
+    // badge images (app/components/DirectoryBadges.tsx), and one slow badge host held it past 30 s
+    // (regression: signout-landing-load).
+    await page.waitForURL((u) => u.pathname === "/", { timeout: 30_000, waitUntil: "domcontentloaded" });
 
     // B (not a player of the game) in the same context.
     await signIn(page, letterEmail("P"), "");
