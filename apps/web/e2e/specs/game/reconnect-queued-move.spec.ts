@@ -1,7 +1,7 @@
 // Reconnect with a queued move (phase-02 plan 5.2.4, 12.6): A loses the network on their turn and moves (ghost +
 // "reconnecting" with the queued copy); back after 5 s the outbox sends it: "Back online. … was sent." and the move
 // is on B's board.
-import { byColor, expect, startSeeded, test } from "../../fixtures/games";
+import { byColor, expect, expectOneGameScreen, startSeeded, test } from "../../fixtures/games";
 import { gameTags, p2 } from "./tags";
 
 test.describe("reconnect with a queued move", { tag: p2("@local-only") }, () => {
@@ -28,5 +28,8 @@ test.describe("reconnect with a queued move", { tag: p2("@local-only") }, () => 
     await s.w.waitPhase("reconnected", 45_000);
     await expect(s.w.page.getByTestId("game-toast")).toContainText(/Back online\..*was sent/i);
     await s.b.waitPly(3, 30_000);
+    // The reconnect replaced nothing: one game screen on each side.
+    await expectOneGameScreen(s.w.page);
+    await expectOneGameScreen(s.b.page);
   });
 });

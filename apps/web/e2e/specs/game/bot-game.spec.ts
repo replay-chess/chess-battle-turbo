@@ -3,7 +3,7 @@
 // Hint twice (piece, then arrow + SAN), Undo (your move and the reply), a reload resumes at the same ply, resign
 // completes exactly once; `bot_game_started` and `bot_game_completed{hints: 2, undos: 1}` reach the sink once each.
 import type { Request } from "@playwright/test";
-import { expect, expectServerEvents, finishedSnapshot, seatLetters, test } from "../../fixtures/games";
+import { expect, expectOneGameScreen, expectServerEvents, finishedSnapshot, seatLetters, test } from "../../fixtures/games";
 import { gameTags, p2 } from "./tags";
 
 test.describe("bot game", { tag: p2("@smoke", "@local-only") }, () => {
@@ -29,6 +29,7 @@ test.describe("bot game", { tag: p2("@smoke", "@local-only") }, () => {
       await page.waitForURL(/\/game\//, { timeout: 120_000 });
       const ref = new URL(page.url()).pathname.split("/game/")[1]!;
       await me.waitPhase("bot", 120_000);
+      await expectOneGameScreen(page);
       await expect(page.getByTestId("game-header-right").or(page.getByTestId("game-topbar-title")).first()).toContainText(/Engine \d+|unrated/i);
       await expect
         .poll(() => requests.filter((r) => /sf18-[0-9a-f]+\/.*\.wasm$/.test(r)).length, { timeout: 90_000 })
@@ -63,6 +64,9 @@ test.describe("bot game", { tag: p2("@smoke", "@local-only") }, () => {
       await page.reload({ timeout: 180_000 });
       await me.waitPhase("bot", 120_000);
       await me.waitPly(p0 + 2, 30_000);
+      // One game screen after the reload too (CI run 43211562326: a second game-board-container outside the app shell,
+      // and the ply read 6 instead of 8).
+      await expectOneGameScreen(page);
 
       const completes = () => requests.filter((r) => r.startsWith("POST") && r.endsWith("/complete")).length;
       await me.board.resign();

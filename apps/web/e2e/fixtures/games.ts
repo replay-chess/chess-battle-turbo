@@ -13,7 +13,7 @@
 // the same recorder `telemetry.expect()` reads); its socket.io traffic goes through `linkContext()` to the chosen
 // server, so a spec can cut a player's network (`seat.link.setDown(true)`) without touching the others. Fixture games
 // are created through @repo/db with the same writers the app uses, between two shared members (additive data only).
-import { mergeTests, type BrowserContext, type BrowserContextOptions, type Page, type TestInfo } from "@playwright/test";
+import { mergeTests, test as pwTest, type BrowserContext, type BrowserContextOptions, type Page, type TestInfo } from "@playwright/test";
 import type { PrismaClient } from "@repo/db";
 import { test as authTest, signIn } from "./auth";
 import { ChessBoardHelper } from "./chess-board";
@@ -103,6 +103,64 @@ async function recordClientTelemetry(context: BrowserContext, sinks: CapturedEve
 
 const container = (p: Page) => p.locator('[data-testid="game-board-container"]');
 
+/**
+ * Where every copy of the game screen sits in the DOM: its ancestor chain (with `hidden`, `aria-hidden` and `inert`
+ * marked), whether React owns it, the document's Suspense markers and any out-of-order streaming container
+ * (`<div hidden id="S:n">`) still waiting to be revealed. Printed when a board wait fails, so a duplicate screen in
+ * CI says where the second copy lives (regression: CI run 43211562326, bot-game on webkit-iphone, two
+ * game-board-container elements after the reload, one outside the app shell).
+ */
+export async function describeGameScreens(page: Page): Promise<string> {
+  return page
+    .evaluate(() => {
+      const tag = (n: Element) =>
+        `${n.tagName.toLowerCase()}${n.id ? `#${n.id}` : ""}${n.hasAttribute("hidden") ? "[hidden]" : ""}${
+          n.getAttribute("aria-hidden") === "true" ? "[aria-hidden]" : ""
+        }${n.hasAttribute("inert") ? "[inert]" : ""}${n.getAttribute("data-testid") ? `{${n.getAttribute("data-testid")}}` : ""}`;
+      const out = [`readyState=${document.readyState} url=${location.pathname}`];
+      document.querySelectorAll('[data-testid="game-board-container"]').forEach((el, i) => {
+        const chain: string[] = [];
+        for (let n: Element | null = el; n; n = n.parentElement) chain.push(tag(n));
+        const react = Object.keys(el).some((k) => k.startsWith("__reactFiber"));
+        out.push(`#${i} ply=${el.getAttribute("data-ply")} phase=${el.getAttribute("data-phase")} react=${react} ${chain.join(" < ")}`);
+      });
+      const markers: string[] = [];
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+      for (let c = walker.nextNode(); c; c = walker.nextNode()) {
+        const d = (c as Comment).data;
+        if (/^(\$[?!~]?|\/\$|&|\/&)$/.test(d)) markers.push(d);
+      }
+      out.push(`suspense markers: ${markers.join(" ") || "none"}`);
+      out.push(`unrevealed streaming containers: ${[...document.querySelectorAll('div[hidden][id^="S:"]')].map((d) => d.id).join(", ") || "none"}`);
+      return out.join("\n");
+    })
+    .catch((err: unknown) => `(could not read the DOM: ${String(err)})`);
+}
+
+/** Runs a board wait; on failure, attaches where every game screen copy is before rethrowing. */
+async function explainBoardWait(page: Page, what: string, wait: () => Promise<void>): Promise<void> {
+  try {
+    await wait();
+  } catch (error) {
+    const dom = await describeGameScreens(page);
+    await pwTest.info().attach(`game screens (${what})`, { body: dom, contentType: "text/plain" });
+    console.log(`[game screens] ${what}\n${dom}`);
+    throw error;
+  }
+}
+
+/**
+ * Exactly one game screen: one board container (hidden copies count too) and one visible set of controls (the bar
+ * and the row variants of a control are both rendered, one of them hidden by CSS).
+ */
+export async function expectOneGameScreen(page: Page): Promise<void> {
+  await explainBoardWait(page, "exactly one game screen", async () => {
+    await expect(container(page), "one game-board-container").toHaveCount(1);
+    await expect(page.locator('[data-testid="game-menu-button"]:visible, [data-testid="game-menu-button-bar"]:visible'), "one visible game menu").toHaveCount(1);
+    await expect(page.locator("[data-rc-board-slot]"), "one board slot").toHaveCount(1);
+  });
+}
+
 export async function attr(p: Page, name: string): Promise<string | null> {
   return container(p).getAttribute(name);
 }
@@ -134,10 +192,10 @@ function seatFor(letter: string, context: BrowserContext, page: Page, link: Sock
       return (await attr(page, "data-current-turn")) as Side;
     },
     async waitPhase(expected, timeout = 30_000) {
-      await expect(container(page)).toHaveAttribute("data-phase", expected, { timeout });
+      await explainBoardWait(page, `phase ${expected}`, () => expect(container(page)).toHaveAttribute("data-phase", expected, { timeout }));
     },
     async waitPly(n, timeout = 30_000) {
-      await expect(container(page)).toHaveAttribute("data-ply", String(n), { timeout });
+      await explainBoardWait(page, `ply ${n}`, () => expect(container(page)).toHaveAttribute("data-ply", String(n), { timeout }));
     },
     async move(uci, opts = {}) {
       if (opts.waitTurn !== false) {
