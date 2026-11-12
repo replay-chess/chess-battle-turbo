@@ -41,6 +41,19 @@ const withMDX = createMDX({
 // optimization plan 0.1 row 6 removes. scripts/check-sw-precache.mjs checks the built list (CI, after the build).
 const PRECACHE_KEEP = []; // RegExps over webpack asset names (e.g. "static/chunks/app/layout-<hash>.js"); P11 fills it
 
+// A route whose fetch fails (network lost, connection reset) with nothing cached answers 504, the way a gateway
+// reports an unreachable upstream: the element fails exactly as on a network error (a script's or stylesheet's
+// `error` event, a rejected FontFace.load(), `!res.ok` for the engine's fetch) and the browser logs an ordinary
+// "Failed to load resource". Without this Workbox throws `no-response`, the rejected respondWith reaches the page,
+// and WebKit reports it there as uncaught errors per request ("no-response :: [{url: …woff2}]" and
+// "/localhost:…/x.woff2.", CI run 43246907343). Response.error() is no better on WebKit: it logs "Response served by
+// service worker is an error" and "Cannot load ." as JavaScript errors. The function is copied into sw.js as source,
+// so it uses nothing from this file.
+const NETWORK_ERROR_ON_FAILURE = {
+  handlerDidError: async () =>
+    new Response(null, { status: 504, statusText: "Gateway Timeout", headers: { "x-rc-sw": "network-error" } }),
+};
+
 const withPWA = withPWAInit({
   dest: "public",
   // The service worker never caches signed-in HTML, RSC payloads or /api/*
@@ -94,6 +107,7 @@ const withPWA = withPWAInit({
         handler: "CacheFirst",
         options: {
           cacheName: "rc-engine-v18",
+          plugins: [NETWORK_ERROR_ON_FAILURE],
           expiration: { maxEntries: 10 },
           cacheableResponse: { statuses: [0, 200] },
         },
@@ -107,6 +121,7 @@ const withPWA = withPWAInit({
         handler: "CacheFirst",
         options: {
           cacheName: "next-static",
+          plugins: [NETWORK_ERROR_ON_FAILURE],
           expiration: { maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 },
           cacheableResponse: { statuses: [200] },
         },
@@ -117,6 +132,7 @@ const withPWA = withPWAInit({
         handler: "StaleWhileRevalidate",
         options: {
           cacheName: "next-image",
+          plugins: [NETWORK_ERROR_ON_FAILURE],
           expiration: { maxEntries: 64, maxAgeSeconds: 24 * 60 * 60 },
           cacheableResponse: { statuses: [200] },
         },
@@ -133,6 +149,7 @@ const withPWA = withPWAInit({
         handler: "StaleWhileRevalidate",
         options: {
           cacheName: "static-image-assets",
+          plugins: [NETWORK_ERROR_ON_FAILURE],
           expiration: { maxEntries: 64, maxAgeSeconds: 30 * 24 * 60 * 60 },
           cacheableResponse: { statuses: [200] },
         },
@@ -142,6 +159,7 @@ const withPWA = withPWAInit({
         handler: "CacheFirst",
         options: {
           cacheName: "google-fonts-webfonts",
+          plugins: [NETWORK_ERROR_ON_FAILURE],
           expiration: { maxEntries: 4, maxAgeSeconds: 365 * 24 * 60 * 60 },
           cacheableResponse: { statuses: [0, 200] },
         },

@@ -29,6 +29,7 @@ export function loadRoutes(source) {
       constructor(opts = {}) {
         this.name = name;
         this.cacheName = opts.cacheName ?? null;
+        this.plugins = opts.plugins ?? [];
       }
     };
   const workbox = new Proxy(
@@ -52,6 +53,7 @@ export function loadRoutes(source) {
     importScripts() {},
     clients: { claim() {} },
     URL,
+    Response,
   };
   sandbox.self = sandbox;
   sandbox.define = (_deps, factory) => factory(workbox);
@@ -115,7 +117,27 @@ const STILL_CACHED = [
   { what: "engine wasm (worker fetch)", url: `${ORIGIN}/workers/sf18-1a3515d5bd9d/stockfish-18-lite-single.wasm` },
 ];
 
-function main() {
+/**
+ * A route whose fetch fails with nothing cached must answer like a network error instead of rejecting (a rejected
+ * respondWith is reported as page errors by WebKit: CI run 43246907343). Returns the problems.
+ */
+export async function failureAnswers(routes) {
+  const problems = [];
+  for (const r of routes) {
+    const h = r.handler;
+    if (!h || h.name === "NetworkOnly") continue;
+    const plugin = (h.plugins ?? []).find((p) => typeof p.handlerDidError === "function");
+    if (!plugin) {
+      problems.push(`${h.name}${h.cacheName ? ` "${h.cacheName}"` : ""} has no handlerDidError: a failed fetch rejects`);
+      continue;
+    }
+    const res = await plugin.handlerDidError({ error: new Error("offline"), request: null, event: null });
+    if (!res || res.status !== 504) problems.push(`${h.cacheName ?? h.name}: a failed fetch answers ${res ? res.status : "nothing"}, not 504`);
+  }
+  return problems;
+}
+
+async function main() {
   if (!existsSync(SW)) {
     console.error(`check-sw-routes: ${path.relative(process.cwd(), SW)} not found; run \`pnpm --filter web build\` first.`);
     process.exit(2);
@@ -134,6 +156,9 @@ function main() {
     console.log(`${ok ? "ok  " : "FAIL"} ${req.what}: ${h ? `${h.name}${h.cacheName ? ` (${h.cacheName})` : ""}` : "no route"}`);
     if (!ok) problems.push(`${req.what} is no longer cached`);
   }
+  const failures = await failureAnswers(routes);
+  console.log(`${failures.length ? "FAIL" : "ok  "} a failed fetch answers 504 on every caching route`);
+  problems.push(...failures);
   if (problems.length) {
     console.error(`\ncheck-sw-routes: ${problems.length} problem(s):\n- ${problems.join("\n- ")}`);
     process.exit(1);
@@ -141,4 +166,4 @@ function main() {
   console.log(`\ncheck-sw-routes: ${routes.length} routes, per-user requests never cached.`);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

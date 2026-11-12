@@ -14,6 +14,8 @@
 import type { BrowserContext, Page } from "@playwright/test";
 import { signIn } from "../fixtures";
 import { expect, test } from "../fixtures/console-guard";
+import { startSlowDocumentProxy } from "../fixtures/slow-document";
+import { WEB_PORT } from "../fixtures/socket-server";
 
 const SW = /\/sw\.js(\?|$)/;
 
@@ -254,6 +256,80 @@ test.describe("service worker @p1 @smoke @prod-build", () => {
       .toMatch(/^controller=\/sw\.js:activated /);
     expect(new URL(await controllerScript()).pathname).toBe("/sw.js");
     expect(documentsFromWorker).toEqual([]);
+  });
+
+  // regression: CI run 43246907343 (webkit-iphone, bot-resume-starved-frames): a font fetch the worker could not
+  // complete surfaced as page errors ("no-response: no-response :: [{url: …woff2}]"). Workbox's CacheFirst throws
+  // `no-response` when the network fails and nothing is cached, and the rejected respondWith reached the page as an
+  // uncaught error. Without a worker the same failure is an ordinary network error (the element's `error` event, a
+  // rejected FontFace.load()), so with one it must be too: the routes answer a 504 (next.config.js
+  // NETWORK_ERROR_ON_FAILURE; Response.error() still logs page errors on WebKit).
+  // The connection is dropped by a proxy in front of the app (offline emulation fails a request before the worker
+  // sees it), so the worker's own fetch is what fails.
+  test("a static file the network cannot deliver fails like a network error, never a page error @public", async ({
+    browser,
+  }, testInfo) => {
+    const proxy = await startSlowDocumentProxy({ target: WEB_PORT, match: () => false });
+    const use = testInfo.project.use;
+    const context = await browser.newContext({
+      baseURL: proxy.url,
+      viewport: use.viewport ?? null,
+      userAgent: use.userAgent,
+      isMobile: use.isMobile,
+      hasTouch: use.hasTouch,
+    });
+    try {
+      const page = await context.newPage();
+      const pageErrors: string[] = [];
+      page.on("pageerror", (e) => pageErrors.push(e.message));
+      // The first visit goes through Clerk's development handshake, which returns to the app's own origin (the proxy
+      // presents it as the Host); the second, with the dev-browser cookie set, stays on the proxy.
+      await page.goto("/about", { waitUntil: "domcontentloaded" });
+      await page.goto(`${proxy.url}/about`, { waitUntil: "domcontentloaded" });
+      expect(new URL(page.url()).origin).toBe(proxy.url);
+      // Controlled from the start of a load: wait for the page's own registration to be active, then reload (a first
+      // visit is only controlled once clientsClaim reaches it, which a busy WebKit run did not do within 30 s).
+      await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await activeAndControlling(page);
+      proxy.reset((p) => p.includes("rc-unreachable-"));
+      const outcome = await page.evaluate(async () => {
+        const tag = Date.now().toString(36);
+        const script = await new Promise<string>((resolve) => {
+          const el = document.createElement("script");
+          el.src = `/_next/static/chunks/rc-unreachable-${tag}.js`;
+          el.onload = () => resolve("load");
+          el.onerror = () => resolve("error");
+          document.head.appendChild(el);
+        });
+        const css = await new Promise<string>((resolve) => {
+          const el = document.createElement("link");
+          el.rel = "stylesheet";
+          el.href = `/_next/static/css/rc-unreachable-${tag}.css`;
+          el.onload = () => resolve("load");
+          el.onerror = () => resolve("error");
+          document.head.appendChild(el);
+        });
+        const font = await new FontFace("rc-unreachable", `url(/_next/static/media/rc-unreachable-${tag}.woff2)`)
+          .load()
+          .then(
+            () => "loaded",
+            () => "rejected",
+          );
+        return { script, css, font };
+      });
+      // Each one went to the worker's CacheFirst route, its fetch lost the connection, and the page saw a network error.
+      expect(outcome).toEqual({ script: "error", css: "error", font: "rejected" });
+      expect(proxy.resets().length, "the worker's fetches reached the network and were dropped").toBeGreaterThanOrEqual(3);
+      await page.waitForTimeout(1_000);
+      // Only errors about these requests or the worker's answer count: WebKit also reports unrelated noise (Clerk's
+      // bot-protection probes cut by the reload) as page errors, which the console guard excuses elsewhere.
+      const ours = pageErrors.filter((m) => /rc-unreachable|no-response|service worker|Cannot load \.$/i.test(m));
+      expect(ours, "page errors from failed static fetches").toEqual([]);
+    } finally {
+      await context.close();
+      await proxy.close();
+    }
   });
 
   test.describe("signed in", () => {
