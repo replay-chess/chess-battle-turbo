@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { SW_SCOPE, SW_URL, registerServiceWorker, startServiceWorker, type SwEnv } from "./registerServiceWorker";
+import { SW_SCOPE, SW_URL, dropLeftoverPrecache, registerServiceWorker, startServiceWorker, type SwEnv } from "./registerServiceWorker";
 
 /** A scripted env: `results[i]` is attempt i's outcome (an Error rejects); `leaveAt` marks the page as left. */
 function env(results: (true | Error)[], opts: { leaveAfterAttempt?: number; leaveDuringWait?: number } = {}) {
@@ -178,5 +178,20 @@ describe("startServiceWorker (browser wiring)", () => {
     } finally {
       b.restore();
     }
+  });
+});
+
+describe("dropLeftoverPrecache", () => {
+  // regression: until 2026-11 every install failed during precaching and left workbox-precache-v2-<scope> behind.
+  it("deletes only Workbox precache caches and reports how many", async () => {
+    const names = new Set(["workbox-precache-v2-https://app.example/", "next-static", "rc-engine-v18", "static-image-assets"]);
+    const store = { keys: async () => [...names], delete: async (k: string) => names.delete(k) };
+    assert.equal(await dropLeftoverPrecache(store), 1);
+    assert.deepEqual([...names].sort(), ["next-static", "rc-engine-v18", "static-image-assets"]);
+  });
+  it("never throws: no Cache Storage, or a failing one", async () => {
+    assert.equal(await dropLeftoverPrecache(undefined), 0);
+    const broken = { keys: async () => Promise.reject(new Error("SecurityError")), delete: async () => false };
+    assert.equal(await dropLeftoverPrecache(broken), 0);
   });
 });

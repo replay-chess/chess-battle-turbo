@@ -127,6 +127,9 @@ jobs:
       - name: Service worker never caches documents, fetches, /api or RSC (plan 9.3, H8)
         run: node apps/web/scripts/check-sw-routes.mjs
 
+      - name: Service worker precache holds only built files, no source maps, within budget (install must succeed)
+        run: node apps/web/scripts/check-sw-precache.mjs
+
       - name: Bundle budget (blocking; +25 kB shared, no zod or Query devtools in client chunks)
         run: node apps/web/scripts/check-bundle-budgets.mjs --json bundle-report.json
 

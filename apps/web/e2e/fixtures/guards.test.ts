@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CLERK_CHUNK_ABORT, CLERK_PROTECT_PROBE, classifyConsole, classifyResponse } from "./console-guard";
+import { CLERK_CHUNK_ABORT, CLERK_PROTECT_PROBE, CLERK_TIMER_BLOB, classifyConsole, classifyResponse } from "./console-guard";
 import { auditEvents, matchesProps } from "./telemetry";
 
 describe("console guard rules", () => {
@@ -67,6 +67,13 @@ describe("console guard rules", () => {
     assert.equal(classifyResponse("http://x/_next/static/a.js", 500, {}, "script"), null);
     assert.equal(classifyResponse("http://x/play", 500, {}, "document")?.kind, "api5xx");
   });
+
+  it("ignores another origin's 5xx when the page URL is known (a third-party badge under /api/)", () => {
+    const badge = "https://domainrank.app/api/badge/playchess.tech?theme=dark";
+    assert.equal(classifyResponse(badge, 500, {}, "image", "http://localhost:3000/"), null);
+    assert.equal(classifyResponse("http://localhost:3000/api/me", 500, {}, "fetch", "http://localhost:3000/play")?.kind, "api5xx");
+    assert.equal(classifyResponse(badge, 500, {}, "image")?.kind, "api5xx"); // no page URL: counted, as before
+  });
 });
 
 describe("console guard: Clerk bot-protection probes (regression: REGRESSION-2)", () => {
@@ -85,6 +92,30 @@ describe("console guard: Clerk bot-protection probes (regression: REGRESSION-2)"
     assert.equal(CLERK_PROTECT_PROBE.test("/localhost:3000/api/me due to access control checks."), false);
     assert.equal(CLERK_PROTECT_PROBE.test("/x.client.protect.clerk.com.evil.example/ins_1/probe due to access control checks."), false);
     assert.equal(CLERK_PROTECT_PROBE.test(`/${host}/ins_1/other due to access control checks.`), false);
+  });
+});
+
+describe("console guard: Clerk's timer worker refused on a page being left (WebKit)", () => {
+  it("excuses the blob: worker load, as WebKit and Playwright word it", () => {
+    for (const t of [
+      "ttp://localhost:3500/7974ae8f-8981-4e7c-bee2-1fd49ff42815 due to access control checks.",
+      "Cannot load blob:http://localhost:3000/419111bd-6eea-4cc0-8ce5-064acdb97036 due to access control checks.",
+      "/127.0.0.1:3700/59a80f38-9aa3-49f2-8846-703c36cb56f3 due to access control checks.",
+    ]) {
+      assert.ok(CLERK_TIMER_BLOB.test(t), t);
+      assert.equal(classifyConsole("error", t, []), null);
+    }
+  });
+  it("still reports refused loads of real URLs and other origins", () => {
+    for (const t of [
+      "/localhost:3000/sw.js due to access control checks.",
+      "/localhost:3000/api/me due to access control checks.",
+      "/localhost:3000/game/7974ae8f-8981-4e7c-bee2-1fd49ff42815 due to access control checks.",
+      "ttp://evil.example/7974ae8f-8981-4e7c-bee2-1fd49ff42815 due to access control checks.",
+    ]) {
+      assert.equal(CLERK_TIMER_BLOB.test(t), false, t);
+      assert.ok(classifyConsole("error", t, []), t);
+    }
   });
 });
 

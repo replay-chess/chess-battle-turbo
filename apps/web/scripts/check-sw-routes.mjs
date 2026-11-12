@@ -4,8 +4,9 @@
 //
 // Loads the built public/sw.js in a sandbox with a fake Workbox, records every registerRoute() in order,
 // and asks Workbox's first-match rule which handler each request below would get. Fails when a request
-// that can carry per-user content (a document, a fetch/XHR, /api/*, RSC, Clerk's /v1/client JSON) would
-// reach any caching strategy, or when a static asset is no longer cached (a sign the rules broke).
+// that can carry per-user content (a document, a fetch/XHR, /api/*, RSC, Clerk's /v1/client JSON, a share
+// page or its generated image) matches any route at all (the worker must leave it to the browser, so it is
+// neither stored nor answered by the worker), or when a static asset is no longer cached (a sign the rules broke).
 //
 //   node apps/web/scripts/check-sw-routes.mjs [--sw <path>]        (default apps/web/public/sw.js)
 //
@@ -95,11 +96,23 @@ const NEVER_CACHED = [
   { what: "same-origin fetch of a page", url: `${ORIGIN}/play` },
   { what: "Clerk /v1/client JSON", url: "https://clerk.example.com/v1/client?__clerk_api_version=1" },
   { what: "cross-origin fetch", url: "https://api.example.org/data.json" },
+  { what: "share page document", url: `${ORIGIN}/r/abc123`, mode: "navigate", destination: "document" },
+  { what: "PGN download", url: `${ORIGIN}/api/games/abc/pgn`, mode: "navigate", destination: "document" },
+  { what: "pricing (paywall) document", url: `${ORIGIN}/pricing?reason=required`, mode: "navigate", destination: "document" },
+  { what: "generated OG image", url: `${ORIGIN}/og/share/abc.png`, destination: "image" },
+  { what: "image from /api", url: `${ORIGIN}/api/avatar/abc.png`, destination: "image" },
+  { what: "same-origin JSON fetch", url: `${ORIGIN}/manifest.json` },
+  { what: "socket.io polling", url: "https://ws.example.com/socket.io/?EIO=4&transport=polling" },
+  { what: "iframe document", url: `${ORIGIN}/embed`, mode: "navigate", destination: "iframe" },
 ];
 const STILL_CACHED = [
   { what: "same-origin image", url: `${ORIGIN}/board_icons/brilliant.png`, destination: "image" },
   { what: "Next static chunk", url: `${ORIGIN}/_next/static/chunks/main.js`, destination: "script" },
   { what: "Google font", url: "https://fonts.gstatic.com/s/x.woff2", destination: "font" },
+  { what: "Next stylesheet", url: `${ORIGIN}/_next/static/css/a1b2.css`, destination: "style" },
+  { what: "Next font", url: `${ORIGIN}/_next/static/media/a1b2-s.p.woff2`, destination: "font" },
+  { what: "next/image", url: `${ORIGIN}/_next/image?url=%2Fimages%2Fa.png&w=64&q=75`, destination: "image" },
+  { what: "engine wasm (worker fetch)", url: `${ORIGIN}/workers/sf18-1a3515d5bd9d/stockfish-18-lite-single.wasm` },
 ];
 
 function main() {
@@ -111,9 +124,9 @@ function main() {
   const problems = [];
   for (const req of NEVER_CACHED) {
     const h = handlerFor(routes, req);
-    const ok = h === null || h.name === "NetworkOnly";
+    const ok = h === null;
     console.log(`${ok ? "ok  " : "FAIL"} ${req.what}: ${h ? `${h.name}${h.cacheName ? ` (${h.cacheName})` : ""}` : "no route"}`);
-    if (!ok) problems.push(`${req.what} → ${h.name} "${h.cacheName}"`);
+    if (!ok) problems.push(`${req.what} → ${h.name}${h.cacheName ? ` "${h.cacheName}"` : ""} (must match no route)`);
   }
   for (const req of STILL_CACHED) {
     const h = handlerFor(routes, req);

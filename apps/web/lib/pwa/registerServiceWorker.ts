@@ -54,6 +54,26 @@ export async function registerServiceWorker(env: SwEnv, delays: readonly number[
 }
 
 /**
+ * Workbox's precache cache (`workbox-precache-v2-<scope>`). Until 2026-11 every install failed half-way through the
+ * precache (deleted source maps in the list, next.config.js), and each failed install left this cache behind with the
+ * chunks it had fetched; the worker precaches nothing now (next.config.js PRECACHE_KEEP), so any such cache is a
+ * leftover. When P11 fills PRECACHE_KEEP, this cleanup must go (it would delete the real precache).
+ */
+export const LEFTOVER_PRECACHE = /^workbox-precache-/;
+
+/** Deletes leftover precache caches; returns how many. Never throws (no Cache Storage in private mode, …). */
+export async function dropLeftoverPrecache(store: Pick<CacheStorage, "keys" | "delete"> | undefined): Promise<number> {
+  try {
+    if (!store) return 0;
+    const stale = (await store.keys()).filter((k) => LEFTOVER_PRECACHE.test(k));
+    await Promise.all(stale.map((k) => store.delete(k)));
+    return stale.length;
+  } catch {
+    return 0;
+  }
+}
+
+/**
  * The browser wiring: after `load` (as Workbox did), never in development (no sw.js is built there). A page that was
  * left mid-registration and comes back from the back/forward cache (`pageshow` with `persisted`) registers again. The
  * returned cleanup stops it, retry timers included.
@@ -89,6 +109,7 @@ export function startServiceWorker(report: (error: unknown) => void, delays: rea
     ).then((outcome) => {
       running = false;
       if (outcome !== "left") settled = true;
+      if (outcome === "registered") void dropLeftoverPrecache(typeof caches === "undefined" ? undefined : caches);
     });
   };
   // `beforeunload` comes at the start of a navigation, `pagehide` once the next document commits.

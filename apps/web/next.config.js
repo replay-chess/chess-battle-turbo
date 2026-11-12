@@ -30,6 +30,17 @@ const withMDX = createMDX({
   },
 });
 
+// The service worker (phase-01 plan 9.3 H8; optimization plan 4.8; P11 D11 owns the offline shell).
+//
+// Precache: nothing until P11. A custom `workboxOptions.exclude` REPLACES next-pwa's default excludes (source maps,
+// non-preload woff2, manifest*.js); with only [/\.wasm$/] here, 148 `.js.map` entries went into the precache, Sentry
+// deletes the maps after its upload, they 404, and every install failed ("bad-precaching-response"): the worker never
+// activated and every page load registered it again. The defaults are back, and the keep-list below admits nothing:
+// the plan precaches only the offline shell (P11: `/offline`, its chunks, fonts, pieces; budget 600 KB), which does
+// not exist yet. Precaching every chunk and public/ file (≈ 10 MB, ≈ 400 requests per visitor and per deploy) is what
+// optimization plan 0.1 row 6 removes. scripts/check-sw-precache.mjs checks the built list (CI, after the build).
+const PRECACHE_KEEP = []; // RegExps over webpack asset names (e.g. "static/chunks/app/layout-<hash>.js"); P11 fills it
+
 const withPWA = withPWAInit({
   dest: "public",
   // The service worker never caches signed-in HTML, RSC payloads or /api/*
@@ -43,52 +54,42 @@ const withPWA = withPWAInit({
   // plugin's `window.workbox.register()` left its promise unhandled, so a navigation that cancelled the sw.js load
   // (WebKit: "SecurityError: Script …/sw.js load failed") surfaced as an uncaught page error.
   register: false,
-  // Every public/ file is precached unless excluded here, so each install
-  // downloaded ~90 MB of media most visitors never open. These still load
-  // normally when a page uses them.
-  publicExcludes: [
-    "!noprecache/**/*",
-    "!**/*.{gif,mp4,webm,map}",
-    "!sounds/**/*",
-    "!workers/**/*.wasm",
-    "!rohit-pandit.jpeg",
-    "!chess_logo_share.png",
-    "!mobile_icon_perfect.png",
-  ],
+  // No public/ file is precached (see PRECACHE_KEEP above); they load, and runtime-cache, when a page uses them.
+  publicExcludes: ["!**/*"],
   // The plugin's "start-url" route is a NetworkFirst cache of `/` registered
   // ahead of everything else (dynamicStartUrl prepends it; cacheStartUrl would
   // precache it); `/` renders per-user chrome, so both are off.
   cacheStartUrl: false,
   dynamicStartUrl: false,
-  // Our NetworkOnly routes go first, then the plugin's static-asset defaults.
-  // Workbox uses the first matching route, so documents (any navigation),
-  // fetch/XHR calls (same- or cross-origin, e.g. Clerk's /v1/client JSON),
-  // /api/* and RSC requests never reach the default "apis", "pages",
-  // "pages-rsc*" or "cross-origin" NetworkFirst caches, which store 200s
-  // whatever their Cache-Control (phase-01 plan 9.3: the SW never stores
-  // authenticated JSON or HTML). Images, fonts, scripts, styles and media
-  // keep the defaults. test/pwa/sw-routes.test.ts checks the built sw.js.
-  extendDefaultRuntimeCaching: true,
+  // Only the routes below; none of the plugin's defaults. Their catch-alls ("apis", "pages", "pages-rsc*",
+  // "cross-origin") are NetworkFirst caches that store 200s whatever the Cache-Control. Every rule here matches a
+  // static asset by its request destination and path, so a document (any navigation), a fetch/XHR (destination "",
+  // RSC and /api/* included), a socket.io poll and anything else unlisted gets no route at all: the worker does not
+  // answer it and the browser loads it exactly as without a service worker (phase-01 plan 9.3: the SW never stores
+  // authenticated JSON or HTML). Each urlPattern is copied into sw.js as source, so it may use nothing from this
+  // file. scripts/check-sw-routes.mjs checks the built sw.js (CI, after the build).
+  extendDefaultRuntimeCaching: false,
   workboxOptions: {
     disableDevLogs: true,
-    exclude: [/\.wasm$/],
+    // A new deploy's worker takes over at once (next-pwa's defaults, stated): it holds no documents and no
+    // precache, so nothing an open page relies on changes under it; the page moves to the new build on its next
+    // document load, which always comes from the network.
+    skipWaiting: true,
+    clientsClaim: true,
+    exclude: [
+      // next-pwa's defaults (a custom list replaces them): source maps (deleted after the Sentry upload), fonts
+      // the page does not preload, build manifests.
+      /\/_next\/static\/.*(?<!\.p)\.woff2/,
+      /\.map$/,
+      /^manifest.*\.js$/,
+      // The 7 MB engine: runtime-cached by its hashed folder (rc-engine-v18) when a bot game needs it.
+      /\.wasm$/,
+      ({ asset }) => !PRECACHE_KEEP.some((re) => re.test(asset.name)),
+    ],
     runtimeCaching: [
       {
-        urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
-        handler: "NetworkOnly",
-      },
-      {
-        urlPattern: ({ request, url }) =>
-          request.headers.get("RSC") === "1" || url.searchParams.has("_rsc"),
-        handler: "NetworkOnly",
-      },
-      {
-        urlPattern: ({ request }) => request.mode === "navigate" || request.destination === "document",
-        handler: "NetworkOnly",
-      },
-      {
         // The engine (P2 plan 9.3): the hashed same-origin folder and R2's /engine/sf18-<hash>/ are immutable, so
-        // cache-first. Must sit before the destination "" rule (the worker fetches the wasm with destination "").
+        // cache-first. The worker fetches the wasm with destination "", so this rule is not limited by destination.
         urlPattern: ({ url }) => /\/sf18-[0-9a-f]{12}\//.test(url.pathname),
         handler: "CacheFirst",
         options: {
@@ -98,8 +99,52 @@ const withPWA = withPWAInit({
         },
       },
       {
-        urlPattern: ({ request }) => request.destination === "",
-        handler: "NetworkOnly",
+        // Next's hashed build output (optimization plan 4.8: runtime only, max 200 entries).
+        urlPattern: ({ request, url, sameOrigin }) =>
+          sameOrigin &&
+          url.pathname.startsWith("/_next/static/") &&
+          ["script", "style", "font", "worker"].includes(request.destination),
+        handler: "CacheFirst",
+        options: {
+          cacheName: "next-static",
+          expiration: { maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 },
+          cacheableResponse: { statuses: [200] },
+        },
+      },
+      {
+        urlPattern: ({ request, url, sameOrigin }) =>
+          sameOrigin && request.destination === "image" && url.pathname === "/_next/image",
+        handler: "StaleWhileRevalidate",
+        options: {
+          cacheName: "next-image",
+          expiration: { maxEntries: 64, maxAgeSeconds: 24 * 60 * 60 },
+          cacheableResponse: { statuses: [200] },
+        },
+      },
+      {
+        // Image files from public/ (and their R2 redirects). Not /api/* or /og/*: generated images can be private
+        // or revoked (share pages).
+        urlPattern: ({ request, url, sameOrigin }) =>
+          sameOrigin &&
+          request.destination === "image" &&
+          /\.(?:png|jpe?g|gif|svg|webp|avif|ico)$/i.test(url.pathname) &&
+          !url.pathname.startsWith("/api/") &&
+          !url.pathname.startsWith("/og/"),
+        handler: "StaleWhileRevalidate",
+        options: {
+          cacheName: "static-image-assets",
+          expiration: { maxEntries: 64, maxAgeSeconds: 30 * 24 * 60 * 60 },
+          cacheableResponse: { statuses: [200] },
+        },
+      },
+      {
+        urlPattern: ({ request, url }) => request.destination === "font" && url.hostname === "fonts.gstatic.com",
+        handler: "CacheFirst",
+        options: {
+          cacheName: "google-fonts-webfonts",
+          expiration: { maxEntries: 4, maxAgeSeconds: 365 * 24 * 60 * 60 },
+          cacheableResponse: { statuses: [0, 200] },
+        },
       },
     ],
   },

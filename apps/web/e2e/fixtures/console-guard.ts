@@ -71,6 +71,20 @@ export const CLERK_CHUNK_ABORT =
 export const CLERK_PROTECT_PROBE =
   /(?:^|\/)[a-z0-9-]+\.client\.protect\.clerk\.com(?::\d+)?\/ins_\w+\/(?:c\/[\w-]+\/)?probe due to access control checks\.?$/;
 
+/**
+ * Clerk runs its session timers in a Web Worker made from a `blob:` URL (`createWorkerTimers()` in @clerk/shared,
+ * worker name "clerk-timers"; clerk-js creates it on load and again, lazily, from setTimeout/clearTimeout after a
+ * cleanup). When that happens on a document that is being left (between `beforeunload` and the next commit), WebKit
+ * refuses the worker's load and logs "Cannot load blob:http://<app>/<uuid> due to access control checks." as a
+ * JavaScript error, which Playwright reports as a page error ("…/<uuid> due to access control checks."). The app
+ * itself creates no blob: worker (the engine is a same-origin file, Sentry Replay is off without a DSN); the timers
+ * of a page being left are moot. Only a bare UUID path on the page's own origin is excused: a refused load of any
+ * real URL (`/sw.js`, `/api/…`) still fails the test.
+ * regression: local WebKit run on /play ("ttp://localhost:3500/7974ae8f-… due to access control checks.", 2026-11-12).
+ */
+export const CLERK_TIMER_BLOB =
+  /(?:^|\/)(?:localhost|127\.0\.0\.1)(?::\d+)?\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} due to access control checks\.?$/;
+
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const BASELINE_FILE = path.join(WEB_DIR, "e2e/console-baseline.json");
 
@@ -95,23 +109,30 @@ export type ConsoleProblem = { kind: "pageerror" | "console" | "hydration" | "ap
 export function classifyConsole(type: string, text: string, allow: RegExp[]): ConsoleProblem | null {
   if (allow.some((r) => r.test(text)) || RESOURCE_STATUS.test(text)) return null;
   if (WEBKIT_NETWORK_NOISE.some((r) => r.test(text))) return null;
-  if (CLERK_CHUNK_ABORT.test(text) || CLERK_PROTECT_PROBE.test(text)) return null;
+  if (CLERK_CHUNK_ABORT.test(text) || CLERK_PROTECT_PROBE.test(text) || CLERK_TIMER_BLOB.test(text)) return null;
   if (HYDRATION.test(text)) return { kind: "hydration", text };
   if (type === "error") return { kind: "console", text };
   return null;
 }
 
-/** Pure decision for one response: an /api/* or page response >= 500 not injected with x-rc-fault. */
+/**
+ * Pure decision for one response: an /api/* or page response >= 500 not injected with x-rc-fault. Only the app's own
+ * responses count: with `pageUrl` (the frame's URL) given, another origin's 5xx (a third-party badge whose path
+ * happens to start with /api/, e.g. domainrank.app/api/badge/… in the marketing footer) is not ours to fail on.
+ */
 export function classifyResponse(
   url: string,
   status: number,
   requestHeaders: Record<string, string>,
   resourceType = "fetch",
+  pageUrl?: string,
 ): ConsoleProblem | null {
   if (status < 500) return null;
   let pathname: string;
   try {
-    pathname = new URL(url).pathname;
+    const u = new URL(url);
+    pathname = u.pathname;
+    if (pageUrl && /^https?:/.test(pageUrl) && new URL(pageUrl).origin !== u.origin) return null;
   } catch {
     return null;
   }
@@ -130,7 +151,12 @@ export function guardContext(context: BrowserContext, allow: RegExp[] = []): Con
   problemsByContext.set(context, problems);
   context.on("weberror", (err) => {
     const text = err.error().message;
-    if (!allow.some((r) => r.test(text)) && !CLERK_CHUNK_ABORT.test(text) && !CLERK_PROTECT_PROBE.test(text))
+    if (
+      !allow.some((r) => r.test(text)) &&
+      !CLERK_CHUNK_ABORT.test(text) &&
+      !CLERK_PROTECT_PROBE.test(text) &&
+      !CLERK_TIMER_BLOB.test(text)
+    )
       problems.push({ kind: "pageerror", text, url: err.page()?.url() });
   });
   context.on("console", (msg) => {
@@ -138,7 +164,13 @@ export function guardContext(context: BrowserContext, allow: RegExp[] = []): Con
     if (problem) problems.push({ ...problem, url: msg.page()?.url() });
   });
   context.on("response", (res) => {
-    const problem = classifyResponse(res.url(), res.status(), res.request().headers(), res.request().resourceType());
+    let pageUrl: string | undefined;
+    try {
+      pageUrl = res.frame().url();
+    } catch {
+      pageUrl = undefined; // a service worker's own request has no frame
+    }
+    const problem = classifyResponse(res.url(), res.status(), res.request().headers(), res.request().resourceType(), pageUrl);
     if (problem) problems.push(problem);
   });
   return problems;
