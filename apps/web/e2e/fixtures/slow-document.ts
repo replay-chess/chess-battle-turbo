@@ -13,8 +13,9 @@
 // is the slow-server case (a busy CI runner, a cold database) on demand, without any hook in the app.
 //
 // Everything else (assets, /api, RSC requests, other documents) passes through untouched, except that the proxy
-// stands in for the app's origin: Host and Origin are rewritten to the app's, and a redirect back to the app's origin
-// is rewritten to the proxy's (the middleware's same-site check and Clerk's redirects hold). Cookies ignore the port,
+// stands in for the app's origin: an /api/* request's Origin and Referer are rewritten to the app's (the middleware's
+// same-site check), a redirect back to the app's origin is rewritten to the proxy's, and Host stays the proxy's
+// (Clerk's development handshake returns to it; with the app's Host it returned to the app's port and left the proxy). Cookies ignore the port,
 // so a context signed in on the proxy origin is signed in on the app too. localStorage does not: a spec that uses the
 // proxy runs the whole flow on the proxy origin (seat `contextOptions.baseURL`).
 import http from "node:http";
@@ -31,6 +32,8 @@ export type SlowDocumentProxy = {
   reset(match: ((pathname: string) => boolean) | null): void;
   /** Pathnames whose connection was dropped. */
   resets(): readonly string[];
+  /** Delays the answer to every request whose pathname matches by `ms` (null: none). */
+  delay(match: ((pathname: string) => boolean) | null, ms?: number): void;
   close(): Promise<void>;
 };
 
@@ -45,6 +48,8 @@ export async function startSlowDocumentProxy(opts: {
   const log: { path: string; chunks: number; bytes: number }[] = [];
 
   let resetMatch: ((pathname: string) => boolean) | null = null;
+  let delayMatch: ((pathname: string) => boolean) | null = null;
+  let delayMs = 0;
   const resetLog: string[] = [];
   const SEGMENT = Buffer.from('<div hidden id="S:');
 
@@ -60,11 +65,21 @@ export async function startSlowDocumentProxy(opts: {
       /text\/html/.test(req.headers.accept ?? "") &&
       !req.headers.rsc &&
       !req.headers["next-router-state-tree"];
+    if (delayMatch?.(url.pathname) && delayMs > 0 && !(req as { __delayed?: boolean }).__delayed) {
+      (req as { __delayed?: boolean }).__delayed = true;
+      setTimeout(() => server.emit("request", req, res), delayMs);
+      return;
+    }
     const holding = isDocument && holdMs > 0 && opts.match(url.pathname) ? holdMs : 0;
     const appOrigin = `http://localhost:${opts.target}`;
-    const headers: http.OutgoingHttpHeaders = { ...req.headers, host: `localhost:${opts.target}` };
-    if (headers.origin === self) headers.origin = appOrigin;
-    if (typeof headers.referer === "string" && headers.referer.startsWith(`${self}/`)) headers.referer = appOrigin + headers.referer.slice(self.length);
+    // Host stays the proxy's (Clerk's development handshake returns to the Host it saw, so it comes back here, and a
+    // server action's Origin must match it). Only /api/* requests name the app's origin in Origin and Referer: the
+    // middleware's same-site check for API mutations compares Origin with the app's own origin.
+    const headers: http.OutgoingHttpHeaders = { ...req.headers };
+    if (url.pathname.startsWith("/api/")) {
+      if (headers.origin === self) headers.origin = appOrigin;
+      if (typeof headers.referer === "string" && headers.referer.startsWith(`${self}/`)) headers.referer = appOrigin + headers.referer.slice(self.length);
+    }
     // Uncompressed upstream, so one upstream chunk is one server flush.
     if (holding) headers["accept-encoding"] = "identity";
     const up = http.request(
@@ -140,6 +155,10 @@ export async function startSlowDocumentProxy(opts: {
       resetMatch = match;
     },
     resets: () => resetLog,
+    delay(match, ms = 0) {
+      delayMatch = match;
+      delayMs = ms;
+    },
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections();

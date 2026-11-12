@@ -56,12 +56,31 @@ test.describe("data layer: request budget @p1 @smoke", () => {
   }) => {
     test.setTimeout(240_000);
     let me = 0;
+    // Each /api/me read made by the /help document (its Referer) and how it ended: the budget is one answered read.
+    // regression: CI run 43264092263 (webkit-iphone) and a local x6 run counted 2 answered reads: the sign-in fixture
+    // lands on "/", whose UserSync read can still be on its way when the test navigates, and the counter took it for
+    // /help's. A read that failed (a network error or a 5xx under a busy runner) is retried by design
+    // (lib/api/errors.ts retryQuery); that retry is not a redundant read.
+    const helpReads: string[] = [];
+    const fromHelp = (r: Request) => isApi("/api/me")(r) && new URL(r.headers()["referer"] ?? "http://x/").pathname === "/help";
+    const allFrom: string[] = []; // the documents every /api/me request came from, for the message
     page.on("request", (r) => {
-      if (isApi("/api/me")(r)) me++;
+      if (!isApi("/api/me")(r)) return;
+      me++;
+      allFrom.push(new URL(r.headers()["referer"] ?? "http://x/?").pathname);
+    });
+    page.on("requestfinished", (r) => {
+      if (fromHelp(r)) void r.response().then((res) => helpReads.push(String(res?.status() ?? "no response")));
+    });
+    page.on("requestfailed", (r) => {
+      if (fromHelp(r)) helpReads.push(`failed ${r.failure()?.errorText ?? ""}`);
     });
     await page.goto("/help", { waitUntil: "load" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    expect(me, "/api/me requests on a hard load of /help (outside (app))").toBe(1);
+    const answered = helpReads.filter((o) => /^2\d\d$/.test(o));
+    const failedFirst = helpReads.slice(0, -1).every((o) => !/^[23]\d\d$/.test(o));
+    expect(answered.length, `/api/me reads on a hard load of /help (outside (app)): ${helpReads.join(", ")}; all from ${allFrom.join(", ")}`).toBe(1);
+    expect(failedFirst, `only a failed read is read again: ${helpReads.join(", ")}`).toBe(true);
 
     await page.goto("/play");
     await page.locator('[data-testid="start-game-button"]').click();
