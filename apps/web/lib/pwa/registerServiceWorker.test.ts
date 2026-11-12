@@ -195,3 +195,37 @@ describe("dropLeftoverPrecache", () => {
     assert.equal(await dropLeftoverPrecache(broken), 0);
   });
 });
+
+describe("startServiceWorker waits for load, but not for ever", () => {
+  // regression: a slow third-party badge image held `load` (and so the registration) for as long as its host took;
+  // e2e pwa-service-worker.spec saw a first visit stay uncontrolled for 30 s on both browsers.
+  it("registers on load, or after the fallback when load never comes, once", async () => {
+    const win = new EventTarget();
+    const calls: string[] = [];
+    const g = globalThis as unknown as Record<string, unknown>;
+    const saved = { window: g.window, document: g.document, navigator: g.navigator, env: process.env.NODE_ENV };
+    g.window = win;
+    g.document = { readyState: "interactive" };
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: { serviceWorker: { register: (url: string) => (calls.push(url), Promise.resolve({})) } },
+    });
+    (process.env as Record<string, string>).NODE_ENV = "production";
+    try {
+      const stop = startServiceWorker(() => undefined, [10], 30);
+      await new Promise((r) => setTimeout(r, 10));
+      assert.equal(calls.length, 0, "not before load or the fallback");
+      await new Promise((r) => setTimeout(r, 40));
+      assert.deepEqual(calls, ["/sw.js"], "the fallback registered while load was still pending");
+      win.dispatchEvent(new Event("load"));
+      await new Promise((r) => setTimeout(r, 10));
+      assert.equal(calls.length, 1, "a late load does not register again");
+      stop();
+    } finally {
+      g.window = saved.window;
+      g.document = saved.document;
+      Object.defineProperty(globalThis, "navigator", { configurable: true, value: saved.navigator });
+      (process.env as Record<string, string | undefined>).NODE_ENV = saved.env;
+    }
+  });
+});

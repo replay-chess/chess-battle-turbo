@@ -27,25 +27,28 @@ async function activeAndControlling(
     page
       .evaluate(async () => {
         const reg = await navigator.serviceWorker.getRegistration("/");
+        const w = (x?: ServiceWorker | null) => (x ? `${new URL(x.scriptURL).pathname}${new URL(x.scriptURL).search}:${x.state}` : "none");
         return {
           state: reg?.active?.state ?? "none",
           scope: reg?.scope ?? "",
           controlled: Boolean(navigator.serviceWorker.controller),
+          detail: `controller=${w(navigator.serviceWorker.controller)} active=${w(reg?.active)} waiting=${w(reg?.waiting)} installing=${w(reg?.installing)} ready=${document.readyState}`,
         };
       })
-      .catch(() => ({ state: "navigating", scope: "", controlled: false }));
+      .catch(() => ({ state: "navigating", scope: "", controlled: false, detail: "navigating" }));
+  // Polled as one line, so a failure shows where the registration stopped.
   await expect
     .poll(
       async () => {
         const r = await read();
-        return r.state === "activated" && r.controlled;
+        return r.state === "activated" && r.controlled ? "controlled" : r.detail;
       },
       {
         message: "an activated service worker controls the page",
         timeout: 30_000,
       },
     )
-    .toBe(true);
+    .toBe("controlled");
   const { state, scope } = await read();
   return { state, scope };
 }
@@ -144,6 +147,22 @@ test.describe("service worker @p1 @smoke @prod-build", () => {
     expectStaticOnly(await cachedUrls(page), "signed out");
   });
 
+  // regression: the page registers its worker at `load`, and `load` waits for every image, including the marketing
+  // footer's third-party badges; a slow badge host kept the worker out (a first visit uncontrolled past 30 s, both
+  // browsers). Now the registration starts at load or 4 s after the page starts it, whichever comes first.
+  test("a third-party image that never finishes does not hold the worker back @public", async ({ context, page }) => {
+    await context.route(
+      (u) => !/^(localhost|127\.0\.0\.1)$/.test(u.hostname),
+      async (route) => {
+        if (route.request().resourceType() === "image") await new Promise((r) => setTimeout(r, 60_000));
+        await route.continue().catch(() => undefined);
+      },
+    );
+    await page.goto("/about", { waitUntil: "domcontentloaded" });
+    expect(await page.evaluate(() => document.readyState), "load is still held by the image").not.toBe("complete");
+    await activeAndControlling(page);
+  });
+
   test("a deploy's new worker replaces the old one; the open page is not reloaded and moves on its next load @public", async ({
     context,
     page,
@@ -231,6 +250,12 @@ test.describe("service worker @p1 @smoke @prod-build", () => {
 
     // The next load: its document comes from the network (the worker never answers documents), and the build that
     // document belongs to registers its own sw.js, which takes over again.
+    // Requests of the reloaded page still in flight, for the failure message below.
+    const inFlight = new Set<string>();
+    const done = (r: { url(): string }) => inFlight.delete(r.url());
+    page.on("request", (r) => inFlight.add(r.url()));
+    page.on("requestfinished", done);
+    page.on("requestfailed", done);
     const doc = await page.reload({ waitUntil: "load" });
     expect(
       doc?.fromServiceWorker(),
@@ -244,13 +269,21 @@ test.describe("service worker @p1 @smoke @prod-build", () => {
     // The reloaded page's own registration (lib/pwa/registerServiceWorker.ts, after `load`) asks for /sw.js again; a
     // different script URL than the registration's makes the browser install it, and skipWaiting + clientsClaim hand
     // it the page. Polled as one line, so a failure shows which step did not happen.
+    //
+    // skipWaiting does not activate the new worker while the old one is still serving: Chromium waits until the
+    // active worker has no fetch event in flight (a StaleWhileRevalidate route keeps its event open until the
+    // revalidation ends), up to its 5-minute lame-duck limit. CI run 43264092263 failed with exactly that:
+    // "controller=/sw.js?deploy=next:activated … waiting=/sw.js:installed", the page's own /sw.js registered and
+    // installed, held waiting. So the take-over is measured from the moment the page's requests have settled; a
+    // request that never settles fails with its URL in the message.
+    await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => undefined);
     const swState = () =>
       page.evaluate(async () => {
         const reg = await navigator.serviceWorker.getRegistration("/");
         const w = (x?: ServiceWorker | null) => (x ? `${new URL(x.scriptURL).pathname}${new URL(x.scriptURL).search}:${x.state}` : "none");
         const calls = (window as unknown as { __rcSwCalls?: string[] }).__rcSwCalls ?? [];
         return `controller=${w(navigator.serviceWorker.controller)} active=${w(reg?.active)} waiting=${w(reg?.waiting)} installing=${w(reg?.installing)} register=[${calls.join("; ")}]`;
-      });
+      }).then((line) => (/^controller=\/sw\.js:activated /.test(line) ? line : `${line} in-flight=[${[...inFlight].join(", ")}]`));
     await expect
       .poll(swState, { timeout: 30_000, message: "the reloaded page's own /sw.js controls it" })
       .toMatch(/^controller=\/sw\.js:activated /);

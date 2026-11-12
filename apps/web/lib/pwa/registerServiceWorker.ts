@@ -20,6 +20,14 @@
 
 export const SW_URL = "/sw.js";
 export const SW_SCOPE = "/";
+/**
+ * The registration starts at `load` (as Workbox does, so the worker's install does not compete with the page), but
+ * never later than this after the page starts it: `load` also waits for every image, including ~50 third-party
+ * directory badges in the marketing footer, and one slow badge host held it, and with it the worker, for as long as
+ * the host took (a held badge kept a page uncontrolled past 30 s, e2e pwa-service-worker.spec, both browsers).
+ */
+export const SW_LOAD_FALLBACK_MS = 4_000;
+
 /** Waits before each retry; the registration is tried `SW_RETRY_DELAYS_MS.length + 1` times in all. */
 export const SW_RETRY_DELAYS_MS: readonly number[] = [2_000, 10_000];
 
@@ -74,11 +82,15 @@ export async function dropLeftoverPrecache(store: Pick<CacheStorage, "keys" | "d
 }
 
 /**
- * The browser wiring: after `load` (as Workbox did), never in development (no sw.js is built there). A page that was
+ * The browser wiring: after `load` (as Workbox did) or SW_LOAD_FALLBACK_MS, whichever comes first, never in development (no sw.js is built there). A page that was
  * left mid-registration and comes back from the back/forward cache (`pageshow` with `persisted`) registers again. The
  * returned cleanup stops it, retry timers included.
  */
-export function startServiceWorker(report: (error: unknown) => void, delays: readonly number[] = SW_RETRY_DELAYS_MS): () => void {
+export function startServiceWorker(
+  report: (error: unknown) => void,
+  delays: readonly number[] = SW_RETRY_DELAYS_MS,
+  loadFallbackMs: number = SW_LOAD_FALLBACK_MS,
+): () => void {
   if (process.env.NODE_ENV !== "production" || typeof window === "undefined" || !("serviceWorker" in navigator)) {
     return () => {};
   }
@@ -124,10 +136,15 @@ export function startServiceWorker(report: (error: unknown) => void, delays: rea
   window.addEventListener("beforeunload", onLeave);
   window.addEventListener("pagehide", onLeave);
   window.addEventListener("pageshow", onPageShow);
+  let loadFallback: ReturnType<typeof setTimeout> | null = null;
   if (document.readyState === "complete") run();
-  else window.addEventListener("load", run, { once: true });
+  else {
+    window.addEventListener("load", run, { once: true });
+    loadFallback = setTimeout(run, loadFallbackMs);
+  }
   return () => {
     stopped = true;
+    if (loadFallback) clearTimeout(loadFallback);
     for (const t of timers) clearTimeout(t);
     timers.clear();
     window.removeEventListener("beforeunload", onLeave);
