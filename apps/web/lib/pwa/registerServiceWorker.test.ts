@@ -52,6 +52,13 @@ describe("registerServiceWorker", () => {
     assert.deepEqual(t.reported, []);
   });
 
+  it("a page already being left starts no attempt", async () => {
+    const t = env([true]);
+    t.e.leaving = () => true;
+    assert.equal(await registerServiceWorker(t.e, [10, 20]), "left");
+    assert.deepEqual(t.calls, []);
+  });
+
   it("a transient failure is retried after the delay and then succeeds", async () => {
     const t = env([cancelled(), true]);
     assert.equal(await registerServiceWorker(t.e, [10, 20]), "registered");
@@ -72,13 +79,13 @@ describe("registerServiceWorker", () => {
 
 describe("startServiceWorker (browser wiring)", () => {
   /** A fake window/document/navigator; `results` scripts each register() call (an Error rejects). */
-  function fakeBrowser(results: (true | Error)[]) {
+  function fakeBrowser(results: (true | Error)[], readyState: DocumentReadyState = "complete") {
     const win = new EventTarget();
     const calls: string[] = [];
     const g = globalThis as unknown as Record<string, unknown>;
     const saved = { window: g.window, document: g.document, navigator: g.navigator, env: process.env.NODE_ENV };
     g.window = win;
-    g.document = { readyState: "complete" };
+    g.document = { readyState };
     Object.defineProperty(globalThis, "navigator", {
       configurable: true,
       value: {
@@ -118,6 +125,41 @@ describe("startServiceWorker (browser wiring)", () => {
       await tick(10);
       assert.equal(b.calls.length, 2, "registered again after the bfcache restore");
       assert.deepEqual(reported, []);
+      stop();
+    } finally {
+      b.restore();
+    }
+  });
+
+  // CI run 43200912012 (bot-game, webkit-iphone): between the start of a navigation and the next page's commit the
+  // old document still runs timers and `load`, and WebKit logs any register() started then as a page error.
+  it("a retry that comes due after a navigation started (beforeunload, before pagehide) is not started", async () => {
+    const b = fakeBrowser([new TypeError("first"), true]);
+    try {
+      const stop = startServiceWorker(() => {}, [20]);
+      await tick(5);
+      assert.equal(b.calls.length, 1);
+      b.win.dispatchEvent(new Event("beforeunload")); // the navigation starts; the next page has not committed
+      await tick(40);
+      assert.equal(b.calls.length, 1, "no attempt while the page is being left");
+      stop();
+    } finally {
+      b.restore();
+    }
+  });
+
+  it("a load event after a navigation started does not start the registration", async () => {
+    const b = fakeBrowser([true], "loading");
+    try {
+      const stop = startServiceWorker(() => {}, [20]);
+      b.win.dispatchEvent(new Event("beforeunload"));
+      b.win.dispatchEvent(new Event("load"));
+      await tick(10);
+      assert.equal(b.calls.length, 0);
+      b.win.dispatchEvent(new Event("pagehide"));
+      b.show(true); // restored from the back/forward cache: registers then
+      await tick(10);
+      assert.equal(b.calls.length, 1);
       stop();
     } finally {
       b.restore();

@@ -57,6 +57,40 @@ test.describe("service worker registration @p1 @smoke @public @prod-build", () =
       .toBe(true);
   });
 
+  test.describe("a retry due while a navigation waits for the next page", () => {
+    // WebKit refuses any load the old document starts between the start of a navigation and the commit of the next
+    // page, and logs "Cannot load …/sw.js due to access control checks." as a JavaScript error even though the app
+    // handles the register() rejection (CI run 43200912012, bot-game on webkit-iphone: "[pageerror]
+    // /localhost:3000/sw.js due to access control checks."). Here the first attempt fails (404), so a retry is due
+    // 2 s later (SW_RETRY_DELAYS_MS), and the next document is held for 3 s from 0.8 s after the failure: the retry
+    // falls inside the navigation. It must not start (no second /sw.js request before the next page commits), and
+    // nothing may reach the console guard.
+    const allow = [/^A bad HTTP response code \(404\) was received when fetching the script\.$/];
+    test.use({ allowConsole: [allow, { scope: "test" }] });
+    test("is not started", async ({ context, page }) => {
+      test.setTimeout(60_000);
+      let seen = 0;
+      await context.route(SW, async (route) => {
+        seen++;
+        if (seen === 1) await route.fulfill({ status: 404, body: "" });
+        else await route.continue().catch(() => undefined);
+      });
+      await page.goto("/about", { waitUntil: "load" });
+      await expect.poll(() => seen, { message: "the first attempt", timeout: 30_000 }).toBe(1);
+      await page.waitForTimeout(800);
+      let seenAtCommit = -1;
+      await page.route("**/privacy", async (route) => {
+        if (!route.request().isNavigationRequest()) return route.fallback();
+        await new Promise((r) => setTimeout(r, 3_000)); // past the 2 s retry
+        seenAtCommit = seen;
+        await route.continue();
+      });
+      // Only the commit matters here; the next page's own registration is covered above.
+      await page.goto("/privacy", { waitUntil: "domcontentloaded", timeout: 30_000 });
+      expect(seenAtCommit, "no attempt was started by the page being left").toBe(1);
+    });
+  });
+
   test.describe("a broken /sw.js", () => {
     // The provoked failure: our report, and Chrome's own line for each failed attempt. WebKit logs each attempt as
     // "Failed to load resource: the server responded with a status of 404 (Not Found)", which the guard already
