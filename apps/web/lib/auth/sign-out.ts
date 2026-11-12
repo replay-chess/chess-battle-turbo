@@ -9,7 +9,15 @@
 //      (never "storage": it would wipe the P5 outbox)
 //   6. posthog.reset(); Sentry.setUser(null)
 //   7. BroadcastChannel("rc-auth") { type: "signed_out" }  (other tabs run clearLocalSession and go to "/")
-//   8. await clerk.signOut(() => location.assign(redirectUrl), { redirectUrl })  (a full load, T22)
+//   8. await clerk.signOut(() => leavePage(redirectUrl), { redirectUrl })  (a full load, T22)
+//
+// leavePage() tells Clerk the page is going before it assigns the URL. clerk-js runs the sign-out callback inside a
+// "before unload" tracker and, unless the page is unloading by the time the callback returns, goes on to emit the
+// signed-out state and call the Next provider's router.refresh(). Chromium fires `beforeunload` synchronously inside
+// location.assign(); WebKit fires it later. So on WebKit the refresh ran: its RSC request for the member page met the
+// middleware's sign-in redirect, and that soft navigation replaced the pending load of "/" (phone sign-out from /play
+// ended on /sign-in?redirect_url=%2Fplay). Clerk's own hard navigation dispatches `clerk:beforeunload` first for the
+// same reason; leavePage() does the same.
 //
 // Every step is guarded: a failure in one never stops the next, and Clerk's sign-out always runs.
 // Dependencies are injectable (sign-out.test.ts); the defaults load PostHog, Sentry and the store lazily.
@@ -18,6 +26,21 @@ import { api } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
 import { purgeRuntimeCaches } from "@/lib/shell/pwa";
 import { postAuthMessage, setSignOutIntent } from "@/components/system/session-guard";
+
+/** The event clerk-js's own hard navigation dispatches before `location.href = …` (its before-unload tracker). */
+export const CLERK_BEFOREUNLOAD_EVENT = "clerk:beforeunload";
+
+type LeavableWindow = Pick<Window, "dispatchEvent"> & { location: Pick<Location, "assign"> };
+
+/** A full document load that Clerk knows about: no signed-out emit or router refresh can race it (see the header). */
+export function leavePage(url: string, win: LeavableWindow = window): void {
+  try {
+    win.dispatchEvent(new CustomEvent(CLERK_BEFOREUNLOAD_EVENT));
+  } catch {
+    // CustomEvent exists everywhere we run; the navigation below is what matters.
+  }
+  win.location.assign(url);
+}
 
 /** `/api/session/clear` budget (plan §8.9). */
 export const SESSION_CLEAR_TIMEOUT_MS = 1500;
@@ -58,7 +81,7 @@ const defaultDeps: SignOutDeps = {
     Sentry.setUser(null);
   },
   broadcast: () => postAuthMessage("signed_out"),
-  navigate: (url) => window.location.assign(url),
+  navigate: (url) => leavePage(url),
 };
 
 async function attempt(step: () => Promise<unknown> | unknown): Promise<void> {

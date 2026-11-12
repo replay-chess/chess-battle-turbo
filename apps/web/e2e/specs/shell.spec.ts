@@ -379,6 +379,33 @@ test.describe("Phone shell (Pixel 7) @p1", () => {
   });
 });
 
+// Plan phase-01 §8.6 / B4: Sign Out ends on "/" on every browser. regression: on WebKit (webkit-iphone) the phone
+// sheet's Sign Out from /play landed on /sign-in?redirect_url=%2Fplay: Clerk's post-sign-out router.refresh() (run
+// because WebKit fires `beforeunload` after location.assign returns) met the middleware's sign-in redirect and
+// replaced the load of "/" (lib/auth/sign-out.ts leavePage). Phone layout on every project; @smoke so CI runs it on
+// webkit-iphone too.
+test.describe("Phone sign-out @p1 @smoke", () => {
+  test.use({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true });
+
+  test("Sign Out from the account sheet on /play lands on / and stays there", async ({ authedPage: page }) => {
+    await gotoApp(page, "/play");
+    await expectShell(page);
+    const visited: string[] = [];
+    page.on("framenavigated", (f) => {
+      if (f === page.mainFrame()) visited.push(f.url());
+    });
+    await openAccountSheet(page);
+    await page.getByTestId("account-item-signout").click();
+    // "commit", not "load": the marketing home page's media can hold `load` back past 30 s on a busy `next dev`.
+    await page.waitForURL((url) => url.pathname === "/", { timeout: 30_000, waitUntil: "commit" });
+    await expect(page.getByTestId("marketing-navbar")).toBeVisible({ timeout: 30_000 });
+    // Settled: no late soft navigation to sign-in after the load of "/".
+    await page.waitForTimeout(2_000);
+    expect(new URL(page.url()).pathname).toBe("/");
+    expect(visited.filter((u) => new URL(u).pathname.startsWith("/sign-in")), "navigations to sign-in").toEqual([]);
+  });
+});
+
 test.describe("Marketing chrome for everyone else @p1", () => {
   test("10. A non-member keeps the marketing Navbar on /legends", async ({ nonMemberPage: page }) => {
     await gotoApp(page, "/legends");

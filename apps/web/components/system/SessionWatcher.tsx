@@ -18,8 +18,8 @@
 //       answers a member page with no session by redirecting to sign-in before (b)'s 1.5 s debounce, so the dialog
 //       never showed (sign-off D8, T15). The watcher wraps that hook and skips the refresh in exactly that case: the
 //       page stays, and (b) opens the dialog over it (plan §4.9: overlay, URL unchanged). Any other set-active
-//       (sign-in, our own sign-out, a public page) still refreshes. If Clerk renames the hook, nothing breaks: the
-//       old redirect behaviour comes back.
+//       (sign-in, a public page) still refreshes; our own sign-out does not (it ends in a full document load, which a
+//       refresh would race). If Clerk renames the hook, nothing breaks: the old redirect behaviour comes back.
 //   (f) A sign-out that skipped signOutEverywhere() (Clerk's UserButton in the marketing Navbar) that ends on a
 //       public page runs clearAfterExternalSignOut(): query cache, user store, SW runtime caches, analytics reset
 //       and POST /api/session/clear (Clear-Site-Data: "cache").
@@ -27,7 +27,7 @@ import { useEffect, useRef } from "react";
 import { useAuth, useClerk } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { setApiErrorDeps } from "@/lib/api/errors";
-import { clearAfterExternalSignOut, clearLocalSession } from "@/lib/auth/sign-out";
+import { clearAfterExternalSignOut, clearLocalSession, leavePage } from "@/lib/auth/sign-out";
 import { SessionExpiredModal } from "./SessionExpiredModal";
 import { isPublicByRouteClass } from "./public-paths";
 import {
@@ -146,6 +146,9 @@ export function SessionWatcher() {
     const wrapped: Hook = (...args) => {
       const ended = !(clerkRef.current?.session ?? null);
       if (ended && wasSignedIn.current && !hasSignOutIntent() && !onPublicPath()) return undefined;
+      // Our own sign-out (signOutEverywhere, or another tab's `signed_out`) always ends in a full document load; a
+      // refresh could only race it (WebKit: its sign-in redirect replaced the load of "/").
+      if (ended && hasSignOutIntent()) return undefined;
       return original(...args);
     };
     w.__unstable__onAfterSetActive = wrapped;
@@ -177,7 +180,7 @@ export function SessionWatcher() {
           sessionExpiredStore.close();
         } else {
           setSignOutIntent(true);
-          void clearLocalSession(queryClient).finally(() => window.location.assign("/"));
+          void clearLocalSession(queryClient).finally(() => leavePage("/"));
         }
       }),
     [queryClient],
