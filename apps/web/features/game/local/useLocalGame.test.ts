@@ -11,7 +11,7 @@ import { Chess } from "@repo/game-core/rules/chess";
 import { snapshotOf, type GameRecord, type GameSnapshot } from "@repo/game-core/snapshot";
 import { ApiError } from "@/lib/api/errors";
 import type { BoardMove, Sq } from "@/components/board/types";
-import type { EngineInitInfo } from "@/features/engine/uci";
+import type { EngineInitInfo, EngineProgress } from "@/features/engine/uci";
 import { createTabLock, type ChannelLike, type LockMessage } from "./lock";
 import { createLocalController, type LocalController } from "./useLocalGame";
 import type { BotEngine } from "./useBotEngine";
@@ -88,6 +88,8 @@ interface Rig {
   tracked: { name: string; props: Record<string, unknown> }[];
   engineCalls: { reply: number; best: number; evaluate: number };
   bus: Bus;
+  /** The controller's engine-progress listeners (engine.onLoading). */
+  loading: ((p: EngineProgress | null) => void)[];
   detach: () => void;
 }
 
@@ -124,6 +126,7 @@ function rig(
     tracked: [],
     engineCalls: { reply: 0, best: 0, evaluate: 0 },
     bus,
+    loading: [],
   };
   const replies = [...(opts.replies ?? [])];
   const engine: BotEngine = {
@@ -143,6 +146,12 @@ function rig(
     newGame() {},
     retain: () => () => {},
     retry: async () => INFO,
+    onLoading: (l) => {
+      r.loading.push(l);
+      return () => {
+        r.loading.splice(r.loading.indexOf(l), 1);
+      };
+    },
   };
   let lockN = 0;
   const ctl = createLocalController(snap, {
@@ -547,6 +556,7 @@ test("engine failure shows the engine error; Try again (sync) retries and the bo
         fail = false;
         return INFO;
       },
+      onLoading: () => () => {},
     },
     createGame: () => {},
     complete: async () => ({ status: "COMPLETED", outcome: "DRAW", method: "agreement", analysis: { status: "none" } }),
@@ -579,4 +589,19 @@ test("Rematch and Restart create a new bot game from this one (colours handled b
     { mode: "BOT", parentGameRef: REF, reason: "restart", tc: { initialSeconds: 180, incrementSeconds: 2 } },
   ]);
   g.detach();
+});
+
+// A slow network is not an engine failure: while the engine files download, the bot game says so ("Loading the
+// engine… N %") and never shows the engine error; the listener goes with the controller.
+test("engine download progress shows as loading, never as the engine error; detach unsubscribes", async () => {
+  const g = rig(snapshot({}, "w"));
+  await settle();
+  assert.equal(g.loading.length, 1, "the controller listens to the engine's download");
+  g.loading[0]!({ loaded: 1_000_000, total: 7_300_000 });
+  assert.deepEqual(g.ctl.store.getState().bot?.engineLoading, { loaded: 1_000_000, total: 7_300_000 });
+  assert.equal(g.ctl.store.getState().bot?.engineError, false);
+  g.loading[0]!(null); // the files are in
+  assert.equal(g.ctl.store.getState().bot?.engineLoading ?? null, null);
+  g.detach();
+  assert.equal(g.loading.length, 0);
 });

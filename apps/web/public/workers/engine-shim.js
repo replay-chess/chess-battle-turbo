@@ -9,7 +9,12 @@
  * Fallback: a failed R2 glue load re-imports the glue from the origin folder, and a failed R2 WASM fetch is
  * retried from the origin folder (fetch is wrapped before the glue runs). The page receives one object message
  *   { rc: "engine-init", source: "r2" | "origin", cached, bytes, glueMs }
- * right before "uciok"; every other message is a UCI line string from the engine.
+ * right before "uciok", and while the engine files download
+ *   { rc: "engine-progress", stage: "glue" | "wasm", state: "start" | "waiting" | "progress" | "done" | "failed",
+ *     loaded?, total? }
+ * (a heartbeat every 2 s while the WASM request is in flight, byte counts as its body streams in), so the page tells a
+ * slow download from an engine that failed: uci.ts does not count download time against its init timeout. Every other
+ * message is a UCI line string from the engine.
  */
 (function () {
   "use strict";
@@ -25,20 +30,94 @@
   var glueFellBack = false;
   var originWasm = origin + WASM;
 
+  var realPost = self.postMessage.bind(self);
+  var HEARTBEAT_MS = 2000;
+  var PROGRESS_EVERY_MS = 250;
+  function progress(stage, state, loaded, total) {
+    var m = { rc: "engine-progress", stage: stage, state: state };
+    if (typeof loaded === "number") m.loaded = loaded;
+    if (typeof total === "number") m.total = total;
+    realPost(m);
+  }
+
+  /** Reports the WASM download: a heartbeat while the request waits, the bytes as the body streams in, the end. */
+  function track(pending) {
+    progress("wasm", "start");
+    var beat = setInterval(function () {
+      progress("wasm", "waiting");
+    }, HEARTBEAT_MS);
+    var stopped = false;
+    function stop(state, loaded, total) {
+      if (stopped) return;
+      stopped = true;
+      clearInterval(beat);
+      progress("wasm", state, loaded, total);
+    }
+    return pending.then(
+      function (res) {
+        if (!res.ok || !res.body || typeof ReadableStream === "undefined") {
+          stop(res.ok ? "done" : "failed");
+          return res;
+        }
+        var total = Number(res.headers.get("content-length")) || 0;
+        var loaded = 0;
+        var last = 0;
+        var reader = res.body.getReader();
+        var body = new ReadableStream({
+          pull: function (controller) {
+            return reader.read().then(
+              function (r) {
+                if (r.done) {
+                  stop("done", loaded, total);
+                  controller.close();
+                  return;
+                }
+                loaded += r.value.byteLength;
+                var now = Date.now();
+                if (now - last >= PROGRESS_EVERY_MS) {
+                  last = now;
+                  progress("wasm", "progress", loaded, total);
+                }
+                controller.enqueue(r.value);
+              },
+              function (err) {
+                stop("failed", loaded, total);
+                controller.error(err);
+              },
+            );
+          },
+          cancel: function (reason) {
+            stop("failed", loaded, total);
+            return reader.cancel(reason);
+          },
+        });
+        // Same status and headers (Content-Type: application/wasm for instantiateStreaming), the counted body.
+        return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers });
+      },
+      function (err) {
+        stop("failed");
+        throw err;
+      },
+    );
+  }
+
   var realFetch = self.fetch.bind(self);
   self.fetch = function (input, init) {
     var url = typeof input === "string" ? input : input && input.url ? input.url : String(input);
-    if (url.indexOf(WASM) === -1 || !remote || url.indexOf(remote) !== 0) return realFetch(input, init);
-    if (glueFellBack) return realFetch(originWasm, init);
-    return realFetch(input, init)
-      .then(function (res) {
-        if (!res.ok) throw new Error("engine-shim: R2 wasm " + res.status);
-        return res;
-      })
-      .catch(function () {
-        source = "origin";
-        return realFetch(originWasm, init);
-      });
+    if (url.indexOf(WASM) === -1) return realFetch(input, init);
+    if (!remote || url.indexOf(remote) !== 0) return track(realFetch(input, init));
+    if (glueFellBack) return track(realFetch(originWasm, init));
+    return track(
+      realFetch(input, init)
+        .then(function (res) {
+          if (!res.ok) throw new Error("engine-shim: R2 wasm " + res.status);
+          return res;
+        })
+        .catch(function () {
+          source = "origin";
+          return realFetch(originWasm, init);
+        }),
+    );
   };
 
   var reported = false;
@@ -63,7 +142,6 @@
     return { rc: "engine-init", source: source, cached: cached, bytes: bytes, glueMs: glueMs };
   }
 
-  var realPost = self.postMessage.bind(self);
   self.postMessage = function (message) {
     if (!reported && message === "uciok") {
       reported = true;
@@ -72,16 +150,24 @@
     return realPost.apply(self, arguments);
   };
 
-  if (remote) {
-    try {
-      importScripts(remote + GLUE);
-    } catch (err) {
-      source = "origin";
-      glueFellBack = true;
+  // importScripts blocks this worker while the glue downloads: say so first, so the page waits for the download.
+  progress("glue", "start");
+  try {
+    if (remote) {
+      try {
+        importScripts(remote + GLUE);
+      } catch (err) {
+        source = "origin";
+        glueFellBack = true;
+        importScripts(origin + GLUE);
+      }
+    } else {
       importScripts(origin + GLUE);
     }
-  } else {
-    importScripts(origin + GLUE);
+  } catch (err) {
+    progress("glue", "failed");
+    throw err;
   }
+  progress("glue", "done");
   glueMs = Math.round((self.performance && self.performance.now ? self.performance.now() : 0) - t0);
 })();

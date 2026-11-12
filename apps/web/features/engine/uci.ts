@@ -166,6 +166,12 @@ export interface EngineSearchResult {
   ms: number;
 }
 
+/** The engine files still on their way: bytes of the WASM so far and its size (0 = unknown, or only the glue yet). */
+export interface EngineProgress {
+  loaded: number;
+  total: number;
+}
+
 export interface EngineWorkerHandle {
   post(command: string): void;
   terminate(): void;
@@ -183,6 +189,8 @@ export interface EngineClientDeps {
   now(): number;
   setTimer(fn: () => void, ms: number): unknown;
   clearTimer(id: unknown): void;
+  /** While the engine files download (null once they are in, or the attempt ended). */
+  onProgress?(progress: EngineProgress | null): void;
   /** Called once per init chain (telemetry). */
   onInit?(result: { ok: true; info: EngineInitInfo } | { ok: false; ms: number; error: Error; source: "r2" | "origin" }): void;
 }
@@ -190,6 +198,8 @@ export interface EngineClientDeps {
 export interface EngineClient {
   status(): EngineStatus;
   info(): EngineInitInfo | null;
+  /** The download in progress, if any (`onProgress` reports each change). */
+  progress(): EngineProgress | null;
   init(): Promise<EngineInitInfo>;
   search(job: EngineSearch): Promise<EngineSearchResult>;
   /** `ucinewgame` before the next search. */
@@ -199,7 +209,16 @@ export interface EngineClient {
   dispose(): void;
 }
 
+/**
+ * How long the engine may go without a sign of life before init fails: from the worker's creation to the shim's first
+ * message, and from the end of the downloads to `readyok` (WASM compile + UCI handshake). Download time does not
+ * count: while the shim reports a download in flight (`engine-progress`), only ENGINE_DOWNLOAD_MAX_MS applies, so a
+ * slow network shows "loading", never "the engine couldn't start" (CI run 43068898609 on webkit-iphone, and a cold
+ * 7.3 MB WASM on a slow phone).
+ */
 export const ENGINE_INIT_TIMEOUT_MS = 8_000;
+/** A download that is still going (the shim keeps reporting) fails only after this long: a stalled network. */
+export const ENGINE_DOWNLOAD_MAX_MS = 180_000;
 export const ENGINE_STOP_AFTER_MS = 3_000;
 /** A search that has not answered this long after its `stop` is treated as a hung engine. */
 export const ENGINE_HANG_MS = 5_000;
@@ -216,6 +235,12 @@ export function createEngineClient(deps: EngineClientDeps): EngineClient {
   let worker: EngineWorkerHandle | null = null;
   let info: EngineInitInfo | null = null;
   let initPromise: Promise<EngineInitInfo> | null = null;
+  let progress: EngineProgress | null = null;
+  const setProgress = (p: EngineProgress | null) => {
+    if (p === progress || (p && progress && p.loaded === progress.loaded && p.total === progress.total)) return;
+    progress = p;
+    deps.onProgress?.(p);
+  };
   let lineSink: ((line: string) => void) | null = null;
   let metaSink: ((meta: Record<string, unknown>) => void) | null = null;
   let errorSink: ((err: unknown) => void) | null = null;
@@ -244,10 +269,38 @@ export function createEngineClient(deps: EngineClientDeps): EngineClient {
       let meta: Record<string, unknown> = {};
       let stage: "uci" | "ready" = "uci";
       let settled = false;
+      let timer: unknown = null;
+      /** When the first download of this attempt started (the ENGINE_DOWNLOAD_MAX_MS clock). */
+      let downloadSince: number | null = null;
+      const arm = (ms: number, message: string) => {
+        if (timer !== null) deps.clearTimer(timer);
+        timer = deps.setTimer(() => finish(new Error(message)), Math.max(0, ms));
+      };
+      const armIdle = () => arm(ENGINE_INIT_TIMEOUT_MS, `engine init timed out after ${ENGINE_INIT_TIMEOUT_MS} ms`);
+      /** The shim's `engine-progress {stage, state, loaded?, total?}`: a download is in flight, or it ended. */
+      const onProgress = (m: Record<string, unknown>) => {
+        const state = m.state;
+        if (state === "start" || state === "waiting" || state === "progress") {
+          downloadSince ??= deps.now();
+          const left = ENGINE_DOWNLOAD_MAX_MS - (deps.now() - downloadSince);
+          // The glue loads with a blocking importScripts (no heartbeat until it is in); the WASM request reports every
+          // 2 s, so a worker that stops reporting mid-download is still caught after ENGINE_INIT_TIMEOUT_MS.
+          const quiet = m.stage === "glue" ? left : Math.min(ENGINE_INIT_TIMEOUT_MS, left);
+          arm(quiet, quiet < left ? `engine download stalled for ${ENGINE_INIT_TIMEOUT_MS} ms` : `engine download did not finish in ${ENGINE_DOWNLOAD_MAX_MS} ms`);
+          const loaded = typeof m.loaded === "number" ? m.loaded : (progress?.loaded ?? 0);
+          const total = typeof m.total === "number" ? m.total : (progress?.total ?? 0);
+          setProgress({ loaded, total });
+        } else {
+          // done / failed: whatever follows (compile, handshake, the glue's error) is the engine's own work again.
+          setProgress(null);
+          armIdle();
+        }
+      };
       const finish = (err: Error | null) => {
         if (settled) return;
         settled = true;
-        deps.clearTimer(timer);
+        if (timer !== null) deps.clearTimer(timer);
+        setProgress(null);
         if (err) {
           if (gen === generation) drop();
           reject(err);
@@ -262,7 +315,7 @@ export function createEngineClient(deps: EngineClientDeps): EngineClient {
           ms: Math.max(0, Math.round(deps.now() - started)),
         });
       };
-      const timer = deps.setTimer(() => finish(new Error(`engine init timed out after ${ENGINE_INIT_TIMEOUT_MS} ms`)), ENGINE_INIT_TIMEOUT_MS);
+      armIdle();
       lineSink = (line) => {
         if (stage === "uci") {
           out.push(line);
@@ -274,7 +327,8 @@ export function createEngineClient(deps: EngineClientDeps): EngineClient {
         } else if (line.trim() === "readyok") finish(null);
       };
       metaSink = (m) => {
-        meta = { ...meta, ...m };
+        if (m.rc === "engine-progress") onProgress(m);
+        else meta = { ...meta, ...m };
       };
       errorSink = (e) => finish(asError(e ?? "engine worker error"));
       try {
@@ -433,6 +487,7 @@ export function createEngineClient(deps: EngineClientDeps): EngineClient {
   return {
     status: () => status,
     info: () => info,
+    progress: () => progress,
     init,
     search,
     newGame() {

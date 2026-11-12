@@ -11,12 +11,12 @@ import { HINT_SEARCH } from "@repo/game-core/bot/hints";
 import { DRAW_EVAL_GO } from "@repo/game-core/local/drawPolicy";
 import { splitMoves } from "@repo/game-core/rules/chess";
 import type { GameState } from "@repo/game-core/machine/types";
-import type { EngineInitInfo, EngineSearch, EngineSearchResult } from "@/features/engine/uci";
+import type { EngineInitInfo, EngineProgress, EngineSearch, EngineSearchResult } from "@/features/engine/uci";
 import { lineCp } from "@/features/engine/uci";
 import { getEngine, type SharedEngine } from "@/features/engine/EngineProvider";
 
 /** The slice of the shared engine the bot needs (a fake in unit tests). */
-export type BotEngineHost = Pick<SharedEngine, "init" | "search" | "newGame" | "retain" | "retry" | "status">;
+export type BotEngineHost = Pick<SharedEngine, "init" | "search" | "newGame" | "retain" | "retry" | "status" | "subscribeProgress">;
 
 export interface BotEngine {
   /** Starts the worker (prefetches the WASM); resolves with the floor and the source. */
@@ -30,6 +30,8 @@ export interface BotEngine {
   newGame(): void;
   retain(): () => void;
   retry(): Promise<EngineInitInfo>;
+  /** The engine files' download progress while they load (null when none is in flight); returns the unsubscribe. */
+  onLoading(listener: (progress: EngineProgress | null) => void): () => void;
 }
 
 const FULL_STRENGTH: readonly (readonly [string, string])[] = [
@@ -78,6 +80,7 @@ export function createBotEngine(host: () => BotEngineHost): BotEngine {
     newGame: () => host().newGame(),
     retain: () => host().retain(),
     retry: () => host().retry(),
+    onLoading: (listener) => host().subscribeProgress(listener),
   };
 }
 

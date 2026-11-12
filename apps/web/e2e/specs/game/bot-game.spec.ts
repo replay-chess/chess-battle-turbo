@@ -47,7 +47,10 @@ test.describe("bot game", { tag: p2("@smoke", "@local-only") }, () => {
       await page.locator('[data-testid="hint-button"]:visible, [data-testid="hint-button-bar"]:visible').first().click();
       await expect(hintLine.filter({ hasText: /Hint 1 of 2/ }).first()).toBeVisible({ timeout: 90_000 });
       await page.locator('[data-testid="hint-button"]:visible, [data-testid="hint-button-bar"]:visible').first().click();
-      await expect(hintLine.filter({ hasText: /Hint 2 of 2: play / }).first()).toBeVisible({ timeout: 90_000 });
+      // Level 2 names the move: "play Nf3", or "castle short, O-O" / "castle long, O-O-O" when the best move castles
+      // (game-core bot/hints.ts). Only "play" was accepted, so a position whose best move castled failed the test
+      // (CI run 43068898609, webkit-iphone retry: "Hint 2 of 2: castle short, O-O.").
+      await expect(hintLine.filter({ hasText: /Hint 2 of 2: (play |castle (short|long), O-O)/ }).first()).toBeVisible({ timeout: 90_000 });
       await expect(page.locator("[data-arrow]")).toHaveCount(1);
 
       await page.locator('[data-testid="undo-button"]:visible, [data-testid="undo-button-bar"]:visible').first().click();

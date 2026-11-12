@@ -150,6 +150,7 @@ export function CoachZone() {
   const hint = useGame((g) => g.bot?.hint ?? null);
   const engineError = useGame((g) => g.bot?.engineError ?? false);
   const otherTab = useGame((g) => g.bot?.otherTab ?? false);
+  const loading = useGame((g) => g.bot?.engineLoading ?? null);
   const controller = useController();
   if (engineError) {
     return (
@@ -158,6 +159,14 @@ export function CoachZone() {
         <button type="button" className="g-act" style={{ alignSelf: "flex-start" }} onClick={() => controller.sync()}>
           {BUTTONS.tryAgain}
         </button>
+      </div>
+    );
+  }
+  if (loading && !otherTab) {
+    const percent = loading.total > 0 ? Math.min(99, Math.floor((loading.loaded / loading.total) * 100)) : null;
+    return (
+      <div className="g-zone" role="status" data-variant="soft" data-testid="zone-engine-loading">
+        <span className="g-body">{ZONE.engineLoading(percent)}</span>
       </div>
     );
   }

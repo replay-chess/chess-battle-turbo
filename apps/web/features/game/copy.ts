@@ -309,6 +309,8 @@ export const ZONE = {
   spectBody: "Moves only · sound quiet",
   viewing: (label: string) => `Viewing ${label} · clock running`,
   engineError: "The engine couldn’t start on this device. This browser may block WebAssembly.",
+  /** The engine files are still downloading (a slow network, a cold cache): not a failure. */
+  engineLoading: (percent: number | null) => (percent === null ? "Loading the engine…" : `Loading the engine… ${percent}%`),
   otherTab: "This game is open in another tab",
   lockedAttempt: "Moves are locked during the study phase",
 } as const;

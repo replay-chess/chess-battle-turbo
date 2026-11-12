@@ -92,6 +92,8 @@ export interface BotView {
   hint: { level: 1 | 2; text: string; arrow: { from: string; to: string; color: string } | null } | null;
   engineError: boolean;
   otherTab: boolean;
+  /** The engine files are still downloading (bytes so far / size, 0 = unknown): "loading", not an engine failure. */
+  engineLoading?: { loaded: number; total: number } | null;
 }
 
 export interface ClientGame {

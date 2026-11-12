@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   createEngineClient,
+  ENGINE_DOWNLOAD_MAX_MS,
+  ENGINE_INIT_TIMEOUT_MS,
   isSafeGo,
   isSafeOption,
   LineCollector,
@@ -14,6 +16,7 @@ import {
   parseInfoLine,
   positionCommand,
   type EngineAttempt,
+  type EngineProgress,
   type EngineWorkerEvents,
 } from "./uci";
 
@@ -269,4 +272,134 @@ test("search refuses unsafe commands without touching the worker", async () => {
   await assert.rejects(h.client.search({ startFen: `${FEN}\nquit`, moves: [], options: [], go: "go nodes 1" }), /refused position/);
   await assert.rejects(h.client.search({ startFen: FEN, moves: ["e2e4 quit"], options: [], go: "go nodes 1" }), /refused position/);
   assert.equal(h.workers.length, 0);
+});
+
+// ── download time is not engine failure (CI run 43068898609: "The engine couldn't start" on webkit-iphone) ──
+
+/** A client over one fake worker and a fake clock whose timers fire by time. */
+function clocked(script: Script) {
+  let t = 0;
+  let nextId = 1;
+  const timers = new Map<number, { at: number; fn: () => void }>();
+  const workers: FakeWorker[] = [];
+  const progress: (EngineProgress | null)[] = [];
+  const client = createEngineClient({
+    spawn: (url, events) => {
+      const w = new FakeWorker(url, events, script);
+      workers.push(w);
+      return w;
+    },
+    attempts: () => [ORIGIN],
+    now: () => t,
+    setTimer: (fn, ms) => {
+      const id = nextId++;
+      timers.set(id, { at: t + ms, fn });
+      return id;
+    },
+    clearTimer: (id) => timers.delete(id as number),
+    onProgress: (p) => progress.push(p),
+  });
+  /** Moves the clock, firing every timer that comes due on the way. */
+  const advance = (ms: number) => {
+    const end = t + ms;
+    for (;;) {
+      const due = [...timers.entries()].filter(([, x]) => x.at <= end).sort((a, b) => a[1].at - b[1].at)[0];
+      if (!due) break;
+      timers.delete(due[0]);
+      t = due[1].at;
+      due[1].fn();
+    }
+    t = end;
+  };
+  const tick = () => new Promise((r) => setImmediate(r));
+  return { client, workers, progress, advance, tick };
+}
+
+const shim = (w: FakeWorker, stage: "glue" | "wasm", state: string, loaded?: number, total?: number) =>
+  w.events.meta({ rc: "engine-progress", stage, state, ...(loaded === undefined ? {} : { loaded, total }) });
+
+/** The engine part once the files are in: options, uciok, readyok. */
+const engineOnly: Script = (cmd, w) => {
+  if (cmd === "uci") return; // the test drives the download, then calls `answer`
+  if (cmd === "isready") w.emit("readyok");
+};
+const answerUci = (w: FakeWorker) => {
+  w.emit("option name UCI_Elo type spin default 1320 min 1320 max 3190");
+  w.emit("uciok");
+};
+
+test("a slow download is loading, not a failure: 40 s of glue + WASM, then the engine starts", async () => {
+  const h = clocked(engineOnly);
+  const p = h.client.init();
+  await h.tick();
+  const w = h.workers[0]!;
+  shim(w, "glue", "start");
+  h.advance(12_000); // a slow glue: importScripts blocks the worker, no heartbeat possible
+  shim(w, "glue", "done");
+  shim(w, "wasm", "start");
+  for (let s = 0; s < 14; s++) {
+    h.advance(2_000);
+    shim(w, "wasm", "progress", (s + 1) * 500_000, 7_300_000); // the shim's heartbeat / byte counts
+  }
+  assert.equal(h.client.status(), "loading", "28 s into the WASM: still loading");
+  assert.deepEqual(h.client.progress(), { loaded: 7_000_000, total: 7_300_000 });
+  shim(w, "wasm", "done", 7_300_000, 7_300_000);
+  assert.equal(h.client.progress(), null);
+  h.advance(3_000); // compile
+  answerUci(w);
+  const info = await p;
+  assert.equal(info.eloFloor, 1320);
+  assert.equal(h.client.status(), "ready");
+  assert.deepEqual(h.progress.at(0), { loaded: 0, total: 0 });
+  assert.equal(h.progress.at(-1), null);
+});
+
+test("after the download the 8 s budget is the engine's: compile + handshake that never answer fail", async () => {
+  const h = clocked(engineOnly);
+  const p = h.client.init();
+  await h.tick();
+  const w = h.workers[0]!;
+  shim(w, "glue", "start");
+  shim(w, "glue", "done");
+  shim(w, "wasm", "start");
+  for (let s = 0; s < 15; s++) {
+    h.advance(2_000);
+    shim(w, "wasm", "waiting"); // the heartbeat: 30 s of waiting on the network are fine
+  }
+  shim(w, "wasm", "done", 7_300_000, 7_300_000);
+  h.advance(ENGINE_INIT_TIMEOUT_MS);
+  await assert.rejects(p, /engine init timed out after 8000 ms/);
+  assert.equal(h.client.status(), "failed");
+});
+
+test("a WASM request that stops reporting fails after 8 s; a download still going after 180 s fails", async () => {
+  const stalled = clocked(engineOnly);
+  const p = stalled.client.init();
+  await stalled.tick();
+  shim(stalled.workers[0]!, "wasm", "start");
+  stalled.advance(ENGINE_INIT_TIMEOUT_MS);
+  await assert.rejects(p, /engine download stalled/);
+
+  const crawl = clocked(engineOnly);
+  const q = crawl.client.init();
+  await crawl.tick();
+  shim(crawl.workers[0]!, "wasm", "start");
+  let rejected = false;
+  q.catch(() => (rejected = true));
+  for (let s = 0; s < ENGINE_DOWNLOAD_MAX_MS / 2_000 - 1; s++) {
+    crawl.advance(2_000);
+    shim(crawl.workers[0]!, "wasm", "progress", s * 1_000, 7_300_000);
+  }
+  await crawl.tick();
+  assert.equal(rejected, false, "178 s of a progressing download is still loading");
+  crawl.advance(2_000);
+  await assert.rejects(q, /engine download did not finish in 180000 ms/);
+});
+
+test("a worker that never reports anything still fails after 8 s (no shim, a blocked worker)", async () => {
+  const h = clocked(() => {});
+  const p = h.client.init();
+  await h.tick();
+  h.advance(ENGINE_INIT_TIMEOUT_MS);
+  await assert.rejects(p, /engine init timed out/);
 });

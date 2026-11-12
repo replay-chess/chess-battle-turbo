@@ -185,6 +185,7 @@ export function createLocalController(snapshot: GameSnapshot, deps: LocalControl
   let lock: TabLock | null = null;
   let unlisten: (() => void)[] = [];
   let releaseEngine: (() => void) | null = null;
+  let stopLoading: (() => void) | null = null;
   const hintCache = new HintCache();
 
   // ── store ──
@@ -360,6 +361,11 @@ export function createLocalController(snapshot: GameSnapshot, deps: LocalControl
   function startEngine() {
     if (game.ended || snapshot.you.role !== "player") return;
     releaseEngine ??= deps.engine.retain();
+    // "Loading the engine… N %" while its files download: a slow network is not an engine failure.
+    stopLoading ??= deps.engine.onLoading((p) => {
+      const now = store.getState().bot?.engineLoading ?? null;
+      if (p ? !now || now.loaded !== p.loaded || now.total !== p.total : now) setBot({ engineLoading: p });
+    });
     deps.engine.newGame();
     deps.engine.ready().then(
       () => {
@@ -674,6 +680,8 @@ export function createLocalController(snapshot: GameSnapshot, deps: LocalControl
       lock = null;
       releaseEngine?.();
       releaseEngine = null;
+      stopLoading?.();
+      stopLoading = null;
     },
 
     peek: () => game,

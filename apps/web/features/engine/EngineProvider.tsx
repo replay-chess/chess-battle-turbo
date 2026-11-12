@@ -14,7 +14,7 @@ import * as Sentry from "@sentry/nextjs";
 import type { EventProps } from "@repo/analytics";
 import { trackGame } from "@/lib/analytics/game-events";
 import { ENGINE_HASH, ENGINE_SW_CACHE, engineUrls, remoteBase } from "./manifest";
-import { createEngineClient, type EngineAttempt, type EngineClient, type EngineInitInfo } from "./uci";
+import { createEngineClient, type EngineAttempt, type EngineClient, type EngineInitInfo, type EngineProgress } from "./uci";
 
 /** Idle time after the last release before the worker is terminated. */
 export const ENGINE_IDLE_TERMINATE_MS = 60_000;
@@ -37,7 +37,10 @@ function spawnWorker(url: string, events: { line(l: string): void; meta(m: Recor
   w.onmessage = (e: MessageEvent<unknown>) => {
     const d = e.data;
     if (typeof d === "string") events.line(d);
-    else if (d && typeof d === "object" && (d as { rc?: unknown }).rc === "engine-init") events.meta(d as Record<string, unknown>);
+    else if (d && typeof d === "object") {
+      const rc = (d as { rc?: unknown }).rc;
+      if (rc === "engine-init" || rc === "engine-progress") events.meta(d as Record<string, unknown>);
+    }
   };
   w.onerror = (e: ErrorEvent) => {
     e.preventDefault();
@@ -52,15 +55,21 @@ export interface SharedEngine extends EngineClient {
   retain(): () => void;
   /** Clears a failure, drops the engine files from the Service Worker cache and starts over ("Try again"). */
   retry(): Promise<EngineInitInfo>;
+  /** Download progress of the engine files (null when none is in flight); returns the unsubscribe. */
+  subscribeProgress(listener: (progress: EngineProgress | null) => void): () => void;
 }
 
 function createSharedEngine(): SharedEngine {
+  const progressListeners = new Set<(progress: EngineProgress | null) => void>();
   const client = createEngineClient({
     spawn: spawnWorker,
     attempts: engineAttempts,
     now: () => performance.now(),
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (id) => clearTimeout(id as ReturnType<typeof setTimeout>),
+    onProgress: (p) => {
+      for (const l of progressListeners) l(p);
+    },
     onInit: (r) => {
       if (r.ok) {
         trackEngineEvent("engine_init", {
@@ -97,6 +106,13 @@ function createSharedEngine(): SharedEngine {
             if (holds === 0) client.dispose();
           }, ENGINE_IDLE_TERMINATE_MS);
         }
+      };
+    },
+    subscribeProgress(listener) {
+      progressListeners.add(listener);
+      listener(client.progress());
+      return () => {
+        progressListeners.delete(listener);
       };
     },
     async retry() {
