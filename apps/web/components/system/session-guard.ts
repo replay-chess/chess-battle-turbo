@@ -172,11 +172,52 @@ function createStore() {
 
 export const sessionExpiredStore = createStore();
 
+// ---------------------------------------------------------------------------------------------------------------
+// Deferral during a live game (phase-02 plan 4.7 "Socket token 401", 5.5.1 "401 unauthorized": "In a live game the
+// modal is deferred until game:ended"). The game screen holds the modal while the viewer plays a live game: its
+// in-game chip (V3SessionExpired `in_game_refresh` / `in_game_ok`) stands in for it, the board stays usable, and a
+// sign-in in another tab recovers the socket. The first request to open is kept and shown once the last hold goes
+// (the game ended or the screen closed), unless a sign-in cancelled it or the page is public by then.
+// ---------------------------------------------------------------------------------------------------------------
+
+let modalHolds = 0;
+let deferredSource: SessionExpiredSource | null = null;
+
+/** Holds the modal back until the returned release runs (idempotent). Holds nest. */
+export function holdSessionExpired(): () => void {
+  modalHolds++;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    modalHolds--;
+    if (modalHolds > 0 || deferredSource === null) return;
+    const source = deferredSource;
+    deferredSource = null;
+    const path = typeof window === "undefined" ? "/" : window.location.pathname;
+    if (!hasSignOutIntent() && !isSessionPublicPath(path)) openSessionExpired(source);
+  };
+}
+
+/** The open request a hold is keeping back, if any. */
+export function deferredSessionExpired(): SessionExpiredSource | null {
+  return deferredSource;
+}
+
+/** A sign-in (here or in another tab) makes a held-back modal moot. */
+export function cancelDeferredSessionExpired(): void {
+  deferredSource = null;
+}
+
 /**
  * Opens the modal (once), records `session_expired_shown`, tells the other tabs, and asks other overlays to close.
- * Returns false when it was already open.
+ * Returns false when it was already open, or when a live game holds it back (it opens when the game ends).
  */
 export function openSessionExpired(source: SessionExpiredSource | "demo"): boolean {
+  if (source !== "demo" && modalHolds > 0) {
+    deferredSource ??= source;
+    return false;
+  }
   const returnPath = currentPathWithQuery();
   if (!sessionExpiredStore.open(source, returnPath)) return false;
   if (typeof window !== "undefined") {

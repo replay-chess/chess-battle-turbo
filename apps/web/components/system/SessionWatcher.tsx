@@ -7,6 +7,8 @@
 //   (b) Clerk `isSignedIn` true → false on a non-public route without the local sign-out intent, debounced 1.5 s;
 //   (c) the tab becoming visible on a non-public route while signed out (after having been signed in);
 //   (d) an `rc-auth` `session_expired` message from another tab.
+// A live game the viewer plays holds the modal back until it ends (session-guard `holdSessionExpired`, phase-02 plan
+// 4.7); the in-game auth chip stands in for it meanwhile.
 // It closes the modal when Clerk signs in again (here or in another tab: `signed_in`), and runs the local
 // sign-out steps then goes to "/" when another tab broadcasts `signed_out`.
 //
@@ -30,6 +32,7 @@ import { SessionExpiredModal } from "./SessionExpiredModal";
 import { isPublicByRouteClass } from "./public-paths";
 import {
   FLIP_DEBOUNCE_MS,
+  cancelDeferredSessionExpired,
   createSessionGuard,
   hasSignOutIntent,
   isSessionPublicPath,
@@ -111,6 +114,7 @@ export function SessionWatcher() {
       setSignOutIntent(false);
       guardRef.current?.reset();
       if (before === false) {
+        cancelDeferredSessionExpired();
         sessionExpiredStore.close();
         postAuthMessage("signed_in");
       }
@@ -169,6 +173,7 @@ export function SessionWatcher() {
         if (msg.type === "session_expired") {
           if (!hasSignOutIntent() && !onPublicPath()) openSessionExpired("broadcast");
         } else if (msg.type === "signed_in") {
+          cancelDeferredSessionExpired();
           sessionExpiredStore.close();
         } else {
           setSignOutIntent(true);

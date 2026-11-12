@@ -1,13 +1,15 @@
 "use client";
 
 // In-game status chips (plan 4.2 rule 4, 4.7): server restarting (V3Maintenance `in_game`), silent auth refresh
-// (V3SessionExpired `in_game_refresh` → `in_game_ok`), and "Update ready" for an old bundle. At the top of the panel
+// (V3SessionExpired `in_game_refresh` → `in_game_ok`, which also holds the session-expired modal until the game
+// ends), and "Update ready" for an old bundle. At the top of the panel
 // (V3Maintenance `in_game`: the page's top right, over the panel; the strip under the board in stack mode), in flow:
 // they never cover the board or the clocks and never take input focus.
 
 import { useEffect, useState } from "react";
 import { formatCountdown } from "@repo/game-core/clock/format";
 import { restartStage } from "@repo/game-core/client/viewState";
+import { holdSessionExpired } from "@/components/system/session-guard";
 import { useAuthStatus, useConnection } from "@/lib/realtime/useConnection";
 import { CHIPS } from "../copy";
 import { useController, useGame } from "./GameContext";
@@ -32,6 +34,10 @@ export function InGameChips() {
   // The restart chip is store state, so the demo route shows it too; the auth and update chips read the tab's
   // socket and exist on live games only.
   const showRestart = controller.kind !== "local" && restarting !== null;
+  // While the viewer plays a live game the "You've Been Signed Out" modal waits for the end (plan 4.7, 5.5.1): the
+  // auth chip below stands in for it and the board stays usable.
+  const holdModal = live && game.state.you.role === "player" && game.state.phase !== "ended";
+  useEffect(() => (holdModal ? holdSessionExpired() : undefined), [holdModal]);
   const ticking = showRestart || (live && (auth.kind === "refreshing" || auth.kind === "recovered"));
   const now = useTicker(ticking);
 

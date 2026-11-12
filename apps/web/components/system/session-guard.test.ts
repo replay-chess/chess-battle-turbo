@@ -4,7 +4,11 @@ import { QueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api/errors";
 import {
   RECOVERY_WINDOW_MS,
+  cancelDeferredSessionExpired,
   createSessionGuard,
+  deferredSessionExpired,
+  holdSessionExpired,
+  openSessionExpired,
   defaultIsPublicPath,
   isSessionPublicPath,
   postAuthMessage,
@@ -153,6 +157,62 @@ describe("modal store", () => {
     sessionExpiredStore.close();
     assert.equal(sessionExpiredStore.get().open, false);
     assert.equal(sessionExpiredStore.get().phase, "modal");
+  });
+});
+
+describe("a live game holds the modal (phase-02 plan 4.7, 5.5.1)", () => {
+  // regression: in-game-auth.spec — a session revoked mid-game opened "You've Been Signed Out" over the board (the
+  // player lost on time behind it); the plan defers the modal until the game ends and shows the in-game chip instead.
+  const onMemberPage = () => setPublicPathClassifier(() => false);
+
+  it("keeps the first open request while held and opens it when the last hold goes", () => {
+    const undo = onMemberPage();
+    sessionExpiredStore.close();
+    const release = holdSessionExpired();
+    const nested = holdSessionExpired();
+    assert.equal(openSessionExpired("clerk"), false);
+    assert.equal(openSessionExpired("api_401"), false);
+    assert.equal(sessionExpiredStore.get().open, false, "no modal during the game");
+    assert.equal(deferredSessionExpired(), "clerk");
+    nested();
+    assert.equal(sessionExpiredStore.get().open, false, "one hold left");
+    release();
+    release(); // idempotent
+    assert.equal(sessionExpiredStore.get().open, true, "opens when the game ends");
+    assert.equal(sessionExpiredStore.get().source, "clerk");
+    assert.equal(deferredSessionExpired(), null);
+    sessionExpiredStore.close();
+    undo();
+  });
+
+  it("a sign-in meanwhile cancels it", () => {
+    const undo = onMemberPage();
+    sessionExpiredStore.close();
+    const release = holdSessionExpired();
+    openSessionExpired("clerk");
+    cancelDeferredSessionExpired();
+    release();
+    assert.equal(sessionExpiredStore.get().open, false);
+    undo();
+  });
+
+  it("never opens on a public page after the game", () => {
+    const undo = setPublicPathClassifier(() => true);
+    sessionExpiredStore.close();
+    const release = holdSessionExpired();
+    openSessionExpired("api_401");
+    release();
+    assert.equal(sessionExpiredStore.get().open, false);
+    assert.equal(deferredSessionExpired(), null);
+    undo();
+  });
+
+  it("the /dev/ui demo is never held", () => {
+    sessionExpiredStore.close();
+    const release = holdSessionExpired();
+    assert.equal(openSessionExpired("demo"), true);
+    release();
+    sessionExpiredStore.close();
   });
 });
 
