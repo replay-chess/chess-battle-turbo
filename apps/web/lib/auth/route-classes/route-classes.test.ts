@@ -1,7 +1,7 @@
 // Route classes (plan phase-01 §7.6, §12.1 route-classes row). The concrete paths come from REPO/docs/route-map.md §3,
 // so the doc and the classifier can't drift apart; the middleware matcher is checked with Next's own compiler.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -174,9 +174,12 @@ describe("middleware.ts matcher (compiled by Next)", () => {
       "/wp-login.php",
       "/x/.env",
       "/.git/config",
-      "/manifest.json",
-      "/robots.txt",
       "/sitemap.xml",
+      "/sitemap-legends.xml",
+      "/blog/rss.xml",
+      "/profile/a.jsmith",
+      "/legends/j.r.capablanca",
+      "/game/abc.mp3x",
       "/api/me",
       "/api/billing/refresh",
       "/api/openings/x",
@@ -207,5 +210,37 @@ describe("middleware.ts matcher (compiled by Next)", () => {
     ]) {
       assert.equal(runs(p), false, p);
     }
+  });
+
+  // regression: a stale session redirected /sounds/move.webm (and /ads.txt, /llms.txt, …) to Clerk's sign-in, a
+  // cross-origin redirect: a CORS error in the console and no sound. Static public assets never meet auth.
+  it("skips every public static path family", () => {
+    const families: Record<string, string[]> = {
+      sounds: ["/sounds/move.webm", "/sounds/capture.webm", "/sounds/x.mp3", "/sounds/x.ogg", "/sounds/x.wav", "/sounds/x.m4a"],
+      video: ["/ReplayChessTrailer.mp4", "/video_clip.webm"],
+      images: ["/og-image.jpg", "/rohit-pandit.jpeg", "/chess-icons/wk.png", "/board_icons/svg/best.svg", "/images/blog/a.webp", "/a.avif", "/a.gif", "/favicon.ico"],
+      icons: ["/icons/icon-192x192.png", "/icons/icon-512x512.png"],
+      fonts: ["/fonts/a.woff2", "/fonts/a.woff", "/fonts/a.ttf", "/fonts/a.otf", "/_next/static/media/GeistVF.woff"],
+      engine: ["/workers/stockfish-18-lite-single.js", "/workers/stockfish-18-lite-single.wasm", "/workers/engine-shim.js", "/workers/sf18-1a3515d5bd9d/manifest.json", "/workers/sf18-1a3515d5bd9d/COPYING", "/engine/x.wasm"],
+      pwa: ["/sw.js", "/sw.js.map", "/workbox-b15f2be9.js", "/workbox-b15f2be9.js.map", "/manifest.json", "/site.webmanifest"],
+      data: ["/openings/e.tsv", "/data/x.csv", "/data/x.json"],
+      crawlers: ["/robots.txt", "/ads.txt", "/llms.txt", "/cb05b2e2d0f759b927d51cf825110140.txt"],
+      scripts: ["/x.js", "/x.css", "/x.js.map"],
+    };
+    for (const [family, paths] of Object.entries(families)) {
+      for (const p of paths) assert.equal(runs(p), false, `${family}: ${p}`);
+    }
+  });
+
+  it("skips every file actually in public/ (a new asset type must join the matcher)", () => {
+    // Not app assets, never fetched by a page: an AWS Amplify routing file and the icon build script.
+    const notAssets = new Set(["/_redirects", "/board_icons/generate_png.ps1"]);
+    const files = (readdirSync(path.join(WEB, "public"), { recursive: true, withFileTypes: true }) as import("node:fs").Dirent[])
+      .filter((d) => d.isFile())
+      .map((d) => `/${path.relative(path.join(WEB, "public"), path.join(d.parentPath, d.name)).split(path.sep).join("/")}`)
+      .filter((p) => !notAssets.has(p));
+    assert.ok(files.length > 50, `public/ has ${files.length} files`);
+    const met = files.filter(runs);
+    assert.deepEqual(met, [], "public files that would run the auth middleware");
   });
 });

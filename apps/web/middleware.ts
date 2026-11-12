@@ -143,8 +143,12 @@ export default async function middleware(req: NextRequest, ev: NextFetchEvent): 
 export const config = {
   matcher: [
     // Pages: skip Next internals, the Sentry tunnel (/monitoring), the PostHog proxy (/ingest), OG images, workers,
-    // PWA service-worker files and static files. Scanner paths (.php, .env, …) stay inside so step 1 answers them.
-    '/((?!_next|ingest|monitoring|og(?:/|$)|workers|sw\\.js|workbox-|api/health|api/webhook|api/cron|api/openings$|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // PWA service-worker files and every static file family in public/ (images, sounds and video, fonts, engine
+    // files, data files, manifests, crawler text files, source maps). A static file must never meet auth: a stale
+    // session would redirect it to the Clerk sign-in page, cross-origin (CORS error, no sound). route-classes.test.ts walks
+    // public/ against this list. The extension must end the path, so a dotted slug (/profile/a.jsmith) still meets
+    // auth. Scanner paths (.php, .env, …) stay inside so step 1 answers them.
+    '/((?!_next|ingest|monitoring|og(?:/|$)|workers|sw\\.js|workbox-|api/health|api/webhook|api/cron|api/openings$|[^?]*\\.(?:html?|css|js|json|map|jpe?g|webp|avif|png|gif|svg|ico|ttf|otf|woff2?|webm|mp4|mp3|m4a|ogg|wav|wasm|txt|tsv|csv|docx?|xlsx?|zip|webmanifest)$).*)',
     // API routes always run (static-looking API paths too), except the self-verifying / CDN-cached ones above.
     '/(api(?!/health|/webhook|/cron|/openings$)|trpc)(.*)',
   ],
