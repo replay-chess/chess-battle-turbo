@@ -130,7 +130,7 @@ describe("cache updaters", () => {
 });
 
 describe("applyImportEvent", () => {
-  it("writes every cache that holds the run; a terminal event refetches imports/accounts and stales the archive", () => {
+  it("writes every cache that holds the run; a terminal event refetches the accounts and stales the archive", () => {
     const qc = new QueryClient();
     qc.setQueryData(qk.imports(), { runs: [run()], firstReview: null });
     qc.setQueryData(qk.accounts(), { items: [account()] });
@@ -140,7 +140,34 @@ describe("applyImportEvent", () => {
     assert.equal(qc.getQueryData<AccountsData>(qk.accounts())!.items[0]!.status, "syncing");
     assert.equal(applyImportEvent(qc, "import:finished", finished, new Date(NOW)), true);
     assert.equal(qc.getQueryState(qk.games.all())?.isInvalidated, true);
-    assert.equal(qc.getQueryState(qk.imports())?.isInvalidated, true);
+    assert.equal(qc.getQueryState(qk.accounts())?.isInvalidated, true);
+  });
+
+  // regression: p04-request-budget-2 — the confirming GET /api/import/status after `import:finished` came on top of a
+  // catch-up read (2 GETs against the happy path's budget of 1, about 1 run in 36).
+  it("a terminal event for a run the status holds patches it and reads nothing again", () => {
+    const qc = new QueryClient();
+    qc.setQueryData(qk.imports(), { runs: [run()], firstReview: null });
+    applyImportEvent(qc, "import:finished", finished, new Date(NOW));
+    assert.equal(qc.getQueryState(qk.imports())?.isInvalidated, false);
+    const d = qc.getQueryData<ImportStatusData>(qk.imports())!;
+    assert.equal(d.runs[0]!.status, "done");
+    assert.equal(d.runs[0]!.imported, finished.imported);
+    assert.equal(d.firstReview?.gameRef, finished.firstReviewGameRef);
+    applyImportEvent(qc, "import:failed", { v: 1, runRef: REF, provider: "chesscom", code: "upstream", retryAt: null, imported: 3, total: 9 }, new Date(NOW));
+    assert.equal(qc.getQueryState(qk.imports())?.isInvalidated, false);
+  });
+
+  it("an analysis that finished before import:finished named the first review shows as done", () => {
+    const qc = new QueryClient();
+    qc.setQueryData(qk.imports(), { runs: [run()], firstReview: null });
+    const early = new Map([[finished.firstReviewGameRef!, 4]]);
+    applyImportEvent(qc, "import:finished", finished, new Date(NOW), early);
+    assert.deepEqual(qc.getQueryData<ImportStatusData>(qk.imports())!.firstReview, {
+      gameRef: finished.firstReviewGameRef,
+      analysisStatus: "done",
+      momentsCount: 4,
+    });
   });
 
   it("an unknown run marks the imports stale instead of inventing one", () => {

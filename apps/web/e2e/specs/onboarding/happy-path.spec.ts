@@ -278,8 +278,9 @@ for (const family of ["desktop", "iphone", "ipad"] as const) {
         expect(calls.count(/^api POST \/api\/accounts\/chesscom$/), "links").toBe(1);
         expect(calls.count(/^api POST \/api\/checkout$/), "checkouts").toBe(1);
         expect(calls.count(/^api GET \/api\/billing\/activation$/), "activation GETs").toBeLessThanOrEqual(2);
-        // One GET at most: the confirming refetch after `import:finished` (lib/realtime/handlers/import.ts); no polls
-        // and no mount refetch of the copy the page's RSC seeded.
+        // One GET at most: a catch-up read when the socket missed the run's events (lib/api/queries/imports.ts); no
+        // polls, no mount refetch of the copy the page's RSC seeded, and no read after `import:finished`, which carries
+        // the final state (lib/realtime/handlers/import.ts; regression: p04-request-budget-2).
         expect(calls.count(/^api GET \/api\/import\/status$/), "import status GETs with the socket up").toBeLessThanOrEqual(1);
         expect(calls.count(/^(render|prefetch|api) /), `invocations: ${calls.seen.join(", ")}`).toBeLessThanOrEqual(21);
         await clickReady(page, "onb-go-home");

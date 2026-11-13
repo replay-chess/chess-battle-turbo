@@ -8,7 +8,11 @@
 //   qk.me()        MeData.import / MeData.accounts[].status.
 // A progress frame for a run the cache does not hold yet (the link happened in another tab) marks `qk.imports()` stale
 // instead of inventing a RunView. Terminal events also mark the archive (`qk.games.all()`) stale and refetch the
-// imports / accounts once. `import:failed` with `code: rate_limited` is a pause, not a failure: the run goes back to
+// accounts once. The import status is not read again after a terminal event for a run it holds: `import:finished` /
+// `import:failed` carry the run's final counters, state and first review, so the patched copy is the server's answer
+// (regression: p04-request-budget-2: the confirming GET came on top of a catch-up read, 2 GETs against a budget of 1
+// in about 1 happy-path run in 36). An `analysis:done` for the first imported game that arrives before
+// `import:finished` names it is remembered and applied when it does, so the card never waits on a stale "queued". `import:failed` with `code: rate_limited` is a pause, not a failure: the run goes back to
 // `queued` and the account shows the countdown.
 //
 // useImportEvents() is the listener (holds the socket with the "user" hold while mounted); lib/realtime/
@@ -139,31 +143,48 @@ export function meOnEvent(d: MeData, name: ImportEventName, ev: ImportEvent): Me
   return { ...d, import: next, ...(accounts ? { accounts } : {}) };
 }
 
-/** Applies one import event to every cache that holds the run. Returns whether a refetch was scheduled. */
-export function applyImportEvent(qc: QueryClient, name: ImportEventName, ev: ImportEvent, now: Date = new Date()): boolean {
+/**
+ * Applies one import event to every cache that holds the run. Returns whether a refetch was scheduled. `doneEarly`:
+ * analyses finished before this event (gameRef → momentsCount), applied to the first review `import:finished` names.
+ */
+export function applyImportEvent(
+  qc: QueryClient,
+  name: ImportEventName,
+  ev: ImportEvent,
+  now: Date = new Date(),
+  doneEarly?: ReadonlyMap<string, number>,
+): boolean {
   const nowIso = now.toISOString();
-  let refetch = name !== "import:progress";
+  let refetchImports = false;
+  let refetchAccounts = name !== "import:progress";
   const imports = qc.getQueryData<ImportStatusData>(qk.imports());
   if (imports) {
     const out = importsOnEvent(imports, name, ev, nowIso);
-    if (out.missing) refetch = true;
-    else if (out.next !== imports) qc.setQueryData(qk.imports(), out.next);
+    if (out.missing) refetchImports = true;
+    else {
+      const first = out.next.firstReview;
+      const moments = first ? doneEarly?.get(first.gameRef) : undefined;
+      const next = moments !== undefined && first ? importsOnAnalysisDone(out.next, { gameRef: first.gameRef, momentsCount: moments }) : out.next;
+      if (next !== imports) qc.setQueryData(qk.imports(), next);
+    }
   }
   const accounts = qc.getQueryData<AccountsData>(qk.accounts());
   if (accounts) {
     const out = accountsOnEvent(accounts, name, ev, nowIso);
-    if (out.missing) refetch = true;
+    if (out.missing) refetchAccounts = true;
     else if (out.next !== accounts) qc.setQueryData(qk.accounts(), out.next);
   }
   const me = qc.getQueryData<MeData>(qk.me());
   if (me) qc.setQueryData(qk.me(), meOnEvent(me, name, ev));
-  if (refetch) {
-    void qc.invalidateQueries({ queryKey: qk.imports(), exact: true, refetchType: "active" });
-    void qc.invalidateQueries({ queryKey: qk.accounts(), exact: true, refetchType: "active" });
-  }
+  // A run the status does not hold yet (linked in another tab): read it again. A run it holds was patched above.
+  if (refetchImports) void qc.invalidateQueries({ queryKey: qk.imports(), exact: true, refetchType: "active" });
+  if (refetchImports || refetchAccounts) void qc.invalidateQueries({ queryKey: qk.accounts(), exact: true, refetchType: "active" });
   if (name === "import:finished") void qc.invalidateQueries({ queryKey: qk.games.all(), refetchType: "none" });
-  return refetch;
+  return refetchImports || refetchAccounts;
 }
+
+/** Most early `analysis:done` frames remembered for the first review (a run queues ≤ 50 eager analyses). */
+const DONE_EARLY_MAX = 64;
 
 type Frame = { useq?: unknown };
 
@@ -200,20 +221,29 @@ export function useImportEvents(options: { enabled?: boolean; onEvent?: ImportEv
     const rt = getRealtime();
     if (!rt || !enabled) return;
     const release = rt.acquire("user");
+    // Analyses that finished before `import:finished` named the first review (the newest game is analysed while the
+    // rest still saves), so the card shows them without reading the status again.
+    const doneEarly = new Map<string, number>();
     const offs = IMPORT_EVENT_NAMES.map((name) =>
       rt.on<ImportEvent & Frame>(name, (frame) => {
         if (!frame || typeof frame !== "object") return;
         if (typeof frame.useq === "number") rt.noteUseq(frame.useq);
         validateDev(name, frame);
-        applyImportEvent(qc, name, frame);
+        applyImportEvent(qc, name, frame, new Date(), doneEarly);
         onEvent.current?.(name, frame);
       }),
     );
     offs.push(
       rt.on<AnalysisDoneEvent & Frame>("analysis:done", (frame) => {
+        if (!frame || typeof frame !== "object") return;
         const d = qc.getQueryData<ImportStatusData>(qk.imports());
-        if (!d || !frame || d.firstReview?.gameRef !== frame.gameRef) return;
+        if (!d) return;
         validateDev("analysis:done", frame);
+        if (d.firstReview?.gameRef !== frame.gameRef) {
+          if (doneEarly.size >= DONE_EARLY_MAX) doneEarly.delete(doneEarly.keys().next().value!);
+          doneEarly.set(frame.gameRef, frame.momentsCount);
+          return;
+        }
         qc.setQueryData(qk.imports(), importsOnAnalysisDone(d, frame));
       }),
     );
