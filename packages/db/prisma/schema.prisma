@@ -553,7 +553,9 @@ model GamePlayer {
   // m4s (D2): the id of the removed link whose purge owns this row, set by the unlink with "delete games" before the
   // link row goes (so the SET NULL above cannot hide which rows were its). No FK. Partial index
   // game_players_purge_marked_idx (raw SQL, protected). import_purge_marked_batch() deletes only these rows.
-  purgeLinkId     BigInt?
+  // @ignore: written and read only by raw SQL, and kept out of the Prisma client so a build that deploys before the
+  // migration never selects a column the database does not have yet.
+  purgeLinkId     BigInt?       @ignore
 
   @@id([gameId, userId])
   @@unique([gameId, color])
