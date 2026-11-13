@@ -22,7 +22,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { mergeTests, type Locator, type Page, type TestInfo } from "@playwright/test";
 import type { PrismaClient } from "@repo/db";
-import { test as authTest, refreshSessionClaims, signIn } from "../../../fixtures/auth";
+import { test as authTest, pendingViewerReads, refreshSessionClaims, signIn } from "../../../fixtures/auth";
 import { test as freshTest } from "../../../fixtures/fresh-user";
 import { leasePersona as resetPoolPersona } from "../../../fixtures/lease";
 import { expect, test as telemetryTest } from "../../../fixtures/telemetry";
@@ -270,7 +270,11 @@ export const test = mergeTests(authTest, telemetryTest, timeTest, freshTest).ext
       // The mock's per-customer Dodo controls belong to the previous lease of this pool user: start clean.
       if (await upstreamClient.healthy()) await upstreamClient.dodoFor(email, { clear: true });
       expect(leased.email).toBe(email);
+      // The claims refresh makes the page read the viewer again: let that read finish before the spec navigates
+      // (fixtures/auth.ts pendingViewerReads; regression: webkit-lease-me-cut).
+      const viewerReads = pendingViewerReads(page);
       await refreshSessionClaims(page);
+      await viewerReads.settled();
       const row = await userRow(p4db, email);
       // Its per-user rate-limit windows belong to the previous lease too (a spec run a minute earlier on this pool
       // user would otherwise spend this one's lookups, links or syncs).

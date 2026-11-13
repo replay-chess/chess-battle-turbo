@@ -209,7 +209,16 @@ export async function signIn(page: Page, email: string, password: string, opts: 
   await viewerReads.settled();
 }
 
-/** Tracks the page's in-flight GET /api/me; `settled()` waits (≤ 15 s) until none is left, then stops tracking. */
+/**
+ * Tracks the page's in-flight GET /api/me; `settled()` waits (≤ 15 s) until none is left, then stops tracking.
+ *
+ * It first lets the page go quiet (`networkidle`, ≤ 10 s): UserSync's read starts only once Clerk has loaded on the
+ * page, so an empty set right after the landing did not mean "no read": the read began a moment later and the spec's
+ * next navigation cut it, which WebKit reports as "…/api/me due to access control checks." (lichess.spec on Linux
+ * WebKit, about 1 run in 15; Clerk's own FAPI fetches were cut and reported the same way). The app cannot avoid
+ * that report: WebKit cuts the loads before the old document sees `beforeunload` or `pagehide` (aborting the reads
+ * from those events was tried and changed nothing, 6 of 30 runs still failed).
+ */
 export function pendingViewerReads(page: Page) {
   const pending = new Set<Request>();
   const isMe = (r: Request) => new URL(r.url()).pathname === "/api/me";
@@ -221,6 +230,7 @@ export function pendingViewerReads(page: Page) {
   return {
     async settled(timeoutMs = 15_000) {
       const until = Date.now() + timeoutMs;
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
       while (pending.size > 0 && Date.now() < until) await page.waitForTimeout(50);
       page.off("request", onRequest);
       page.off("requestfinished", onDone);
