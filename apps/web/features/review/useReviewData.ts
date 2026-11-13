@@ -29,7 +29,14 @@ import { reviewQuery, reviewStatusQuery } from "@/lib/api/queries/review";
 import { skeletonAnalysis, useAnalysisEvents, type AnalysisEventHandler } from "@/lib/realtime/handlers/analysis";
 import { useConnection } from "@/lib/realtime/useConnection";
 import { COPY } from "./copy";
-import { fallbackInterval, isLiveStatus, reconcileWithStatus, REVIEW_STALL_SILENCE_MS, SOCKET_GRACE_MS } from "./live";
+import {
+  afterAnalyseConflict,
+  fallbackInterval,
+  isLiveStatus,
+  reconcileWithStatus,
+  REVIEW_STALL_SILENCE_MS,
+  SOCKET_GRACE_MS,
+} from "./live";
 import { trackReview } from "./telemetry";
 
 function subscribeVisibility(fn: () => void) {
@@ -121,7 +128,8 @@ export function useReviewData(
       .catch((err: unknown) => {
         if (regrade) return;
         if (err instanceof ApiError && err.code === "conflict") {
-          // skipped (too short or aborted) or already running: the payload tells which.
+          // skipped (too short or aborted) is final at once; already running: the refetched payload tells.
+          qc.setQueryData<ReviewDTO>(qk.review.detail(ref), (d) => afterAnalyseConflict(d, err.reason));
           void qc.invalidateQueries({ queryKey: qk.review.detail(ref), exact: true });
           return;
         }

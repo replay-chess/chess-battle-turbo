@@ -116,6 +116,20 @@ describe("P3 review routes: contract (Postgres)", { skip: url ? false : "TEST_DA
     assert.equal(skipped.analysis, null);
   });
 
+  it("regression: short-game-never-skipped: a finished 2-ply game left NONE (no job) reads skipped in A1 and A2; A3 409", async () => {
+    const { id, ref } = games.shortNone!;
+    const a1 = await get(H.review, ref, "a");
+    assert.equal(a1.res.status, 200);
+    const dto = ok(ReviewDTO).parse(await jsonOf(a1.res)).data;
+    assert.equal(dto.status, "skipped");
+    assert.equal(dto.analysis, null);
+    const a2 = ok(ReviewStatusDTO).parse(await jsonOf((await get(H.status, ref, "a", "/status")).res)).data;
+    assert.equal(a2.analysis.status, "skipped");
+    const a3 = await call(H.analyse, "POST", `/api/review/${ref}/analyse`, "a", { params: { ref }, body: {} });
+    assert.equal((await errorOf(a3.res, 409, "conflict")).reason, "skipped");
+    assert.equal((await jobs(id)).length, 0);
+  });
+
   it("A1/A2 on a QUEUED job due for > 30 s, 5 calls in parallel → exactly one kick (the CAS)", async () => {
     const { id, ref } = games.stale!;
     kicks.length = 0;

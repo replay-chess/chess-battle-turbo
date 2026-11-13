@@ -7,6 +7,7 @@
 // The counts (page 1 and limit=0 only, AP-38) run as a second statement over the same index prefix, in parallel.
 import type { GameResultFilter, GameTcFilter, GamesFilter } from "@repo/contracts/http/games";
 import { Prisma } from "@repo/db";
+import { effectiveAnalysisStatusSql } from "./status-sql";
 
 export type ArchiveCursor = { endedAt: string; gameId: string };
 
@@ -58,7 +59,7 @@ export function archivePageSql(userId: bigint, filter: GamesFilter, cursor: Arch
 SELECT gp."gameId", g."referenceId" AS ref, gp.color, gp.result::text AS result, gp."timeClass"::text AS "timeClass",
        gp.mode::text AS mode, gp."endedAt", gp."opponentName", gp."opponentRating", gp."opponentUserId",
        gp."ratingDelta", gp.accuracy, gp.headline, gp."momentsCount", COALESCE(gp."ecoCode", g."ecoCode") AS "ecoCode",
-       g.source::text AS source, g."analysisStatus"::text AS "analysisStatus", COALESCE(g.fen, g."startingFen") AS fen,
+       g.source::text AS source, ${effectiveAnalysisStatusSql()} AS "analysisStatus", COALESCE(g.fen, g."startingFen") AS fen,
        g."openingName", g."initialTimeSeconds", g."incrementSeconds", g.meta->'position'->>'name' AS "positionTitle",
        (lc."gameId" IS NOT NULL) AS "hasComparison"
   FROM game_players gp

@@ -10,6 +10,7 @@
 // Times: Prisma's DateTime columns are timestamp(3) without zone, stored in UTC, so every comparison with the clock
 // uses (now() AT TIME ZONE 'UTC') and nothing depends on the session TimeZone.
 import { Prisma } from "@repo/db";
+import { effectiveAnalysisStatusSql } from "./status-sql";
 
 export type ReadKind = "probe" | "status" | "review" | "legend";
 
@@ -26,7 +27,7 @@ const NOW = Prisma.sql`(now() AT TIME ZONE 'UTC')`;
 
 /** Columns of every read: the ETag parts, the job state (stall rule, kick CAS) and the comparison state. */
 const PROBE_COLUMNS = Prisma.sql`
-  g.id AS "gameId", g."referenceId" AS ref, g."analysisStatus"::text AS "analysisStatus", g."chessPositionId",
+  g.id AS "gameId", g."referenceId" AS ref, ${effectiveAnalysisStatusSql()} AS "analysisStatus", g."chessPositionId",
   gp."userId" AS "memberId", gp.color, gp."isPlayer",
   a.version, a."gradedPlies", a."totalPlies", a."failedAtPly", a."updatedAt" AS "analysisUpdatedAt",
   pr."updatedAt" AS "reviewUpdatedAt",

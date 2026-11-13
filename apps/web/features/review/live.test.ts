@@ -5,6 +5,7 @@ import { reviewFixture, reviewStatusFixture } from "@repo/contracts/http/fixture
 import * as CT from "@repo/contracts/http/review";
 import type { ReviewStatusDTO } from "@repo/contracts/http/review";
 import {
+  afterAnalyseConflict,
   fallbackExpired,
   fallbackInterval,
   isLiveStatus,
@@ -94,4 +95,15 @@ test("A2 queued after a failure (auto-retry): back to the queued card with grade
 test("a finished payload is never rewritten by A2", () => {
   const d = reviewFixture("done");
   assert.deepEqual(reconcileWithStatus(d, status({ status: "failed" })), { next: d, refetch: false });
+});
+
+test("regression: short-game-never-skipped: A3's 409 skipped makes the review skipped at once; other conflicts keep it", () => {
+  const queued = { ...reviewFixture("queued"), status: "queued" as const };
+  const skipped = afterAnalyseConflict(queued, "skipped");
+  assert.equal(skipped?.status, "skipped");
+  assert.equal(skipped?.analysis, null);
+  assert.equal(afterAnalyseConflict(queued, "already_running"), queued);
+  assert.equal(afterAnalyseConflict(undefined, "skipped"), undefined);
+  const done = reviewFixture("done");
+  assert.equal(afterAnalyseConflict(done, "skipped"), done, "a finished review is never overwritten");
 });

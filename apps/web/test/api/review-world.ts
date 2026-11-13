@@ -307,6 +307,8 @@ export function reviewWorld(url: string) {
     const stale = await createGame("stale", { analysisStatus: "QUEUED" });
     await writeJob(stale.id, stale.ref, { status: "QUEUED", runAtMs: Date.now() - 120_000 });
     await createGame("short", { moves: "e2e4 e7e5 g1f3 b8c6", analysisStatus: "SKIPPED" });
+    // A short game the finish statement never marked (finished before P3; NONE, no job): read as skipped.
+    await createGame("shortNone", { moves: "e2e4 e7e5" });
     const failed = await createGame("failed", { analysisStatus: "FAILED" });
     await writeAnalysis(failed.id, { graded: 20, done: false });
     await writeJob(failed.id, failed.ref, { status: "QUEUED", attempts: 1, runAtMs: Date.now() + 30_000, lastError: "engine_failed: no bestmove" });

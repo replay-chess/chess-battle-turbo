@@ -60,6 +60,17 @@ export function fallbackExpired(query: object, now: number): boolean {
   return !!s && now - s.startedAt >= REVIEW_FALLBACK_STOP_AFTER_MS;
 }
 
+/**
+ * The cached payload after A3 answered 409. `skipped` (under 6 plies, aborted, not finished) is final: the review shows
+ * "too short to review" at once instead of the optimistic queued card falling back to "Waiting for the engine"
+ * (regression: short-game-never-skipped). Any other conflict (`already_running`) keeps the payload; the caller
+ * refetches either way.
+ */
+export function afterAnalyseConflict(d: ReviewDTO | undefined, reason: string | undefined): ReviewDTO | undefined {
+  if (!d || reason !== "skipped" || d.status === "done") return d;
+  return { ...d, status: "skipped", analysis: null };
+}
+
 /** What to do with the cached payload after an A2 answer. */
 export function reconcileWithStatus(d: ReviewDTO, s: ReviewStatusDTO): { next: ReviewDTO; refetch: boolean } {
   const a = s.analysis;
