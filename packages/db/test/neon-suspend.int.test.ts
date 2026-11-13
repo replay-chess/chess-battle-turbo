@@ -57,6 +57,36 @@ describe("Neon suspend: transient reconnect (Postgres)", { skip: TEST_URL ? fals
     return rows[0]!.n;
   }
 
+  /**
+   * The suspend lands on the socket client's connection while `op`'s statement is on it: an admin transaction holds
+   * the game row, `op` starts and waits for the row, and the suspend closes its connection under it. Closing an idle
+   * connection instead left it to the driver whether the next statement met the dead connection or a fresh one (CI
+   * 43452098148: the finish after the second suspend went through with 0 reconnects where the test expects 1), so the
+   * transient path this spec is about ran or not by timing. Returns `op`'s promise (already started).
+   */
+  async function suspendDuring<T>(gameId: bigint, op: () => Promise<T>): Promise<{ result: Promise<T>; terminated: number }> {
+    let result!: Promise<T>;
+    let terminated = 0;
+    await admin.$transaction(
+      async (tx) => {
+        await tx.$queryRaw(Prisma.sql`SELECT id FROM games WHERE id = ${gameId} FOR UPDATE`);
+        result = op();
+        result.catch(() => undefined);
+        const until = Date.now() + 10_000;
+        for (;;) {
+          const [w] = await admin.$queryRaw<{ n: number }[]>(Prisma.sql`
+            SELECT count(*)::int AS n FROM pg_stat_activity WHERE application_name = ${APP} AND wait_event_type = 'Lock'`);
+          if (w!.n > 0) break;
+          if (Date.now() > until) throw new Error("the socket client's statement never reached the game row");
+          await new Promise((r) => setTimeout(r, 20));
+        }
+        terminated = await suspend();
+      },
+      { timeout: 20_000 },
+    );
+    return { result, terminated };
+  }
+
   it("a checkpoint after the suspend fails once, is retried at once, and the finish keeps every ply", async () => {
     const w = await makeUser(admin, "nw");
     const b = await makeUser(admin, "nb");
@@ -89,36 +119,35 @@ describe("Neon suspend: transient reconnect (Postgres)", { skip: TEST_URL ? fals
       });
     assert.equal((await cp(6)).applied, true);
 
-    // Suspend mid-game (after ply 6).
-    assert.ok((await suspend()) >= 1, "the socket client had an open connection");
-
-    // The next statement fails once with a transient error; the pool is reset and the retry succeeds at once.
+    // Suspend mid-game (after ply 6), under the next checkpoint: it fails once with a transient error; the pool is
+    // reset and the retry succeeds at once.
     const transients: unknown[] = [];
-    const result = await withTransientRetry(() => cp(16), { onTransient: (e) => transients.push(e), reset });
+    const first = await suspendDuring(g.id, () => withTransientRetry(() => cp(16), { onTransient: (e) => transients.push(e), reset }));
+    assert.ok(first.terminated >= 1, "the socket client had an open connection");
+    const result = await first.result;
     assert.equal(result.applied, true);
     assert.equal(transients.length, 1, "exactly one ws.persist.reconnect, no ws.persist.fail");
     assert.equal(isTransientDbError(transients[0]), true);
 
-    // A second suspend right before the finish: the finish (one statement) is retried and stores all 33 plies.
-    await suspend();
+    // A second suspend under the finish: the finish (one statement) is retried and stores all 33 plies.
     const reconnects: unknown[] = [];
-    const fin = await withTransientRetry(
-      () =>
-        finishGame(socket, {
-          gameId: g.id,
-          moves: OPERA_UCI,
-          clocksMs: plies.map((_, i) => 300_000 - i * 500),
-          plyCount: plies.length,
-          fen: OPERA_FINAL_FEN,
-          whiteTimeMs: 280_000,
-          blackTimeMs: 279_000,
-          method: "checkmate",
-          winner: "w",
-          pgn: "1. e4 … 17. Rd8# 1-0",
-          endedAt: new Date(),
-        }),
-      { onTransient: (e) => reconnects.push(e), reset },
-    );
+    const finish = () =>
+      finishGame(socket, {
+        gameId: g.id,
+        moves: OPERA_UCI,
+        clocksMs: plies.map((_, i) => 300_000 - i * 500),
+        plyCount: plies.length,
+        fen: OPERA_FINAL_FEN,
+        whiteTimeMs: 280_000,
+        blackTimeMs: 279_000,
+        method: "checkmate",
+        winner: "w",
+        pgn: "1. e4 … 17. Rd8# 1-0",
+        endedAt: new Date(),
+      });
+    const second = await suspendDuring(g.id, () => withTransientRetry(finish, { onTransient: (e) => reconnects.push(e), reset }));
+    assert.ok(second.terminated >= 1, "the finish's connection was closed under it");
+    const fin = await second.result;
     assert.equal(reconnects.length, 1);
     // If the first attempt committed before the connection dropped, the retry reports "already finished, same
     // end"; either way the game is finished exactly once.
