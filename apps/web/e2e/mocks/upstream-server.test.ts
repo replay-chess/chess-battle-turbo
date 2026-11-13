@@ -237,6 +237,9 @@ describe("upstream mock", () => {
       })
     ).json()) as { session_id: string; checkout_url: string };
     assert.match(created.checkout_url, /\/dodo\/pay\/cks_mock_/);
+    // The browser's round trip stays same-site with the app on http://localhost (regression: p04-webkit-checkout-return).
+    assert.equal(new URL(created.checkout_url).hostname, "localhost");
+    assert.equal(new URL(created.checkout_url).port, new URL(base).port);
     const paid = await fetch(created.checkout_url, { redirect: "manual" });
     assert.equal(paid.status, 302);
     const back = new URL(paid.headers.get("location")!);

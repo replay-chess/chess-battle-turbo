@@ -53,6 +53,36 @@ async function activeAndControlling(
   return { state, scope };
 }
 
+/**
+ * Opens `path` as a page the activated worker controls, the way a member's next page is.
+ *
+ * The sign-in on "/" starts the registration (at `load`, or SW_LOAD_FALLBACK_MS after the page starts it) and the
+ * specs go to the member page at once, so the worker can install and activate while that navigation is in flight.
+ * Its `clients.claim()` then skips the page: Chromium claims only execution-ready clients, and the navigation's
+ * reserved client is not one yet, so the committed page stays uncontrolled for its whole life (CI 43418735934:
+ * `controller=none active=/sw.js:activated` for 30 s; reproduced by holding the document while the worker installs,
+ * Chromium only; WebKit claims it). Nothing in the app needs a controller (the worker answers static assets only),
+ * and the next load is controlled. So: wait for the active worker and, when this load is not controlled, load the
+ * page again (regression: pwa-claim-during-navigation).
+ */
+async function gotoControlled(
+  page: Page,
+  path: string,
+  waitUntil: "load" | "domcontentloaded",
+): Promise<{ state: string; scope: string }> {
+  await page.goto(path, { waitUntil });
+  const controlled = await page
+    .evaluate(() =>
+      Promise.race([
+        navigator.serviceWorker.ready.then(() => Boolean(navigator.serviceWorker.controller)),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 30_000)),
+      ]),
+    )
+    .catch(() => false); // the page moved on (a redirect): load it again
+  if (!controlled) await page.reload({ waitUntil });
+  return activeAndControlling(page);
+}
+
 /** Every URL in Cache Storage, by cache. */
 async function cachedUrls(page: Page): Promise<Record<string, string[]>> {
   return page.evaluate(async () => {
@@ -394,8 +424,7 @@ test.describe("service worker @p1 @smoke @prod-build", () => {
         process.env.E2E_USER_A_EMAIL!,
         process.env.E2E_USER_A_PASSWORD!,
       );
-      await page.goto("/play", { waitUntil: "domcontentloaded" });
-      await activeAndControlling(page);
+      await gotoControlled(page, "/play", "domcontentloaded");
       // A reload, an RSC payload (what a soft navigation fetches) and an /api read, all while controlled.
       await page.reload({ waitUntil: "load" });
       await page.evaluate(() =>
@@ -466,8 +495,7 @@ test.describe("service worker @p1 @smoke @prod-build", () => {
           process.env.E2E_USER_A_EMAIL!,
           process.env.E2E_USER_A_PASSWORD!,
         );
-        await page.goto("/play", { waitUntil: "load" });
-        await activeAndControlling(page);
+        await gotoControlled(page, "/play", "load");
         await page.goto("/legends", { waitUntil: "load" }); // visited once online, so a cache could hold it
         await context.setOffline(true);
         // Floating on desktop, inline in the banner slot on the phone (OnlineChip); the other one is hidden.

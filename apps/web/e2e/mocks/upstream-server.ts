@@ -494,8 +494,16 @@ async function dodo(req: IncomingMessage, res: ServerResponse, p: string, url: U
       paid: false,
       subscriptionId: null,
     });
-    const self = `http://${req.headers.host}`;
-    return json(res, 200, { session_id: id, checkout_url: `${self}/dodo/pay/${id}` });
+    // The hosted page is on `localhost` (the mock's own port), as the Lichess consent page is (upstream-client.ts): the
+    // return to the app is then a same-site redirect chain. From 127.0.0.1 it was cross-site, so the browser left out
+    // clerk-js's SameSite=Strict `__client_uat` and Clerk's middleware sent the return through a handshake, whose
+    // `__client_uat; Domain=localhost` Set-Cookie Linux WebKit rejects (the cookie fixtures/auth.ts
+    // allowLocalhostDomainCookies covers for document.cookie only): three handshakes, Clerk's redirect-loop guard
+    // answered signed out and the member came back through /sign-in (webkit-iphone, CI 43418735934: 13 middleware
+    // hops, the sign-in render and its prefetch of "/"). On https with a real domain the handshake sets its cookies;
+    // the bare-localhost Domain is a test-host artifact (regression: p04-webkit-checkout-return).
+    const port = new URL(`http://${req.headers.host ?? "localhost"}`).port;
+    return json(res, 200, { session_id: id, checkout_url: `http://localhost${port ? `:${port}` : ""}/dodo/pay/${id}` });
   }
   const pay = /^\/pay\/([A-Za-z0-9_]+)$/.exec(p);
   if (pay && req.method === "GET") {

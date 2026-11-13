@@ -61,6 +61,21 @@ export function importStatusQuery() {
  */
 export const IMPORT_LIVE_CATCHUP_MS = 10_000;
 
+/**
+ * The checks after the socket went live: the first at IMPORT_LIVE_CATCHUP_MS, then twice as far apart up to a minute,
+ * each fetching only when nothing updated the run since the previous check's answer. Events are lost more often than
+ * the first check assumed: the Done page is a document load (lib/billing/client.ts leaveActivation), and the socket
+ * server drops a user-room event while the member has no socket (AP-10: an empty room is skipped and `useq` does not
+ * move, so the reconnect shows no gap); 6 of 30 local runs on 4 workers recovered only through this check. With one
+ * check, a card it caught still moving had nothing left to recover it: in CI 43418735934 (chromium) Done said
+ * "Importing games · 0 found" for 180 s (regression: import-card-stuck-reading-2). A run that keeps sending events is
+ * never fetched; a silent one costs one GET per check.
+ */
+export function importCatchUpDelayMs(check: number): number {
+  return Math.min(IMPORT_LIVE_CATCHUP_MS * 2 ** Math.max(0, check), IMPORT_CATCHUP_MAX_MS);
+}
+export const IMPORT_CATCHUP_MAX_MS = 60_000;
+
 /** True when the status must be fetched again: an active run, and nothing updated it since the socket went live. */
 export function importCatchUpDue(input: { liveAt: number; nowMs: number; dataUpdatedAt: number; data: ImportStatusData | undefined }): boolean {
   return input.nowMs - input.liveAt >= IMPORT_LIVE_CATCHUP_MS && input.dataUpdatedAt <= input.liveAt && hasActiveRun(input.data);
@@ -73,14 +88,29 @@ export function useImportStatus(options: { enabled?: boolean } = {}) {
   const enabled = options.enabled ?? true;
   useEffect(() => {
     if (!enabled || conn !== "live") return;
-    const liveAt = Date.now();
-    const timer = setTimeout(() => {
-      const state = qc.getQueryState<ImportStatusData>(qk.imports());
-      if (state && importCatchUpDue({ liveAt, nowMs: Date.now(), dataUpdatedAt: state.dataUpdatedAt, data: state.data })) {
-        void qc.invalidateQueries({ queryKey: qk.imports(), refetchType: "active" });
-      }
-    }, IMPORT_LIVE_CATCHUP_MS);
-    return () => clearTimeout(timer);
+    // `baseline`: the moment from which an update counts (the socket going live, then each check's own answer).
+    let baseline = Date.now();
+    let check = 0;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const arm = () => {
+      timer = setTimeout(async () => {
+        const state = qc.getQueryState<ImportStatusData>(qk.imports());
+        if (!state || !hasActiveRun(state.data)) return; // nothing moving: no more checks
+        if (importCatchUpDue({ liveAt: baseline, nowMs: Date.now(), dataUpdatedAt: state.dataUpdatedAt, data: state.data })) {
+          await qc.invalidateQueries({ queryKey: qk.imports(), refetchType: "active" }).catch(() => undefined);
+        }
+        if (stopped) return;
+        baseline = Math.max(Date.now(), qc.getQueryState<ImportStatusData>(qk.imports())?.dataUpdatedAt ?? 0);
+        check += 1;
+        arm();
+      }, importCatchUpDelayMs(check));
+    };
+    arm();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
   }, [conn, enabled, qc]);
   return useQuery({
     ...importStatusQuery(),

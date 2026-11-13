@@ -84,8 +84,14 @@ export function DonePanel(p: DonePanelProps) {
         <OnbFooter
           secondary={
             p.legendHref ? (
+              // No prefetch: the click waits for completion and then pushes (DoneStep `leave`), so a viewport prefetch
+              // only costs an invocation on every Done load (plan §5.4 lists none for this CTA, §5.9 budgets one
+              // prefetch for the whole flow), and made before completion it is middleware's onboarding redirect, which
+              // a production build could replay on the click (as done-destination-prefetch below; regression:
+              // p04-done-legend-prefetch, e2e/specs/onboarding/happy-path.spec.ts).
               <Link
                 href={p.legendHref}
+                prefetch={false}
                 onClick={p.onFirstPosition}
                 aria-disabled={p.entitled ? undefined : true}
                 className={cn(buttonVariants({ variant: "secondary" }), "onb-secondary")}

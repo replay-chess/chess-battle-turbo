@@ -2,7 +2,7 @@
 // (plan §5.9), while an older copy (a client navigation back to the page, a long-lived tab) is still revalidated.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { IMPORT_LIVE_CATCHUP_MS, IMPORT_SEED_FRESH_MS, importCatchUpDue, importStatusQuery, refetchImportsOnMount } from "./imports";
+import { IMPORT_CATCHUP_MAX_MS, IMPORT_LIVE_CATCHUP_MS, IMPORT_SEED_FRESH_MS, importCatchUpDelayMs, importCatchUpDue, importStatusQuery, refetchImportsOnMount } from "./imports";
 
 describe("import status: mount refetch", () => {
   const now = 1_800_000_000_000;
@@ -31,5 +31,18 @@ describe("import status catch-up after the socket goes live (FIX-1)", () => {
     assert.equal(importCatchUpDue({ liveAt, nowMs: liveAt + IMPORT_LIVE_CATCHUP_MS, dataUpdatedAt: liveAt + 2_000, data: active }), false, "events kept it fresh");
     assert.equal(importCatchUpDue({ liveAt, nowMs: liveAt + IMPORT_LIVE_CATCHUP_MS, dataUpdatedAt: liveAt - 5_000, data: done }), false, "nothing moving");
     assert.equal(importCatchUpDue({ liveAt, nowMs: liveAt + 3_000, dataUpdatedAt: liveAt - 5_000, data: active }), false, "not yet");
+  });
+});
+
+describe("import status catch-up keeps checking a silent run", () => {
+  it("regression: import-card-stuck-reading-2: the checks back off (10 s, 20 s, 40 s, then every minute) instead of stopping after one", () => {
+    assert.deepEqual([0, 1, 2, 3, 4, 9].map(importCatchUpDelayMs), [
+      IMPORT_LIVE_CATCHUP_MS,
+      IMPORT_LIVE_CATCHUP_MS * 2,
+      IMPORT_LIVE_CATCHUP_MS * 4,
+      IMPORT_CATCHUP_MAX_MS,
+      IMPORT_CATCHUP_MAX_MS,
+      IMPORT_CATCHUP_MAX_MS,
+    ]);
   });
 });

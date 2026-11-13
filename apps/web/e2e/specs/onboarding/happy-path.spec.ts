@@ -105,6 +105,27 @@ function recordInvocations(page: Page) {
   };
 }
 
+/**
+ * The page's in-flight GET /api/import/status reads. Continue on Activating is a document navigation
+ * (leaveActivation); a read the import's `import:finished` started a moment earlier is cut by it, and WebKit reports
+ * the cut fetch as an uncaught "…/api/import/status due to access control checks." page error (Linux WebKit, the CI
+ * browser). The member loses nothing (Done reads the status again); the spec lets the read finish first, as the
+ * sign-in fixture does for /api/me (regression: webkit-signin-me-abort, webkit-activating-status-abort).
+ */
+function pendingStatusReads(page: Page) {
+  const pending = new Set<Request>();
+  const isStatus = (r: Request) => new URL(r.url()).pathname === "/api/import/status";
+  page.on("request", (r) => void (isStatus(r) && pending.add(r)));
+  page.on("requestfinished", (r) => void pending.delete(r));
+  page.on("requestfailed", (r) => void pending.delete(r));
+  return {
+    async settled(timeoutMs = 15_000) {
+      const until = Date.now() + timeoutMs;
+      while (pending.size > 0 && Date.now() < until) await page.waitForTimeout(50);
+    },
+  };
+}
+
 /** Every string value a PATCH carries for an enum field is lowercase (D4-25: the wire values). */
 function wireValuesOf(body: Record<string, unknown>): string[] {
   const out: string[] = [];
@@ -134,6 +155,7 @@ for (const family of ["desktop", "iphone", "ipad"] as const) {
         await upstream.dodoFor(me.email, { webhook: false });
         const writes = recordWrites(page);
         const calls = recordInvocations(page);
+        const statusReads = pendingStatusReads(page);
 
         // ── Welcome ──
         await gotoStep(page, "");
@@ -228,6 +250,7 @@ for (const family of ["desktop", "iphone", "ipad"] as const) {
         const sub = await upstream.subscription(subscriptionId!);
         const again = await sendDodoWebhook(request, "subscription.active", trialSubscription({ clerkUserId: me.clerkUserId, customerId: sub.customer.customer_id, email: me.email, productId: String(sub.product_id), subscriptionId: subscriptionId! }));
         expect(again.status).toBe(200);
+        await statusReads.settled();
         await clickReady(page, "onb-activating-continue");
 
         // ── Done: importing → imported ──
@@ -246,6 +269,10 @@ for (const family of ["desktop", "iphone", "ipad"] as const) {
         testInfo.annotations.push({ type: "invocations", description: calls.seen.join(", ") });
         expect(calls.count(/^render GET \/onboarding\//), "step renders").toBeLessThanOrEqual(8);
         expect(calls.count(/^prefetch /), `prefetches: ${calls.seen.filter((c) => c.startsWith("prefetch")).join(", ")}`).toBeLessThanOrEqual(1);
+        // Done prefetches nothing on load: not the legend position (regression: p04-done-legend-prefetch).
+        expect(calls.seen.filter((c) => /^prefetch GET \/position\//.test(c)), "Done's legend CTA is not prefetched").toEqual([]);
+        // The return from the hosted checkout stays in the flow: no sign-in hop (regression: p04-webkit-checkout-return).
+        expect(calls.seen.filter((c) => / \/sign-in/.test(c)), "the checkout return never goes through /sign-in").toEqual([]);
         expect(calls.count(/^api PATCH \/api\/me\/onboarding$/), "step PATCHes + complete").toBeLessThanOrEqual(7);
         expect(calls.count(/^api POST \/api\/accounts\/chesscom\/lookup$/), "lookups").toBe(1);
         expect(calls.count(/^api POST \/api\/accounts\/chesscom$/), "links").toBe(1);
