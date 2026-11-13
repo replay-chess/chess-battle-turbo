@@ -37,15 +37,18 @@ for (const family of ["desktop", "iphone"] as const) {
         await cta.click();
 
         await expect(page).toHaveURL(/\/checkout\/activating\?(.*&)?source=pricing/, { timeout: 60_000 });
+        // Plan §1 step 25: the return names /pricing as the destination (regression: D15, no redirect_url at all).
+        expect(new URL(page.url()).searchParams.get("redirect_url")).toBe("/pricing");
         const card = page.getByTestId("activation-card");
         await expect(card).toHaveAttribute("data-state", "polling");
         await noDocumentScroll(page);
         await expect(card).toHaveAttribute("data-state", "success", { timeout: 60_000 });
 
-        // The destination is where Continue (and the countdown) goes: the return path, here /pricing's default.
+        // The destination is where Continue (and the countdown) goes: the return path, here /pricing itself (the user is
+        // onboarded).
         const cont = page.getByTestId("activation-continue").filter({ visible: true }).first();
         const destination = (await cont.getAttribute("href"))!;
-        expect(destination.startsWith("/") && !destination.startsWith("//"), "a same-site destination").toBe(true);
+        expect(destination).toBe("/pricing");
         // Focus inside the card holds the countdown; leaving it lets the countdown run out.
         const line = page.getByTestId("activation-state-line");
         await cont.focus();

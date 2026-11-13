@@ -26,7 +26,7 @@ import {
 } from "@/lib/billing/copy";
 import {
   CHECKOUT_RETURN_PARAMS,
-  checkoutReturnPath,
+  pricingCheckoutReturnPath,
   needsPaymentUpdate,
 } from "@/lib/billing/client";
 import { isAllowedReturnPath } from "@/lib/billing/return-url";
@@ -147,7 +147,7 @@ export function PricingContent({
     // Return through /checkout/activating so activation is confirmed before the
     // gated page (which bounces anyone without a live plan) is reached.
     void startCheckout(billing, {
-      returnPath: redirectUrl ? checkoutReturnPath(redirectUrl) : undefined,
+      returnPath: pricingCheckoutReturnPath(redirectUrl, `${window.location.pathname}${window.location.search}`),
       source: paywallRequired ? "paywall" : "pricing",
     });
   }

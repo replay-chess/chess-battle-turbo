@@ -49,6 +49,23 @@ export function checkoutReturnPath(gatedPath: string): string {
 }
 
 /**
+ * The return path of a checkout started on /pricing (plan §1 step 25, §4.9): back to the page's `redirect_url` when it
+ * has one, else to the pricing page itself (`here`, the page's path and query without the checkout-return fields), so
+ * Dodo returns to `/checkout/activating?redirect_url=/pricing…` and the activation page can name and reach the
+ * destination. regression: D15 — a checkout from a bare /pricing returned with no `redirect_url` at all.
+ */
+export function pricingCheckoutReturnPath(redirectUrl: string | null | undefined, here: string): string {
+  if (redirectUrl) return checkoutReturnPath(redirectUrl);
+  const own = stripCheckoutParams(here);
+  const q = own.indexOf("?");
+  const params = new URLSearchParams(q === -1 ? "" : own.slice(q + 1));
+  params.delete("redirect_url"); // an unsafe one (redirectUrl is null): never carried along
+  const search = params.toString();
+  const path = q === -1 ? own : own.slice(0, q);
+  return checkoutReturnPath(search ? `${path}?${search}` : path);
+}
+
+/**
  * Removes checkout-return parameters (`checkout`, `status`, ...) from an app
  * path so it can be reused as a clean paywall `redirect_url`.
  */

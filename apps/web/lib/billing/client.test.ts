@@ -11,6 +11,7 @@ import {
   reloadClerkSession,
   needsPaymentUpdate,
   paywallUrl,
+  pricingCheckoutReturnPath,
   stripCheckoutParams,
 } from "./client";
 
@@ -50,6 +51,22 @@ describe("checkoutReturnPath", () => {
       "https://example.test",
     ).searchParams;
     assert.equal(returned.get("redirect_url"), gated);
+  });
+});
+
+describe("pricingCheckoutReturnPath", () => {
+  it("keeps the page's redirect_url", () => {
+    assert.equal(pricingCheckoutReturnPath("/game/abc", "/pricing?reason=required&redirect_url=%2Fgame%2Fabc"), "/checkout/activating?redirect_url=%2Fgame%2Fabc");
+  });
+  it("regression: D15 — a bare /pricing returns to /pricing through the activation page", () => {
+    assert.equal(pricingCheckoutReturnPath(null, "/pricing"), "/checkout/activating?redirect_url=%2Fpricing");
+    assert.equal(pricingCheckoutReturnPath(null, "/pricing?plan=yearly"), `/checkout/activating?redirect_url=${encodeURIComponent("/pricing?plan=yearly")}`);
+  });
+  it("drops the checkout-return fields and an unsafe redirect_url from the page's own path", () => {
+    assert.equal(
+      pricingCheckoutReturnPath(null, "/pricing?checkout=success&status=active&redirect_url=https%3A%2F%2Fevil.example&plan=yearly"),
+      `/checkout/activating?redirect_url=${encodeURIComponent("/pricing?plan=yearly")}`,
+    );
   });
 });
 
