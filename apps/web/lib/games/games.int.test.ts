@@ -45,7 +45,14 @@ describe("P2 game routes (Postgres)", { skip: url ? false : "TEST_DATABASE_URL n
     });
 
   async function call(h: Handlers, method: "GET" | "POST", path: string, who: "a" | "b" | "c", init: { body?: unknown; headers?: Record<string, string>; params?: Record<string, string>; member?: boolean } = {}) {
-    const t = installTestDeps({ userId: `user_${who}`, viewer: viewerOf(who, init.member ?? true), env: { ROUTE_VALIDATE_RESPONSES: "1" } });
+    // The real clock: with FIXED_NOW (2026-11-05) every bot game here starts week-old, and a concurrent int suite's daily
+    // bot sweep aborts it mid-test (regression: int-fixed-clock-sweep, complete-analysis.int.test.ts).
+    const t = installTestDeps({
+      userId: `user_${who}`,
+      viewer: viewerOf(who, init.member ?? true),
+      env: { ROUTE_VALIDATE_RESPONSES: "1" },
+      clock: Date.now(),
+    });
     try {
       const handler = (method === "GET" ? h.GET : h.POST)!;
       const body = init.body === undefined ? undefined : typeof init.body === "string" ? init.body : JSON.stringify(init.body);

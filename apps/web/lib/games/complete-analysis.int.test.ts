@@ -19,6 +19,7 @@ import { CompleteResponse, GameCreateResponse } from "@repo/contracts/http/games
 import { ok } from "@repo/contracts/http/envelope";
 import { EmitBody } from "@repo/contracts/socket/internal";
 import { Prisma, PrismaClient } from "@repo/db";
+import { STALE_BOT_DAYS } from "@repo/db/live";
 import type { RouteHandler } from "@/lib/api/route";
 import { setEmitTransport } from "@/lib/services/analysis/emit";
 import { setKickTransport } from "@/lib/services/analysis/kick";
@@ -65,7 +66,11 @@ describe("bot complete → analysis job, legend facts and follow-ups (Postgres)"
 
   /** Runs a route with the test deps installed, then its after() tasks (the follow-ups use the deps too). */
   async function call(h: Handlers, path: string, body: unknown, params: Record<string, string>, headers: Record<string, string> = {}) {
-    const t = installTestDeps({ userId: "user_wpe", viewer: viewer(), env: { ROUTE_VALIDATE_RESPONSES: "1" } });
+    // The real clock, not FIXED_NOW (2026-11-05): a game started and moved "on" a date more than 7 days back is a
+    // week-old bot game, and the daily bot sweep that another int suite runs at the same time against this database
+    // (staleBotSweepSql in packages/db live.int and games.int) aborted it between create and complete (regression:
+    // int-fixed-clock-sweep, red from 2026-11-12 12:00 UTC: "skipped" for a 6-ply game, no games:changed).
+    const t = installTestDeps({ userId: "user_wpe", viewer: viewer(), env: { ROUTE_VALIDATE_RESPONSES: "1" }, clock: Date.now() });
     try {
       const res = await h.POST!(
         request(path, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) }),
@@ -83,7 +88,13 @@ describe("bot complete → analysis job, legend facts and follow-ups (Postgres)"
     const body = { mode: "BOT", start, ...(start.kind === "initial" ? { color: "w" } : {}), tc: { initialSeconds: 300, incrementSeconds: 3 } };
     const { res } = await call(create, "/api/games", body, {}, { "Idempotency-Key": randomUUID() });
     assert.equal(res.status, 201, await res.clone().text());
-    return ok(GameCreateResponse).parse(await res.json()).data.game.ref;
+    const ref = ok(GameCreateResponse).parse(await res.json()).data.game.ref;
+    // Outside the daily bot sweep's reach (staleBotSweepSql: IN_PROGRESS BOT games idle for STALE_BOT_DAYS), which other
+    // int suites run against this database at the same time (regression: int-fixed-clock-sweep).
+    const [row] = await db.$queryRaw<{ fresh: boolean }[]>(Prisma.sql`
+      SELECT "lastMoveAt" >= now() - (${STALE_BOT_DAYS}::int * interval '1 day') AS fresh FROM games WHERE "referenceId" = ${ref}`);
+    assert.equal(row?.fresh, true, "a new bot game is not already week-old");
+    return ref;
   }
 
   const completeBody = (moves: string[], result: "w" | "b") => ({
