@@ -157,8 +157,10 @@
   .g-result[data-kind="win"] .g-lbl { color: var(--cb-good); }
   .g-result[data-kind="loss"] .g-lbl { color: var(--cb-bad); }
   .g-cta { display: flex; flex-direction: column; gap: 6px; }
-  .g-cta__row { display: flex; gap: 6px; }
-  .g-cta__row > :not(.g-sq44) { flex: 1 1 0; }
+  /* Equal widths while the labels fit; a label never gets cut ("Rematch · as Bla" at 1200 px, dev pass D8): a button is
+     at least its content wide and the row wraps instead. */
+  .g-cta__row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .g-cta__row > :not(.g-sq44) { flex: 1 1 0; min-width: max-content; }
   .g-share { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; animation: g-in 160ms; }
 
   /* ── layout switches: side vs stack follow BoardStage's container queries ── */

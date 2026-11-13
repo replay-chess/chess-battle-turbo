@@ -14,7 +14,7 @@
 import type { Page, TestInfo } from "@playwright/test";
 import { expectTapTargets } from "../helpers";
 import { demoTags, familyOf, type DeviceFamily } from "../game/families";
-import { expectOneViewport } from "./assertions";
+import { expectNoClippedText, expectOneViewport } from "./assertions";
 import { expect, gotoStable, test } from "./fixtures";
 
 /** The review boards per family (docs/qa/design-states.json, P3). Desktop draws one screen in five highlighted states. */
@@ -169,6 +169,8 @@ async function checkRoute(page: Page, route: Route, testInfo: TestInfo) {
     const sq = await page.locator('[data-testid="chess-board"] [data-square="a1"]').first().boundingBox();
     expect(sq, "a1 on screen").not.toBeNull();
     expect(sq!.width, "squares ≥ 220/8 px").toBeGreaterThanOrEqual(27.5);
+    // The player bars: the name may ellipsize, the accuracy line may not (D9).
+    await expectNoClippedText(page, '[data-testid="review-accuracy"]');
   } else {
     await noDocumentScroll(page);
     if (route.primary) await inViewport(page, route.primary);

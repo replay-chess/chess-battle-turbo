@@ -5,7 +5,7 @@
 // desktop-1280@125), and the 12 key states plus the stress=1 game on every project of the matrix. Each test belongs
 // to one device family (it skips on the others), so the @demo tags name exactly the boards that ran.
 import { expectTapTargets } from "../helpers";
-import { expectOneViewport } from "../layout/assertions";
+import { expectNoClippedText, expectOneViewport } from "../layout/assertions";
 import { expect, gotoStable, shellModeFor, test } from "../layout/fixtures";
 import { FAMILIES, demoTags, familyOf } from "./families";
 import { LIT_STATES } from "../../../../../packages/game-core/src/client/viewState";
@@ -140,9 +140,25 @@ for (const family of FAMILIES) {
             const label = (await cta.getAttribute("data-testid")) ?? (await cta.textContent());
             expect(await cta.evaluate(reachable), `result CTA ${label} reachable`).toBe(true);
           }
+          await expectNoClippedText(page, `${zone} :is(a, button):visible`);
           expect(await page.evaluate(() => document.scrollingElement!.scrollHeight <= window.innerHeight + 1), "no page scroll").toBe(true);
         }
       });
     }
+
+    // A bot game's result card has the longest labels ("Rematch · as Black", Restart, New Game): none is cut, and the
+    // row wraps rather than squeezing them (regression: dev pass D8, "Rematch · as Bla" at 1200 px).
+    test("over_checkmate_win · bot: result labels whole", async ({ page }) => {
+      await gotoStable(page, "/dev/ui/game?state=over_checkmate_win&freeze=1&mode=bot");
+      await expect(page.locator('[data-testid="game-board-container"]')).toBeVisible();
+      const title = page.locator('[data-testid="game-result-title"]').first();
+      let zone = '[data-testid="zone-result"]';
+      if (!(await title.isVisible()) || !(await title.evaluate((el) => el.getBoundingClientRect().width > 0))) {
+        await page.locator('[data-testid="result-sheet-button"]').click();
+        zone = '[data-testid="zone-result-sheet"]';
+      }
+      await expect(page.locator(`${zone} [data-testid="bot-rematch"]`)).toBeVisible();
+      await expectNoClippedText(page, `${zone} :is(a, button):visible`);
+    });
   });
 }

@@ -177,3 +177,31 @@ export async function stageGeometry(page: Page) {
     };
   });
 }
+
+/**
+ * Labels that must be read whole (button text, the review's accuracy line): every visible match keeps its text inside
+ * its own box (scrollWidth ≤ clientWidth, unless it ellipsizes on purpose) and inside the nearest ancestor that clips.
+ * Returns nothing; fails with the cut labels. regression: dev pass D8 ("Rematch · as Bla" at 1200 px) and D9 (the
+ * review's bottom bar at 125 %: "Accuracy 78 · o").
+ */
+export async function expectNoClippedText(page: Page, selector: string): Promise<void> {
+  const cut = await page.locator(selector).evaluateAll((els) =>
+    els
+      .filter((el) => el.getClientRects().length > 0)
+      .flatMap((el) => {
+        const label = (el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 60) || el.getAttribute("aria-label") || el.tagName;
+        const cs = getComputedStyle(el);
+        if (el.scrollWidth > el.clientWidth + 1 && cs.textOverflow !== "ellipsis") return [`${label}: text ${el.scrollWidth} px in ${el.clientWidth} px`];
+        const r = el.getBoundingClientRect();
+        for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+          const s = getComputedStyle(a);
+          if (s.overflowX === "visible" && s.overflowY === "visible") continue;
+          const p = a.getBoundingClientRect();
+          if (r.right > p.right + 1 || r.left < p.left - 1) return [`${label}: clipped by ${a.className || a.tagName}`];
+          break;
+        }
+        return [];
+      }),
+  );
+  expect(cut, `labels cut (${selector})`).toEqual([]);
+}

@@ -201,7 +201,7 @@ export function ReviewPlayerStrip({ pos }: { pos: "top" | "bottom" }) {
     <div className="rv-pbar" data-testid="review-bar-bottom" data-side={side}>
       <PlayerName card={card} side={side} />
       <span className="rv-pbar__right">
-        {words ? <span>{words}</span> : null}
+        {words ? <span className="rv-pbar__words">{words}</span> : null}
         {line ? (
           <span className="rv-mono rv-soft" data-testid="review-accuracy">
             {line}

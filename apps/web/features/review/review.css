@@ -107,7 +107,11 @@
   .rv-pbar__who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; overflow: hidden; }
   .rv-pbar__who > .rv-name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .rv-pbar__meta { font-size: 0.8125rem; color: var(--cb-text-soft); white-space: nowrap; }
-  .rv-pbar__right { display: inline-flex; gap: 10px; align-items: baseline; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8125rem; }
+  /* The name gives way first (it ellipsizes), then the eval words; the accuracy line is never cut (dev pass D9: at
+     125 % the bar read "Accuracy 78 · o", the right side shrank while the name still had room to give). */
+  .rv-pbar__right { display: inline-flex; gap: 10px; align-items: baseline; flex-shrink: 0; max-width: 75%; min-width: 0; white-space: nowrap; overflow: hidden; font-size: 0.8125rem; }
+  .rv-pbar__words { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .rv-pbar__right > [data-testid="review-accuracy"] { flex: none; }
   .rv-pbar__pos { font-size: 0.8125rem; color: var(--cb-text-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .rv-hevalbar { display: none; margin-left: auto; width: 96px; height: 8px; flex: none; background: #2a2a2a; position: relative; }
   .rv-hevalbar > span { position: absolute; left: 0; top: 0; bottom: 0; background: #d9d4cb; transition: width 250ms ease-out; }
