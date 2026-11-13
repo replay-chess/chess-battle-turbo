@@ -104,7 +104,10 @@ describe("worker telemetry (Postgres + PostHog/Sentry sink)", { skip: skipInt },
     assert.equal(res.status, 202);
   }
 
-  async function until(check: () => Promise<boolean> | boolean, ms = 15_000) {
+  // The waits are for the worker to finish real work (a kicked 30-ply analysis, a failed attempt, the sinks' flush), not
+  // a latency target: 2.5 s alone, 11 s in CI's integration job (CI 43452098148), where every int file of the package
+  // runs at the same time on 4 vCPUs, and more than 15 s once (CI 43468582948: "timed out" on the first wait).
+  async function until(check: () => Promise<boolean> | boolean, ms = 60_000) {
     const end = Date.now() + ms;
     while (Date.now() < end) {
       if (await check()) return;
