@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { describe, it } from "node:test";
 import { LookupData } from "@repo/contracts/http/accounts";
-import { chessComRecent, lichessRecent, lookupDataOf, privateLookupData } from "./preview";
+import { chessComRecent, displayCasing, lichessRecent, lookupDataOf, privateLookupData } from "./preview";
 
 const require = createRequire(import.meta.url);
 const read = (rel: string) => readFileSync(require.resolve(`@repo/chess-fixtures/import/${rel}`), "utf8");
@@ -28,7 +28,7 @@ describe("lookupDataOf", () => {
     const d = LookupData.parse(lookupDataOf(PROFILE, STATS));
     assert.equal(d.status, "found");
     assert.equal(d.profile.username, PROFILE.username.toLowerCase());
-    assert.equal(d.profile.displayUsername, PROFILE.username);
+    assert.equal(d.profile.displayUsername, "KnightOwl_88", "the profile URL's casing (D12)");
     const sum = ["chess_rapid", "chess_blitz", "chess_bullet", "chess_daily"].reduce(
       (n, k) => n + (STATS[k] ? STATS[k].record.win + STATS[k].record.loss + STATS[k].record.draw : 0),
       0,
@@ -70,5 +70,14 @@ describe("recent games", () => {
     const line = { rated: true, variant: "standard", speed: "correspondence", lastMoveAt: 1, players: { white: { user: { id: "me", name: "Me" }, rating: 1 }, black: { user: { id: "op", name: "Op" }, rating: 2 } } };
     assert.deepEqual(lichessRecent([line], "me"), [{ result: "draw", opponentName: "Op", opponentRating: 2, openingName: null, timeClass: "daily", endedAt: new Date(1).toISOString() }]);
     assert.deepEqual(lichessRecent([{ ...line, variant: "chess960" }], "me"), []);
+  });
+});
+
+describe("displayCasing (D12)", () => {
+  it("regression: D12 (found-lowercase): keeps the casing of the profile URL when it is the same handle", () => {
+    assert.equal(displayCasing({ username: "hikaru", url: "https://www.chess.com/member/Hikaru" }), "Hikaru");
+    assert.equal(displayCasing({ username: "knightowl_88", url: "https://www.chess.com/member/KnightOwl_88/" }), "KnightOwl_88");
+    assert.equal(displayCasing({ username: "hikaru", url: "https://www.chess.com/member/someoneelse" }), "hikaru", "a different handle is ignored");
+    assert.equal(displayCasing({ username: "hikaru", url: null }), "hikaru");
   });
 });

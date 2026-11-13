@@ -53,7 +53,8 @@
   .onb-stp { display: flex; align-items: center; gap: 6px; margin: 0 auto; padding: 0; list-style: none; }
   .onb-stp li { display: flex; align-items: center; gap: 8px; font: 500 0.6875rem var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); }
   .onb-stp li + li::before { content: ""; width: 28px; height: 1px; background: var(--cb-border-strong); margin-right: 2px; }
-  .onb-stp a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: inherit; text-decoration: none; }
+  /* min-width: when the label is hidden (narrow or 150 % zoom) the link is only the 22 px dot; 44 × 44 target (D14). */
+  .onb-stp a { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; min-width: 44px; color: inherit; text-decoration: none; }
   .onb-stp a:hover .w { text-decoration: underline; text-underline-offset: 3px; }
   .onb-stp .n { width: 22px; height: 22px; border-radius: 9999px; border: 1px solid var(--cb-border-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 0.6875rem; letter-spacing: 0; }
   .onb-stp li[aria-current="step"] { color: var(--cb-text); }

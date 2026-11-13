@@ -72,8 +72,24 @@ function safeUrl(raw: string | undefined): string | null {
   }
 }
 
+/**
+ * The handle with the member's own casing (D12: "Found hikaru", the plan says "Found Hikaru"). Chess.com's
+ * `username` is lowercase; the profile `url` (https://www.chess.com/member/Hikaru) keeps the casing. Used only when
+ * it is the same handle, case aside.
+ */
+export function displayCasing(profile: Pick<ChessComProfile, "username"> & { url?: string | null }): string {
+  const last = typeof profile.url === "string" ? profile.url.replace(/\/+$/, "").split("/").pop() ?? "" : "";
+  let decoded = last;
+  try {
+    decoded = decodeURIComponent(last);
+  } catch {
+    decoded = last;
+  }
+  return decoded && decoded.toLowerCase() === profile.username.toLowerCase() ? decoded : profile.username;
+}
+
 export function profileView(profile: ChessComProfile): LookupData["profile"] {
-  const display = profile.username.slice(0, USERNAME_MAX);
+  const display = displayCasing(profile).slice(0, USERNAME_MAX);
   const country = extractCountryCode(profile.country);
   return {
     username: display.toLowerCase(),
