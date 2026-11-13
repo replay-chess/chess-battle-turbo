@@ -6,7 +6,6 @@
 // drops the counts table and the phase line (rct-a §3; the counts stay on Complete), and moves the primary to the
 // action bar.
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { CLEAN_LOSS_LINE } from "@repo/chess-analysis/text/clean";
 import { reviewCompletePath } from "../paths";
@@ -15,8 +14,9 @@ import { useReview, useView } from "../context";
 import { other, viewerLost } from "../model";
 import { CoachLine } from "./CoachLine";
 import { EvalGraph } from "./EvalGraph";
-
-const LabelCountsTable = dynamic(() => import("./LabelCountsTable"));
+// Eager, not next/dynamic: it renders on the server, and a lazy one was a streamed Suspense segment whose hidden server
+// copy could outlive React's own render of it (duplicate test ids; features/game/screen/GameScreen.tsx).
+import LabelCountsTable from "./LabelCountsTable";
 
 function CheckIcon() {
   return (

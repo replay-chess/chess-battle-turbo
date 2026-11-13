@@ -8,7 +8,6 @@
 // Answer while answering, then Next Moment, or Finish Review on the last one. Previous Moment on the first moment
 // returns to the summary (labelled so), so the walkthrough is never a dead end.
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { BUTTONS } from "../copy";
 import { useReview, useView } from "../context";
@@ -16,11 +15,9 @@ import { progressOf } from "../model";
 import { isAsking, MOMENT_COPY } from "../moments";
 import { reviewCompletePath } from "../paths";
 import { useMomentWalkthrough } from "../useMomentWalkthrough";
-import { MenuButton } from "./MenuButton";
-
-const ReviewMenu = dynamic(() => import("./ReviewMenu"), {
-  loading: () => <MenuButton disabled />,
-});
+// Eager, not next/dynamic: it renders on the server, and a lazy one was a streamed Suspense segment whose hidden server
+// copy could outlive React's own render of it (duplicate test ids; features/game/screen/GameScreen.tsx).
+import ReviewMenu from "./ReviewMenu";
 
 export type ReviewPrimary =
   | { kind: "button"; label: string; run: () => void; disabled?: boolean; testId: string }

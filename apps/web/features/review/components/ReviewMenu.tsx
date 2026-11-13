@@ -3,7 +3,8 @@
 // The ⋯ menu (plan §4.1 "Overlays"; V3ReviewSummary .menu): Flip Board; Share Analysis (flag review-share; disabled
 // until DONE); Download PGN; Compare with {Legend} (legend games; hover or focus prefetches the comparison, which is
 // safe because A9 queues nothing, P3-D23); How We Grade Moves; Back to the Game. Radix handles the roles, roving focus,
-// typeahead, Esc and focus return. Loaded with next/dynamic (§9.6); `MenuButton` is the same trigger before it loads.
+// typeahead, Esc and focus return. Imported eagerly by ReviewFooter (it renders on the server; a next/dynamic copy
+// streamed as a Suspense segment); `MenuButton` is its trigger.
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";

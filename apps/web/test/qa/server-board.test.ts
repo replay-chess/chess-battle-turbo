@@ -32,10 +32,12 @@ test("no server component imports the interactive Board (it takes function props
   assert.deepEqual(offenders, [], `server modules importing the interactive Board: ${offenders.join(", ")}`);
 });
 
-test("the review's route loading state renders its board through a client module", () => {
-  const loading = readFileSync(path.join(WEB, "app/(app)/review/[ref]/loading.tsx"), "utf8");
-  assert.equal(isClientModule(loading), false, "loading.tsx stays a server component");
-  assert.doesNotMatch(loading, BOARD_IMPORT);
-  assert.match(loading, /LoadingBoard/);
-  assert.equal(isClientModule(readFileSync(path.join(WEB, "features/review/components/LoadingBoard.tsx"), "utf8")), true);
+// The review's route loading state (the first regression's file) is gone: /game/[ref] and the /review/[ref] pages
+// render their screen in the document's shell, with no Suspense boundary around it (a streamed segment left a hidden
+// second copy of the screen when React client-rendered the boundary first: bot-resume-starved-frames.spec.ts,
+// review-document.spec.ts). A loading.tsx in those segments would bring the boundary back.
+test("the game and review screens have no route loading boundary", () => {
+  const segments = ["app/(app)/game/[ref]", "app/(app)/review/[ref]", "app/(app)/review/[ref]/complete", "app/(app)/review/[ref]/legend", "app/(app)/review/[ref]/share"];
+  const found = segments.flatMap((dir) => readdirSync(path.join(WEB, dir)).filter((f) => /^loading\.(tsx|ts|jsx|js)$/.test(f)).map((f) => `${dir}/${f}`));
+  assert.deepEqual(found, []);
 });

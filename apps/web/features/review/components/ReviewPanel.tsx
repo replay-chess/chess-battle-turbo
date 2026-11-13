@@ -7,7 +7,6 @@
 //   Stack mode (phones, iPad P): the 7-move strip, then the docked sheet (the only scroller) with the current-move
 //   line and the same state content, minus the counts table, the phase line and the Moves tab.
 
-import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { TopBarTitle } from "@/components/shell/TopBarTitle";
 import { Banner } from "@/components/ui/banner";
@@ -20,9 +19,9 @@ import { ReviewFooter } from "./ReviewFooter";
 import { CurrentMoveLine, ReviewMoveList, ReviewMoveStrip } from "./ReviewMoveList";
 import { AnalysingCard, FailedCard, SkippedState } from "./StatusCards";
 import { SummaryPanel } from "./SummaryPanel";
-
-// The walkthrough UI loads on Start Review (plan §9.6); a reload on `?m=` renders it on the server as usual.
-const KeyMomentStepper = dynamic(() => import("./KeyMomentStepper").then((m) => m.KeyMomentStepper));
+// Eager, not next/dynamic: it renders on the server, and a lazy one was a streamed Suspense segment whose hidden server
+// copy could outlive React's own render of it (duplicate test ids; features/game/screen/GameScreen.tsx).
+import { KeyMomentStepper } from "./KeyMomentStepper";
 
 function ChevronDown() {
   return (
