@@ -38,8 +38,9 @@ test.describe("review privacy", { tag: ["@p3"] }, () => {
     expect(((await res.json()) as { error: { details?: { reason?: string } } }).error.details?.reason).toBe("trial_available");
   });
 
-  test("signed out: 401 from A1", async ({ playwright, seeded }) => {
-    const api = await playwright.request.newContext({ baseURL: "http://localhost:3000" });
+  test("signed out: 401 from A1", async ({ playwright, seeded, baseURL }) => {
+    // The run's own origin (E2E_PORT_OFFSET moves it off :3000; regression: e2e-offset-origin).
+    const api = await playwright.request.newContext({ baseURL });
     try {
       const res = await api.get(`/api/review/${seeded.GAME}`, { headers: { accept: "application/json" } });
       expect(res.status()).toBe(401);

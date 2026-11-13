@@ -67,10 +67,12 @@ test.describe("share analysis", { tag: ["@p3"] }, () => {
       await expect(previewBoard.locator("button, [tabindex]")).toHaveCount(0);
       await telemetry.expect("share_opened", { from: "review_menu" }, { source: "client" });
       const shown = await page.getByTestId("share-link").inputValue();
-      expect(shown).toBe(`localhost:3000/r/${a.code}`);
+      // The app's own origin (E2E_PORT_OFFSET moves it off :3000; regression: e2e-offset-origin).
+      const origin = new URL(page.url()).origin;
+      expect(shown).toBe(`${new URL(origin).host}/r/${a.code}`);
       await page.getByTestId("share-copy").click();
       await expect(page.getByTestId("share-copied")).toBeVisible();
-      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`http://localhost:3000/r/${a.code}`);
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`${origin}/r/${a.code}`);
       await telemetry.expect("share_link_copied", { show_username: true }, { source: "client" });
       await noDocumentScroll(page);
 
