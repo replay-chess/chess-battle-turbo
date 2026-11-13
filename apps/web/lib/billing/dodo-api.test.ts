@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { describe, it } from "node:test";
-import { getDodoApi, setDodoApi } from "./dodo-api";
+import { CHECKOUT_CREATE_TIMEOUT_MS, getDodoApi, setDodoApi } from "./dodo-api";
+import { DODO_TIMEOUT_MS } from "./refresh";
 
 describe("getDodoApi", () => {
   it("talks to DODO_API_BASE_URL in a test build (no Ambiguous URL)", async () => {
@@ -50,6 +51,44 @@ describe("getDodoApi", () => {
       assert.equal(await getDodoApi({}), null, "no key, no client");
     } finally {
       restore();
+    }
+  });
+
+  it("regression: D3 (first-checkout-timeout): a first session slower than the 5 s GET budget still opens", async () => {
+    let posts = 0;
+    const server = createServer((req, res) => {
+      posts++;
+      // Dodo's first session of a new customer: slower than DODO_TIMEOUT_MS, well inside the create's own budget.
+      setTimeout(() => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ session_id: "cks_slow", checkout_url: "http://127.0.0.1/pay/cks_slow" }));
+      }, DODO_TIMEOUT_MS + 1_000);
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
+    const restore = setDodoApi(undefined as never);
+    try {
+      assert.ok(CHECKOUT_CREATE_TIMEOUT_MS > DODO_TIMEOUT_MS + 1_000);
+      const port = (server.address() as AddressInfo).port;
+      const api = await getDodoApi({
+        DODO_PAYMENTS_API_KEY: "test_key",
+        DODO_PAYMENTS_ENVIRONMENT: "test_mode",
+        APP_ENV: "test",
+        DODO_API_BASE_URL: `http://127.0.0.1:${port}/dodo`,
+      });
+      const session = await api!.createCheckoutSession({
+        productId: "pdt_1",
+        customer: { email: "a@example.test" },
+        metadata: { clerkUserId: "user_1" },
+        trialDays: 7,
+        returnUrl: "http://localhost:3000/onboarding/activating",
+        theme: "system",
+      });
+      assert.equal(session.sessionId, "cks_slow");
+      assert.equal(posts, 1, "one request: no timeout, no retry");
+    } finally {
+      restore();
+      server.closeAllConnections();
+      server.close();
     }
   });
 });

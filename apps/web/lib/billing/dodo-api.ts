@@ -13,6 +13,15 @@ import { DODO_MAX_RETRIES, DODO_TIMEOUT_MS, MAX_SUBSCRIPTIONS } from "./refresh"
 
 type Env = Readonly<Record<string, string | undefined>>;
 
+/**
+ * The checkout create's own timeout (D3). The first "Start 7-day free trial" of a fresh user failed with "Couldn't
+ * open checkout. Nothing was charged." and the retry worked: Dodo's first session of a new customer (a customer record
+ * is created with it) took longer than the 5 s polled-GET budget, so both attempts timed out (≈ 10 s) and the route
+ * answered 502. The create is a click the member waits on, not a poll: 12 s, one retry, inside the route's
+ * maxDuration 30 (app/api/checkout/route.ts).
+ */
+export const CHECKOUT_CREATE_TIMEOUT_MS = 12_000;
+
 export type CheckoutSessionInput = {
   productId: string;
   /** An existing Dodo customer, else the email and name from the users row (never from the request). */
@@ -90,7 +99,7 @@ export async function getDodoApi(env: Env = process.env): Promise<DodoApi | null
         customization: { theme: input.theme, show_order_details: true },
         // Land straight back in the app (the activating page confirms activation itself).
         feature_flags: { redirect_immediately: true, allow_discount_code: true },
-      });
+      }, { timeout: CHECKOUT_CREATE_TIMEOUT_MS, maxRetries: DODO_MAX_RETRIES });
       if (!session.checkout_url) throw new DodoResponseError("checkout session without a checkout_url");
       return { sessionId: session.session_id, checkoutUrl: session.checkout_url };
     },
