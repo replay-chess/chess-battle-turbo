@@ -46,13 +46,19 @@ export function createProductEvents(
   config: { key: string; host: string } | null,
   appEnv: AppEnvName,
   log: Logger,
-  options: { flushAt?: number; flushIntervalMs?: number } = {},
+  options: { flushAt?: number; flushIntervalMs?: number; untraced?: <T>(fn: () => T) => T } = {},
 ): ProductEvents {
   if (!config) return noopProductEvents;
+  const untraced = options.untraced;
+  // The batch requests are not part of the job that happened to be running (Telemetry.untraced).
+  const untracedFetch: NonNullable<ConstructorParameters<typeof PostHog>[1]>["fetch"] = untraced
+    ? (url, init) => untraced(() => fetch(url, init as RequestInit))
+    : undefined;
   const client = new PostHog(config.key, {
     host: config.host,
     flushAt: options.flushAt ?? 20,
     flushInterval: options.flushIntervalMs ?? POSTHOG_FLUSH_INTERVAL_MS,
+    ...(untracedFetch ? { fetch: untracedFetch } : {}),
   });
   client.on("error", (error: unknown) => log.warn("posthog delivery failed", { error }));
   return {

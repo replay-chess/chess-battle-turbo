@@ -154,7 +154,11 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
         metrics,
       })
     : null;
-  const events = o.events ?? createProductEvents(env.posthog, env.appEnv, log.child({ component: "posthog" }));
+  const events =
+    o.events ??
+    createProductEvents(env.posthog, env.appEnv, log.child({ component: "posthog" }), {
+      untraced: telemetry.untraced?.bind(telemetry),
+    });
   const store = new SqlAnalysisStore(db);
   const batch = new BatchAccumulator({
     emitter,

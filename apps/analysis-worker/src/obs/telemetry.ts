@@ -20,6 +20,12 @@ export interface Telemetry {
   span<T>(name: string, attributes: Attributes, fn: () => Promise<T>, options?: { transaction?: boolean }): Promise<T>;
   metric(kind: MetricKind, name: string, value: number, attributes?: Attributes): void;
   flush(timeoutMs: number): Promise<void>;
+  /**
+   * Runs `fn` with tracing suppressed, for the worker's own telemetry delivery (PostHog's `/batch` requests). Without
+   * it the fetch integration records a PostHog flush that fires while a job runs (its 5 s timer started in the job's
+   * async context) as an `http.client` span of that job's transaction (regression: posthog-batch-span).
+   */
+  untraced?<T>(fn: () => T): T;
 }
 
 export const noopTelemetry: Telemetry = {
@@ -113,6 +119,9 @@ export async function sentryTelemetry(opts: { dsn: string; environment: string; 
     },
     async flush(timeoutMs) {
       await Sentry.flush(timeoutMs);
+    },
+    untraced(fn) {
+      return Sentry.suppressTracing(fn);
     },
   };
 }
