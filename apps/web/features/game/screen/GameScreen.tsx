@@ -4,27 +4,31 @@
 // local controller (WP-H); live human games run the v3 screen over protocol v2 when both `game-v3` and
 // `live-protocol-v2` are on, else the legacy v1 screen (features/game/legacy, deleted at the parity gate).
 
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import { notFound } from "next/navigation";
 import type { GameState } from "@repo/game-core/machine/types";
 import type { GameSnapshot } from "@repo/game-core/snapshot";
+import { ViewportStage } from "@/components/layout/ViewportStage";
 import { useChrome } from "@/components/shell/chrome-context";
 import { REVIEW_RESULT_SLOTS } from "@/features/review/game-over/lazy";
 import { useFlag } from "@/lib/flags/client";
 import { useLiveGame } from "../live/useLiveGame";
 import type { JoinFailure } from "../live/useGameSocket";
+import { BotGameScreen } from "./BotGameScreen";
 import { GameView } from "./GameView";
 
 const LegacyGame = dynamic(() => import("../legacy/GamePageContent").then((m) => m.GamePageContent), {
   ssr: false,
 });
 
-// Bot games: their own chunk, so PvP and spectator pages never load the bot code (or the engine). React.lazy under
-// a Suspense boundary of its own, server-rendered (the server waits for the module) and hydrated once the chunk is
-// in. Not next/dynamic `ssr: true`: that one hydrated with different useId values below it than the server
-// rendered (every Radix and board id mismatched).
-const BotGameScreen = lazy(() => import("./BotGameScreen").then((m) => ({ default: m.BotGameScreen })));
+// No Suspense boundary anywhere between the document and the game screen (no route loading.tsx, no lazy screen, no
+// lazy stage): the server's HTML is the screen and hydration adopts it. A boundary the server streams as a hidden
+// `<div id="S:n">` segment is revealed by React's `$RV` on an animation frame; when an update during hydration (Clerk
+// loading) makes React client-render that boundary first, the server's copy stays in the document, hidden, until a
+// frame runs: two game-board-containers (CI 43211562326, 43226863882, 43438531034; bot-resume-starved-frames.spec).
+// The bot screen is eager for that reason (it was a lazy chunk; /game/[ref] has room in its 600 kB budget). The bot
+// engine itself still loads on demand (useBotEngine), and the pieces that render nothing on the server stay lazy.
 
 export type GameScreenFlags = { gameV3: boolean; liveProtocolV2: boolean };
 
@@ -39,9 +43,7 @@ export function GameScreen({ snapshot, flags, viewerRef }: GameScreenProps) {
   if (snapshot.mode === "BOT") {
     return (
       <V3Stage>
-        <Suspense fallback={null}>
-          <BotGameScreen snapshot={snapshot} />
-        </Suspense>
+        <BotGameScreen snapshot={snapshot} />
       </V3Stage>
     );
   }
@@ -62,15 +64,9 @@ export function GameScreen({ snapshot, flags, viewerRef }: GameScreenProps) {
  */
 function V3Stage({ children }: { children: React.ReactNode }) {
   if (useChrome() === "shell") return children;
-  return (
-    <Suspense fallback={null}>
-      <ShellOffStage>{children}</ShellOffStage>
-    </Suspense>
-  );
+  // Eager (it was lazy): a lazy stage was a Suspense boundary around the whole screen. ViewportStage is a few lines.
+  return <ViewportStage>{children}</ViewportStage>;
 }
-
-// Lazy: only the shell-off (rollback) path needs it, and the /game route is at its 600 kB budget.
-const ShellOffStage = lazy(() => import("@/components/layout/ViewportStage").then((m) => ({ default: m.ViewportStage })));
 
 function LiveGameScreen({ snapshot }: { snapshot: GameState }) {
   const [failure, setFailure] = useState<JoinFailure | null>(null);

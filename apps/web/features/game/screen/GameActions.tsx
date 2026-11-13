@@ -15,8 +15,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/components/ui/use-media-query";
 import { BUTTONS, copyCtx, RESIGN_TITLE, resignBody } from "../copy";
 import { useController, useDispatch, useGame, usePrefs, useView } from "./GameContext";
-import type { ResultSlots } from "./GameOverCard";
-import { GameOverCard } from "./GameOverCardLazy";
+import { GameOverCard, type ResultSlots } from "./GameOverCard";
 import { gameMenuItems } from "./gameMenu";
 import {
   IconDraw,

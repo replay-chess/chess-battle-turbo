@@ -112,11 +112,7 @@ export function isSafeOption(name: string, value: string): boolean {
   return /^[A-Za-z][A-Za-z0-9_ ]{0,40}$/.test(name) && /^[A-Za-z0-9_.-]{0,40}$/.test(value);
 }
 
-/** Centipawn view of a line (mates as ±100 000), from the side to move. */
-export function lineCp(l: Pick<UciLine, "cp" | "mate">): number | null {
-  if (l.mate !== undefined) return l.mate > 0 ? 100_000 - l.mate : -100_000 - l.mate;
-  return l.cp ?? null;
-}
+export { lineCp } from "./score";
 
 /** `option name UCI_Elo type spin default 1320 min 1320 max 3190` → 1320 (the Stockfish 16+ floor, plan 8.13). */
 export function parseEloFloor(uciOutput: string): number | null {

@@ -1,7 +1,8 @@
 "use client";
 
 // Bot games (plan 5.3): the same v3 screen over WP-H's local controller (engine in the browser, journal, beacons,
-// complete). Loaded as its own chunk so PvP and spectator pages never ship the bot code (or the engine).
+// complete). Part of /game/[ref]'s first load (GameScreen imports it eagerly: the screen renders in the document's
+// shell, never as a streamed segment); the engine glue stays a lazy chunk (useBotEngine's lazyEngineHost).
 // Keyed by ref, so a Rematch / Restart navigation always gets a fresh controller.
 
 import type { GameSnapshot } from "@repo/game-core/snapshot";

@@ -2,7 +2,7 @@
 
 // The typed move input under the game board (plan 4.5.1, 4.5.3 rule 8, 12.6): "Type a move, for example Nf3". SAN
 // or UCI, checked against the shown position with the same reasons as the board (explainIllegal), then sent through
-// the controller like a board move. Loaded lazily by GameBoardArea (the /game route is at its first-load budget),
+// the controller like a board move. Mounted by GameBoardArea (eagerly: it is server-rendered),
 // visually hidden until focused, not shown on touch-first devices (board.css). regression: FIX-A — it was mounted
 // only on /dev/ui/board.
 

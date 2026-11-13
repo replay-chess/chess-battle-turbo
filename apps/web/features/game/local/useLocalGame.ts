@@ -32,7 +32,7 @@ import { Chess, splitMoves } from "@repo/game-core/rules/chess";
 import type { GameSnapshot } from "@repo/game-core/snapshot";
 import type { BoardMove } from "@/components/board/types";
 import { useCompleteBotGame, useCreateBotGame } from "@/lib/api/mutations/games";
-import { trackEngineEvent } from "@/features/engine/EngineProvider";
+import { trackGame } from "@/lib/analytics/game-events";
 import { createGameStore, type GameStore } from "../store";
 import { withTelemetry } from "../telemetryLazy";
 import { createInertController, type GameController } from "../controller";
@@ -61,7 +61,7 @@ export interface LocalControllerDeps {
   lock?(ref: string, events: { onLost(): void }): TabLock;
   /** Document hooks (visibility, pagehide, online); null in tests that drive them by hand. */
   dom?: LocalDom | null;
-  track?: typeof trackEngineEvent<"hint_used" | "undo_used">;
+  track?: typeof trackGame<"hint_used" | "undo_used">;
   /**
    * Runs the start of attach() (resume, engine, bot). The browser default (afterHydration.ts) waits for the next
    * frame plus a task, so the first store writes land after hydration has finished (an early write while parts of the
@@ -152,7 +152,7 @@ export function createLocalController(snapshot: GameSnapshot, deps: LocalControl
   const checkpoint = deps.checkpoint ?? ((r, body, mode) => sendCheckpoint(r, body, mode));
   const makeLock = deps.lock ?? ((r, events) => createTabLock(r, events));
   const dom = deps.dom === undefined ? browserDom : deps.dom;
-  const track = deps.track ?? ((name, props) => trackEngineEvent(name, props));
+  const track = deps.track ?? ((name, props) => trackGame(name, props));
   const elo = snapshot.bot?.elo ?? FALLBACK_BOT_ELO;
   const defer = deps.defer ?? ((fn: () => void) => afterHydration(fn));
   let attachGeneration = 0;

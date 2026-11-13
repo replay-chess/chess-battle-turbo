@@ -1,11 +1,12 @@
 // A reverse proxy in front of the e2e web server that can hold back the streamed part of an HTML document.
 //
-// Next streams a page in flushes: the shell (layouts, the route's loading.tsx fallback) first, then each Suspense
-// segment (`<div hidden id="S:n">` + the `$RC` reveal script) and the RSC payload chunks as the server finishes them.
-// With `hold(ms)` on, a matching document passes through up to the first streamed segment (`<div hidden id="S:`), and
-// everything from there on is buffered for `ms`, even when the server sent the whole page in one flush (a warm server
-// often does: React outlines large boundaries as segments anyway). The browser has the shell and its scripts,
-// hydrates, and loads Clerk and the stores while the page's own segments are still in flight.
+// Next streams a page in flushes: the shell (layouts, a route's loading.tsx fallback, or the whole page when no
+// Suspense boundary is pending), then each Suspense segment (`<div hidden id="S:n">` + the `$RC` reveal script) and
+// the RSC payload (`<script>(self.__next_f=…`, then `self.__next_f.push(…)` chunks) as the server finishes them. With
+// `hold(ms)` on, a matching document passes through up to whichever comes first, the first streamed segment or the
+// RSC payload, and everything from there on is buffered for `ms`, even when the server sent the whole page in one
+// flush (a warm server often does). The browser has the shell's HTML and scripts but cannot hydrate (no payload yet)
+// while Clerk and the stores load: the slow-server case.
 //
 // `reset(match)` makes the proxy drop the connection of matching requests without an answer: a network error in the
 // middle of a load, as a flaky mobile network gives (offline emulation fails requests before a service worker sees
@@ -24,7 +25,7 @@ import type { AddressInfo } from "node:net";
 export type SlowDocumentProxy = {
   /** http://localhost:<port> */
   url: string;
-  /** Buffers the flushes after the first one of the next matching documents for `ms` (0 = pass through). */
+  /** Buffers the streamed part (segments, RSC payload) of the next matching documents for `ms` (0 = pass through). */
   hold(ms: number): void;
   /** Documents whose flushes were held, newest last (pathname, flushes held, bytes held). */
   held(): readonly { path: string; chunks: number; bytes: number }[];
@@ -51,7 +52,12 @@ export async function startSlowDocumentProxy(opts: {
   let delayMatch: ((pathname: string) => boolean) | null = null;
   let delayMs = 0;
   const resetLog: string[] = [];
-  const SEGMENT = Buffer.from('<div hidden id="S:');
+  /** Where the streamed part starts: the first Suspense segment or the RSC payload, whichever comes first. */
+  const STREAMED = [Buffer.from('<div hidden id="S:'), Buffer.from("<script>(self.__next_f=")];
+  const streamedAt = (chunk: Buffer) => {
+    const hits = STREAMED.map((m) => chunk.indexOf(m)).filter((i) => i >= 0);
+    return hits.length ? Math.min(...hits) : -1;
+  };
 
   const server = http.createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
@@ -112,7 +118,7 @@ export async function startSlowDocumentProxy(opts: {
         };
         upRes.on("data", (chunk: Buffer) => {
           if (!shellDone) {
-            const at = chunk.indexOf(SEGMENT);
+            const at = streamedAt(chunk);
             if (at < 0) {
               res.write(chunk);
               return;

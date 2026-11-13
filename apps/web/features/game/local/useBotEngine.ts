@@ -12,8 +12,8 @@ import { DRAW_EVAL_GO } from "@repo/game-core/local/drawPolicy";
 import { splitMoves } from "@repo/game-core/rules/chess";
 import type { GameState } from "@repo/game-core/machine/types";
 import type { EngineInitInfo, EngineProgress, EngineSearch, EngineSearchResult } from "@/features/engine/uci";
-import { lineCp } from "@/features/engine/uci";
-import { getEngine, type SharedEngine } from "@/features/engine/EngineProvider";
+import { lineCp } from "@/features/engine/score";
+import type { SharedEngine } from "@/features/engine/EngineProvider";
 
 /** The slice of the shared engine the bot needs (a fake in unit tests). */
 export type BotEngineHost = Pick<SharedEngine, "init" | "search" | "newGame" | "retain" | "retry" | "status" | "subscribeProgress">;
@@ -84,8 +84,53 @@ export function createBotEngine(host: () => BotEngineHost): BotEngine {
   };
 }
 
-/** The bot engine over the tab's shared worker (nothing starts until `ready()` or a search). */
+/**
+ * The tab's shared engine behind a dynamic import, so the engine glue (EngineProvider, the UCI session, the shim
+ * manifest) stays a lazy chunk while the bot screen itself is part of /game/[ref]'s first load (it is server-rendered
+ * in the document's shell; GameScreen.tsx). Calls made before the chunk is in run in order once it is: each is chained
+ * on the same load promise. The synchronous ones (`retain`, `subscribeProgress`) hand back a release that also works
+ * before the load finished.
+ */
+export function lazyEngineHost(load: () => Promise<SharedEngine> = loadSharedEngine): BotEngineHost {
+  let engine: SharedEngine | null = null;
+  let pending: Promise<SharedEngine> | null = null;
+  const ready = () =>
+    (pending ??= load().then((e) => {
+      engine = e;
+      return e;
+    }));
+  /** Runs `attach` once the engine is in; the returned release undoes it (or stops it from running at all). */
+  const deferred = (attach: (e: SharedEngine) => () => void) => {
+    let release: (() => void) | null = null;
+    let done = false;
+    void ready().then((e) => {
+      if (!done) release = attach(e);
+    });
+    return () => {
+      done = true;
+      release?.();
+      release = null;
+    };
+  };
+  return {
+    init: () => ready().then((e) => e.init()),
+    search: (job) => ready().then((e) => e.search(job)),
+    newGame: () => {
+      void ready().then((e) => e.newGame());
+    },
+    retain: () => deferred((e) => e.retain()),
+    retry: () => ready().then((e) => e.retry()),
+    status: () => engine?.status() ?? "idle",
+    subscribeProgress: (listener) => deferred((e) => e.subscribeProgress(listener)),
+  };
+}
+
+const loadSharedEngine = () => import("@/features/engine/EngineProvider").then((m) => m.getEngine());
+
+/** One per tab, like the engine it fronts. Creating it imports and starts nothing (safe in the server render). */
+const tabEngine = lazyEngineHost();
+
+/** The bot engine over the tab's shared worker (nothing loads or starts until `ready()` or a search). */
 export function useBotEngine(): BotEngine {
-  // A plain object over a lazy getter: safe to create during the server render (no worker there).
-  return createBotEngine(getEngine);
+  return createBotEngine(() => tabEngine);
 }

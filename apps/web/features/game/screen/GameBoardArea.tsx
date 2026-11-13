@@ -4,7 +4,7 @@
 // (`data-game-started`, `data-player-color`, `data-current-turn`) plus `data-phase` (the primary design state),
 // `data-ply`, `data-role` and `data-mode`.
 
-import { lazy, Suspense, useEffect } from "react";
+import { useEffect } from "react";
 import { Board } from "@/components/board/Board";
 import type { BadgeKind, BoardBadge, BoardGhost, PieceCode, Side as BoardSide, Sq } from "@/components/board/types";
 import { absPly } from "@repo/game-core/client/reducer";
@@ -14,9 +14,9 @@ import { boardLabel, copyCtx, ZONE } from "../copy";
 import { destsCallback, legalDestsFor, premoveDestsFor } from "../live/premove";
 import { useController, useDispatch, useGame, usePrefs, useView } from "./GameContext";
 import { withTelemetry } from "../telemetryLazy";
-
-// Lazy: the /game route is at its first-load budget (plan 9.1), and the input is hidden until focused.
-const GameMoveInput = lazy(() => import("./GameMoveInput"));
+// Eager, not lazy: the input renders on the server, and a lazy one was a streamed Suspense segment whose hidden server
+// copy could outlive a client render of it (two `move-input`s; see GameScreen.tsx).
+import GameMoveInput from "./GameMoveInput";
 
 const BADGE_LABEL: Record<"mate" | "win" | "flag" | "draw", string> = {
   mate: "Checkmated king",
@@ -108,9 +108,7 @@ export function GameBoardArea() {
         label={boardLabel(ctx)}
       />
       {state.you.role === "player" && state.phase !== "ended" ? (
-        <Suspense fallback={null}>
-          <GameMoveInput fen={b.fen} mover={mover} onMove={(m) => controller.move(m)} />
-        </Suspense>
+        <GameMoveInput fen={b.fen} mover={mover} onMove={(m) => controller.move(m)} />
       ) : null}
     </div>
   );

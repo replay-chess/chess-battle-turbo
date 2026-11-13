@@ -1,8 +1,8 @@
 "use client";
 
 // The browser engine (phase-02 plan 5.3.2, 9.5, 13.1 WP-H): one lazy Stockfish 18 lite worker per tab, shared by
-// every bot game the tab opens. Only the bot game chunk imports this file (BotGameScreen → useLocalGame), so PvP
-// and spectator pages never download the engine; nothing is fetched until a bot game calls `init()` or a search.
+// every bot game the tab opens. Bot games import this file dynamically (useBotEngine's lazyEngineHost), on their first
+// `init()` or search, so it is a lazy chunk: PvP and spectator pages never download the engine glue.
 //
 // The worker is the same-origin shim /workers/engine-shim.js (manifest.ts), which loads the hashed engine from R2
 // (NEXT_PUBLIC_ENGINE_BASE_URL) or the origin copy. If the R2 attempt fails as a whole, init retries once with the

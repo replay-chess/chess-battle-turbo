@@ -2,10 +2,11 @@
 // client-data-layer 5.1), so the first socket connect needs no GET /api/socket-token. RealtimeBoot never connects
 // by itself; the game screen's "game" hold does. Bot games never acquire it, so they open no socket.
 //
-// The sign-in and membership redirects run HERE, outside the segment's loading.tsx Suspense boundary (FIX-A, T17):
-// a redirect() thrown by the page streamed the skeleton first and then redirected on the client during hydration,
-// which crashed Next's app router in dev ("Rendered more hooks than during the previous render") and never reached
-// /pricing. From the layout the response is a plain 307. The page keeps the same checks (cached, no extra query).
+// The sign-in and membership redirects run HERE, before anything renders (FIX-A, T17: a redirect() thrown by the page
+// after a loading.tsx skeleton had streamed redirected on the client during hydration, which crashed Next's app router
+// in dev and never reached /pricing). From the layout the response is a plain 307. The page keeps the same checks
+// (cached, no extra query). The segment has no loading.tsx any more: the screen is in the document's shell
+// (features/game/screen/GameScreen.tsx).
 import type { Metadata } from "next";
 import { auth } from "@clerk/nextjs/server";
 import { createMetadata } from "@/lib/seo";
