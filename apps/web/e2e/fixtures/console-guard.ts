@@ -102,6 +102,17 @@ export function isClerkJsAbort(message: string, stack: string | undefined): bool
   return firstFrame !== undefined && CLERK_JS_FRAME.test(firstFrame);
 }
 
+/**
+ * The App Router's own RSC fetches (`?_rsc=<id>`: a prefetch, or a soft navigation's payload) on the page's origin,
+ * cut by a full-page navigation that leaves the page: WebKit reports each as an uncaught "…/<path>?_rsc=<id> due to
+ * access control checks." page error (CI 43430795552, webkit-iphone onboarding/lichess deny: Welcome's prefetch of
+ * Link still in flight when "Connect Lichess" left for Lichess). The page that asked is gone, so nothing reads the
+ * answer; Next never shows it. Only a same-origin path with an `_rsc` query is excused: /api/…, /sw.js and every other
+ * origin still fail the test (regression: webkit-rsc-abort).
+ */
+export const NEXT_RSC_ABORT =
+  /(?:^|\/)(?:localhost|127\.0\.0\.1)(?::\d+)?\/(?!api\/)[^\s?]*\?(?:[^\s]*&)?_rsc=[\w-]+(?:&[^\s]*)? due to access control checks\.?$/;
+
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const BASELINE_FILE = path.join(WEB_DIR, "e2e/console-baseline.json");
 
@@ -126,7 +137,7 @@ export type ConsoleProblem = { kind: "pageerror" | "console" | "hydration" | "ap
 export function classifyConsole(type: string, text: string, allow: RegExp[]): ConsoleProblem | null {
   if (allow.some((r) => r.test(text)) || RESOURCE_STATUS.test(text)) return null;
   if (WEBKIT_NETWORK_NOISE.some((r) => r.test(text))) return null;
-  if (CLERK_CHUNK_ABORT.test(text) || CLERK_PROTECT_PROBE.test(text) || CLERK_TIMER_BLOB.test(text)) return null;
+  if (CLERK_CHUNK_ABORT.test(text) || CLERK_PROTECT_PROBE.test(text) || CLERK_TIMER_BLOB.test(text) || NEXT_RSC_ABORT.test(text)) return null;
   if (HYDRATION.test(text)) return { kind: "hydration", text };
   if (type === "error") return { kind: "console", text };
   return null;
@@ -173,7 +184,8 @@ export function guardContext(context: BrowserContext, allow: RegExp[] = []): Con
       !allow.some((r) => r.test(text)) &&
       !CLERK_CHUNK_ABORT.test(text) &&
       !CLERK_PROTECT_PROBE.test(text) &&
-      !CLERK_TIMER_BLOB.test(text)
+      !CLERK_TIMER_BLOB.test(text) &&
+      !NEXT_RSC_ABORT.test(text)
     )
       problems.push({ kind: "pageerror", text, url: err.page()?.url() });
   });

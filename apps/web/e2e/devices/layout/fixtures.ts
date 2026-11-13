@@ -7,10 +7,19 @@ import { expectedShellMode, type ShellMode } from "./modes";
 
 export { expect, test, waitForStable };
 
-/** goto + 200 check + waitForStable. */
+/** Clerk's Frontend API (the development instance's handshake host), not this app. */
+const CLERK_FAPI = /(^|\.)clerk\.accounts\.dev$|^clerk\./;
+
+/**
+ * goto + 200 check + waitForStable. A fresh context's first document goes through the Clerk development instance's
+ * handshake (no dev-browser cookie yet: a redirect to *.clerk.accounts.dev and back). A 5xx answered by Clerk's host,
+ * not this app, is Clerk's and is retried once (CI 43430795552 devices-game: one 502 in 216 loads); the app's own 5xx
+ * still fails at once, and the message names the host that answered.
+ */
 export async function gotoStable(page: Page, path: string) {
-  const res = await page.goto(path);
-  expect(res?.status(), `${path} status`).toBe(200);
+  let res = await page.goto(path);
+  if (res && res.status() >= 500 && CLERK_FAPI.test(new URL(res.url()).hostname)) res = await page.goto(path);
+  expect(res?.status(), `${path} status (answered by ${res ? new URL(res.url()).host : "nothing"})`).toBe(200);
   await waitForStable(page);
 }
 

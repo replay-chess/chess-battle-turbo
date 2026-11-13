@@ -4,6 +4,7 @@ import {
   CLERK_CHUNK_ABORT,
   CLERK_PROTECT_PROBE,
   CLERK_TIMER_BLOB,
+  NEXT_RSC_ABORT,
   classifyConsole,
   classifyResponse,
   isClerkJsAbort,
@@ -171,5 +172,29 @@ describe("telemetry audit", () => {
     assert.ok(problems.some((p) => p.includes("unregistered event")));
     assert.ok(problems.some((p) => p.includes('Unrecognized key: "q"')));
     assert.ok(problems.some((p) => p.includes("PII (forbidden)")));
+  });
+});
+
+describe("console guard: the router's RSC fetch cut by a full-page navigation (WebKit)", () => {
+  it("regression: webkit-rsc-abort: excuses a same-origin `_rsc` fetch, as WebKit and Playwright word it", () => {
+    for (const t of [
+      "/localhost:3000/onboarding/link?_rsc=1wjbl due to access control checks.",
+      "ttp://localhost:3500/games?source=chesscom&_rsc=abc12 due to access control checks.",
+      "/127.0.0.1:3700/?_rsc=x9 due to access control checks.",
+    ]) {
+      assert.ok(NEXT_RSC_ABORT.test(t), t);
+      assert.equal(classifyConsole("error", t, []), null);
+    }
+  });
+  it("still reports /api, other files and other origins", () => {
+    for (const t of [
+      "/localhost:3000/api/import/status?_rsc=1 due to access control checks.",
+      "/localhost:3000/api/me due to access control checks.",
+      "/localhost:3000/onboarding/link due to access control checks.",
+      "ttp://evil.example/onboarding/link?_rsc=1wjbl due to access control checks.",
+    ]) {
+      assert.equal(NEXT_RSC_ABORT.test(t), false, t);
+      assert.ok(classifyConsole("error", t, []), t);
+    }
   });
 });
