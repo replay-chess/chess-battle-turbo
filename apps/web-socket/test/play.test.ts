@@ -141,6 +141,19 @@ describe("play", () => {
   afterEach(() => closeAllClients());
   after(() => server.close());
 
+  test("regression: socket-start-game-attach-race — startGame returns after White has every event of Black's join", async () => {
+    for (let round = 0; round < 5; round++) {
+      const [w, b] = [user(`race-w${round}`), user(`race-b${round}`)];
+      const { W, jb } = await startGame(server, w, b);
+      const late: number[] = [];
+      W.onAny((_event: string, payload: { seq?: unknown } | null) => {
+        if (typeof payload?.seq === "number" && payload.seq <= jb.state.seq) late.push(payload.seq);
+      });
+      await delay(60);
+      assert.deepEqual(late, [], "no room event at or below the join seq reaches White after startGame");
+    }
+  });
+
   test("the Opera Game to 17.Rd8#: first moves, clocks after both, seq + 1, finish with every ply, game:result", async () => {
     const [w, b] = [user("morphy"), user("duke")];
     const { game, W, B, jw, jb } = await startGame(server, w, b);

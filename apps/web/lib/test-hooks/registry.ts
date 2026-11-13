@@ -103,6 +103,15 @@ export const TEST_HOOKS: readonly TestHook[] = [
       "/dev/ui/games",
       "/dev/ui/compare",
       "/dev/ui/practice",
+      // Phase 4 (phase-04 plan §4.12): the activating demo (WP-D).
+      "/dev/ui/activating",
+      // Phase 4 (phase-04 plan §4.12): the onboarding demo index and one step page (matches /dev/ui/onboarding/[step]).
+      "/dev/ui/onboarding",
+      "/dev/ui/onboarding/welcome",
+      // P4 WP-G: /settings/connected in its ten board states (phase-04 plan §4.12).
+      "/dev/ui/connected",
+      // Phase 4 (phase-04 plan §7.7.4): the provider fault table page (also admin + testHooksEnabled() in the page).
+      "/dev/import",
     ],
   },
   {
@@ -223,6 +232,80 @@ export const TEST_HOOKS: readonly TestHook[] = [
     env: "WORKER_FAULT",
     prodGuardValue: "fail_at_ply:1",
     proof: { by: "unit", test: "../analysis-worker/src/boot.test.ts" },
+  },
+  {
+    kind: "route",
+    id: "dev-import-fault",
+    phase: 4,
+    guard: "testHooksEnabled",
+    description:
+      "The provider fault table (phase-04 plan §7.7.4): /api/dev/import-fault forwards {v:1, provider, mode, ttlSec} to the " +
+      "worker's /internal/dev/fault (signed webwk). Admin session or x-e2e-token only; 404 for everyone else and in every " +
+      "production build. The worker side is IMPORT_FAULTS_ALLOWED (env hook below)",
+    files: "app/api/dev/import-fault/**",
+    paths: ["/api/dev/import-fault"],
+  },
+  {
+    kind: "env",
+    id: "import-faults-allowed",
+    phase: 4,
+    guard: "testHooksEnabled",
+    description:
+      "IMPORT_FAULTS_ALLOWED=1 turns on the analysis worker's provider fault table (apps/analysis-worker/src/dev/faults.ts). " +
+      "Read only by the worker (config/env.ts); it refuses to boot with it under APP_ENV=production. The web never reads it",
+    env: "IMPORT_FAULTS_ALLOWED",
+    prodGuardValue: "1",
+    proof: { by: "unit", test: "../analysis-worker/src/dev/__tests__/faults.test.ts" },
+  },
+  // ── Phase 4 (phase-04 plan §12.4, D4-19; WP-H) ──
+  {
+    kind: "env",
+    id: "dodo-api-base-url",
+    phase: 4,
+    guard: "isTestBuild",
+    description:
+      "DODO_API_BASE_URL points the web's Dodo REST client at the e2e upstream mock (`/dodo` of e2e/mocks/upstream-server.ts). " +
+      "lib/billing/dodo-env.ts refuses it (throws) unless the app env is `test`, so a dev or production build never talks to " +
+      "anything but Dodo; never set on Vercel",
+    env: "DODO_API_BASE_URL",
+    prodGuardValue: "http://127.0.0.1:4010/dodo",
+    proof: { by: "unit", test: "lib/billing/dodo-env.test.ts" },
+  },
+  {
+    kind: "env",
+    id: "provider-base-urls",
+    phase: 4,
+    guard: "isNonProdApp",
+    description:
+      "CHESSCOM_API_BASE / LICHESS_BASE_URL point the web (and, with their own values, the worker) at the e2e upstream mock. " +
+      "lib/env-providers.ts refuses anything but the real origins when the app env is production (the worker's config/env.ts " +
+      "does the same); dev and production keep them unset",
+    env: "CHESSCOM_API_BASE",
+    prodGuardValue: "http://127.0.0.1:4010/chesscom",
+    proof: { by: "unit", test: "lib/env-providers.test.ts" },
+  },
+  {
+    kind: "data",
+    id: "upstream-mock",
+    phase: 4,
+    guard: "isTestBuild",
+    description:
+      "e2e/mocks/upstream-server.ts: Chess.com, Lichess (OAuth consent, token revoke, NDJSON export) and Dodo (checkout, hosted " +
+      "pay page, signed subscription.active) on 4010 (+ E2E_PORT_OFFSET), started by playwright.config.ts only; reached only " +
+      "through the two env hooks above, and its webhooks only verify against a test build's per-run DODO_PAYMENTS_WEBHOOK_KEY",
+    value: "http://127.0.0.1:4010",
+    proof: { by: "unit", test: "e2e/mocks/upstream-server.test.ts" },
+  },
+  {
+    kind: "data",
+    id: "dodo-webhook-fixture",
+    phase: 4,
+    guard: "isTestBuild",
+    description:
+      "e2e/fixtures/dodo-webhook.ts signs subscription.active / payment.succeeded / payment.failed with the server's " +
+      "DODO_PAYMENTS_WEBHOOK_KEY (Standard Webhooks); the key differs on every deployed site, so these specs are @local-only",
+    value: "standardwebhooks(DODO_PAYMENTS_WEBHOOK_KEY)",
+    proof: { by: "unit", test: "e2e/fixtures/dodo-webhook.test.ts" },
   },
 ];
 

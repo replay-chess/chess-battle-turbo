@@ -7,17 +7,23 @@ import type { OkMeta } from "@repo/contracts/http/envelope";
 export type LegacyShape = "envelope" | "success" | "raw";
 
 export type Unwrapped =
-  | { ok: true; shape: LegacyShape; data: unknown; meta?: OkMeta }
+  | { ok: true; shape: LegacyShape; data: unknown; meta?: OkMeta & Record<string, unknown> }
   /** `{ success: false, … }` sent with a 2xx status: the caller turns it into an ApiError. */
   | { ok: false; shape: "success"; body: Record<string, unknown> };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
-function readMeta(v: unknown): OkMeta | undefined {
+/**
+ * The envelope's `meta`: the typed paging keys checked, every other key passed through untouched for the caller's own
+ * reader (FIX-1: G1's `filteredTotal` and per-source `counts` were dropped here, so every client refetch of the
+ * archive's page 1 lost the "N games" total and the P4 source tabs, which only the server render still had).
+ */
+function readMeta(v: unknown): (OkMeta & Record<string, unknown>) | undefined {
   if (!isRecord(v)) return undefined;
-  const meta: OkMeta = {};
-  if (typeof v.nextCursor === "string" || v.nextCursor === null) meta.nextCursor = v.nextCursor;
-  if (typeof v.total === "number") meta.total = v.total;
+  const { nextCursor, total, ...rest } = v;
+  const meta: OkMeta & Record<string, unknown> = { ...rest };
+  if (typeof nextCursor === "string" || nextCursor === null) meta.nextCursor = nextCursor;
+  if (typeof total === "number") meta.total = total;
   return meta;
 }
 

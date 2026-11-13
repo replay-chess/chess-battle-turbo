@@ -22,6 +22,13 @@
  * Phase 3 personas (e2e/personas/p03.ts) also own games: after the billing UPDATE the reset deletes the user's games
  * and writes the persona's review fixtures with the P3 seed writers (@repo/db/seed/review: `clearMemberGames`,
  * `writePersonaFixtures`), which carry the same guards (no shared letter, the user-count tripwire).
+ *
+ * Phase 4 (e2e/personas/p04.ts, phase-04 plan 6.7): every reset first removes any P4 state of the user
+ * (@repo/db/seed/p04-personas `clearP04State`: trial-ledger rows by email and handle, queued jobs, imported games,
+ * links with their cursors and runs); a P4 persona then writes its own (`writeP04Persona`: onboarding and M4
+ * billing columns, links, runs, cursors, imported fixture games). The ledger hashes come from
+ * lib/billing/trial-ledger.ts, so HASH_PEPPER must be set (`.env.test` / `.env.development.local`). Finally the
+ * user's Clerk claims are re-synced (development Clerk key only), so middleware sees `onboarded` / `entitled` at once.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -29,7 +36,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parse as parseEnv } from "dotenv";
 import { P01_PERSONAS, type BillingColumns, type Persona } from "../../e2e/personas/p01";
 import { P03_PERSONAS, isP03Persona } from "../../e2e/personas/p03";
+import { P04_PERSONAS, isP04Persona } from "../../e2e/personas/p04";
 import { PERSONA_LETTER, letterEmail, poolEmail, POOL_SIZE, roleOfEmail } from "../../e2e/fixtures/users";
+import { computeClaims, type ClaimsRecord } from "../../lib/auth/claims";
 import {
   DEV_ENV_FILE,
   MAX_TARGET_USERS,
@@ -40,7 +49,7 @@ import {
   resolveEnvVar,
 } from "@repo/db/seed-guards";
 
-export const PERSONAS: Record<string, Persona> = { ...P01_PERSONAS, ...P03_PERSONAS };
+export const PERSONAS: Record<string, Persona> = { ...P01_PERSONAS, ...P03_PERSONAS, ...P04_PERSONAS };
 
 /** Plan §4 personas row: the user-count tripwire comes from prisma/seed-guards.ts (SPEC 11.2 guard 5, <= 60). */
 export const PERSONA_USER_TRIPWIRE = MAX_TARGET_USERS;
@@ -103,15 +112,24 @@ export function personaRow(email: string, persona: Persona, now: Date) {
 
 type ResetOptions = { now?: Date; dryRun?: boolean; databaseUrl?: string; log?: (line: string) => void };
 
+function devEnvFile(): Record<string, string> {
+  const webDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  try {
+    return parseEnv(readFileSync(path.join(webDir, DEV_ENV_FILE)));
+  } catch {
+    return {}; // CI has no env file; the shell provides the values.
+  }
+}
+
+/** HASH_PEPPER and CLERK_SECRET_KEY from the shell, else .env.development.local (P4 resets need both). */
+function p04Env(): { pepper: string | undefined; clerkKey: string | undefined } {
+  const file = devEnvFile();
+  return { pepper: process.env.HASH_PEPPER || file.HASH_PEPPER, clerkKey: process.env.CLERK_SECRET_KEY || file.CLERK_SECRET_KEY };
+}
+
 /** Loads DIRECT_URL from the shell or .env.development.local (never .env.local). */
 function resolveTargetUrl(): { url: string; origin: string } {
-  const webDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-  let fileValues: Record<string, string> = {};
-  try {
-    fileValues = parseEnv(readFileSync(path.join(webDir, DEV_ENV_FILE)));
-  } catch {
-    // CI has no env file; the shell must provide the URL.
-  }
+  const fileValues = devEnvFile();
   const resolved = resolveEnvVar(
     "DIRECT_URL",
     process.env.DIRECT_URL || process.env.DATABASE_URL,
@@ -178,11 +196,47 @@ export async function resetPersona(target: string, personaName: string, opts: Re
       }
       if (persona.games.fixtures.length > 0) refs = await writePersonaFixtures(db, email, persona.games.fixtures, { log });
     }
+    // Phase 4: clear any P4 state (every reset), then write the P4 persona's; then the Clerk claims.
+    const env = p04Env();
+    if (!env.pepper) throw new SeedGuardError("HASH_PEPPER is not set (needed for the trial-ledger rows of a reset)");
+    process.env.HASH_PEPPER ??= env.pepper;
+    const { clearP04State, writeP04Persona } = await import("@repo/db/seed/p04-personas");
+    const { trialLedgerEmailHash, handleHash } = await import("../../lib/billing/trial-ledger");
+    const ledger = {
+      emailHash: (e: string) => trialLedgerEmailHash(e),
+      handleHash: (p: "chesscom" | "lichess", u: string, v: boolean) => handleHash(p, u, v),
+    };
+    if (isP04Persona(persona)) await writeP04Persona(db, email, persona.p04, { now, ledger, log });
+    else await clearP04State(db, email, { now, ledger, log });
+    await syncPersonaClaims(db, email, env.clerkKey, now, log);
     log(`[personas] applied ${persona.name} to ${email}`);
     return { email, persona: persona.name, row, applied: true, refs };
   } finally {
     await db.$disconnect();
   }
+}
+
+/** Writes the user's P1 claims to Clerk (development key only; a missing key or a non-Clerk user is logged, not fatal). */
+async function syncPersonaClaims(
+  db: { $queryRaw: <T>(q: TemplateStringsArray, ...v: unknown[]) => Promise<T> },
+  email: string,
+  clerkKey: string | undefined,
+  now: Date,
+  log: (line: string) => void,
+) {
+  if (!clerkKey?.startsWith("sk_test_")) {
+    log("[personas] Clerk claims not synced (no development CLERK_SECRET_KEY)");
+    return;
+  }
+  const rows = await db.$queryRaw<Array<ClaimsRecord & { googleId: string }>>`
+    SELECT "googleId", onboarded, role::text AS role, "subscriptionId", "subscriptionStatus", "cancelAtPeriodEnd",
+           ("currentPeriodEnd" AT TIME ZONE 'UTC') AS "currentPeriodEnd", ("trialStartedAt" AT TIME ZONE 'UTC') AS "trialStartedAt"
+      FROM users WHERE email = ${email}`;
+  const row = rows[0];
+  if (!row?.googleId.startsWith("user_")) return;
+  const { clerkHttpApi } = await import("../backfill/clerk-onboarded-claims");
+  await clerkHttpApi({ key: clerkKey }).mergePublicMetadata(row.googleId, computeClaims(row, now));
+  log("[personas] Clerk claims synced");
 }
 
 function parseArgs(argv: string[]) {

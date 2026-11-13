@@ -8,7 +8,7 @@
 //   any other error               → the fail write: QUEUED after 30 s / 2 min / 10 min, FAILED after the last attempt;
 //                                   an ANALYZE_GAME also marks its game FAILED and emits `analysis:failed` to both
 //                                   members (always: a failure is rare and someone may be waiting)
-import { PAYLOAD_V_MAX, readJobPayload, type P3JobKind } from "@repo/contracts/internal/jobs";
+import { PAYLOAD_V_MAX, readJobPayload, type RunJobKind } from "@repo/contracts/internal/jobs";
 import type { AnalysisFailureCode } from "@repo/contracts/http/review";
 import type { EvalCache } from "../cache/evalcache";
 import type { AppEnvName } from "../config/env";
@@ -37,7 +37,7 @@ import { JobAborted, JobError, type JobContext, type JobHandler } from "./types"
 /** A job written by a newer build waits this long before this build looks at it again. */
 export const NEWER_PAYLOAD_RELEASE_SEC = 600;
 
-export type HandlerMap = { [K in P3JobKind]?: JobHandler<K> };
+export type HandlerMap = { [K in RunJobKind]?: JobHandler<K> };
 
 export interface RunnerDeps {
   db: Db;
@@ -83,7 +83,7 @@ function failureMessage(error: unknown): string {
 export async function runJob(job: ClaimedJob, deps: RunnerDeps): Promise<RunResult> {
   const log = deps.log.child({ jobId: job.id, kind: job.kind, attempt: job.attempts });
   const started = deps.clock.now();
-  const kind = job.kind as P3JobKind;
+  const kind = job.kind as RunJobKind;
 
   const read = readJobPayload(kind, job.payload);
   if (!read.ok && read.reason === "newer") {
@@ -141,6 +141,7 @@ export async function runJob(job: ClaimedJob, deps: RunnerDeps): Promise<RunResu
   try {
     const outcome = await handler.run(ctx);
     if (outcome === "done") deps.metrics.jobDone(job.kind, deps.clock.now() - started);
+    // `failed`: the handler wrote the failure itself (P4 imports, jobs/import-sync.ts) and counted it.
     log.info(`job ${outcome}`, { ms: deps.clock.now() - started });
     return outcome;
   } catch (error) {
@@ -191,6 +192,7 @@ async function fail(
         message: failureMessage(error),
         attempt: job.attempts,
         terminal,
+        kind: job.kind,
       }),
     );
     const failed = rows[0] ? toFailedJob(rows[0]) : null;

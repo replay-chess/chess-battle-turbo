@@ -24,6 +24,8 @@ describe("post-deploy smoke (Postgres, ENGINE=fake)", { skip: skipInt }, () => {
     env = await setupInt("smoke");
     const workerEnv = loadEnv({
       APP_ENV: "test",
+      // A P3 test: no import work (the boot backstop would sweep other int files' linked accounts, FIX-1).
+      IMPORT_PAUSED: "on",
       WORKER_DATABASE_URL: env.workerUrl,
       INTERNAL_API_SECRET: ring,
       ENGINE: "fake",

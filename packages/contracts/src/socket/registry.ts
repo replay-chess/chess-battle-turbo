@@ -10,6 +10,7 @@ import { ANALYSIS_EVENTS, ANALYSIS_EVENT_BUDGETS, type AnalysisEventName } from 
 import { GAME_EVENTS, type GameEventName } from "./events";
 import { eventBudget } from "./limits";
 import type { RoomKind } from "./rooms";
+import { USER_EVENTS, USER_EVENT_BUDGETS, type UserEventName } from "./user";
 
 /** Where an event goes. `sender` = only the socket that caused it; `all-games` = every game and spectate room. */
 export type EventRoute = RoomKind | "sender" | "all-games";
@@ -66,6 +67,11 @@ function analysisSpec<N extends AnalysisEventName>(name: N) {
   return { schema: ANALYSIS_EVENTS[name], to: ["user"], seq: false, budget: ANALYSIS_EVENT_BUDGETS[name] } as const;
 }
 
+/** A P4 user event (./user.ts): user rooms only, no per-room seq (phase-04 §7.6). */
+function userSpec<N extends UserEventName>(name: N) {
+  return { schema: USER_EVENTS[name], to: ["user"], seq: false, budget: USER_EVENT_BUDGETS[name] } as const;
+}
+
 export const EMIT_EVENTS = {
   "test:echo": { schema: TestEchoEvent, to: ["user", "game", "spectate", "tournament"], seq: false, budget: 300, devOnly: true },
   // ── P3 server analysis (phase-03 plan §5.11, §7.4). Only the game's member players receive them. The web emits
@@ -79,6 +85,12 @@ export const EMIT_EVENTS = {
   "analysis:batch": analysisSpec("analysis:batch"),
   "compare:ready": analysisSpec("compare:ready"),
   "games:changed": analysisSpec("games:changed"),
+  // ── P4 import and billing (phase-04 plan §7.6). The worker (kid `wk`, `import:*`) emits the import events; the web
+  // (kid `web`) emits `entitlement:changed`. Imports and purges reuse P3's `games:changed`.
+  "import:progress": userSpec("import:progress"),
+  "import:finished": userSpec("import:finished"),
+  "import:failed": userSpec("import:failed"),
+  "entitlement:changed": userSpec("entitlement:changed"),
 } as const satisfies Record<string, EmitEventSpec>;
 
 export type EmitEventName = keyof typeof EMIT_EVENTS;

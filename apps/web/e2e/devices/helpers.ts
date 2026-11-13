@@ -14,13 +14,11 @@ export const test = base.extend({
     if (insets) {
       await page.addInitScript((i: Insets) => {
         const css = `:root{--safe-top:${i.top}px;--safe-right:${i.right}px;--safe-bottom:${i.bottom}px;--safe-left:${i.left}px}`;
-        const add = () => {
-          const s = document.createElement("style");
-          s.textContent = css;
-          document.head.append(s);
-        };
-        if (document.head) add();
-        else document.addEventListener("DOMContentLoaded", add, { once: true });
+        // A constructed sheet, not a <style> appended to <head>: that append could land inside React's streaming
+        // hydration of <head> and throw #418 (regression: hydration-overlay-style).
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(css);
+        document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
       }, insets);
     }
     await provide(page);

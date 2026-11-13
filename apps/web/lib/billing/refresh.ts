@@ -140,7 +140,9 @@ export async function refreshMembership(input: RefreshInput, deps: RefreshDeps):
     if (!primary) return { ...stored, customerId, refreshed: true, changed, scheduledChange: null };
 
     const outcome = await deps.apply(primary, { source: "api", userId: input.userId, now: deps.now });
-    if (outcome.status === "applied" || outcome.status === "stale") {
+    // A duplicate (FIX-2: a second entitled subscription next to the one the row holds) is never applied: the stored
+    // row stays the truth, as for a stale snapshot; the duplicate's own webhook cancels it at Dodo.
+    if (outcome.status === "applied" || outcome.status === "stale" || outcome.status === "duplicate") {
       return {
         summary: outcome.entitlement,
         customerId,
@@ -148,7 +150,7 @@ export async function refreshMembership(input: RefreshInput, deps: RefreshDeps):
         productId: outcome.status === "applied" ? primary.product_id : input.subscriptionProductId,
         refreshed: true,
         changed: changed || outcome.changed,
-        scheduledChange: scheduledChangeOf(primary),
+        scheduledChange: outcome.status === "duplicate" ? null : scheduledChangeOf(primary),
       };
     }
     deps.warn("[billing] refresh: snapshot not applied", { user: String(input.userId), status: outcome.status });

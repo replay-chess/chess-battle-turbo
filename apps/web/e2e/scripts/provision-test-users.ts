@@ -32,6 +32,16 @@
  *   npx tsx e2e/scripts/provision-test-users.ts --restore-qr
  * gives Q a used trial and clears every billing column of R (the states
  * e2e/fixtures/health.ts checks).
+ *
+ * Onboarded (phase-04 plan §3, testing X4, X17): the letter users A–R are
+ * provisioned onboarded, never through the onboarding API: `onboarded`,
+ * `onboardingStep = DONE` and `onboardedAt` on the row, and the Clerk
+ * `publicMetadata` claims (`onboarded: true`, P1's claim set) written through
+ * the Backend API of the DEVELOPMENT instance (`syncFixtureClaims`). Global
+ * setup does it for A–P on every run; `--restore-qr` for Q and R. There is no
+ * `--fresh <letter>` mode: shared letters are never reset to an onboarding
+ * state (exact onboarding states come from the P4 personas of the lease pool,
+ * e2e/personas/p04.ts).
  */
 
 /* eslint-disable turbo/no-undeclared-env-vars -- one-off script run by hand, not a turbo task */
@@ -39,6 +49,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { PrismaClient } from "@repo/db";
+import { computeClaims, type ClaimsRecord, type RcPublicMetadata } from "../../lib/auth/claims";
 import {
   POOL_SIZE,
   SHARED_MEMBER_LETTERS,
@@ -122,6 +133,24 @@ async function findClerkUserId(email: string): Promise<string | null> {
 
 type UserDb = Pick<PrismaClient, "user">;
 
+/**
+ * The onboarding columns of a provisioned fixture user (A–R): finished onboarding, as P4's resolver would leave it.
+ * `onboardedAt` is only set when missing (the first provisioning), so repeated runs do not move it.
+ */
+export function onboardedFields(now: Date = new Date()) {
+  return { onboarded: true, onboardingStep: "DONE" as const, onboardedAt: now };
+}
+
+/** Same as onboardedFields, for an `update`: keeps an existing `onboardedAt`. */
+async function markOnboarded(db: UserDb, email: string, now: Date): Promise<void> {
+  const row = await db.user.findUnique({ where: { email }, select: { onboardedAt: true } });
+  if (!row) return;
+  await db.user.update({
+    where: { email },
+    data: { onboarded: true, onboardingStep: "DONE", ...(row.onboardedAt ? {} : { onboardedAt: now }) },
+  });
+}
+
 /** The billing columns of an entitled fixture member, valid for a year from `now`. */
 export function entitlementFields(email: string, now: Date = new Date()) {
   const periodEnd = new Date(now);
@@ -162,11 +191,12 @@ export async function entitleUser(
       name: displayNameFor(label),
       code: generateUserCode(),
       isActive: true,
-      onboarded: true,
+      ...onboardedFields(now),
       ...entitlement,
       stats: { create: {} },
     },
   });
+  await markOnboarded(db, email, now);
   return user.referenceId;
 }
 
@@ -180,7 +210,83 @@ export async function entitleSharedMembers(db: UserDb, now: Date = new Date()): 
     await entitleUser(db, letter, letterEmail(letter), null, now);
     n++;
   }
+  await syncFixtureClaims(db, SHARED_MEMBER_LETTERS.map((l) => letterEmail(l)), now);
   return n;
+}
+
+/** The `ClaimsRecord` columns plus the Clerk id, for the claims sync. */
+const CLAIMS_COLUMNS = {
+  googleId: true,
+  onboarded: true,
+  role: true,
+  subscriptionId: true,
+  subscriptionStatus: true,
+  currentPeriodEnd: true,
+  cancelAtPeriodEnd: true,
+  trialStartedAt: true,
+} as const;
+
+type ClerkLookup = { id: string; public_metadata?: unknown; email_addresses?: { email_address: string }[] };
+
+/** Pure: the claims a fixture row should carry and whether Clerk's copy differs (only P1's claim keys compared). */
+export function claimsToWrite(row: ClaimsRecord, current: unknown, now: Date): RcPublicMetadata | null {
+  const claims = computeClaims(row, now);
+  const md = current && typeof current === "object" ? (current as Record<string, unknown>) : {};
+  const same = (Object.keys(claims) as (keyof RcPublicMetadata)[]).every((k) => md[k] === claims[k]);
+  return same ? null : claims;
+}
+
+/**
+ * Writes P1's claims (with `onboarded: true` after provisioning) to the Clerk users of `emails`, development
+ * instance only (`sk_test_`): one lookup for all of them, one PATCH per user whose claims differ. Rows whose Clerk
+ * user does not exist yet (a fresh Clerk instance) are skipped; the first sign-in provisions and syncs them.
+ * Returns the number of users written.
+ */
+export async function syncFixtureClaims(
+  db: UserDb,
+  emails: readonly string[],
+  now: Date = new Date(),
+  opts: { key?: string; fetchImpl?: typeof fetch } = {},
+): Promise<number> {
+  const key = opts.key ?? process.env.CLERK_SECRET_KEY;
+  const doFetch = opts.fetchImpl ?? fetch;
+  if (!key?.startsWith("sk_test_") || emails.length === 0) return 0;
+  const params = new URLSearchParams({ limit: String(Math.min(emails.length, 100)) });
+  for (const e of emails) params.append("email_address", e);
+  const res = await doFetch(`https://api.clerk.com/v1/users?${params}`, {
+    headers: { Authorization: `Bearer ${key}` },
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) throw new Error(`Clerk user lookup for the fixture claims answered ${res.status}`);
+  const users = (await res.json()) as ClerkLookup[];
+  let written = 0;
+  for (const u of users) {
+    const email = u.email_addresses?.[0]?.email_address?.toLowerCase();
+    if (!email) continue;
+    const row = await db.user.findUnique({ where: { email }, select: CLAIMS_COLUMNS });
+    if (!row) continue;
+    const claims = claimsToWrite(row, u.public_metadata, now);
+    if (!claims) continue;
+    const patch = await doFetch(`https://api.clerk.com/v1/users/${encodeURIComponent(u.id)}/metadata`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ public_metadata: claims }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!patch.ok) throw new Error(`Clerk metadata PATCH for a fixture user answered ${patch.status}`);
+    written++;
+  }
+  return written;
+}
+
+/**
+ * Provisions one registered fixture user (a letter, A–R) onboarded: the row's onboarding columns and the Clerk
+ * claims. The auth fixture calls it when `GET /api/me` reports a letter user as not onboarded (a fresh database whose
+ * first sign-in just created the row). Never for pool or throwaway users: their state is the spec's.
+ */
+export async function provisionOnboarded(db: UserDb, email: string, now: Date = new Date()): Promise<void> {
+  await markOnboarded(db, email, now);
+  await syncFixtureClaims(db, [email], now);
 }
 
 /** Creates (or finds) an unentitled row for a pool or persona user. */
@@ -229,13 +335,15 @@ export async function restoreReadOnlyUsers(db: UserDb, now: Date = new Date()) {
         name: displayNameFor(letter),
         code: generateUserCode(),
         isActive: true,
-        onboarded: true,
+        ...onboardedFields(now),
         ...fields,
         stats: { create: {} },
       },
     });
+    await markOnboarded(db, email, now);
     console.log(`  Restored ${letter}: ${email}`);
   }
+  await syncFixtureClaims(db, ["Q", "R"].map((l) => letterEmail(l)), now);
 }
 
 function parsePoolRange(args: string[]): number[] {

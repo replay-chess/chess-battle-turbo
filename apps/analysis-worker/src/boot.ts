@@ -9,7 +9,7 @@
 import { randomBytes } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { P3_JOB_KINDS, PAYLOAD_V_MAX, type JobKind } from "@repo/contracts/internal/jobs";
+import { P3_JOB_KINDS, P4_JOB_KINDS, PAYLOAD_V_MAX, type JobKind } from "@repo/contracts/internal/jobs";
 import type { WorkerReadyResponse } from "@repo/contracts/internal/kick";
 import { ENGINE_PROFILE } from "@repo/chess-analysis/version";
 import { EvalCache } from "./cache/evalcache";
@@ -19,6 +19,14 @@ import { createDb, type Db } from "./db/client";
 import { engineFactory, EnginePool, type Engine } from "./engine";
 import { createHttpServer } from "./http/server";
 import { defaultHandlers, type HandlerMap } from "./jobs";
+import { failReapedImports } from "./jobs/import-sync";
+import { FaultTable, faultingFetch } from "./dev/faults";
+import { devFaultRoute } from "./http/routes/dev-fault";
+import { ProviderLookup } from "./http/routes/provider-lookup";
+import { createProviders, type FetchLike, type ImportProviders } from "./providers";
+import { measuredFetch } from "./providers/measure";
+import { importMetric } from "./import/metrics";
+import { IoLane, routeKick } from "./queue/lanes";
 import { BatchAccumulator } from "./pipeline/batch-events";
 import { OpeningBook } from "./pipeline/openings";
 import { SqlAnalysisStore } from "./pipeline/sql-store";
@@ -31,6 +39,7 @@ import { noopTelemetry, sentryTelemetry, type Telemetry } from "./obs/telemetry"
 import { realClock, type Clock } from "./scheduler/clock";
 import { collectPlan, planWindow } from "./scheduler/daily-plan";
 import { RECURRING_SLICES } from "./scheduler/recurring";
+import { importBackstopStatement, releaseParkedImportsStatement } from "./scheduler/recurring/import-backstop";
 import { Scheduler } from "./scheduler/scheduler";
 import { Emitter, type EmitSink } from "./socket/emit";
 import { LagPause, LoadProbe } from "./socket/load";
@@ -51,6 +60,8 @@ export interface WorkerOverrides {
   events?: ProductEvents;
   fetchImpl?: typeof fetch;
   bootId?: string;
+  /** P4: the transport of the provider clients (tests: the in-process upstream mock; dev: the fault table). */
+  providerFetch?: FetchLike;
 }
 
 export interface RunningWorker {
@@ -59,6 +70,13 @@ export interface RunningWorker {
   readonly server: Server;
   readonly port: number;
   readonly scheduler: Scheduler;
+  /** P4: the I/O lane (imports), next to the engine lane (`scheduler`). */
+  readonly lane: IoLane;
+  readonly providers: ImportProviders;
+  /** P4: the Chess.com lookup fallback (`/internal/provider/chesscom/lookup`), on the providers' gates. */
+  readonly lookup: ProviderLookup;
+  /** P4: the provider fault table; null unless IMPORT_FAULTS_ALLOWED (never in production). */
+  readonly faults: FaultTable | null;
   readonly metrics: Metrics;
   readonly engine: EnginePool;
   readonly evalCache: EvalCache | null;
@@ -167,9 +185,71 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
     queuedFor: (refs) => store.queuedFor(refs),
   });
   const book = new OpeningBook(() => store.openings(), log.child({ component: "openings" }));
-  const handlers = o.handlers ?? defaultHandlers({ store, book, batch, events });
+  // The provider transport: the real fetch (tests: the upstream mock), behind the dev fault table when it is allowed,
+  // behind the upstream stopwatch (import.upstream_ms). One transport and one gate per provider for the imports and
+  // the lookup endpoint alike.
+  const bases = { chesscom: env.imports.chesscomBaseUrl, lichess: env.imports.lichessBaseUrl };
+  const faults = env.faultsAllowed ? new FaultTable(() => clock.now()) : null;
+  if (faults) log.warn("IMPORT_FAULTS_ALLOWED: the provider fault table is on (dev/test only)");
+  const baseFetch: FetchLike = o.providerFetch ?? ((input, init) => fetch(input, init));
+  const providerFetch = measuredFetch(faults ? faultingFetch(baseFetch, faults, bases) : baseFetch, bases, clock, {
+    metrics,
+    telemetry,
+  });
+  const providers = createProviders({ settings: env.imports, clock, fetch: providerFetch });
+  const lookup = new ProviderLookup({
+    gates: providers.gates,
+    settings: env.imports,
+    clock,
+    fetch: providerFetch,
+    log: log.child({ component: "provider-lookup" }),
+    sink: { metrics, telemetry },
+  });
+  const handlers =
+    o.handlers ?? defaultHandlers({ store, book, batch, events, imports: { providers, settings: env.imports } });
   const kinds: JobKind[] = P3_JOB_KINDS.filter((k) => handlers[k] !== undefined);
+  // The I/O lane claims the import kinds this build handles; IMPORT_PAUSED leaves it without kinds (claims nothing).
+  const ioKinds: JobKind[] = env.imports.paused ? [] : P4_JOB_KINDS.filter((k) => handlers[k] !== undefined);
   const evalCacheMaxBytes = env.evalCache.maxGb * 1024 ** 3;
+
+  const runnerDeps = (runAs: string, stopSignal: AbortSignal) => ({
+    db,
+    clock,
+    log,
+    metrics,
+    telemetry,
+    emitter,
+    me: runAs,
+    appEnv: env.appEnv,
+    handlers,
+    engine,
+    evalCache,
+    evalCacheMaxBytes,
+    lag,
+    stopSignal,
+    isWatched: (ref: string) => scheduler.isWatched(ref),
+    takeFault: (ref: string) => scheduler.takeFault(ref),
+  });
+  const lane = new IoLane({
+    db,
+    clock,
+    log: log.child({ component: "io-lane" }),
+    metrics,
+    emitter,
+    me,
+    workerId: env.workerId,
+    kinds: ioKinds,
+    payloadVMax: PAYLOAD_V_MAX,
+    events,
+    runJob: (job, slotMe, stopSignal) => {
+      // import.queue_wait_ms (§10.2): how long a due import waited for a free slot (database clock on both sides).
+      importMetric({ metrics, telemetry }, "import.queue_wait_ms", Math.max(0, job.claimedAtMs - Math.max(job.runAtMs, job.createdAtMs)), {
+        kind: job.kind,
+      });
+      return runJob(job, runnerDeps(slotMe, stopSignal));
+    },
+    onReaped: (jobs) => failReapedImports({ db, emitter, clock, log }, jobs),
+  });
 
   // The runner's closures call back into the scheduler only after it exists (jobs run after start()).
   const scheduler: Scheduler = new Scheduler({
@@ -190,26 +270,16 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
       await batch.flushAtDrainEnd();
       await events.flush();
     },
-    bootPlan: () => collectPlan(RECURRING_SLICES, planWindow(clock.now()), log).statements,
-    runJob: (job, stopSignal) =>
-      runJob(job, {
-        db,
-        clock,
-        log,
-        metrics,
-        telemetry,
-        emitter,
-        me,
-        appEnv: env.appEnv,
-        handlers,
-        engine,
-        evalCache,
-        evalCacheMaxBytes,
-        lag,
-        stopSignal,
-        isWatched: (ref) => scheduler.isWatched(ref),
-        takeFault: (ref) => scheduler.takeFault(ref),
-      }),
+    // DAILY_PLAN's rows, and (when this build imports and IMPORT_PAUSED is off) the daily-sync backstop: the boot is
+    // awake anyway (D4-27). A paused worker enqueues no import work; the next unpaused boot or HOUSEKEEPING sweeps.
+    bootPlan: () => [
+      ...collectPlan(RECURRING_SLICES, planWindow(clock.now()), log).statements,
+      ...(handlers.IMPORT_SYNC && !env.imports.paused
+        ? [importBackstopStatement(), releaseParkedImportsStatement(env.imports.paywall)]
+        : []),
+    ],
+    siblingIds: lane.bootIds.filter((id) => id !== me),
+    runJob: (job, stopSignal) => runJob(job, runnerDeps(me, stopSignal)),
   });
 
   const ready = (): WorkerReadyResponse => {
@@ -223,9 +293,11 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
     acceptKeys: env.acceptKeys,
     nowMs: () => clock.now(),
     log: log.child({ component: "http" }),
-    kick: (body) => scheduler.kick(body),
+    kick: (body) => routeKick(body, scheduler, lane),
     metrics: () => metrics.snapshot(clock.now(), scheduler.view()),
     ready,
+    lookup: (body) => lookup.lookup(body),
+    devFault: faults ? devFaultRoute(faults, log.child({ component: "dev-fault" })) : undefined,
   });
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
@@ -235,16 +307,17 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
     });
   });
   const port = (server.address() as AddressInfo).port;
-  log.info("worker listening", { host: env.host, port, kinds });
+  log.info("worker listening", { host: env.host, port, kinds, ioKinds });
 
   await scheduler.start();
+  lane.start();
 
   let stopping: Promise<void> | null = null;
   const shutdown = () =>
     (stopping ??= (async () => {
       log.info("worker stopping");
       await new Promise<void>((resolve) => server.close(() => resolve()));
-      await scheduler.stop(STOP_GRACE_MS);
+      await Promise.all([scheduler.stop(STOP_GRACE_MS), lane.stop(STOP_GRACE_MS)]);
       // The pending `analysis:batch` frames go out before the emitter and the database close (FIX-2).
       await batch.flushAll().catch((error: unknown) => log.warn("analysis:batch flush on stop failed", { error }));
       await events.shutdown(2_000);
@@ -255,5 +328,21 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
       log.info("worker stopped");
     })());
 
-  return { me, bootId, server, port, scheduler, metrics, engine, evalCache, batch, ready, shutdown };
+  return {
+    me,
+    bootId,
+    server,
+    port,
+    scheduler,
+    lane,
+    providers,
+    lookup,
+    faults,
+    metrics,
+    engine,
+    evalCache,
+    batch,
+    ready,
+    shutdown,
+  };
 }

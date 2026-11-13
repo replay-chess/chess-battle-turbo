@@ -56,6 +56,9 @@ COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/db/package.json ./packages/db/
 COPY packages/chess-analysis/package.json ./packages/chess-analysis/
 COPY packages/chess-fixtures/package.json ./packages/chess-fixtures/
+# P4: the import library and the rules package it replays with (both bundled into dist/)
+COPY packages/chess-import/package.json ./packages/chess-import/
+COPY packages/game-core/package.json ./packages/game-core/
 RUN pnpm install --frozen-lockfile --filter "analysis-worker..."
 
 # ── Stage 2b: production dependencies for the runtime image ────────────────────────────────────────────────────
@@ -76,6 +79,8 @@ COPY packages/contracts ./packages/contracts
 COPY packages/db ./packages/db
 COPY packages/chess-analysis ./packages/chess-analysis
 COPY packages/chess-fixtures ./packages/chess-fixtures
+COPY packages/chess-import ./packages/chess-import
+COPY packages/game-core ./packages/game-core
 COPY apps/analysis-worker ./apps/analysis-worker
 COPY pnpm-workspace.yaml package.json ./
 # @repo/db's enqueue builders use Prisma.sql from the generated client (no query engine is ever started).

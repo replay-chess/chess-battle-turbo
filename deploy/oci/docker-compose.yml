@@ -54,6 +54,14 @@ services:
     # SENTRY_DSN, POSTHOG_PROJECT_KEY, POSTHOG_HOST come from .env.worker. Every worker that runs at the same time
     # needs its own WORKER_ID (a laptop worker without one gets <APP_ENV>-<host>).
     #
+    # P4 imports (phase-04 plan §7.9; all optional, defaults in parentheses), also from .env.worker:
+    # UPSTREAM_CONTACT (hello@playchess.tech, the provider User-Agent contact), IMPORT_WINDOW_MONTHS (12),
+    # IMPORT_MAX_GAMES (2000), IMPORT_ANALYSE_EAGER_TRIAL (20), IMPORT_ANALYSE_EAGER (50), IMPORT_ANALYSE_CAP (200),
+    # IMPORT_BACKLOG_SPREAD_DAYS (7), IMPORT_PAUSED (off: the ops kill switch, the I/O lane claims nothing),
+    # BILLING_PAYWALL (on), HASH_PEPPER, and on the dev box only IMPORT_FAULTS_ALLOWED=1 (the /dev/import fault table;
+    # the worker refuses to boot with it when APP_ENV=production). CHESSCOM_API_BASE / LICHESS_BASE_URL stay unset
+    # here (the real providers; any other value is refused with APP_ENV=production).
+    #
     # CPU isolation (P3-D8): the container's cgroup lives under worker-idle.slice (CPUWeight=idle, so cpu.idle = 1,
     # created by setup-server.sh): under contention the socket container always wins. On top of that a hard cap of
     # 0.75 core and the worker's own lag pause (it waits while the socket's loop-lag p99 > LAG_PAUSE_MS).
@@ -97,6 +105,8 @@ services:
       - WS_HOST=${WS_HOST:-ws-chess.playchess.tech}
       # `worker` on the dev box only (the deploy writes it into .env): the Caddyfile proxies the worker routes then.
       - COMPOSE_PROFILES=${COMPOSE_PROFILES:-}
+      # APP_ENV from the stack's .env (dev / production): the worker's /internal/dev/* is proxied only with `dev`.
+      - APP_ENV=${APP_ENV:-}
     depends_on:
       - websocket
     restart: unless-stopped

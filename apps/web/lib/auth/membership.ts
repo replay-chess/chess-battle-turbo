@@ -166,13 +166,15 @@ export type ReasonInput = {
 /**
  * Plan §8.3: the 402 `details.reason` for someone who is not a member.
  * - `trial_available`: never subscribed and the trial is still on offer;
+ * - `trial_used` also for someone who never subscribed here but whose trial is NOT on offer: the trial ledger knows
+ *   this person (a re-signup, an email variant; the caller passed a ledger-aware viewer, FIX-2);
  * - `payment_failed`: the payment-issue window after a failed renewal (`paymentIssue.state === "expired"`);
  * - `trial_used`: lapsed after the trial without ever paying;
  * - `expired`: any other lapsed member.
  */
 export function reasonFor(viewer: ReasonInput): SubscriptionReason {
   const e = viewer.entitlement;
-  if (e.state === "none" && e.trial.eligible) return "trial_available";
+  if (e.state === "none") return e.trial.eligible ? "trial_available" : "trial_used";
   if (e.paymentIssue?.state === "expired") return "payment_failed";
   if (e.state === "lapsed" && e.trial.used && viewer.billing?.neverPaid) return "trial_used";
   return "expired";

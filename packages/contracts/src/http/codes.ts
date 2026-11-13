@@ -47,7 +47,7 @@ export type SubscriptionReason = (typeof SUBSCRIPTION_REASONS)[number];
 
 /**
  * details.reason for 409 conflict. Append-only; each phase registers the reasons it introduces (CC R-06 list:
- * P2 already_started, already_completed, not_bot_game, not_finished, rev_gap; P4 …; P12 …).
+ * P2 already_started, already_completed, not_bot_game, not_finished, rev_gap; P3 and P4 below; P12 …).
  */
 export const CONFLICT_REASONS = [
   "already_started",
@@ -63,6 +63,16 @@ export const CONFLICT_REASONS = [
   "not_failed",
   "analysis_not_done",
   "already_ready",
+  // P4 (phase-04 plan §0.2 D4-05, §7.3, §7.4): `linked_elsewhere` ACC-2/ACC-3 when another user holds a verified
+  // link to the account; `already_linked` ACC-3 when this user links a different account of the provider;
+  // `sync_running` ACC-4/ACC-8 while a run is active; `plan_required` ME-4 `complete` without entitlement;
+  // `profile_closed` ACC-3 for a closed Chess.com account. P4 also uses P3's `not_failed` (ACC-8 on a run that did
+  // not fail), so it is not listed twice.
+  "linked_elsewhere",
+  "already_linked",
+  "sync_running",
+  "plan_required",
+  "profile_closed",
 ] as const;
 export type ConflictReason = (typeof CONFLICT_REASONS)[number];
 

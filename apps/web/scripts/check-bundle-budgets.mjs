@@ -8,10 +8,19 @@
 //      dev/test-only (lib/api/schema.ts). Chunks loaded only by /dev/** routes are exempt: those pages are
 //      404 in production builds and never load on a user route;
 //   3. any client chunk contains the TanStack Query devtools (dev-only, plan §9.5);
-//   4. a route in ROUTE_BUDGETS is over its First Load JS (gzip, the page entry as `next build` prints it), or loads
-//      engine code it must not (phase-02 plan 12.8 / DoD: `/game/[ref]` ≤ 600 kB gz, owner-approved 2026-11-06, and
-//      no engine chunk on the PvP path; the bot screen and the engine stay lazy chunks; phase-03 plan §9.6 for the
-//      review, archive, practice, share and How we grade routes).
+//   4. a route in ROUTE_BUDGETS is over its First Load JS, or loads engine code it must not (phase-02 plan 12.8 /
+//      DoD: `/game/[ref]` ≤ 600 kB gz, owner-approved 2026-11-06, and no engine chunk on the PvP path; the bot screen
+//      and the engine stay lazy chunks; phase-03 plan §9.6 for the review, archive, practice, share and How we grade
+//      routes; phase-04 plan §9.6 for onboarding, activation and Connected accounts).
+//
+// A route's First Load JS (FIX-2, P4 review round 2) is what the route costs on top of what every route already
+// downloads: the files every route loads ("First Load JS shared by all") plus the route's page-entry files, less the
+// files the ROOT layout's entry loads (app/layout.tsx: providers, the toaster, the class merger, the query client, the
+// API client). The root layout renders on every route, so its files are downloaded first on a hard load and are
+// already there on a client navigation: a page that reuses one costs nothing for it. `next build` prints the page
+// entry including those files, so a page was charged up to ~33 kB for reusing the root layout's own modules (the
+// P4 onboarding steps 26 kB, the activation screens 33 kB), whatever its own code weighed. Both figures are reported
+// (`printed` = what `next build` prints); the budget applies to the route's own cost.
 //
 //   node apps/web/scripts/check-bundle-budgets.mjs [--dist <dir>] [--markdown <file>] [--json <file>]
 //   node apps/web/scripts/check-bundle-budgets.mjs --record-baseline     prints a BASELINE literal for this file
@@ -50,6 +59,21 @@ const DEV_ONLY_ROUTE = /^\/dev(\/|$)/;
 // handshake. Only lazy chunks may hold it. Product copy that names the engine ("Stockfish 18 · depth 18", the review's
 // engine line) and the server analysis profile id ("sf18-v1") are not glue, so the patterns name the glue itself.
 const ENGINE_MARKER = /engine-shim|stockfish-[\w.-]+\.(?:js|wasm)|\/workers\/sf18-|uciok/i;
+/**
+ * Phase 4 rows (phase-04 plan §9.6). The steps carry no chess.js, motion, socket.io-client or zod; Activating and Done
+ * load the socket client on the first hold; /settings/connected is the (app) shell + ≤ 25 kB (the shell routes measure
+ * 175–245 kB, so the row uses /games's 230). Measured as the route's own cost (header comment, FIX-2).
+ */
+const P4_STEP_KB = 140;
+const P4_ACTIVATION_KB = 165;
+const P4_CONNECTED_KB = 230;
+const P4_ONBOARDING_STEPS = ["welcome", "link", "confirm", "level", "goals", "plan"];
+const P4_ROUTE_BUDGETS = [
+  ...P4_ONBOARDING_STEPS.map((step) => ({ route: `/onboarding/(flow)/${step}/page`, label: `/onboarding/${step}`, maxKB: P4_STEP_KB, noEngine: true })),
+  ...["activating", "done"].map((step) => ({ route: `/onboarding/(flow)/${step}/page`, label: `/onboarding/${step}`, maxKB: P4_ACTIVATION_KB, noEngine: true })),
+  { route: "/checkout/activating/page", label: "/checkout/activating", maxKB: P4_ACTIVATION_KB, noEngine: true },
+  { route: "/(app)/settings/connected/page", label: "/settings/connected", maxKB: P4_CONNECTED_KB, noEngine: true },
+];
 /** Per-route First Load budgets (app-build-manifest page entries). regression: REGRESSION-2 (the P2 row was missing). */
 const ROUTE_BUDGETS = [
   { route: "/(app)/game/[ref]/page", label: "/game/[ref]", maxKB: 600, noEngine: true },
@@ -69,6 +93,8 @@ const ROUTE_BUDGETS = [
   // again would be measured against the same 120 kB.
   { route: "/r/[code]/page", handler: "/r/[code]/route", label: "/r/[code]", maxKB: 120, noEngine: true },
   { route: "/how-we-grade/page", label: "/how-we-grade", maxKB: 180, noEngine: true },
+  // Phase 4 (phase-04 plan §9.6): the onboarding steps, the two activation screens and Connected accounts.
+  ...P4_ROUTE_BUDGETS,
 ];
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -161,7 +187,11 @@ for (const h of zodHits) {
 }
 for (const c of devtoolsHits) failures.push(`TanStack Query devtools in client chunk ${c} (must stay dev-only)`);
 
-// 4. Route budgets.
+// 4. Route budgets. The root layout's entry (`/layout`): its files are not the route's cost (header comment).
+const rootLayoutFiles = new Set((appManifest.pages["/layout"] ?? []).filter((f) => f.endsWith(".js")));
+const sharedSet = new Set(sharedFiles);
+/** The route's cost: shared-by-all files plus its page-entry files the root layout does not already load. */
+const routeCost = (files) => files.filter((f) => sharedSet.has(f) || !rootLayoutFiles.has(f));
 const appPaths = (() => {
   try {
     return JSON.parse(readFileSync(path.join(distDir, "server", "app-paths-manifest.json"), "utf8"));
@@ -181,9 +211,12 @@ for (const b of ROUTE_BUDGETS) {
     failures.push(`route ${b.label} (${b.route}) is not in app-build-manifest.json`);
     continue;
   }
-  const bytes = files.reduce((n, f) => n + gzipBytes(f), 0);
+  const printed = files.reduce((n, f) => n + gzipBytes(f), 0);
+  const own = routeCost(files);
+  const bytes = own.reduce((n, f) => n + gzipBytes(f), 0);
+  // Engine code is refused anywhere in the page entry, root layout files included.
   const engine = b.noEngine ? files.filter((f) => ENGINE_MARKER.test(readFileSync(path.join(distDir, f), "utf8"))) : [];
-  routeRows.push({ ...b, gzipBytes: bytes, files: files.length, engine });
+  routeRows.push({ ...b, gzipBytes: bytes, printedGzipBytes: printed, files: own.length, engine });
   if (bytes > b.maxKB * 1000) failures.push(`${b.label} First Load JS ${kB(bytes)} kB is over its budget ${b.maxKB} kB`);
   for (const f of engine) failures.push(`${b.label} loads engine code in ${f} (the engine must stay a lazy chunk)`);
 }
@@ -203,7 +236,7 @@ const lines = [
   `| Query devtools in client chunks | ${devtoolsHits.length} |`,
   ...routeRows.map(
     (r) =>
-      `| ${r.label} First Load JS | ${kB(r.gzipBytes)} kB (budget ${r.maxKB} kB${r.kind ? `, ${r.kind}` : ""}${r.noEngine ? `, engine chunks ${r.engine.length}` : ""}) |`,
+      `| ${r.label} First Load JS | ${kB(r.gzipBytes)} kB (budget ${r.maxKB} kB${r.printedGzipBytes !== undefined ? `; next build prints ${kB(r.printedGzipBytes)} kB` : ""}${r.kind ? `, ${r.kind}` : ""}${r.noEngine ? `, engine chunks ${r.engine.length}` : ""}) |`,
   ),
   "",
   "<details><summary>Shared files</summary>",

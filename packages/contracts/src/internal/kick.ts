@@ -31,6 +31,10 @@ export const KICK_REASONS = [
   "cron_backstop",
   "smoke",
   "test",
+  // P4 (phase-04 §7.7.3): `import` after a link, a sync, an entitlement release or a backlog release; `import_retry`
+  // after ACC-8 and the import-status kick CAS.
+  "import",
+  "import_retry",
 ] as const;
 export type KickReason = (typeof KICK_REASONS)[number];
 

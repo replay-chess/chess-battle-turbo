@@ -348,7 +348,22 @@ export async function startGame(server: TestServer, w: User, b: User, rec: Parti
   const W = await connect(server.url, w);
   const B = await connect(server.url, b);
   const jw = await cmd(W.socket, "game:join", { ref: game.ref });
+  // White's highest room seq so far. B's join ack can arrive before White receives the room events that join caused
+  // (their seq is ≤ jb.state.seq); a caller that starts recording White's events right after startGame must not see
+  // those late arrivals (regression: socket-start-game-attach-race, the Opera Game "seq + 1" check under CPU load).
+  let whiteSeq = typeof jw?.state?.seq === "number" ? (jw.state.seq as number) : 0;
+  const track = (_event: string, payload: unknown) => {
+    const seq = (payload as { seq?: unknown } | null)?.seq;
+    if (typeof seq === "number" && seq > whiteSeq) whiteSeq = seq;
+  };
+  W.socket.onAny(track);
   const jb = await cmd(B.socket, "game:join", { ref: game.ref });
+  try {
+    const joinSeq = jb?.ok && typeof jb.state?.seq === "number" ? (jb.state.seq as number) : null;
+    if (joinSeq !== null && joinSeq > (jw?.state?.seq ?? 0)) await until(() => whiteSeq >= joinSeq, 3_000, "White to receive the events of Black's join");
+  } finally {
+    W.socket.offAny(track);
+  }
   return { game, W: W.socket, B: B.socket, jw, jb, session: () => server.handle.registry.get(game.ref)! };
 }
 

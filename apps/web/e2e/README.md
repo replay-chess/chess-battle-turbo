@@ -52,3 +52,20 @@ Hook-dependent specs (the `x-rc-fault` buttons on `/dev/ui/data`, the session br
 ## Visual tooling
 
 Baselines live in `e2e/__screenshots__/` (`toHaveScreenshot`, `@visual` tests in the devices config). Update them only through CI: add the `update-snapshots` label to the PR, and `.github/workflows/update-snapshots.yml` regenerates them on Linux and pushes a commit. Local macOS renders differ, so never commit locally made baselines.
+
+## Phase 4: onboarding, connected accounts, checkout activation, import
+
+`e2e/specs/{onboarding,accounts,checkout,archive}/**` (phase-04 plan §12.4) import `test`/`expect` from
+`specs/onboarding/_lib/p04.ts`: `leasePersona(name)` signs `page` in as this worker's pool user, resets it to a P4
+persona (`e2e/personas/p04.ts`) and refreshes the session's claims; `freshUser` (fixtures/fresh-user.ts) is only for
+checkout/activating.spec.ts; `upstream` drives the mock; `p4db` reads the e2e database.
+
+| Piece | What |
+|---|---|
+| Upstream mock | `mocks/upstream-server.ts` on 4010 (+ offset), started first by `playwright.config.ts`: Chess.com (handle kinds `knightowl88xx…` 404, `quiet…` 410, `closed…`, `empty…`, `ratelimited…` 429, `blocked…` 403 for the web / found for the worker, `boom…` 503; anything else is the knightowl_88 fixture renamed), Lichess (a consent page with Approve / Deny and a username field, PKCE, token revoke recorded per username, the NDJSON export paced at 20 games/s and refused with an `Authorization` header), Dodo (checkouts, the hosted pay page, signed `subscription.active`; per-customer `decline`, `webhook`, `webhookDelayMs`, `pendingUntilWebhook`). `mocks/upstream-client.ts` is the specs' handle (`fault`, `delay`, `dodoFor`, `revokesFor`, `requestsFor`). The web reads `/chesscom`, `/lichess` (via `localhost`, so the OAuth redirect stays same-site), `/dodo`; the worker `/chesscom-worker`, `/lichess-worker`. |
+| Signed webhooks | `fixtures/dodo-webhook.ts`: `trialSubscription`, `paidSubscription`, `paymentData`, `sendDodoWebhook` (Standard Webhooks, `DODO_PAYMENTS_WEBHOOK_KEY`). |
+| Onboarded letters | The auth fixture never calls an onboarding endpoint: A–R are provisioned onboarded (`provision-test-users.ts` `onboardedFields`, `syncFixtureClaims`; global setup does A–P every run), a fresh row of a registered user is provisioned on first sign-in, tournament joiners use `markOnboardedForE2E`. |
+| Serial | `specs/onboarding/serial/**` runs in `game-serial`: Chess.com's 429 pauses the worker's Chess.com gate for every caller. |
+| Devices | `devices/layout/{onboarding,settings-connected,activating}.spec.ts` (one viewport, tap targets, CLS), `devices/layout/routes.real.ts` (P4 pages), `devices/ui/onboarding.a11y.spec.ts`, `devices/layout/p04.visual.spec.ts` (baselines made in the official image through a loopback proxy, so the page origin is `http://localhost`: a secure context). |
+| Debugging | `E2E_SERVER_LOGS=1` prints the web and worker servers' stdout; `E2E_WORKER_LOG_LEVEL=info` the worker's claims. |
+

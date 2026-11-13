@@ -115,9 +115,11 @@ SELECT check_name, ok FROM (
          NOT has_column_privilege('replay_worker', 'public.users', 'email', 'SELECT')
          AND NOT has_column_privilege('replay_worker', 'public.users', 'googleId', 'SELECT')
   UNION ALL
-  SELECT 'cannot read users billing (subscriptionStatus, dodoCustomerId)',
-         NOT has_column_privilege('replay_worker', 'public.users', 'subscriptionStatus', 'SELECT')
-         AND NOT has_column_privilege('replay_worker', 'public.users', 'dodoCustomerId', 'SELECT')
+  -- P4 (replay_worker.p4.sql) grants the entitlement columns (subscriptionStatus, period end, trial dates) for the
+  -- import's run-start check; the billing identifiers stay out of reach.
+  SELECT 'cannot read users billing identifiers (dodoCustomerId, subscriptionId)',
+         NOT has_column_privilege('replay_worker', 'public.users', 'dodoCustomerId', 'SELECT')
+         AND NOT has_column_privilege('replay_worker', 'public.users', 'subscriptionId', 'SELECT')
   UNION ALL
   SELECT 'cannot write games.moves, games.status or games.openingId',
          NOT has_column_privilege('replay_worker', 'public.games', 'moves', 'UPDATE')
@@ -127,9 +129,13 @@ SELECT check_name, ok FROM (
   SELECT 'cannot write game_players.result',
          NOT has_column_privilege('replay_worker', 'public.game_players', 'result', 'UPDATE')
   UNION ALL
-  SELECT 'cannot insert games or game_players',
-         NOT has_table_privilege('replay_worker', 'public.games', 'INSERT')
-         AND NOT has_table_privilege('replay_worker', 'public.game_players', 'INSERT')
+  -- P4 (replay_worker.p4.sql) grants INSERT on the import batch writer's columns only.
+  SELECT 'cannot insert games.pgn, gameData, meta, openingId or game_players.accuracy',
+         NOT has_column_privilege('replay_worker', 'public.games', 'pgn', 'INSERT')
+         AND NOT has_column_privilege('replay_worker', 'public.games', 'gameData', 'INSERT')
+         AND NOT has_column_privilege('replay_worker', 'public.games', 'meta', 'INSERT')
+         AND NOT has_column_privilege('replay_worker', 'public.games', 'openingId', 'INSERT')
+         AND NOT has_column_privilege('replay_worker', 'public.game_players', 'accuracy', 'INSERT')
   UNION ALL
   SELECT 'reads legends.id and legends.name only',
          has_column_privilege('replay_worker', 'public.legends', 'name', 'SELECT')

@@ -5,23 +5,31 @@
 // the real route (GamesArchiveScreen: URL + TanStack Query + socket) and the /dev/ui/games demo (fixtures) share it.
 //
 // States: `loading` (9 ghost rows + aside placeholder), `default`, `filters_open`, `empty` (no games at all),
-// `empty` filtered ("No games match 'pawnstorm'."), `error` (Banner + Try Again). `import_running` is P4's.
+// `empty` filtered ("No games match 'pawnstorm'."), `error` (Banner + Try Again).
+//
+// P4 slots (phase-04 plan §4.11): the source tabs under the header (`sourceTabs`, null = no row), the
+// `import_running` banner across the top of the list card (`importBanner`), the per-source empty copy ("No Chess.com
+// games yet. They appear here as they import.") and the empty state's "Import from Chess.com" (`importHref`).
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { Banner } from "@/components/ui/banner";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { sourceEmptyCopy } from "@/components/accounts/copy";
 import { TABBAR_MQ, TABLET_PORTRAIT_MQ } from "@/lib/layout/media-queries";
 import { cn } from "@/lib/utils";
 import { isSearchShortcut } from "../model/keys";
-import { isFiltered, type GamesFilter } from "../model/filter";
+import { clearedFilters, isFiltered, type GameSourceWire, type GamesFilter } from "../model/filter";
 import type { GameRowDTO } from "../model/rows";
+import type { ImportBannerModel, SourceTab } from "../model/sources";
 import { ArchiveHeaderFrame } from "./ArchiveHeaderFrame";
 import { AsideSkeleton, GhostRows } from "./ArchiveSkeleton";
 import { FilterControl } from "./FilterControl";
 import { GameAside } from "./GameAside";
 import { GameList } from "./GameList";
+import { ImportBanner } from "./ImportBanner";
 import { CARD, GRID, GRID_SINGLE, PAGE } from "./layout";
 import { SearchField } from "./SearchField";
+import { SourceTabs } from "./SourceTabs";
 
 /** The hairline over a list that is refetching for a new filter shows only after this delay (plan §5.10). */
 export const REFRESH_HAIRLINE_DELAY_MS = 200;
@@ -64,6 +72,15 @@ export type GamesArchiveViewProps = {
   playHref: string;
   /** Demo: open the filter popover on mount (`filters_open`). */
   defaultFiltersOpen?: boolean;
+  /** P4: the source tabs (null or absent: no tab row). */
+  sourceTabs?: SourceTab[] | null;
+  onPickSource?: (source: GameSourceWire | null) => void;
+  /** P4: the `import_running` banner (null: none). */
+  importBanner?: ImportBannerModel | null;
+  /** P4: the empty state's "Import from Chess.com" and the provider tabs' link target (null: import is off). */
+  importHref?: string | null;
+  /** P4: providers the member linked (a provider tab's empty copy says "They appear here as they import"). */
+  linkedProviders?: readonly ("chesscom" | "lichess")[];
 };
 
 export function GamesArchiveView(props: GamesArchiveViewProps) {
@@ -120,7 +137,9 @@ export function GamesArchiveView(props: GamesArchiveViewProps) {
 
   const filtered = isFiltered(filter);
   const noGamesAtAll = phase === "ready" && rows.length === 0 && !filtered && (props.totalAll ?? 0) === 0;
-  const noMatches = phase === "ready" && rows.length === 0 && !noGamesAtAll;
+  // A source tab with no games (and no other filter) has its own copy, not "No games match".
+  const emptySource = phase === "ready" && rows.length === 0 && !filtered && !noGamesAtAll && Boolean(filter.source);
+  const noMatches = phase === "ready" && rows.length === 0 && !noGamesAtAll && !emptySource;
   const state =
     phase === "loading"
       ? "loading"
@@ -128,11 +147,24 @@ export function GamesArchiveView(props: GamesArchiveViewProps) {
         ? "error"
         : noGamesAtAll
           ? "empty"
-          : noMatches
-            ? "empty_filtered"
-            : filtersOpen
-              ? "filters_open"
-              : "default";
+          : emptySource
+            ? "empty_source"
+            : noMatches
+              ? "empty_filtered"
+              : filtersOpen
+                ? "filters_open"
+                : props.importBanner
+                  ? "import_running"
+                  : "default";
+  const panelId = `${listId}-panel`;
+  const tabs =
+    props.sourceTabs && props.sourceTabs.length ? (
+      <SourceTabs tabs={props.sourceTabs} current={filter.source} panelId={panelId} onPick={(s) => props.onPickSource?.(s)} />
+    ) : null;
+  const panelProps = tabs
+    ? { id: panelId, role: "tabpanel" as const, "aria-labelledby": `${panelId}-tab-${filter.source ?? "all"}` }
+    : {};
+  const banner = props.importBanner ? <ImportBanner model={props.importBanner} /> : null;
 
   const header = (
     <ArchiveHeaderFrame
@@ -160,16 +192,27 @@ export function GamesArchiveView(props: GamesArchiveViewProps) {
     return (
       <div data-rc-lock="" className={PAGE} data-testid="games-archive" data-state={state}>
         {header}
-        <div className={GRID_SINGLE}>
+        {tabs}
+        <div className={GRID_SINGLE} {...panelProps}>
           <section aria-label="Games" className={cn(CARD, "flex flex-col")}>
+            {banner}
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center" data-testid="games-empty">
               <h2 className="font-serif text-[2rem]/[1.1] font-normal tracking-[-0.01em] text-cb-text">No games yet</h2>
               <p className="m-0 max-w-[380px] text-body text-cb-text-soft">
-                Play a game and the coach reviews it here.
+                {props.importHref
+                  ? "Play or import games. Every game you finish gets a coach review here."
+                  : "Play a game and the coach reviews it here."}
               </p>
-              <Link href={props.playHref} className={buttonVariants({ variant: "primary" })} data-testid="games-empty-play">
-                Play a Game
-              </Link>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Link href={props.playHref} className={buttonVariants({ variant: "primary" })} data-testid="games-empty-play">
+                  Play a Game
+                </Link>
+                {props.importHref ? (
+                  <Link href={props.importHref} className={buttonVariants({ variant: "secondary" })} data-testid="games-empty-import">
+                    Import from Chess.com
+                  </Link>
+                ) : null}
+              </div>
             </div>
           </section>
         </div>
@@ -180,8 +223,10 @@ export function GamesArchiveView(props: GamesArchiveViewProps) {
   return (
     <div data-rc-lock="" className={PAGE} data-testid="games-archive" data-state={state}>
       {header}
-      <div className={GRID}>
+      {tabs}
+      <div className={GRID} {...panelProps}>
         <section aria-label="Games" className={cn(CARD, "relative flex flex-col")} aria-busy={phase === "loading" || undefined}>
+          {banner}
           {hairline ? (
             <span
               aria-hidden="true"
@@ -212,13 +257,21 @@ export function GamesArchiveView(props: GamesArchiveViewProps) {
               <GhostRows />
             </>
           ) : null}
+          {emptySource && filter.source ? (
+            <SourceEmpty
+              source={filter.source}
+              linked={filter.source !== "replay" && (props.linkedProviders ?? []).includes(filter.source)}
+              playHref={props.playHref}
+              importHref={props.importHref ?? null}
+            />
+          ) : null}
           {phase === "ready" && noMatches ? (
             <NoMatches
               filter={filter}
               onClearSearch={() => {
                 props.onSearchText("");
               }}
-              onClearFilters={() => props.onApplyFilter(filter.q ? { q: filter.q } : {})}
+              onClearFilters={() => props.onApplyFilter(clearedFilters(filter))}
             />
           ) : null}
           {phase === "ready" && rows.length > 0 ? (
@@ -269,6 +322,36 @@ export function GamesArchiveView(props: GamesArchiveViewProps) {
 function isPhoneViewport(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
   return window.matchMedia(TABBAR_MQ).matches && !window.matchMedia(TABLET_PORTRAIT_MQ).matches;
+}
+
+/** A source tab with no games (phase-04 plan §4.11). */
+function SourceEmpty({
+  source,
+  linked,
+  playHref,
+  importHref,
+}: {
+  source: GameSourceWire;
+  linked: boolean;
+  playHref: string;
+  importHref: string | null;
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center" data-testid="games-source-empty">
+      <p className="m-0 max-w-[380px] text-body text-cb-text-soft">
+        {source === "replay" ? "No Replay Chess games yet. Play a game and the coach reviews it here." : sourceEmptyCopy(source, linked)}
+      </p>
+      {source === "replay" ? (
+        <Link href={playHref} className={buttonVariants({ variant: "secondary" })}>
+          Play a Game
+        </Link>
+      ) : !linked && importHref ? (
+        <Link href={importHref} className={buttonVariants({ variant: "secondary" })} data-testid="games-source-empty-link">
+          Connected Accounts
+        </Link>
+      ) : null}
+    </div>
+  );
 }
 
 function NoMatches({

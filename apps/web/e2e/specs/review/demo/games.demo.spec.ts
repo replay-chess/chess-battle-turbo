@@ -10,7 +10,10 @@ test.describe("games demo", { tag: ["@p3"] }, () => {
     // next dev's floating dev-tools button sits over the bottom-left of a sheet; production has none.
     await page.addInitScript(() => {
       const css = "nextjs-portal{display:none!important}";
-      document.addEventListener("DOMContentLoaded", () => document.head.append(Object.assign(document.createElement("style"), { textContent: css })));
+      // A constructed sheet: a <style> appended on DOMContentLoaded can race React's hydration of <head> (#418).
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(css);
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
     });
     await page.goto(`/dev/ui/games?${query}`, { timeout: 240_000 });
     await expect(page.getByTestId("games-archive")).toBeVisible({ timeout: 120_000 });

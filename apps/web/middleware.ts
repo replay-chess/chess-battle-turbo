@@ -32,6 +32,8 @@ import {
   returnPathOf,
   tooManyRequestsPath,
 } from "@/lib/auth/route-classes/rules";
+import { cookieSecureFor } from "@/lib/onboarding/claim-cookie";
+import { onboardingGate } from "@/lib/onboarding/guard";
 
 type Prepared = { cls: RouteClass; requestId: string; forward: Headers };
 
@@ -61,6 +63,26 @@ const withClerk = clerkMiddleware(async (auth, req) => {
 
   const { userId, sessionClaims, redirectToSignIn } = await auth();
   if (!userId) return redirectToSignIn({ returnBackUrl: req.url });
+
+  // ── P4 onboarding rule (phase-04 plan §8.1, D4-16, D4-29; owner WP-F). The only P4 block in this file: the rules
+  // live in lib/onboarding/guard.ts (unit-tested). Not onboarded (claims) and no rc_onb → /onboarding?redirect_url=…
+  // with rc_onb_next; a lapsed member on /onboarding → /pricing?reason=ended; a valid rc_act skips the member gate.
+  const onb = await onboardingGate({
+    md: sessionClaims?.md,
+    clerkUserId: userId,
+    pathname: req.nextUrl.pathname,
+    search: req.nextUrl.search,
+    cookie: (name) => req.cookies.get(name)?.value,
+    nowMs: Date.now(),
+    env: process.env,
+    secure: cookieSecureFor(req.url, process.env),
+  });
+  if (onb.redirect || onb.setCookies.length || onb.skipMemberGate) {
+    const res = onb.redirect ? NextResponse.redirect(new URL(onb.redirect, req.url), 302) : pass(p);
+    for (const cookie of onb.setCookies) res.headers.append("Set-Cookie", cookie);
+    return res;
+  }
+  // ── end P4 onboarding rule ──
 
   if (p.cls === "member" && memberGateEnabled(process.env)) {
     const target = memberGateTarget(sessionClaims?.md, `${req.nextUrl.pathname}${req.nextUrl.search}`);

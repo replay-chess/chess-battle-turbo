@@ -6,36 +6,35 @@
 //   - Sentry, browser: `beforeSend`, `beforeSendTransaction`, `beforeBreadcrumb` and Replay's `beforeAddRecordingEvent`;
 //   - Sentry, server and edge: lib/sentry/scrub.ts scrubEvent.
 // The /r page itself also sends `Referrer-Policy: no-referrer`, so the next page never learns the code (next.config.js).
-// Pure and dependency-free: it ships in the browser's instrumentation chunk.
+// Phase 4 (plan §11.3, FIX-1): the same hooks drop provider usernames and emails — the Confirm/Link steps carry `?u=`,
+// Dodo's return adds `email=`, and provider API URLs (`/pub/player/<u>`, `/api/games/user/<u>`) appear in fetch spans
+// and breadcrumbs (`redactUsernames` from @repo/chess-import/redact).
+// Pure and dependency-free (besides that pure module): it ships in the browser's instrumentation chunk.
+import { redactDeep, redactUsernames } from "@repo/chess-import/redact";
 
 /** The path segment that replaces every share code. */
 export const SHARE_CODE_PLACEHOLDER = ":code";
 
 /** `/r/<code>` with what may follow a path segment (end, `/`, `?`, `#`, `&`, quotes, whitespace, brackets). */
 const SHARE_PATH = /\/r\/[A-Za-z0-9_-]{1,40}(?=$|[/?#&"'\s)\]<>,])/g;
-const MAX_DEPTH = 10;
 
 /** `https://x/r/7kd0cbpz/og?v=2` → `https://x/r/:code/og?v=2`; any other string unchanged. */
 export function redactSharePath(value: string): string {
   return value.includes("/r/") ? value.replace(SHARE_PATH, `/r/${SHARE_CODE_PLACEHOLDER}`) : value;
 }
 
+/** Share codes, then provider usernames and personal query values (`?u=`, `email=`; @repo/chess-import/redact). */
+export function redactTelemetryString(value: string): string {
+  return redactUsernames(redactSharePath(value));
+}
+
 /**
  * Rewrites every string inside `value` (objects and arrays are changed in place, so telemetry hooks can return the
- * same event) and returns the redacted value. Depth-limited; non-plain objects (Date, Error, typed arrays) are kept.
+ * same event) and returns the redacted value: share codes (FIX-2, P3) and, since P4 FIX-1, provider usernames and the
+ * `u` / `email` query values (plan §11.3). Depth-limited; non-plain objects (Date, Error, typed arrays) are kept.
  */
 export function redactShareDeep<T>(value: T, depth = 0): T {
-  if (typeof value === "string") return redactSharePath(value) as T;
-  if (value === null || typeof value !== "object" || depth >= MAX_DEPTH) return value;
-  if (Array.isArray(value)) {
-    for (let i = 0; i < value.length; i++) value[i] = redactShareDeep(value[i], depth + 1);
-    return value;
-  }
-  const proto = Object.getPrototypeOf(value);
-  if (proto !== Object.prototype && proto !== null) return value;
-  const obj = value as Record<string, unknown>;
-  for (const key of Object.keys(obj)) obj[key] = redactShareDeep(obj[key], depth + 1);
-  return value;
+  return redactDeep(value, redactTelemetryString, depth);
 }
 
 /** PostHog `before_send`: the event's properties, `$set` and `$set_once` (URLs, paths, referrers, initial ones). */

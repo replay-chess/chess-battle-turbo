@@ -4,6 +4,10 @@
 //   /api/health*                                           0
 //   /api/webhook/*, /api/checkout, /api/subscription*,
 //   /api/billing/*                                         1.0
+//   /api/accounts/lichess/callback                         1.0 (auth: the OAuth link, P4 plan §10.2)
+//   other /api/accounts/*                                  0.2 (P4 plan §10.2)
+//   /api/import/status                                     0.1, and 0 for its 304 polls (dropped after the response,
+//                                                          dropNotModifiedPoll: the status is known only then)
 //   /api/me                                                0.1
 //   other /api/*                                           0.1
 //   pages                                                  1.0 when NEXT_PUBLIC_APP_ENV=dev, else 0.1
@@ -12,6 +16,10 @@
 // unless the path's rate is 0.
 
 export const DEFAULT_TRACE_RATE = 0.1;
+/** `/api/accounts/*` apart from the OAuth callback (phase-04 plan §10.2). */
+export const ACCOUNTS_TRACE_RATE = 0.2;
+/** Polled routes whose 304 answers are never kept (phase-04 plan §10.2: "0 for import.status 304s"). */
+const NOT_MODIFIED_DROPPED = ["/api/import/status"] as const;
 
 export type SamplerContext = {
   name?: string;
@@ -61,6 +69,8 @@ export function sampleRateForPath(path: string | null, appEnv: string | undefine
   ) {
     return 1;
   }
+  if (path === "/api/accounts/lichess/callback") return 1;
+  if (under(path, "/api/accounts")) return ACCOUNTS_TRACE_RATE;
   if (under(path, "/api/me")) return DEFAULT_TRACE_RATE;
   if (under(path, "/api")) return DEFAULT_TRACE_RATE;
   return appEnv === "dev" ? 1 : DEFAULT_TRACE_RATE;
@@ -70,4 +80,28 @@ export function tracesSampler(ctx: SamplerContext, appEnv: string | undefined = 
   const rate = sampleRateForPath(samplingPath(ctx), appEnv);
   if (rate === 0) return 0;
   return ctx.inheritOrSampleWith ? ctx.inheritOrSampleWith(rate) : rate;
+}
+
+type TransactionLike = {
+  type?: string;
+  transaction?: string;
+  request?: { url?: unknown };
+  contexts?: { trace?: { data?: Record<string, unknown> }; response?: { status_code?: unknown } };
+};
+
+function responseStatus(event: TransactionLike): number | null {
+  const fromTrace = event.contexts?.trace?.data?.["http.response.status_code"];
+  const fromResponse = event.contexts?.response?.status_code;
+  const status = typeof fromTrace === "number" ? fromTrace : typeof fromResponse === "number" ? fromResponse : Number(fromTrace ?? fromResponse);
+  return Number.isFinite(status) ? status : null;
+}
+
+/**
+ * True for a finished transaction the sampler would have given 0 had it known the status: a 304 answer of a polled
+ * route (`GET /api/import/status`, phase-04 plan §10.2). `beforeSendTransaction` drops it (lib/sentry/scrub.ts).
+ */
+export function dropNotModifiedPoll(event: TransactionLike): boolean {
+  if (responseStatus(event) !== 304) return false;
+  const path = toPath(event.request?.url) ?? toPath(event.transaction);
+  return path !== null && (NOT_MODIFIED_DROPPED as readonly string[]).includes(path);
 }

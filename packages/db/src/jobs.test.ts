@@ -85,14 +85,22 @@ describe("enqueueJobSql validation", () => {
     assert.throws(() => enqueueJobSql(housekeeping({ runAt: new Date("nope") })), /invalid Date/);
   });
 
-  it("validates P3 payloads against their contract schema and other kinds for an integer v", () => {
+  it("validates P3 and P4 payloads against their contract schema and other kinds for an integer v", () => {
     assert.throws(() => enqueueJobSql(housekeeping({ payload: { v: 1, day: "12/11/2026" } })));
+    // P4: IMPORT_SYNC has a schema since phase-04 (CT/internal/jobs.ts ImportSyncPayloadV1).
     assert.throws(() =>
-      enqueueJobSql({ kind: "IMPORT_SYNC", priority: JOB_PRIORITY.IMPORT_SYNC_INITIAL, payload: { v: 0 } }),
-    );
-    assert.doesNotThrow(() =>
       enqueueJobSql({ kind: "IMPORT_SYNC", priority: JOB_PRIORITY.IMPORT_SYNC_INITIAL, payload: { v: 1, runId: "r1" } }),
     );
+    assert.doesNotThrow(() =>
+      enqueueJobSql({
+        kind: "IMPORT_SYNC",
+        priority: JOB_PRIORITY.IMPORT_SYNC_INITIAL,
+        payload: { v: 1, linkedAccountId: "7", runId: "11", trigger: "INITIAL" },
+      }),
+    );
+    // A kind without a schema yet (P7's EXPORT_BUILD) is checked for an integer v only.
+    assert.throws(() => enqueueJobSql({ kind: "EXPORT_BUILD", priority: JOB_PRIORITY.BACKLOG, payload: { v: 0 } }));
+    assert.doesNotThrow(() => enqueueJobSql({ kind: "EXPORT_BUILD", priority: JOB_PRIORITY.BACKLOG, payload: { v: 1, runId: "r1" } }));
   });
 
   it("writes maxAttempts per kind (ANALYZE_GAME 4, LEGEND_COMPARE 3, HOUSEKEEPING 2, others the default 4)", () => {

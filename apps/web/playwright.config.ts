@@ -16,6 +16,7 @@ import {
   socketServerEnv,
 } from "./e2e/fixtures/socket-server";
 import { WORKER_PORT, WORKER_SERVER_COMMAND, WORKER_URL, workerFaultsHonoured, workerServerEnv } from "./e2e/fixtures/analysis-worker";
+import { UPSTREAM_PORT, upstreamEnv } from "./e2e/mocks/upstream-client";
 
 const WEB_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -57,7 +58,8 @@ const FLAGS_OFF =
 if (FLAGS_OFF) process.env.E2E_FLAGS_OFF = "1";
 const FLAGS_OFF_PORT = Number(process.env.FLAGS_OFF_PORT ?? 3110 + E2E_PORT_OFFSET);
 /** The open phase's flags, switched off. Every later phase appends its own `<key>:off`. */
-const FLAGS_OFF_OVERRIDE = "shell-v3:off,live-protocol-v2:off,game-v3:off,review-v3:off,review-share:off";
+const FLAGS_OFF_OVERRIDE =
+  "shell-v3:off,live-protocol-v2:off,game-v3:off,review-v3:off,review-share:off,onboarding-v3:off,import-v3:off";
 // Phase 0 has no @smoke tags, so its specs are listed by file. tournament (≈ 10 min) stays in the main run; the
 // bot and friend games cover the game flow here. P2 plan 12.10: with live-protocol-v2 and game-v3 off, the legacy
 // play-with-friend and quick-match specs pass over protocol v1 until the parity gate.
@@ -149,6 +151,8 @@ const grepInvert = [
   // the Neon dev branch has an APP_ENV=dev worker that ignores them (fixtures/analysis-worker.ts).
   ...(REMOTE || !workerFaultsHonoured() ? [/@worker-faults\b/] : []),
   ...(LAPSED_READ ? [] : [LAPSED_READ_TAG, ANALYSIS_REDIRECT_TAG]),
+  // P4: the real Dodo test-mode checkout runs only in nightly's dodo-hosted job against the dev site (DODO_HOSTED=1).
+  ...(process.env.DODO_HOSTED === "1" ? [] : [/@dodo-hosted\b/]),
   // Real-timing copies of the timer specs (*.real.spec.ts) run nightly only (P2 plan 12.6).
   ...(process.env.E2E_SLOW === "1" ? [] : [/@slow\b/]),
   ...(process.env.CI && process.env.E2E_INCLUDE_QUARANTINED !== "1" ? quarantine.map((q) => quarantinePattern(q.testId)) : []),
@@ -161,7 +165,8 @@ const QUEUE_SPECS = ["**/quick-match.spec.ts", "**/queue-*.spec.ts"];
 // a socket that boots restores every live game of the shared database (fixtures/socket-server.ts). Locally,
 // `--project=game-serial --no-deps` runs them without the rest.
 // P3: review/serial/** holds the specs that hold the whole e2e worker (`hold_queue`), so they also run alone, last.
-const SERIAL_GAME_SPECS = ["**/game/serial/**/*.spec.ts", "**/review/serial/**/*.spec.ts"];
+// P4: onboarding/serial/** holds the spec whose upstream 429 pauses the worker's Chess.com gate for every caller.
+const SERIAL_GAME_SPECS = ["**/game/serial/**/*.spec.ts", "**/review/serial/**/*.spec.ts", "**/onboarding/serial/**/*.spec.ts"];
 const PROD_GUARD_SPEC = "**/prod-guard.spec.ts";
 const FLAGS_OFF_SPEC = "**/flags-off.spec.ts";
 
@@ -177,14 +182,48 @@ const blankTelemetry = {
 // send; POSTHOG_HOST keeps it local), and the fault hooks answer. Real telemetry keys stay blank.
 // In CI the NEXT_PUBLIC_* values must also be set for `pnpm build` (ci.yml does); a reused server
 // (PW_REUSE_SERVER=1) must have been started with the same values.
+// ── Phase 4 (phase-04 plan §12.4, testing X3, X16) ──────────────────────────────────────────────────────────────
+// The upstream mock (e2e/mocks/upstream-server.ts) on 4010 (+ offset) stands in for Chess.com, Lichess and Dodo: the
+// web reads `/chesscom`, `/lichess`, `/dodo`, the worker `/chesscom-worker`, `/lichess-worker` (so the mock tells the
+// web's lookups from the worker's fallback), and the mock posts its signed `subscription.active` webhooks to the web
+// app. The onboarding and import flags are on and the paywall is on in every P4 project; the worker honours the
+// import fault table (`IMPORT_FAULTS_ALLOWED=1`, refused by a production worker).
+/** FLAGS_OVERRIDE with the P4 flags on (unless the env already decides them). */
+function withP4Flags(override: string | undefined): string {
+  const entries = (override ?? "").split(",").map((e) => e.trim()).filter(Boolean);
+  for (const flag of ["onboarding-v3", "import-v3"]) {
+    if (!entries.some((e) => e.startsWith(`${flag}:`))) entries.push(`${flag}:on`);
+  }
+  return entries.join(",");
+}
+
+const p4WebEnv = {
+  ...upstreamEnv("web"),
+  FLAGS_OVERRIDE: withP4Flags(process.env.FLAGS_OVERRIDE),
+  BILLING_PAYWALL: "on",
+  // Checkout returns land on this server (lib/billing/return-url.ts takes the origin of this URL).
+  DODO_PAYMENTS_RETURN_URL: `http://localhost:${WEB_PORT}/pricing?checkout=success`,
+  DODO_PAYMENTS_ENVIRONMENT: "test_mode",
+};
+
 const testServerEnv = {
   ...blankTelemetry,
+  ...p4WebEnv,
   NEXT_PUBLIC_DEV_WIDGETS: "0",
   NEXT_PUBLIC_APP_ENV: "test",
   NEXT_PUBLIC_TELEMETRY_SINK: "1",
   ALLOW_TEST_HOOKS: "1",
   POSTHOG_HOST: `http://127.0.0.1:${SINK_PORT}`,
   POSTHOG_PROJECT_KEY: process.env.POSTHOG_PROJECT_KEY || "phc_e2e_local_sink",
+};
+
+const upstreamServer = {
+  // The upstream mock signs its Dodo webhooks with DODO_PAYMENTS_WEBHOOK_KEY (inherited from this process: .env.test
+  // locally, the per-run key in CI) and posts them to the web server under test.
+  command: `npx tsx e2e/mocks/upstream-server.ts --port ${UPSTREAM_PORT} --web http://localhost:${WEB_PORT}`,
+  url: `http://127.0.0.1:${UPSTREAM_PORT}/__health`,
+  reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
+  timeout: 15_000,
 };
 
 const sinkServer = {
@@ -217,12 +256,25 @@ const socketServer = (kind: "main" | "fast", webAppUrl: string) => ({
 const workerServer = () => ({
   command: WORKER_SERVER_COMMAND,
   url: `http://127.0.0.1:${WORKER_PORT}/ready`,
-  env: workerServerEnv({ sinkPort: SINK_PORT }),
+  stdout: serverStdout,
+  env: {
+    ...workerServerEnv({ sinkPort: SINK_PORT }),
+    // P4: providers through the mock (the worker's own base), the import fault table, the shared pepper.
+    ...upstreamEnv("worker"),
+    IMPORT_FAULTS_ALLOWED: "1",
+    BILLING_PAYWALL: "on",
+    ...(process.env.HASH_PEPPER ? { HASH_PEPPER: process.env.HASH_PEPPER } : {}),
+  },
   reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
   timeout: 120_000,
 });
 
+/** E2E_SERVER_LOGS=1 prints the web and worker servers' stdout (info logs: kicks, claims) next to the run. */
+const serverStdout = process.env.E2E_SERVER_LOGS === "1" ? ("pipe" as const) : ("ignore" as const);
+
+// The upstream mock starts first: the worker drains due import jobs at boot and must find the providers up.
 const localServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
+  upstreamServer,
   {
     command: WEB_BUILD
       ? `pnpm start${WEB_PORT === 3000 ? "" : ` --port ${WEB_PORT}`}`
@@ -231,6 +283,7 @@ const localServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
         : `node scripts/build-engine-assets.mjs && pnpm exec next dev --port ${WEB_PORT}`,
     port: WEB_PORT,
     env: testServerEnv,
+    stdout: serverStdout,
     reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
     timeout: process.env.CI ? 30_000 : 60_000,
   },
@@ -243,12 +296,13 @@ const localServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
 // lapsed-read: the main test build with review-lapsed-read on, on its own port (CI: `pnpm start` of the same build;
 // locally a second `next dev` with its own dist dir). It shares the :3002 socket, the worker and the sink.
 const lapsedReadServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
+  upstreamServer,
   {
     command: WEB_BUILD ? `pnpm start --port ${LAPSED_READ_PORT}` : `pnpm exec next dev --port ${LAPSED_READ_PORT}`,
     port: LAPSED_READ_PORT,
     env: {
       ...testServerEnv,
-      FLAGS_OVERRIDE: `${process.env.FLAGS_OVERRIDE ? `${process.env.FLAGS_OVERRIDE},` : ""}review-lapsed-read:on,analysis-redirect:on`,
+      FLAGS_OVERRIDE: `${withP4Flags(process.env.FLAGS_OVERRIDE)},review-lapsed-read:on,analysis-redirect:on`,
       ...(WEB_BUILD ? {} : { NEXT_DIST_DIR: ".next-lapsed" }),
     },
     reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
@@ -261,7 +315,10 @@ const lapsedReadServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => 
 
 // flags-off: the same test-build env plus the override, in its own dist dir (a `next dev` and a
 // `next build` must not share `.next` with the main server). CI has no build for it, so it builds.
+// The upstream mock too: testServerEnv points Dodo's REST API (and the providers) at it, so without it every checkout
+// of the flags-off run answered 502 (regression: flags-off-upstream-mock; membership.spec "checkout is created").
 const flagsOffServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
+  upstreamServer,
   {
     command: process.env.CI
       ? `pnpm build && pnpm start --port ${FLAGS_OFF_PORT}`

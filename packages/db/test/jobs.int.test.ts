@@ -362,10 +362,11 @@ describe("enqueueJob conflict policies (Postgres)", { skip: TEST_URL ? false : "
 
   it("requeue: resets a terminal row with the new payload; a RUNNING row is left alone", async () => {
     const key = `import:${run}`;
+    // P4's IMPORT_SYNC payload (CT/internal/jobs.ts ImportSyncPayloadV1); run ids are decimal bigint strings.
     const sync = (runId: string): Parameters<typeof enqueueJob>[1] => ({
       kind: "IMPORT_SYNC",
       priority: JOB_PRIORITY.IMPORT_SYNC_INITIAL,
-      payload: { v: 1, runId },
+      payload: { v: 1, linkedAccountId: "7", runId: runId.replace("r", ""), trigger: "MANUAL" },
       dedupeKey: key,
       onConflict: "requeue",
     });
@@ -379,14 +380,14 @@ describe("enqueueJob conflict policies (Postgres)", { skip: TEST_URL ? false : "
     const row = await db.$queryRaw<{ payload: { runId: string }; lastError: string | null }[]>(
       Prisma.sql`SELECT payload, "lastError" FROM jobs WHERE id = ${first.id}`,
     );
-    assert.equal(row[0]!.payload.runId, "r2");
+    assert.equal(row[0]!.payload.runId, "2");
     assert.equal(row[0]!.lastError, null);
     await db.$executeRaw(Prisma.sql`UPDATE jobs SET status = 'RUNNING', "lockedBy" = 'dev-worker-t' WHERE id = ${first.id}`);
     assert.equal(await enqueueJob(app, sync("r3")), null);
     const still = await db.$queryRaw<{ status: string; runId: string }[]>(
       Prisma.sql`SELECT status::text AS status, payload->>'runId' AS "runId" FROM jobs WHERE id = ${first.id}`,
     );
-    assert.deepEqual(still[0], { status: "RUNNING", runId: "r2" });
+    assert.deepEqual(still[0], { status: "RUNNING", runId: "2" });
   });
 
   it("a job without a dedupeKey is always a new row", async () => {

@@ -48,10 +48,12 @@ describe("P3 emit registry entries", () => {
       assert.equal(kidMayEmit("ws", name), false, `ws → ${name} (the socket emits in-process)`);
     }
     assert.equal(kidMayEmit("wk", "test:echo"), false);
-    // Every event wk may emit that is registered today is a P3 analysis-side event (§5.11 caller allow-list).
+    // Every event wk may emit that is registered today is a P3 analysis-side event (§5.11 caller allow-list) or,
+    // since P4, an `import:*` event (phase-04 §7.6; user.p4.test.ts covers those).
     const wkRegistered = Object.keys(EMIT_EVENTS).filter((n) => kidMayEmit("wk", n));
-    assert.deepEqual(wkRegistered.sort(), [...ANALYSIS_EVENT_NAMES].sort());
-    assert.ok(wkRegistered.every((n) => /^(analysis|compare):|^games:changed$/.test(n)));
+    const p4Import = Object.keys(EMIT_EVENTS).filter((n) => n.startsWith("import:"));
+    assert.deepEqual(wkRegistered.sort(), [...ANALYSIS_EVENT_NAMES, ...p4Import].sort());
+    assert.ok(wkRegistered.every((n) => /^(analysis|compare|import):|^games:changed$/.test(n)));
   });
 
   it("/internal/load is a wk path only", () => {

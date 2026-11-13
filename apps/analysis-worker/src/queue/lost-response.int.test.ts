@@ -128,6 +128,26 @@ describe("lost responses (Postgres)", { skip: skipInt }, () => {
     }
   });
 
+  // regression: rate-limit-uses-attempts (FIX-2): a paused (refunded) attempt's lost response is recognised too.
+  it("a pause (refundAttempt) gives the attempt back, and its lost response is still recognised", async () => {
+    const id = await insertJob(env, { kind: "IMPORT_SYNC", status: "RUNNING", lockedBy: ME, heartbeatSec: 0, attempts: 5 });
+    const driver = losesOneResponse(env.workerUrl, (ss) => ss[0]!.text.includes("WITH j AS"));
+    const db = new CountingDb(driver);
+    try {
+      const rows = await db.query(
+        failStatement({ jobId: id, me: ME, code: "rate_limited", message: "429 (paused until 2026-11-13T10:15:00.000Z)", attempt: 5, kind: "IMPORT_SYNC", delaySec: 900, refundAttempt: true }),
+      );
+      assert.ok(driver.lost);
+      assert.equal(rows.length, 1, "the retry recognises the pause it already wrote");
+      const row = await jobRow(env, id);
+      assert.equal(row.status, "QUEUED", "attempts 5 of maxAttempts 4: a fail would be terminal, a pause never is");
+      assert.equal(row.attempts, 4);
+      assert.ok(Math.abs(row.runAtMs - row.nowMs - 900_000) < 2_000);
+    } finally {
+      await db.close();
+    }
+  });
+
   it("the fail write's retry form never touches a job another worker holds now", async () => {
     const id = await insertJob(env, { status: "RUNNING", lockedBy: "dev-worker-2-00000000", heartbeatSec: 0, attempts: 1 });
     const retry = failStatement({ jobId: id, me: ME, code: "internal", message: "x", attempt: 1 }).retry;

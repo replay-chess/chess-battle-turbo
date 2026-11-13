@@ -51,6 +51,22 @@ const REGISTRY_ROWS: [string, AuthMode][] = [
   ["DELETE /api/share/{code}", "user"],
   ["GET /api/me/games", "user"],
   ["GET /api/practice/context", "member"],
+  // Phase 4 (§7.0, §11.1 of the P4 plan): sync and retry are member (402 renders inline); everything a non-member
+  // needs to link, onboard, check out and wait for activation is user; the Lichess OAuth hops are optional (the
+  // handler redirects a signed-out browser to sign-in instead of answering 401).
+  ["GET /api/accounts", "user"],
+  ["POST /api/accounts/chesscom/lookup", "user"],
+  ["POST /api/accounts/chesscom", "user"],
+  ["GET /api/accounts/lichess/start", "optional"],
+  ["GET /api/accounts/lichess/callback", "optional"],
+  ["POST /api/accounts/{provider}/sync", "member"],
+  ["PATCH /api/accounts/{provider}", "user"],
+  ["DELETE /api/accounts/{provider}", "user"],
+  ["GET /api/import/status", "user"],
+  ["POST /api/import/{ref}/retry", "member"],
+  ["PATCH /api/me/onboarding", "user"],
+  ["POST /api/checkout", "user"],
+  ["GET /api/billing/activation", "user"],
 ];
 
 /** §11.1 rows still served by legacy handlers: file + method → signed out / signed in non-admin. */

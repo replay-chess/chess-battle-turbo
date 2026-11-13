@@ -18,6 +18,10 @@ export type Recorded = {
   tags: Record<string, string>;
   afterTasks: (() => unknown)[];
   sleeps: number[];
+  /** Users whose Clerk claims a route synced (RouteDeps.syncClaims; runs when the after() task runs). */
+  claimsSyncs: bigint[];
+  /** Trial-ledger probes (RouteDeps.trialLedgerProbe; a miss unless `options.ledgerHit`). */
+  ledgerProbes: unknown[];
 };
 
 export type TestDepsOptions = {
@@ -26,6 +30,8 @@ export type TestDepsOptions = {
   viewer?: Viewer | null;
   rateLimit?: RateLimitDecision | ((specs: unknown, subject: unknown) => RateLimitDecision);
   clock?: number;
+  /** The trial-ledger probe answers a hit of this kind (default: a miss). */
+  ledgerHit?: "email" | "handle";
   overrides?: Partial<RouteDeps>;
 };
 
@@ -46,6 +52,8 @@ export function installTestDeps(options: TestDepsOptions = {}): { recorded: Reco
     tags: {},
     afterTasks: [],
     sleeps: [],
+    claimsSyncs: [],
+    ledgerProbes: [],
   };
   let perf = 0;
   const deps: Partial<RouteDeps> = {
@@ -93,6 +101,13 @@ export function installTestDeps(options: TestDepsOptions = {}): { recorded: Reco
     perf: () => (perf += 1),
     sleep: async (ms) => {
       recorded.sleeps.push(ms);
+    },
+    syncClaims: async (userId) => {
+      recorded.claimsSyncs.push(userId);
+    },
+    trialLedgerProbe: async (input) => {
+      recorded.ledgerProbes.push(input);
+      return options.ledgerHit ? { hit: true, kind: options.ledgerHit } : { hit: false, kind: null };
     },
     ...options.overrides,
   };

@@ -1,11 +1,15 @@
 // The endpoint registry (plan §7.3). One file per area; a later phase adds registry/<area>.ts and one import plus one
 // spread line here (CF §7). Server and test code import the objects; client code imports types only.
 import type { EndpointDef } from "../endpoint";
+import { accountsEndpoints } from "./accounts";
+import { activationEndpoints } from "./activation";
 import { archiveEndpoints } from "./archive";
 import { billingEndpoints } from "./billing";
 import { catalogEndpoints } from "./catalog";
 import { gamesEndpoints } from "./games";
+import { importEndpoints } from "./import";
 import { meEndpoints } from "./me";
+import { onboardingEndpoints } from "./onboarding";
 import { practiceEndpoints } from "./practice";
 import { realtimeEndpoints } from "./realtime";
 import { reviewEndpoints } from "./review";
@@ -16,14 +20,19 @@ import { webhookEndpoints } from "./webhooks";
 export { billingEndpoints, catalogEndpoints, gamesEndpoints, meEndpoints, realtimeEndpoints, systemEndpoints, webhookEndpoints };
 export { reviewEndpoints };
 export { archiveEndpoints, practiceEndpoints, shareEndpoints };
+export { accountsEndpoints, activationEndpoints, importEndpoints, onboardingEndpoints };
 
 /** Areas by name, as the OpenAPI generator tags them. Keys match the file names in this directory. */
 export const REGISTRY_AREAS = {
+  accounts: accountsEndpoints,
+  activation: activationEndpoints,
   archive: archiveEndpoints,
   billing: billingEndpoints,
   catalog: catalogEndpoints,
   games: gamesEndpoints,
+  import: importEndpoints,
   me: meEndpoints,
+  onboarding: onboardingEndpoints,
   practice: practiceEndpoints,
   realtime: realtimeEndpoints,
   review: reviewEndpoints,

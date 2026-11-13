@@ -30,12 +30,38 @@ export type RateLimitSpec = {
   store?: "burst" | "durable";
 };
 
-/** The only writes a GET may make. Append-only (CA §5 GET purity). */
-export type SideEffect = "provision_user" | "cron" | "kick_cas" | "daily_plan" | "legend_facts";
-export const SIDE_EFFECTS = ["provision_user", "cron", "kick_cas", "daily_plan", "legend_facts"] as const satisfies readonly SideEffect[];
+/**
+ * The only writes a GET may make. Append-only (CA §5 GET purity). P4: `billing_snapshot` = BIL-2
+ * `GET /api/billing/activation` applying a Dodo snapshot through P1's billing compare-and-set (api-perf AP-31);
+ * `oauth_link` = OAU-2 `GET /api/accounts/lichess/callback` writing the link (a provider redirect cannot POST);
+ * `release_waiting` = ACC-7 `GET /api/import/status` releasing a member's imports parked WAITING_FOR_MEMBERSHIP (the
+ * fan-out's release, idempotent) when the fan-out after their payment was lost (FIX-1).
+ */
+export type SideEffect =
+  | "provision_user"
+  | "cron"
+  | "kick_cas"
+  | "daily_plan"
+  | "legend_facts"
+  | "billing_snapshot"
+  | "oauth_link"
+  | "release_waiting";
+export const SIDE_EFFECTS = [
+  "provision_user",
+  "cron",
+  "kick_cas",
+  "daily_plan",
+  "legend_facts",
+  "billing_snapshot",
+  "oauth_link",
+  "release_waiting",
+] as const satisfies readonly SideEffect[];
 
-/** Success statuses (API §2.2). 204 has no body. */
-export type SuccessStatus = 200 | 201 | 202 | 204;
+/**
+ * Success statuses (API §2.2). 204 has no body. 302 (P4: the Lichess OAuth start and callback, phase-04 §7.3.4–5)
+ * is a browser redirect the handler returns as a Response: no response schema, GET only.
+ */
+export type SuccessStatus = 200 | 201 | 202 | 204 | 302;
 
 /**
  * How the success body is shaped. "envelope" (default) is `{ data, meta? }` around `response`; "legacy" is a
@@ -134,6 +160,7 @@ export function endpointProblems(def: EndpointDef): string[] {
   if (def.path.startsWith("/api/cron/") && def.method !== "GET") problems.push(`cron routes must be GET (Vercel cron sends GET)`);
   if (def.body && (def.method === "GET" || def.method === "DELETE")) problems.push(`${def.method} must not declare a body`);
   if (def.status === 204 && def.response) problems.push(`status 204 must not declare a response`);
+  if (def.status === 302 && (def.response || def.method !== "GET")) problems.push(`status 302 is a GET redirect without a response`);
   for (const name of pathParamNames(def.path)) {
     if (!def.params) problems.push(`path parameter {${name}} needs a params schema`);
   }

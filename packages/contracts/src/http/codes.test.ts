@@ -78,9 +78,21 @@ describe("codes", () => {
     assert.deepEqual([...CONFLICT_REASONS], [
       "already_started", "already_completed", "not_bot_game", "not_finished", "rev_gap",
       "skipped", "already_running", "not_failed", "analysis_not_done", "already_ready",
+      "linked_elsewhere", "already_linked", "sync_running", "plan_required", "profile_closed",
     ]);
     // PR1: a FEN that parses but is not a legal position is a 400 validation_failed reason (not the P2 422 code).
     assert.deepEqual([...VALIDATION_REASONS], ["mode_not_available", "illegal_position"]);
+  });
+
+  it("has the P4 rows of phase-04 §0.2 D4-05: the six conflict reasons (P3's not_failed reused), no new codes", () => {
+    for (const reason of ["linked_elsewhere", "already_linked", "sync_running", "not_failed", "plan_required", "profile_closed"]) {
+      assert.ok((CONFLICT_REASONS as readonly string[]).includes(reason), reason);
+    }
+    assert.equal(CONFLICT_REASONS.filter((r) => r === "not_failed").length, 1);
+    // One status per code (consistency R-06): upstream_unavailable is always 502, rate_limited always 429.
+    assert.equal(statusFor("upstream_unavailable"), 502);
+    assert.equal(statusFor("rate_limited"), 429);
+    assert.equal(ERROR_CODES.length, 21, "P4 adds no error code");
   });
 
   it("never infers a P2 code from a bare status", () => {

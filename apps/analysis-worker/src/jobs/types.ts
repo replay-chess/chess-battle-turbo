@@ -6,7 +6,7 @@
 // with a contract code; anything else fails the job as `internal`. It checks `ctx.signal` between steps: on SIGTERM
 // it stops at the next safe point (a checkpoint) and throws JobAborted (or returns "released" after releasing).
 import type { AnalysisFailureCode } from "@repo/contracts/http/review";
-import type { JobPayload, P3JobKind } from "@repo/contracts/internal/jobs";
+import type { JobPayload, RunJobKind } from "@repo/contracts/internal/jobs";
 import type { EvalCache } from "../cache/evalcache";
 import type { AppEnvName } from "../config/env";
 import type { Fault } from "../config/faults";
@@ -22,9 +22,13 @@ import type { Clock } from "../scheduler/clock";
 import type { EmitSink } from "../socket/emit";
 import type { LagPause } from "../socket/load";
 
-export type JobOutcome = "done" | "released";
+/**
+ * `failed`: the handler wrote its own failure in its final batch (P4 imports: the run, the account and the job's
+ * back-off commit together), so the runner writes nothing more.
+ */
+export type JobOutcome = "done" | "released" | "failed";
 
-export interface JobContext<K extends P3JobKind = P3JobKind> {
+export interface JobContext<K extends RunJobKind = RunJobKind> {
   job: ClaimedJob;
   payload: JobPayload<K>;
   /** `lockedBy` of this worker boot. */
@@ -50,14 +54,14 @@ export interface JobContext<K extends P3JobKind = P3JobKind> {
 }
 
 /** What the runner's fail write did, for the kind's own follow-up (telemetry, a failed comparison, a batch count). */
-export interface FailureHookInput<K extends P3JobKind = P3JobKind> {
+export interface FailureHookInput<K extends RunJobKind = RunJobKind> {
   ctx: JobContext<K>;
   /** The job row after the fail write (null when the job was no longer ours). */
   failed: FailedJob | null;
   code: AnalysisFailureCode;
 }
 
-export interface JobHandler<K extends P3JobKind = P3JobKind> {
+export interface JobHandler<K extends RunJobKind = RunJobKind> {
   kind: K;
   run(ctx: JobContext<K>): Promise<JobOutcome>;
   /** Called after the runner wrote a failure (back-off or terminal). Errors are logged, never rethrown. */

@@ -2,7 +2,8 @@
 // timer audit counts round trips through CountingDb on top of it). It understands exactly the statements the worker
 // core sends: the claim, the reaper, the queue summary, the plan inserts, the lock guard, done, fail, release and the
 // heartbeat, and HOUSEKEEPING's set-based slice statements (the jobs prune runs on the fake rows; the shares and
-// rate-limit prunes delete nothing here; the regrade search returns `outdated`). Anything else throws, so a new
+// rate-limit prunes delete nothing here; the regrade search returns `outdated`; P4's import backstop requeues nothing
+// and its parked-import release releases nothing: the fake has no linked accounts or import runs). Anything else throws, so a new
 // statement cannot slip past the tests unnoticed.
 import type { Driver, Row, Statement } from "../db/client";
 
@@ -280,6 +281,16 @@ export class FakeQueue implements Driver {
     if (t.includes("FROM game_analyses a JOIN games g")) {
       this.log.push("outdated");
       return this.outdated.slice(0, v[1] as number);
+    }
+    if (t.includes("FROM linked_accounts la") && t.includes("requeued")) {
+      // P4's daily-sync backstop (recurring/import-backstop.ts): there are no linked accounts in the fake.
+      this.log.push("import-backstop");
+      return [{ requeued: 0 }];
+    }
+    if (t.includes("WAITING_FOR_MEMBERSHIP") && t.includes("released")) {
+      // FIX-1's parked-import release (recurring/import-backstop.ts): there are no import runs in the fake.
+      this.log.push("import-release");
+      return [{ released: 0, accounts: 0, queued: 0 }];
     }
     throw new Error(`FakeQueue: unexpected statement: ${t.slice(0, 80)}`);
   }

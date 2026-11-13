@@ -5,6 +5,7 @@
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
 
+import * as accounts from "../src/http/accounts";
 import * as billing from "../src/http/billing";
 import { ALLOWED_STATUSES, ERROR_STATUS, type ErrorCode } from "../src/http/codes";
 import * as common from "../src/http/common";
@@ -20,8 +21,10 @@ import {
 import * as envelope from "../src/http/envelope";
 import { ErrorEnvelope, ok } from "../src/http/envelope";
 import * as games from "../src/http/games";
+import * as importStatus from "../src/http/import";
 import * as legend from "../src/http/legend";
 import * as me from "../src/http/me";
+import * as onboarding from "../src/http/onboarding";
 import * as openings from "../src/http/openings";
 import * as practice from "../src/http/practice";
 import { areaOf, HTTP_ENDPOINTS } from "../src/http/registry/index";
@@ -36,12 +39,15 @@ type JsonObject = { [key: string]: Json };
 
 /** Modules whose named object and enum schemas become components/schemas. A new src/http/<area>.ts is added here. */
 const SCHEMA_MODULES: Record<string, Record<string, unknown>> = {
+  accounts,
   billing,
   common,
   envelope,
   games,
+  importStatus,
   legend,
   me,
+  onboarding,
   openings,
   practice,
   review,
@@ -71,6 +77,7 @@ const STATUS_TEXT: Record<number, string> = {
   201: "Created",
   202: "Accepted",
   204: "No Content",
+  302: "Found",
   304: "Not Modified",
   400: "Bad Request",
   401: "Unauthorized",
@@ -119,7 +126,8 @@ function inputSchema(schema: z.ZodType): JsonObject {
 }
 
 function successEnvelope(def: EndpointDef): z.ZodType | null {
-  if (successStatusOf(def) === 204) return null;
+  const status = successStatusOf(def);
+  if (status === 204 || status === 302) return null;
   const format = def.responseFormat ?? "envelope";
   if (format === "text") return def.response ?? z.string();
   if (format === "legacy") return def.response ?? z.unknown();
@@ -177,7 +185,10 @@ function operationFor(def: EndpointDef, schemas: Record<string, JsonObject>): Js
   const tier = cacheTierOf(def);
   const success: JsonObject = {
     description: STATUS_TEXT[status] ?? "Success",
-    headers: { "x-request-id": { $ref: "#/components/headers/RequestId" } },
+    headers:
+      status === 302
+        ? { "x-request-id": { $ref: "#/components/headers/RequestId" }, Location: { schema: { type: "string" } } }
+        : { "x-request-id": { $ref: "#/components/headers/RequestId" } },
   };
   const opSchema = schemas[opSchemaId(def)];
   if (status !== 204 && opSchema) {

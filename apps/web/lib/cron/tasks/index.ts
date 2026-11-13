@@ -11,9 +11,12 @@
  */
 import { createHash, timingSafeEqual } from "node:crypto";
 import { idempotencyPrune } from "./idempotency-prune";
+import { importPrune } from "./import-prune";
 import { membershipReconcile } from "./membership-reconcile";
 import { rateLimitSweep } from "./rate-limit-sweep";
 import { staleBotGames } from "./stale-bot-games";
+import { staleCheckout } from "./stale-checkout";
+import { trialLedgerSweep } from "./trial-ledger-sweep";
 import { webhookRetention } from "./webhook-retention";
 import { workerAlive } from "./worker-alive";
 
@@ -61,6 +64,9 @@ export const CRON_TASKS: readonly CronTask[] = [
   staleBotGames,
   idempotencyPrune,
   workerAlive,
+  staleCheckout,
+  importPrune, // P4 (phase-04 §7.11): P23 waiting runs, P22 old runs
+  trialLedgerSweep, // P4 FIX-2: the backstop of the fan-out's trial-ledger write (§8.4.4)
 ];
 
 /** Route budget: `maxDuration = 60`; long tasks stop taking new work after this many ms. */

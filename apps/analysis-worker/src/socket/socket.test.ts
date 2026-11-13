@@ -90,6 +90,19 @@ describe("socket hops", () => {
     assert.deepEqual(m.snapshot(0, { draining: false, nextRunAtMs: null, lastDrainAtMs: null }).emits, { "analysis:writing": 1 });
   });
 
+  it("regression: emit-same-second-replay — the same event, data and targets twice in one second are two deliveries", async () => {
+    const data = buildEvent("compare:ready", { gameRef: GAME, status: "ready" });
+    const second = Math.floor(Date.now() / 1000) * 1000;
+    const fixed = () => second; // one signing second for both sends
+    const e = new Emitter({ baseUrl: base, keys: workerRing, log: silentLogger, metrics: metrics(), nowMs: fixed });
+    assert.equal(await e.emit("compare:ready", data, [REF_A]), "sent");
+    assert.equal(await e.emit("compare:ready", data, [REF_A]), "sent", "the socket's replay guard let the second one in");
+    assert.equal(received.length, 2);
+    const keys = received.map((r) => (r.body as { dedupeKey?: string }).dedupeKey);
+    assert.ok(keys.every((k) => typeof k === "string" && k.startsWith("compare:ready:")));
+    assert.notEqual(keys[0], keys[1]);
+  });
+
   it("splits more than 50 targets into several calls", async () => {
     const refs = Array.from({ length: 120 }, (_, i) => `cuser${String(i).padStart(20, "0")}`);
     await emitter().emit("games:changed", buildEvent("games:changed", {}), refs);

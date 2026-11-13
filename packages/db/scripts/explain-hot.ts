@@ -75,13 +75,18 @@ JOIN users u                ON u.id = gp."userId"
 LEFT JOIN game_players opp  ON opp."gameId" = g.id AND opp.color <> gp.color
 LEFT JOIN game_players me   ON me."gameId" = g.id AND me.color = gp.color
 LEFT JOIN game_analyses a   ON a."gameId" = g.id
-LEFT JOIN player_reviews pr ON pr."gameId" = g.id AND pr.color = gp.color
+LEFT JOIN player_reviews pr ON pr."gameId" = gp."gameId" AND pr.color = gp.color
 LEFT JOIN jobs j            ON j."dedupeKey" = 'analyze:' || g.id
 LEFT JOIN LATERAL (SELECT code, "expiresAt", "showUsername" FROM shares
                    WHERE "ownerId" = ${p.viewerId} AND kind = 'REVIEW' AND "gameId" = g.id AND "revokedAt" IS NULL AND "expiresAt" > ${NOW}
                    ORDER BY "createdAt" DESC LIMIT 1) s ON true
 WHERE g."referenceId" = ${lit(p.ref)}`;
 }
+
+// player_reviews is keyed on (gameId, color): both come from `gp`, so the planner always has the two-column
+// parameterised lookup. With `pr."gameId" = g.id` it could pick a path parameterised by `gp` alone (Index Cond on
+// color only, gameId as a join filter: 41 rows, 19 buffers on the perf seed) whenever the table was small enough for
+// the costs to tie (FIX-1; regression: p3-a1-player-reviews-key, seeds.int).
 
 /** The A1/A2 ETag probe (§6.4). */
 export function probeSql(p: Pick<QueryParams, "viewerId" | "ref">): string {
@@ -90,7 +95,7 @@ export function probeSql(p: Pick<QueryParams, "viewerId" | "ref">): string {
 FROM games g
 JOIN game_players gp ON gp."gameId" = g.id AND gp."userId" = ${p.viewerId}
 LEFT JOIN game_analyses a ON a."gameId" = g.id
-LEFT JOIN player_reviews pr ON pr."gameId" = g.id AND pr.color = gp.color
+LEFT JOIN player_reviews pr ON pr."gameId" = gp."gameId" AND pr.color = gp.color
 LEFT JOIN jobs j ON j."dedupeKey" = 'analyze:' || g.id
 LEFT JOIN LATERAL (SELECT code FROM shares WHERE "ownerId" = ${p.viewerId} AND "gameId" = g.id AND kind = 'REVIEW'
                    AND "revokedAt" IS NULL AND "expiresAt" > ${NOW} ORDER BY "createdAt" DESC LIMIT 1) s ON true
@@ -241,6 +246,7 @@ export const P3_HOT_QUERIES: HotQuery[] = p3Queries({
 export interface PlanNode {
   "Node Type": string;
   "Relation Name"?: string;
+  "Index Name"?: string;
   "Actual Rows"?: number;
   "Actual Loops"?: number;
   "Shared Hit Blocks"?: number;
@@ -342,6 +348,19 @@ async function explain(db: PrismaClient, sql: string, mode: "shape" | "measure")
   return out;
 }
 
+/** Each node's own shared buffers (its total minus its children's), for the failure message. */
+export function bufferBreakdown(plan: PlanNode): string {
+  const out: string[] = [];
+  const walk = (n: PlanNode, depth: number) => {
+    const total = (n["Shared Hit Blocks"] ?? 0) + (n["Shared Read Blocks"] ?? 0);
+    const kids = (n.Plans ?? []).reduce((sum, c) => sum + (c["Shared Hit Blocks"] ?? 0) + (c["Shared Read Blocks"] ?? 0), 0);
+    out.push(`${"·".repeat(depth)}${n["Node Type"]}${n["Index Name"] ? ` ${n["Index Name"]}` : n["Relation Name"] ? ` ${n["Relation Name"]}` : ""}=${total - kids}`);
+    for (const c of n.Plans ?? []) walk(c, depth + 1);
+  };
+  walk(plan, 0);
+  return out.join(", ");
+}
+
 /** Runs both passes for every query. The measure pass runs each query twice and keeps the second (warm) run. */
 export async function runExplain(db: PrismaClient, queries: readonly HotQuery[], opts: { measure: boolean }): Promise<QueryReport[]> {
   const sizes = await db.$queryRaw<{ t: string; n: number }[]>(Prisma.sql`
@@ -359,7 +378,7 @@ export async function runExplain(db: PrismaClient, queries: readonly HotQuery[],
       const hit = m.plan["Shared Hit Blocks"] ?? 0;
       const read = m.plan["Shared Read Blocks"] ?? 0;
       if (q.maxSharedBuffers !== undefined && hit + read > q.maxSharedBuffers) {
-        issues.problems.push(`${hit + read} shared buffers > ${q.maxSharedBuffers}`);
+        issues.problems.push(`${hit + read} shared buffers > ${q.maxSharedBuffers} (${bufferBreakdown(m.plan)})`);
       }
       report.measured = {
         ok: issues.problems.length === 0,

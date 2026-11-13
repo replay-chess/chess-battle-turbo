@@ -11,13 +11,15 @@ import { logger } from "@/lib/logger";
 import { trackApiResponseTime } from "@/lib/metrics";
 import { useUserStore } from "@/lib/stores";
 import { isPlanKey } from "@/lib/billing/plans";
+import { isOnboardingExemptPathname } from "@/lib/onboarding/exempt-paths";
 
 /**
  * Pages a not-yet-onboarded user may keep reading. Marketing, legal and the
- * free "try" experience never bounce to onboarding; /pricing and /onboarding
- * are already part of the flow; /sign-in is Clerk's territory.
+ * free "try" experience never bounce to onboarding; /pricing is already part
+ * of the flow; /sign-in is Clerk's territory. Plus the onboarding rule's own
+ * list (phase-04 §8.1: /onboarding, the checkout return, the settings pages).
  */
-const ONBOARDING_EXEMPT_PREFIXES: readonly string[] = [
+const LEGACY_EXEMPT_PREFIXES: readonly string[] = [
   "/blog",
   "/learn",
   "/about",
@@ -27,13 +29,13 @@ const ONBOARDING_EXEMPT_PREFIXES: readonly string[] = [
   "/privacy",
   "/cookies",
   "/pricing",
-  "/onboarding",
   "/sign-in",
 ];
 
 function isOnboardingExemptPath(pathname: string | null): boolean {
   if (!pathname) return false;
-  return ONBOARDING_EXEMPT_PREFIXES.some(
+  if (isOnboardingExemptPathname(pathname)) return true;
+  return LEGACY_EXEMPT_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
 }

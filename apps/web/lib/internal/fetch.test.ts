@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { describe, it } from "node:test";
 import { ReplayGuard, parseKeyRing, verifyInternal } from "@repo/contracts/internal/auth";
-import { InternalFetchConfigError, internalFetch, socketHttpOrigin } from "./fetch";
+import { InternalFetchConfigError, internalFetch, socketHttpOrigin, withEmitDedupeKey } from "./fetch";
 
 const WEB = randomBytes(32).toString("base64");
 const NOW = Date.parse("2026-11-06T12:00:00.000Z");
@@ -41,6 +41,21 @@ describe("internalFetch", () => {
       verifyInternal({ headers, method: "POST", path: "/internal/tournament-event?x=1", body: `${init.body as string} `, keys, nowMs: NOW }),
       { ok: false, reason: "bad_sig" },
     );
+  });
+
+  it("regression: emit-same-second-replay — two identical emits in one second are two signatures; a caller's key stays", async () => {
+    const { calls, fetchImpl } = capture();
+    const env = { INTERNAL_API_SECRET: `web:${WEB}`, NEXT_PUBLIC_WEBSOCKET_URL: "ws://localhost:3002" };
+    const body = { v: 1, targets: [{ userRef: "cuser" }], event: "entitlement:changed", data: { v: 1 } };
+    await internalFetch("/internal/emit", { body, env, nowMs: NOW, fetchImpl });
+    await internalFetch("/internal/emit", { body, env, nowMs: NOW, fetchImpl });
+    const sent = calls.map((c) => JSON.parse(c.init.body as string) as { dedupeKey?: string });
+    assert.ok(sent.every((b) => b.dedupeKey?.startsWith("entitlement:changed:")));
+    assert.notEqual(sent[0]!.dedupeKey, sent[1]!.dedupeKey);
+    const sigs = calls.map((c) => (c.init.headers as Record<string, string>)["x-rc-sig"] ?? JSON.stringify(c.init.headers));
+    assert.notEqual(sigs[0], sigs[1]);
+    assert.deepEqual(withEmitDedupeKey({ event: "x", dedupeKey: "mine" }), { event: "x", dedupeKey: "mine" });
+    assert.equal(Object.hasOwn(body, "dedupeKey"), false, "the caller's object is not changed");
   });
 
   it("a bare legacy secret signs as kid web; GET without a body", async () => {

@@ -9,6 +9,7 @@
 import type { Page } from "@playwright/test";
 import { test, expect } from "../fixtures";
 import { test as reviewTest } from "./review/_lib/review";
+import { test as p4Test } from "./onboarding/_lib/p04";
 
 async function expectMarketingChrome(page: Page, path: string) {
   const res = await page.goto(path, { waitUntil: "domcontentloaded", timeout: 60_000 });
@@ -39,5 +40,25 @@ reviewTest.describe("review-v3 off @p3", () => {
     expect((await legacyData).status()).toBe(200);
     const games = await page.request.get("/games", { maxRedirects: 0 });
     expect(games.status()).toBe(404);
+  });
+});
+
+p4Test.describe("onboarding-v3 and import-v3 off @p4", () => {
+  // The persona is shared with the onboarding specs (CT X4 lease rule, plan §12.4): serial here as there.
+  p4Test.describe.configure({ mode: "serial" });
+  // Until the 12.6 parity check deletes it, the legacy onboarding is what a not-yet-onboarded member gets with the
+  // P4 flags off (plan §7.10, §12.4 "Flags-off regression"): the legacy page on /onboarding, no v3 step route, no
+  // import routes.
+  p4Test("a fresh member gets the legacy onboarding; the v3 steps and the import routes are not served", async ({ page, leasePersona }) => {
+    p4Test.setTimeout(180_000);
+    await leasePersona("onboarding-fresh");
+    const res = await page.goto("/onboarding", { waitUntil: "domcontentloaded", timeout: 120_000 });
+    expect(res?.status()).toBe(200);
+    // With the paywall on the legacy flow opens on its plan step (then the Chess.com step).
+    await expect(page.getByTestId("onboarding-plan-step")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Welcome to ReplayChess");
+    await expect(page.getByTestId("onboarding-frame")).toHaveCount(0);
+    expect((await page.request.get("/onboarding/welcome", { maxRedirects: 0 })).status()).toBe(404);
+    expect((await page.request.get("/api/accounts")).status()).toBe(404);
   });
 });

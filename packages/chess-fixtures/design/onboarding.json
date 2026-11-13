@@ -1,0 +1,387 @@
+{
+  "$comment": "Onboarding board positions (phase-04 plan §4.0, §4.4, §12.5; testing X13). KT: Kasparov–Topalov, Wijk aan Zee 1999, before 24.Rxd4 (the FEN on V3OnbWelcome, V3OnbActivating, V3OnbDone and their iPad/iPhone variants), with the game's continuation to 44.Qa7. PUZZLE_*: the sample-puzzle aside of /onboarding/level, one per rating band (RATING_BANDS in CT/http/p04-plain.ts; new_to_chess shows no puzzle). PUZZLE_R800_1200 is the FEN on V3OnbRating; the other four are CC0 puzzles from the Lichess puzzle database (UNDER_800 lichess.org/training/91Hz0 rated 794, R1200_1600 E5uss 1538, R1600_2000 OeeyB 1691, R2000_PLUS 78xH8 2123; recorded 2026-11-13 from the anonymous /api/puzzle/next: startFen = the game replayed to the puzzle, san/uci = the solution). WEB/lib/onboarding/sample-puzzles.ts must use these FENs (lines.<name>.startFen). Hand-written: the onboarding boards carry static FENs, not DCLogic lines, so scripts/qa/extract-design-fens.ts does not produce this file. packages/chess-fixtures/test/design.test.ts replays every line.",
+  "board": "V3Onb",
+  "source": "v2/V3OnbWelcome.dc.html, v2/V3OnbActivating.dc.html, v2/V3OnbDone.dc.html, v2/V3OnbRating.dc.html",
+  "lines": {
+    "KT": {
+      "startFen": "b2r3r/k4p1p/p2q1np1/NppP4/3p1Q2/P4PPB/1PP4P/1K1RR3 w - - 1 24",
+      "startMoveNo": 24,
+      "gameStartsAtPly": 0,
+      "san": [
+        "Rxd4",
+        "cxd4",
+        "Re7+",
+        "Kb6",
+        "Qxd4+",
+        "Kxa5",
+        "b4+",
+        "Ka4",
+        "Qc3",
+        "Qxd5",
+        "Ra7",
+        "Bb7",
+        "Rxb7",
+        "Qc4",
+        "Qxf6",
+        "Kxa3",
+        "Qxa6+",
+        "Kxb4",
+        "c3+",
+        "Kxc3",
+        "Qa1+",
+        "Kd2",
+        "Qb2+",
+        "Kd1",
+        "Bf1",
+        "Rd2",
+        "Rd7",
+        "Rxd7",
+        "Bxc4",
+        "bxc4",
+        "Qxh8",
+        "Rd3",
+        "Qa8",
+        "c3",
+        "Qa4+",
+        "Ke1",
+        "f4",
+        "f5",
+        "Kc1",
+        "Rd2",
+        "Qa7"
+      ],
+      "uci": [
+        "d1d4",
+        "c5d4",
+        "e1e7",
+        "a7b6",
+        "f4d4",
+        "b6a5",
+        "b2b4",
+        "a5a4",
+        "d4c3",
+        "d6d5",
+        "e7a7",
+        "a8b7",
+        "a7b7",
+        "d5c4",
+        "c3f6",
+        "a4a3",
+        "f6a6",
+        "a3b4",
+        "c2c3",
+        "b4c3",
+        "a6a1",
+        "c3d2",
+        "a1b2",
+        "d2d1",
+        "h3f1",
+        "d8d2",
+        "b7d7",
+        "d2d7",
+        "f1c4",
+        "b5c4",
+        "b2h8",
+        "d7d3",
+        "h8a8",
+        "c4c3",
+        "a8a4",
+        "d1e1",
+        "f3f4",
+        "f7f5",
+        "b1c1",
+        "d3d2",
+        "a4a7"
+      ],
+      "designFens": [
+        "b2r3r/k4p1p/p2q1np1/NppP4/3R1Q2/P4PPB/1PP4P/1K2R3 b",
+        "b2r3r/k4p1p/p2q1np1/Np1P4/3p1Q2/P4PPB/1PP4P/1K2R3 w",
+        "b2r3r/k3Rp1p/p2q1np1/Np1P4/3p1Q2/P4PPB/1PP4P/1K6 b",
+        "b2r3r/4Rp1p/pk1q1np1/Np1P4/3p1Q2/P4PPB/1PP4P/1K6 w",
+        "b2r3r/4Rp1p/pk1q1np1/Np1P4/3Q4/P4PPB/1PP4P/1K6 b",
+        "b2r3r/4Rp1p/p2q1np1/kp1P4/3Q4/P4PPB/1PP4P/1K6 w",
+        "b2r3r/4Rp1p/p2q1np1/kp1P4/1P1Q4/P4PPB/2P4P/1K6 b",
+        "b2r3r/4Rp1p/p2q1np1/1p1P4/kP1Q4/P4PPB/2P4P/1K6 w",
+        "b2r3r/4Rp1p/p2q1np1/1p1P4/kP6/P1Q2PPB/2P4P/1K6 b",
+        "b2r3r/4Rp1p/p4np1/1p1q4/kP6/P1Q2PPB/2P4P/1K6 w",
+        "b2r3r/R4p1p/p4np1/1p1q4/kP6/P1Q2PPB/2P4P/1K6 b",
+        "3r3r/Rb3p1p/p4np1/1p1q4/kP6/P1Q2PPB/2P4P/1K6 w",
+        "3r3r/1R3p1p/p4np1/1p1q4/kP6/P1Q2PPB/2P4P/1K6 b",
+        "3r3r/1R3p1p/p4np1/1p6/kPq5/P1Q2PPB/2P4P/1K6 w",
+        "3r3r/1R3p1p/p4Qp1/1p6/kPq5/P4PPB/2P4P/1K6 b",
+        "3r3r/1R3p1p/p4Qp1/1p6/1Pq5/k4PPB/2P4P/1K6 w",
+        "3r3r/1R3p1p/Q5p1/1p6/1Pq5/k4PPB/2P4P/1K6 b",
+        "3r3r/1R3p1p/Q5p1/1p6/1kq5/5PPB/2P4P/1K6 w",
+        "3r3r/1R3p1p/Q5p1/1p6/1kq5/2P2PPB/7P/1K6 b",
+        "3r3r/1R3p1p/Q5p1/1p6/2q5/2k2PPB/7P/1K6 w",
+        "3r3r/1R3p1p/6p1/1p6/2q5/2k2PPB/7P/QK6 b",
+        "3r3r/1R3p1p/6p1/1p6/2q5/5PPB/3k3P/QK6 w",
+        "3r3r/1R3p1p/6p1/1p6/2q5/5PPB/1Q1k3P/1K6 b",
+        "3r3r/1R3p1p/6p1/1p6/2q5/5PPB/1Q5P/1K1k4 w",
+        "3r3r/1R3p1p/6p1/1p6/2q5/5PP1/1Q5P/1K1k1B2 b",
+        "7r/1R3p1p/6p1/1p6/2q5/5PP1/1Q1r3P/1K1k1B2 w",
+        "7r/3R1p1p/6p1/1p6/2q5/5PP1/1Q1r3P/1K1k1B2 b",
+        "7r/3r1p1p/6p1/1p6/2q5/5PP1/1Q5P/1K1k1B2 w",
+        "7r/3r1p1p/6p1/1p6/2B5/5PP1/1Q5P/1K1k4 b",
+        "7r/3r1p1p/6p1/8/2p5/5PP1/1Q5P/1K1k4 w",
+        "7Q/3r1p1p/6p1/8/2p5/5PP1/7P/1K1k4 b",
+        "7Q/5p1p/6p1/8/2p5/3r1PP1/7P/1K1k4 w",
+        "Q7/5p1p/6p1/8/2p5/3r1PP1/7P/1K1k4 b",
+        "Q7/5p1p/6p1/8/8/2pr1PP1/7P/1K1k4 w",
+        "8/5p1p/6p1/8/Q7/2pr1PP1/7P/1K1k4 b",
+        "8/5p1p/6p1/8/Q7/2pr1PP1/7P/1K2k3 w",
+        "8/5p1p/6p1/8/Q4P2/2pr2P1/7P/1K2k3 b",
+        "8/7p/6p1/5p2/Q4P2/2pr2P1/7P/1K2k3 w",
+        "8/7p/6p1/5p2/Q4P2/2pr2P1/7P/2K1k3 b",
+        "8/7p/6p1/5p2/Q4P2/2p3P1/3r3P/2K1k3 w",
+        "8/Q6p/6p1/5p2/5P2/2p3P1/3r3P/2K1k3 b"
+      ]
+    },
+    "PUZZLE_UNDER_800": {
+      "startFen": "1r3rk1/pb3pp1/3b3p/2p5/3P2n1/3Q1N2/6PP/R3R1NK b - - 0 26",
+      "startMoveNo": 26,
+      "gameStartsAtPly": 0,
+      "san": [
+        "Nf2#"
+      ],
+      "uci": [
+        "g4f2"
+      ],
+      "designFens": [
+        "1r3rk1/pb3pp1/3b3p/2p5/3P4/3Q1N2/5nPP/R3R1NK w"
+      ]
+    },
+    "PUZZLE_R800_1200": {
+      "startFen": "r3k2r/1p3p2/1np2pb1/p2p3p/3P1b1P/2NBP1P1/PP1K1P2/R6R w kq - 0 16",
+      "startMoveNo": 16,
+      "gameStartsAtPly": 0,
+      "san": [],
+      "uci": [],
+      "designFens": []
+    },
+    "PUZZLE_R1200_1600": {
+      "startFen": "8/6R1/6p1/8/5Pk1/1P4Pp/1r5P/6K1 b - - 4 31",
+      "startMoveNo": 31,
+      "gameStartsAtPly": 0,
+      "san": [
+        "Kf3",
+        "Rd7",
+        "Rb1+",
+        "Rd1",
+        "Rxd1#"
+      ],
+      "uci": [
+        "g4f3",
+        "g7d7",
+        "b2b1",
+        "d7d1",
+        "b1d1"
+      ],
+      "designFens": [
+        "8/6R1/6p1/8/5P2/1P3kPp/1r5P/6K1 w",
+        "8/3R4/6p1/8/5P2/1P3kPp/1r5P/6K1 b",
+        "8/3R4/6p1/8/5P2/1P3kPp/7P/1r4K1 w",
+        "8/8/6p1/8/5P2/1P3kPp/7P/1r1R2K1 b",
+        "8/8/6p1/8/5P2/1P3kPp/7P/3r2K1 w"
+      ]
+    },
+    "PUZZLE_R1600_2000": {
+      "startFen": "4r1k1/1pp3p1/1p3p1p/1P2p3/2PnR2N/3P4/r4PPP/4R1K1 w - - 0 21",
+      "startMoveNo": 21,
+      "gameStartsAtPly": 0,
+      "san": [
+        "Rxd4",
+        "exd4",
+        "Rxe8+",
+        "Kf7",
+        "Re1"
+      ],
+      "uci": [
+        "e4d4",
+        "e5d4",
+        "e1e8",
+        "g8f7",
+        "e8e1"
+      ],
+      "designFens": [
+        "4r1k1/1pp3p1/1p3p1p/1P2p3/2PR3N/3P4/r4PPP/4R1K1 b",
+        "4r1k1/1pp3p1/1p3p1p/1P6/2Pp3N/3P4/r4PPP/4R1K1 w",
+        "4R1k1/1pp3p1/1p3p1p/1P6/2Pp3N/3P4/r4PPP/6K1 b",
+        "4R3/1pp2kp1/1p3p1p/1P6/2Pp3N/3P4/r4PPP/6K1 w",
+        "8/1pp2kp1/1p3p1p/1P6/2Pp3N/3P4/r4PPP/4R1K1 b"
+      ]
+    },
+    "PUZZLE_R2000_PLUS": {
+      "startFen": "r1b1qr1k/pp2b1p1/4Qn1p/4Np2/2BPnB2/4P3/PP3PPP/R4RK1 w - - 2 16",
+      "startMoveNo": 16,
+      "gameStartsAtPly": 0,
+      "san": [
+        "Qxe7",
+        "Qxe7",
+        "Ng6+",
+        "Kh7",
+        "Nxe7"
+      ],
+      "uci": [
+        "e6e7",
+        "e8e7",
+        "e5g6",
+        "h8h7",
+        "g6e7"
+      ],
+      "designFens": [
+        "r1b1qr1k/pp2Q1p1/5n1p/4Np2/2BPnB2/4P3/PP3PPP/R4RK1 b",
+        "r1b2r1k/pp2q1p1/5n1p/4Np2/2BPnB2/4P3/PP3PPP/R4RK1 w",
+        "r1b2r1k/pp2q1p1/5nNp/5p2/2BPnB2/4P3/PP3PPP/R4RK1 b",
+        "r1b2r2/pp2q1pk/5nNp/5p2/2BPnB2/4P3/PP3PPP/R4RK1 w",
+        "r1b2r2/pp2N1pk/5n1p/5p2/2BPnB2/4P3/PP3PPP/R4RK1 b"
+      ]
+    }
+  },
+  "states": {
+    "WELCOME_ASIDE": {
+      "line": "KT",
+      "ply": 0,
+      "turn": "w",
+      "meSide": "w",
+      "lastMove": null,
+      "rings": {},
+      "highlights": [],
+      "arrows": [],
+      "ghost": null,
+      "promotion": null,
+      "badges": [],
+      "viewPly": null,
+      "clocks": {
+        "w": null,
+        "b": null
+      }
+    },
+    "ACTIVATING_ASIDE": {
+      "line": "KT",
+      "ply": 0,
+      "turn": "w",
+      "meSide": "w",
+      "lastMove": null,
+      "rings": {},
+      "highlights": [],
+      "arrows": [],
+      "ghost": null,
+      "promotion": null,
+      "badges": [],
+      "viewPly": null,
+      "clocks": {
+        "w": null,
+        "b": null
+      }
+    },
+    "DONE_ASIDE": {
+      "line": "KT",
+      "ply": 0,
+      "turn": "w",
+      "meSide": "w",
+      "lastMove": null,
+      "rings": {},
+      "highlights": [],
+      "arrows": [],
+      "ghost": null,
+      "promotion": null,
+      "badges": [],
+      "viewPly": null,
+      "clocks": {
+        "w": null,
+        "b": null
+      }
+    },
+    "RATING_UNDER_800": {
+      "line": "PUZZLE_UNDER_800",
+      "ply": 0,
+      "turn": "w",
+      "meSide": "w",
+      "lastMove": null,
+      "rings": {},
+      "highlights": [],
+      "arrows": [],
+      "ghost": null,
+      "promotion": null,
+      "badges": [],
+      "viewPly": null,
+      "clocks": {
+        "w": null,
+        "b": null
+      }
+    },
+    "RATING_800_1200": {
+      "line": "PUZZLE_R800_1200",
+      "ply": 0,
+      "turn": "w",
+      "meSide": "w",
+      "lastMove": null,
+      "rings": {},
+      "highlights": [],
+      "arrows": [],
+      "ghost": null,
+      "promotion": null,
+      "badges": [],
+      "viewPly": null,
+      "clocks": {
+        "w": null,
+        "b": null
+      }
+    },
+    "RATING_1200_1600": {
+      "line": "PUZZLE_R1200_1600",
+      "ply": 0,
+      "turn": "w",
+      "meSide": "w",
+      "lastMove": null,
+      "rings": {},
+      "highlights": [],
+      "arrows": [],
+      "ghost": null,
+      "promotion": null,
+      "badges": [],
+      "viewPly": null,
+      "clocks": {
+        "w": null,
+        "b": null
+      }
+    },
+    "RATING_1600_2000": {
+      "line": "PUZZLE_R1600_2000",
+      "ply": 0,
+      "turn": "w",
+      "meSide": "w",
+      "lastMove": null,
+      "rings": {},
+      "highlights": [],
+      "arrows": [],
+      "ghost": null,
+      "promotion": null,
+      "badges": [],
+      "viewPly": null,
+      "clocks": {
+        "w": null,
+        "b": null
+      }
+    },
+    "RATING_2000_PLUS": {
+      "line": "PUZZLE_R2000_PLUS",
+      "ply": 0,
+      "turn": "w",
+      "meSide": "w",
+      "lastMove": null,
+      "rings": {},
+      "highlights": [],
+      "arrows": [],
+      "ghost": null,
+      "promotion": null,
+      "badges": [],
+      "viewPly": null,
+      "clocks": {
+        "w": null,
+        "b": null
+      }
+    }
+  }
+}

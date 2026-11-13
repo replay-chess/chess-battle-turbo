@@ -1,0 +1,375 @@
+/*
+ * Onboarding v3 frame (phase-04 plan §4.0; DR/V3Onb*, V3iPhoneOnb*, V3iPadOnb*). One viewport: the document never
+ * scrolls (lock mode); only the step body (.onb-body) may scroll inside itself, as a fallback at 150 % on phones.
+ *
+ *   desktop / iPad L   64 px header (logo · stepper · Sign out); two columns: panel minmax(0,460) + aside
+ *                      minmax(0,560), gap 64, padding 32/32/24, centred both ways; the footer sits in the panel
+ *   ≤ 1100 wide        stepper numbers only; columns 440 + 1fr, gap 36
+ *   ≤ 760 tall         .onb-tall hidden, h1 2.125rem, padding 20/32/16, the aside board shrinks with the height
+ *   ≤ 640 tall         48 px header, padding 12/28/10, gaps 10, chips 36 px
+ *   compact            phones (≤ 600) and tablet portrait: the back-arrow bar + 4 segments, one column, the body is
+ *                      the only scroller, the footer is pinned (full-width primary on phones; side by side on iPad P);
+ *                      asides become inline cards (iPad P shows the board above the h1)
+ * Media-query strings are the shell's (lib/layout/media-queries.ts TABBAR_MQ, TABLET_PORTRAIT_MQ).
+ */
+@layer components {
+  html:has(.onb[data-rc-lock]),
+  html:has(.onb[data-rc-lock]) body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+
+  .onb {
+    box-sizing: border-box; height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+    padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+    background: var(--cb-bg); color: var(--cb-text);
+    font-family: var(--font-geist-sans, system-ui), system-ui, -apple-system, sans-serif; font-size: 0.875rem; line-height: 1.5;
+  }
+  .onb *, .onb *::before, .onb *::after { box-sizing: border-box; }
+
+  /* ── type ── */
+  .onb-lbl { font: 500 0.6875rem/1.3 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); }
+  .onb-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .onb-sec { color: var(--cb-text-soft); }
+  .onb-hint { margin: 0; font-size: 0.75rem; line-height: 1.4; color: var(--cb-text-soft); }
+  .onb-h1 { margin: 0; font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; font-size: 2.75rem; line-height: 1.02; overflow-wrap: anywhere; }
+  .onb-h1:focus { outline: none; }
+  .onb-h1:focus-visible { outline: 2px solid var(--cb-text); outline-offset: 4px; }
+  .onb-lead { margin: 0; font-size: 1rem; color: color-mix(in srgb, var(--cb-text) 72%, transparent); }
+  .onb-p { margin: 0; color: var(--cb-text-soft); }
+  .onb-small { font-size: 0.8125rem; }
+  .onb-xs { font-size: 0.75rem; }
+
+  /* ── desktop header ── */
+  .onb-h { flex: none; height: 64px; display: flex; align-items: center; gap: 24px; padding: 0 32px; border-bottom: 1px solid var(--cb-border); }
+  .onb-logo { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--cb-text); text-decoration: none; }
+  .onb-logo img { width: 32px; height: 32px; }
+  .onb-logo__word { font-family: var(--font-serif); font-size: 1.375rem; letter-spacing: -0.01em; }
+  .onb-signout {
+    display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; border: 0; background: transparent;
+    color: var(--cb-text-soft); font: inherit; font-size: 0.8125rem; text-decoration: underline; text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, currentColor 30%, transparent); cursor: pointer;
+  }
+  .onb-signout:hover { color: var(--cb-text); }
+  .onb-signout:disabled { cursor: progress; }
+
+  .onb-stp { display: flex; align-items: center; gap: 6px; margin: 0 auto; padding: 0; list-style: none; }
+  .onb-stp li { display: flex; align-items: center; gap: 8px; font: 500 0.6875rem var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); }
+  .onb-stp li + li::before { content: ""; width: 28px; height: 1px; background: var(--cb-border-strong); margin-right: 2px; }
+  .onb-stp a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: inherit; text-decoration: none; }
+  .onb-stp a:hover .w { text-decoration: underline; text-underline-offset: 3px; }
+  .onb-stp .n { width: 22px; height: 22px; border-radius: 9999px; border: 1px solid var(--cb-border-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 0.6875rem; letter-spacing: 0; }
+  .onb-stp li[aria-current="step"] { color: var(--cb-text); }
+  .onb-stp li[aria-current="step"] .n { background: var(--cb-accent); border-color: var(--cb-accent); color: var(--cb-accent-fg); }
+  .onb-stp li[data-state="done"] .n { background: var(--cb-surface); border-color: var(--cb-accent); color: var(--cb-accent); }
+
+  /* ── compact header (phones, tablet portrait) ── */
+  .onb-mh { display: none; }
+  .onb-segs { display: none; }
+
+  /* ── stage ── */
+  .onb-main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .onb-main:focus { outline: none; }
+  .onb-stage {
+    flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 460px) minmax(0, 560px);
+    grid-template-rows: minmax(0, 1fr); align-items: center; justify-content: center; gap: 64px; padding: 32px 32px 24px;
+  }
+  .onb-stage[data-aside="none"] { grid-template-columns: minmax(0, 520px); }
+  .onb-panel { min-height: 0; max-height: 100%; display: flex; flex-direction: column; }
+  .onb-form { min-height: 0; max-height: 100%; display: flex; flex-direction: column; gap: 18px; }
+  .onb-body { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 16px; padding: 2px; }
+  .onb-foot { flex: none; display: flex; align-items: center; gap: 10px; padding-top: 16px; border-top: 1px solid var(--cb-border); }
+  .onb-foot__spacer { flex: 1 1 auto; }
+  .onb-primary { min-height: 48px !important; padding: 0 24px !important; }
+  /* 44 px wide as well as tall: the bare word was 37 px on phones (FIX-1, WCAG 2.5.5). */
+  .onb-skip { color: var(--cb-text-soft) !important; text-decoration: none !important; min-width: 2.75rem; }
+  .onb-skip:hover { color: var(--cb-text) !important; }
+
+  .onb-aside { min-height: 0; max-height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  .onb-ab { width: max(220px, min(calc(100dvh - 300px), 40vw, 520px)); max-width: 100%; }
+  .onb-inline-top, .onb-inline-end { display: none; }
+
+  /* ── shared pieces ── */
+  .onb-card { background: var(--cb-surface); border: 1px solid var(--cb-border); min-height: 0; }
+  .onb-check { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .onb-check li { display: flex; gap: 10px; }
+  .onb-check li > svg { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+  .onb-check li[data-off] { color: var(--cb-text-soft); }
+
+  .onb-steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; border-top: 1px solid var(--cb-border); }
+  .onb-steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 48px; border-bottom: 1px solid var(--cb-border); }
+  .onb-steps .no { font: 12px var(--font-mono); color: var(--cb-text-soft); }
+  .onb-steps .t { font: 11px var(--font-mono); color: var(--cb-text-soft); letter-spacing: 0.04em; }
+
+  .onb-fld { display: flex; flex-direction: column; gap: 6px; }
+  .onb-fld > label { font-size: 0.8125rem; font-weight: 500; }
+  .onb-fld__row { display: flex; gap: 8px; }
+  .onb-fld__row > input { flex: 1 1 auto; min-width: 0; }
+  .onb-found { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--cb-fill); font-size: 0.8125rem; }
+  .onb-found > svg { flex: none; width: 14px; height: 14px; }
+  .onb-found strong { font-weight: 500; }
+  .onb-msg { display: flex; gap: 6px; align-items: flex-start; margin: 0; font-size: 0.8125rem; line-height: 1.4; color: var(--cb-bad); }
+  .onb-msg > svg { flex: none; width: 14px; height: 14px; margin-top: 2px; }
+  .onb-msg[data-tone="warn"] { color: var(--cb-warn); }
+  .onb-msg a { color: inherit; }
+
+  .onb-spin { display: inline-block; width: 14px; height: 14px; flex: none; border: 2px solid currentColor; border-right-color: transparent; border-radius: 9999px; animation: onb-spin 0.8s linear infinite; }
+  @keyframes onb-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .onb-spin { animation: none; } }
+
+  .onb-fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+  .onb-legend { padding: 0; margin-bottom: 10px; }
+  .onb-grow { display: flex; flex-wrap: wrap; gap: 8px; }
+  .onb-chip {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--cb-border-strong);
+    background: var(--cb-surface); color: var(--cb-text); font: inherit; font-size: 0.875rem; cursor: pointer; white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .onb-chip:hover { background: var(--cb-fill); }
+  .onb-chip[aria-checked="true"], .onb-chip[aria-pressed="true"] { background: var(--cb-accent); color: var(--cb-accent-fg); border-color: var(--cb-accent); }
+  .onb-chip:focus-visible { outline: 2px solid var(--cb-text); outline-offset: 2px; }
+  @media (pointer: coarse) { .onb-chip { min-height: 44px; } }
+  @media (forced-colors: active) { .onb-chip[aria-checked="true"] { outline: 2px solid; outline-offset: -2px; } }
+
+  .onb-h2 { margin: 0; font-size: 1rem; font-weight: 500; }
+  .onb-cc { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .onb-cc__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  /* The text keeps at least 8.5rem beside "Connect Lichess"; narrower (iPhone at 125 %, 314 px), the button wraps under
+     it instead of squeezing the hint and the error copy into a one-word column (FIX-2, UI review round 2). */
+  .onb-li { padding: 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .onb-li__text { flex: 1 1 8.5rem; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .onb-li__text .onb-msg { margin-top: 4px; }
+  .onb-li__pending { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--cb-border-strong); background: var(--cb-fill); font-size: 0.875rem; }
+  .onb-btn-s {
+    flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px;
+    border: 1px solid var(--cb-border-strong); background: var(--cb-surface); color: var(--cb-text); font-size: 0.875rem;
+    text-decoration: none; white-space: nowrap; cursor: pointer;
+  }
+  .onb-btn-s:hover { background: var(--cb-fill); color: var(--cb-text); }
+  .onb-btn-s > svg { width: 14px; height: 14px; flex: none; }
+  .onb-wwi { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* account card (Confirm) */
+  .onb-acct { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+  .onb-acct__who { display: flex; gap: 14px; align-items: center; }
+  .onb-acct__name { display: flex; flex-direction: column; line-height: 1.35; min-width: 0; }
+  .onb-acct__name > :first-child { font-size: 1.125rem; font-weight: 500; overflow-wrap: anywhere; }
+  .onb-av {
+    width: 40px; height: 40px; flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 9999px;
+    background: var(--cb-fill); border: 1px solid var(--cb-border-strong); color: var(--cb-text);
+    font: 500 0.75rem/1 var(--font-mono); letter-spacing: 0.04em;
+  }
+  .onb-ratings { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .onb-ratings > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; background: var(--cb-bg); border: 1px solid var(--cb-border); min-width: 0; }
+  .onb-ratings dt { font: 500 0.6875rem/1.3 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); }
+  .onb-ratings dd { margin: 0; font: 500 1.125rem var(--font-mono); font-variant-numeric: tabular-nums; }
+  .onb-row-between { display: flex; justify-content: space-between; gap: 12px; font-size: 0.8125rem; }
+
+  /* recent games (Confirm aside) */
+  .onb-rg__head { display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--cb-border); }
+  .onb-rg { margin: 0; padding: 0; list-style: none; }
+  .onb-rg li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--cb-border); }
+  .onb-rg li:last-child { border-bottom: 0; }
+  .onb-rg__res { justify-self: start; font: 500 0.6875rem var(--font-mono); letter-spacing: 0.12em; padding: 2px 6px; border: 1px solid color-mix(in srgb, var(--cb-text) 25%, transparent); color: color-mix(in srgb, var(--cb-text) 70%, transparent); }
+  .onb-rg__res[data-r="loss"] { border-color: color-mix(in srgb, var(--cb-bad) 45%, transparent); color: var(--cb-bad); }
+  .onb-rg__res[data-r="win"] { border-color: color-mix(in srgb, var(--cb-good) 45%, transparent); color: var(--cb-good); }
+  .onb-rg__who { display: flex; flex-direction: column; line-height: 1.35; min-width: 0; }
+  .onb-rg__who > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .onb-rg__empty { margin: 0; padding: 20px 14px; color: var(--cb-text-soft); }
+  .onb-rg__sk { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* mobile board aside (.maside on the iPhone boards): fills what the body leaves, hidden below 220 px */
+  .onb-mboard { flex: 1 1 auto; min-height: 0; container-type: size; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+  .onb-mboard__b { flex: none; width: min(358px, 100cqw, calc(100cqh - 24px)); }
+  @container (max-height: 220px) { .onb-mboard__b, .onb-mboard__l { display: none; } }
+
+  /* ── ≤ 760 / ≤ 640 tall, ≤ 1100 wide ── */
+  @media (max-height: 760px) {
+    .onb-tall { display: none !important; }
+    .onb-stage { padding: 20px 32px 16px; }
+    .onb-h1 { font-size: 2.125rem; }
+    .onb-ab { width: max(200px, min(calc(100dvh - 220px), 40vw, 520px)); }
+  }
+  @media (max-height: 640px) {
+    .onb-h { height: 48px; }
+    .onb-stage { padding: 12px 28px 10px; }
+    .onb-form, .onb-body { gap: 10px; }
+    .onb-h1 { font-size: 1.875rem; }
+    .onb-chip { min-height: 36px; }
+    .onb-steps li { min-height: 40px; }
+  }
+  @media (max-width: 1100px) {
+    .onb-stage { grid-template-columns: minmax(0, 440px) minmax(0, 1fr); gap: 36px; }
+    .onb-stp .w { display: none; }
+  }
+
+  /* ── compact: phones and tablet portrait ── */
+  @media (max-width: 600px), (max-width: 900px) and (orientation: portrait) {
+    .onb-h { display: none; }
+    .onb-mh { flex: none; display: flex; align-items: center; height: 44px; padding: 0 4px; margin-top: env(safe-area-inset-top, 0px); }
+    .onb-mh__back { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--cb-text); flex: none; }
+    .onb-mh__back > svg { width: 20px; height: 20px; }
+    .onb-mh__gap { width: 44px; flex: none; }
+    .onb-mh__logo { display: none; }
+    .onb-mh__label { flex: 1 1 auto; text-align: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .onb-mh .onb-signout { width: 64px; justify-content: center; }
+    .onb-segs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 0 16px; }
+    .onb-segs span { height: 3px; background: color-mix(in srgb, var(--cb-text) 12%, transparent); }
+    .onb-segs span[data-on] { background: var(--cb-accent); }
+
+    .onb-stage { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 0; }
+    .onb-panel { flex: 1 1 auto; max-height: none; }
+    .onb-form { flex: 1 1 auto; max-height: none; gap: 0; }
+    .onb-body { flex: 1 1 auto; padding: 18px 16px 12px; gap: 10px; }
+    .onb-foot { flex-direction: column-reverse; align-items: stretch; gap: 8px; padding: 10px 16px max(16px, env(safe-area-inset-bottom, 0px)); }
+    .onb-foot__spacer { display: none; }
+    .onb-foot .onb-primary, .onb-foot .onb-secondary { width: 100%; }
+    .onb-foot .onb-skip { align-self: center; }
+    .onb-aside { display: none; }
+    .onb-inline-end { display: flex; flex-direction: column; }
+    .onb-inline-end.onb-card { flex: none; }
+    /* Cards keep their height; on a short phone the body scrolls instead (the allowed fallback). Shrinking them
+       clipped the Chess.com field and Look Up under the Lichess card at 393×660 (INTEGRATE-2). */
+    .onb-body > .onb-card { flex-shrink: 0; }
+    .onb-h1 { font-size: 2rem; }
+    .onb-lead { font-size: 0.9375rem; }
+    .onb-steps li { min-height: 40px; }
+    .onb-wwi { padding: 12px 14px; gap: 8px; }
+    .onb-wwi .onb-check { gap: 4px; font-size: 0.8125rem; line-height: 1.4; }
+    .onb-wwi .onb-check li { gap: 8px; }
+    .onb-rg li { padding: 8px 12px; }
+    .onb-rg li:nth-child(n + 4) { display: none; }
+    .onb-rg__head { padding: 10px 12px; }
+  }
+
+  /* tablet portrait (V3iPadOnb*): logo in the bar, a centred column, the board above the h1 */
+  @media (min-width: 601px) and (max-width: 900px) and (orientation: portrait) {
+    .onb-mh { height: 60px; gap: 12px; padding: 0 32px; margin-top: calc(env(safe-area-inset-top, 0px) + 8px); border-bottom: 1px solid var(--cb-border); }
+    .onb-mh__back { margin-left: -12px; }
+    .onb-mh__gap { display: none; }
+    .onb-mh__logo { display: block; width: 30px; height: 30px; }
+    .onb-mh__label { text-align: left; }
+    .onb-mh .onb-signout { width: auto; font-size: 0.875rem; }
+    .onb-segs { padding: 0 32px; margin-top: -1px; }
+    .onb-stage { padding: 0 56px; }
+    .onb-body { justify-content: center; justify-content: safe center; padding: 32px 0 16px; gap: 18px; }
+    .onb-body > * { flex-shrink: 0; }
+    .onb-h1 { font-size: 3.25rem; }
+    .onb-lead, .onb-body > .onb-p { font-size: 1.0625rem; }
+    .onb-foot { flex-direction: row; align-items: center; padding: 16px 0 max(6px, env(safe-area-inset-bottom, 0px)); }
+    .onb-foot__spacer { display: block; }
+    .onb-foot .onb-primary, .onb-foot .onb-secondary { width: auto; }
+    .onb-foot .onb-skip { align-self: auto; }
+    .onb-inline-top { display: flex; justify-content: center; }
+    .onb-inline-top > div { width: min(440px, 100%, max(200px, calc(100dvh - 620px))); }
+    .onb-inline-top > div[data-tb="380"] { width: min(380px, 100%, max(200px, calc(100dvh - 640px))); }
+    .onb-inline-end[data-kind="board"] { display: none; }
+    .onb-rg li:nth-child(n + 4) { display: grid; }
+    .onb-wwi { padding: 20px 24px; gap: 12px; }
+    .onb-wwi .onb-check { gap: 10px; font-size: inherit; }
+
+  }
+}
+
+/*
+ * Part 2 steps (phase-04 plan §4.5–4.8): Goals (chips, daily time, "Your day"), Plan (billing period, plan card,
+ * "What happens after you start", the Start column), Activating (WP-D's ActivationCard drawn bare, its actions in the
+ * footer), Done (tags, the Go to Home column). The import card is components/import/ImportProgressCard.tsx (utilities).
+ */
+@layer components {
+  /* A live status that is empty most of the time: kept in the tree (so it announces), out of the flow when empty. */
+  .onb-live:empty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  .onb-chip__check { width: 16px; height: 16px; flex: none; }
+
+  /* Segmented (UI kit) in the board's proportions: 76 px segments. */
+  .onb-seg-wrap { display: flex; }
+  .onb-seg [role="radio"] { min-width: 76px; }
+  .onb-seg__off { font-size: 0.6875rem; }
+
+  /* "Your day" (V3OnbGoals aside, V3iPhoneOnbGoals inline card) */
+  .onb-day { padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+  .onb-day__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .onb-day__rows { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+  .onb-day__rows li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--cb-border); }
+  .onb-day__what { display: flex; flex-direction: column; min-width: 0; }
+  .onb-day__title { font-weight: 500; }
+
+  /* Plan card (V3OnbPlan "Coaching") */
+  .onb-plancard { padding: 18px; display: flex; flex-direction: column; gap: 10px; border-color: var(--cb-accent); border-top-width: 2px; }
+  .onb-plancard__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .onb-plancard__price { font-family: var(--font-serif); font-size: 2.5rem; line-height: 1; }
+  .onb-plancard__per { font-family: var(--font-geist-sans, system-ui), system-ui, sans-serif; font-size: 0.875rem; color: var(--cb-text-soft); }
+  .onb-plancard__list { gap: 6px; }
+  .onb-plancard__list li { gap: 8px; }
+
+  /* The Start column: the button with the trial terms (and a 429 countdown) under it, right-aligned */
+  .onb-plan-cta, .onb-done-cta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 0; }
+  .onb-plan-cta .onb-plan-terms, .onb-done-cta .onb-hint { text-align: right; }
+
+  /* "What happens after you start" */
+  .onb-tl-card { padding: 0; }
+  .onb-tl-card__hint { padding: 12px 16px; }
+  .onb-tl { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  .onb-tl thead th { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--cb-border); }
+  .onb-tl tbody th { text-align: left; font-weight: 400; padding: 10px 16px; border-bottom: 1px solid color-mix(in srgb, var(--cb-text) 6%, transparent); white-space: nowrap; }
+  .onb-tl tbody td { padding: 10px 16px; border-bottom: 1px solid color-mix(in srgb, var(--cb-text) 6%, transparent); }
+  .onb-tl .onb-tl__pl { background: color-mix(in srgb, var(--cb-accent) 4%, transparent); }
+  .onb-tl--mini { table-layout: fixed; font-size: 0.8125rem; }
+  .onb-tl--mini .onb-tl__c1 { width: 30%; }
+  .onb-tl--mini thead th, .onb-tl--mini tbody th, .onb-tl--mini tbody td { height: 32px; padding: 0 10px; white-space: normal; }
+  .onb-tl--mini thead th { height: 28px; }
+  .onb-tl--mini .onb-tl__pl { font-weight: 500; }
+
+  .onb-only-phone, .onb-only-tablet { display: none; }
+
+  /* Activating: WP-D's ActivationCard (actions={false}) is the panel's content; the actions are the frame's footer
+     (V3OnbActivating draws them in `.ofoot`). */
+  .onb-act { display: flex; flex-direction: column; min-width: 0; }
+  .onb-act > [data-testid="activation-card"] > p { font-size: 0.875rem !important; }
+
+  /* Done */
+  .onb-done-tags { align-self: flex-start; display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* the iPad Activating board sits at the end of the body with its caption (V3iPadOnbActivating) */
+  .onb-mboard__c { display: none; }
+
+  /* A banner above the plan card on a short screen: the feature list gives way (the card keeps name and price). */
+  @media (max-height: 760px) {
+    .onb-plancard[data-squeeze] .onb-plancard__list { display: none; }
+  }
+  @media (max-height: 640px) {
+    .onb-day { padding: 14px 16px; gap: 8px; }
+    .onb-day__rows li { padding: 8px 0; }
+    .onb-plancard { padding: 12px 16px; gap: 6px; }
+    .onb-plancard__price { font-size: 2rem; }
+    .onb-tl tbody th, .onb-tl tbody td { padding: 7px 16px; }
+  }
+
+  @media (max-width: 600px), (max-width: 900px) and (orientation: portrait) {
+    .onb-only-wide { display: none; }
+    .onb-only-phone { display: block; }
+    .onb-day { padding: 12px 16px; gap: 4px; }
+    .onb-day__rows li { padding: 8px 0; }
+    /* four or five goals (beyond the board's pair): tighter rows keep the phone body inside one viewport */
+    .onb-day__rows:has(> li:nth-child(4)) > li { padding: 4px 0; }
+    .onb-day__what { line-height: 1.35; }
+    .onb-plancard { padding: 14px 16px; gap: 8px; }
+    .onb-plan-cta, .onb-done-cta { align-items: stretch; }
+    .onb-plan-cta .onb-plan-terms, .onb-done-cta .onb-hint { text-align: center; }
+    .onb-foot .onb-plan-cta .onb-primary, .onb-foot .onb-done-cta .onb-primary { width: 100%; }
+  }
+
+  @media (min-width: 601px) and (max-width: 900px) and (orientation: portrait) {
+    .onb-only-wide { display: block; }
+    .onb-only-phone { display: none; }
+    .onb-only-tablet { display: block; }
+    .onb-day { padding: 22px; gap: 12px; }
+    .onb-day__rows li, .onb-day__rows:has(> li:nth-child(4)) > li { padding: 12px 0; }
+    .onb-plancard { padding: 18px; gap: 10px; }
+    .onb-plan-cta, .onb-done-cta { align-items: flex-end; }
+    .onb-plan-cta .onb-plan-terms, .onb-done-cta .onb-hint { text-align: right; }
+    .onb-foot .onb-plan-cta .onb-primary, .onb-foot .onb-done-cta .onb-primary { width: auto; }
+    .onb-stage[data-tb-at="end"] .onb-inline-end[data-kind="board"] { display: flex; flex: none; container-type: normal; gap: 10px; padding-top: 8px; }
+    .onb-stage[data-tb-at="end"] .onb-mboard__l { order: -1; }
+    .onb-stage[data-tb-at="end"] .onb-mboard__b { width: min(400px, 100%, max(200px, calc(100dvh - 760px))); }
+    .onb-stage[data-tb-at="end"] .onb-mboard__c { display: block; text-align: center; }
+  }
+}

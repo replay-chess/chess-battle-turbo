@@ -3,6 +3,10 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { getViewer } from "@/lib/auth/viewer";
+import { getFlags } from "@/lib/flags";
+import { LEGACY_NOT_FOUND_BODY, legacyChessComDecision, limitLegacyLookup } from "@/lib/onboarding/legacy-chesscom";
+import { clientIpFrom } from "@/lib/rate-limit-db";
 import {
   fetchChessComProfile,
   fetchChessComStats,
@@ -16,6 +20,9 @@ const chessComProfileSchema = z.object({
 /**
  * POST /api/user/chess-com-profile
  * Save user's chess.com profile and fetch their stats
+ * Legacy (phase-04 plan §3 row 180, §7.12): 404 once both v3 flags are on for the viewer; the `onboarded` write happens
+ * only for the legacy onboarding page (`onboarding-v3` off); every request spends the lookup buckets first
+ * (lib/onboarding/legacy-chesscom.ts, FIX-2).
  */
 export async function POST(req: NextRequest) {
   try {
@@ -26,6 +33,11 @@ export async function POST(req: NextRequest) {
         { error: "Unauthorized - User not authenticated" },
         { status: 401 }
       );
+    }
+
+    const decision = legacyChessComDecision(await getFlags(await getViewer()));
+    if (decision.kind === "not_found") {
+      return NextResponse.json(LEGACY_NOT_FOUND_BODY, { status: 404 });
     }
 
     const body = await req.json();
@@ -41,6 +53,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "User not found in database" },
         { status: 404 }
+      );
+    }
+
+    const limit = await limitLegacyLookup({ clerkUserId: userId, ip: clientIpFrom(req.headers) });
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Try again shortly." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } }
       );
     }
 
@@ -104,7 +124,7 @@ export async function POST(req: NextRequest) {
 
     const isNewProfile = !user.chessComProfile;
 
-    // Upsert chess.com profile and mark user as onboarded in a transaction
+    // Upsert chess.com profile and, for the legacy onboarding page only, mark the user as onboarded in a transaction
     const result = await prisma.$transaction(async (tx) => {
       const chessComProfile = await tx.chessComProfile.upsert({
         where: { userId: user.id },
@@ -112,10 +132,12 @@ export async function POST(req: NextRequest) {
         update: profilePayload,
       });
 
-      await tx.user.update({
-        where: { id: user.id },
-        data: { onboarded: true },
-      });
+      if (decision.markOnboarded) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { onboarded: true },
+        });
+      }
 
       return chessComProfile;
     });

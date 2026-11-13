@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRequireAuth, UseRequireAuthReturn } from "./useRequireAuth";
 import { useUserStore } from "@/lib/stores";
 import {
+  CHECKOUT_RETURN_PARAMS,
   isEntitledClient,
   paywallUrl,
   stripCheckoutParams,
-  waitForEntitlement,
 } from "@/lib/billing/client";
 
 export interface UseRequireSubscriptionReturn extends UseRequireAuthReturn {
@@ -32,9 +32,22 @@ export interface UseRequireSubscriptionReturn extends UseRequireAuthReturn {
  * page keeps its loading state; nobody is redirected on an error.
  *
  * When the page is a checkout return (`?checkout=success`) the plan may still be
- * activating, so a negative answer first polls POST /api/billing/refresh on the
- * activation schedule before it is treated as final.
+ * activating: a negative answer hands the visitor to `/checkout/activating`
+ * (phase-04 plan 4.9), which confirms the activation (socket + poll + Dodo
+ * self-heal) and then comes back here. This hook no longer polls.
  */
+
+/** `/checkout/activating` for a gated page's checkout return: the Dodo parameters kept, the page as redirect_url. */
+export function activationHandOff(pathname: string, search: string): string {
+  const params = new URLSearchParams(search);
+  const out = new URLSearchParams();
+  for (const key of CHECKOUT_RETURN_PARAMS) {
+    const value = params.get(key);
+    if (value !== null) out.set(key, value);
+  }
+  out.set("redirect_url", stripCheckoutParams(`${pathname}${search ? `?${search}` : ""}`));
+  return `/checkout/activating?${out.toString()}`;
+}
 export function useRequireSubscription(): UseRequireSubscriptionReturn {
   const auth = useRequireAuth();
   const router = useRouter();
@@ -43,58 +56,29 @@ export function useRequireSubscription(): UseRequireSubscriptionReturn {
 
   const user = useUserStore((s) => s.user);
   const subscription = useUserStore((s) => s.subscription);
-  const fetchSubscription = useUserStore((s) => s.fetchSubscription);
-
-  const [activationDone, setActivationDone] = useState(false);
-  const activationStartedRef = useRef(false);
   const redirectedRef = useRef(false);
-  const mountedRef = useRef(true);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
 
   const isSubscriptionLoaded = subscription !== null;
   const isEntitled = isSubscriptionLoaded && isEntitledClient(subscription, user?.role);
   const checkoutSuccess = searchParams.get("checkout") === "success";
 
-  // Checkout return: poll the billing refresh until the plan shows up or the attempts run out.
-  useEffect(() => {
-    if (!checkoutSuccess || !auth.isReady || !isSubscriptionLoaded || isEntitled) return;
-    if (activationStartedRef.current) return;
-    activationStartedRef.current = true;
-    const entitledNow = () => {
-      const state = useUserStore.getState();
-      return isEntitledClient(state.subscription, state.user?.role);
-    };
-    waitForEntitlement({
-      refresh: fetchSubscription,
-      isEntitled: entitledNow,
-      isCancelled: () => !mountedRef.current,
-    })
-      .catch(() => false)
-      .finally(() => {
-        if (mountedRef.current) setActivationDone(true);
-      });
-  }, [checkoutSuccess, auth.isReady, isSubscriptionLoaded, isEntitled, fetchSubscription]);
-
-  // Redirect to pricing once the server has said no (after the activation poll on a checkout return).
+  // Not entitled: a checkout return goes to the activation page (it confirms and comes back); anything else to pricing.
   useEffect(() => {
     if (!auth.isReady || !isSubscriptionLoaded || isEntitled) return;
-    if (checkoutSuccess && !activationDone) return;
     if (redirectedRef.current) return;
 
     redirectedRef.current = true;
     const search = searchParams.toString();
+    if (checkoutSuccess) {
+      router.replace(activationHandOff(pathname, search));
+      return;
+    }
     // Checkout-return parameters must not ride along into the paywall's
     // redirect_url, or /pricing would show its activation state for a
     // return that already failed to activate.
     const returnPath = stripCheckoutParams(`${pathname}${search ? `?${search}` : ""}`);
     router.replace(paywallUrl(returnPath));
-  }, [auth.isReady, isSubscriptionLoaded, isEntitled, checkoutSuccess, activationDone, router, pathname, searchParams]);
+  }, [auth.isReady, isSubscriptionLoaded, isEntitled, checkoutSuccess, router, pathname, searchParams]);
 
   return {
     ...auth,

@@ -14,6 +14,7 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint src scripts --no-error-on-unmatched-pattern --max-warnings 0",
     "bench": "tsx scripts/bench.ts",
+    "bench:import": "tsx scripts/bench-import.ts",
     "seed:evalcache": "tsx scripts/seed-evalcache.ts",
     "upload:evalcache": "tsx scripts/upload-evalcache-seed.ts"
   },
@@ -21,6 +22,7 @@
     "@neondatabase/serverless": "1.2.0",
     "@repo/analytics": "workspace:*",
     "@repo/chess-analysis": "workspace:*",
+    "@repo/chess-import": "workspace:*",
     "@repo/contracts": "workspace:*",
     "@repo/db": "workspace:*",
     "@sentry/node": "10.38.0",

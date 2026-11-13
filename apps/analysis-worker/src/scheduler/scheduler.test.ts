@@ -164,6 +164,8 @@ describe("scheduler: boot and sleep", () => {
       "prune-buckets",
       "prune-windows",
       "outdated",
+      "import-backstop",
+      "import-release",
       "done",
       "claim",
       "reap",

@@ -37,6 +37,19 @@ type EndpointPaths = {
   share: PathOf<"share.update">;
   meGames: PathOf<"me.games">;
   practiceContext: PathOf<"practice.context">;
+  // P4 accounts and import (`{provider}` / `{ref}` filled with fillPath()), onboarding, checkout and activation.
+  accounts: PathOf<"accounts.list">;
+  accountLookup: PathOf<"accounts.chesscom.lookup">;
+  accountLinkChessCom: PathOf<"accounts.chesscom.link">;
+  lichessStart: PathOf<"accounts.lichess.start">;
+  lichessCallback: PathOf<"accounts.lichess.callback">;
+  accountSync: PathOf<"accounts.sync">;
+  account: PathOf<"accounts.update">;
+  importStatus: PathOf<"import.status">;
+  importRetry: PathOf<"import.retry">;
+  meOnboarding: PathOf<"me.onboarding">;
+  checkout: PathOf<"billing.checkout">;
+  billingActivation: PathOf<"billing.activation">;
 };
 
 export const endpoints = {
@@ -66,6 +79,18 @@ export const endpoints = {
   share: "/api/share/{code}",
   meGames: "/api/me/games",
   practiceContext: "/api/practice/context",
+  accounts: "/api/accounts",
+  accountLookup: "/api/accounts/chesscom/lookup",
+  accountLinkChessCom: "/api/accounts/chesscom",
+  lichessStart: "/api/accounts/lichess/start",
+  lichessCallback: "/api/accounts/lichess/callback",
+  accountSync: "/api/accounts/{provider}/sync",
+  account: "/api/accounts/{provider}",
+  importStatus: "/api/import/status",
+  importRetry: "/api/import/{ref}/retry",
+  meOnboarding: "/api/me/onboarding",
+  checkout: "/api/checkout",
+  billingActivation: "/api/billing/activation",
 } as const satisfies EndpointPaths;
 
 /** The registry id behind each entry (endpoints.test.ts). */
@@ -96,4 +121,16 @@ export const ENDPOINT_IDS = {
   share: "share.update",
   meGames: "me.games",
   practiceContext: "practice.context",
+  accounts: "accounts.list",
+  accountLookup: "accounts.chesscom.lookup",
+  accountLinkChessCom: "accounts.chesscom.link",
+  lichessStart: "accounts.lichess.start",
+  lichessCallback: "accounts.lichess.callback",
+  accountSync: "accounts.sync",
+  account: "accounts.update",
+  importStatus: "import.status",
+  importRetry: "import.retry",
+  meOnboarding: "me.onboarding",
+  checkout: "billing.checkout",
+  billingActivation: "billing.activation",
 } as const satisfies Record<keyof typeof endpoints, EndpointId>;

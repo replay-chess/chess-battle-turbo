@@ -72,6 +72,31 @@ k6 run dist/ws-ramp.js -e MANIFEST=../setup/v2-manifest.json --summary-export ..
 `worker-flood` exits 1 when a gate fails and lists why. Locally (Docker stack, fake or native engine):
 `pnpm --filter analysis-worker exec tsx scripts/worker-flood.ts --games 6` with the worker's env file sourced.
 
+## Phase 4: import status, connected accounts, onboarding PATCH (phase-04 plan §9.7, §12.9)
+
+| Scenario | Users | Load | Gates |
+|---|---|---|---|
+| `import-status.js` | members with linked accounts (pool users reset to `connected-both`) | `IMPORT_VUS` (50) poll ACC-7 every 2–3 s with `If-None-Match` | `server_total` p95 < 100 ms (`abortOnFail`), ≥ 95 % 304, 0 errors |
+| `accounts.js` | the same | `ACCOUNTS_VUS` (30) revalidate ACC-1 every 3–5 s | `server_total` p95 < 150 ms (`abortOnFail`), ≥ 90 % 304, 0 errors |
+| `onboarding-patch.js` | users at Plan (`onboarding-plan`), one per VU | `ONB_VUS` (10), one PATCH every 1.2–1.8 s (under the 60 / 60 s limit) | `server_total` p95 < 150 ms (`abortOnFail`), 0 errors |
+
+```sh
+# personas (dev branch or a local Postgres only; scripts/dev/personas.ts refuses anything else)
+cd apps/web && npx tsx scripts/dev/personas.ts --reset 1 --persona connected-both   # also 2; 3–4 with onboarding-plan
+cd ../../perf/k6 && pnpm run build
+k6 run -e WEB_APP_URL=https://<dev url> -e IMPORT_USER_EMAILS=<pool logins> dist/import-status.js \
+  -e RESULT_FILE=../results/p04-import-status-$(git rev-parse --short HEAD).json      # CLERK_SECRET_KEY (sk_test_) in the env
+```
+
+`setup()` mints its warm-up token for the first user itself (`mint`), because setup runs outside any VU (`__VU` = 0).
+The `/api/me` regression stays `me.js` (p95 < 150 ms with the P4 joins).
+
+**Results**
+
+| Date | Run | Result |
+|---|---|---|
+| 2026-11-12 | `p04-import-status-local-05b90fb.json`, `p04-accounts-local-05b90fb.json`, `p04-onboarding-patch-local-05b90fb.json`: local smoke (6 / 6 / 2 VUs, 40 s) against the P4 test build (`next start`) on Docker Postgres 17, k6 0.57 in Docker | import status p95 9.9 ms server, 100 % 304; accounts p95 10.4 ms server, 100 % 304; onboarding PATCH p95 11.5 ms server; 0 errors. **Pass** (smoke only: the dev run with 50 VUs is stage B). |
+
 ## Infrastructure (legacy perf environment)
 
 | Component | URL / Address |

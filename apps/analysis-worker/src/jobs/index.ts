@@ -3,11 +3,15 @@
 import { analyzeGameHandler, type AnalyzeDeps } from "../pipeline/analyze-game";
 import type { LegendCompareStore } from "../pipeline/store";
 import { housekeepingHandler } from "./housekeeping";
+import { importPurgeHandler } from "./import-purge";
+import { importSyncHandler, type ImportDeps } from "./import-sync";
 import { legendCompareHandler } from "./legend-compare";
 import type { HandlerMap } from "./runner";
 
 export interface HandlerDeps extends AnalyzeDeps {
   store: AnalyzeDeps["store"] & LegendCompareStore;
+  /** P4: the provider clients and import settings; without them the worker runs no import kind. */
+  imports?: ImportDeps;
 }
 
 export function defaultHandlers(deps: HandlerDeps): HandlerMap {
@@ -15,6 +19,12 @@ export function defaultHandlers(deps: HandlerDeps): HandlerMap {
     ANALYZE_GAME: analyzeGameHandler(deps),
     LEGEND_COMPARE: legendCompareHandler({ store: deps.store }),
     HOUSEKEEPING: housekeepingHandler(),
+    ...(deps.imports
+      ? {
+          IMPORT_SYNC: importSyncHandler({ ...deps.imports, events: deps.imports.events ?? deps.events }),
+          IMPORT_PURGE: importPurgeHandler({ events: deps.imports.events ?? deps.events }),
+        }
+      : {}),
   };
 }
 

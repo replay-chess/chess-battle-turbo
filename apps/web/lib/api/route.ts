@@ -24,6 +24,8 @@ import { bearerMatchesSecret, isPerfBypassRequest } from "@/lib/auth/secrets";
 import { verifyInternalRequest } from "@/lib/auth/internal";
 import { testHooksEnabled } from "@/lib/env-server";
 import { assertRateLimitSpec } from "@/lib/rate-limit-db";
+import { withLedgerEligibility } from "@/lib/billing/trial-eligibility";
+import { maintenanceError } from "./maintenance";
 import { ApiError, isApiError } from "./api-error";
 import { ETAG_TIERS, CacheHeaderError, isPublicTier, lifetimeViolation, tierHeaders } from "./cache";
 import { getRouteDeps, type RouteDeps, type Viewer } from "./context";
@@ -268,7 +270,9 @@ export function route<const E extends EndpointDef>(
       if (sharedCacheable) response.headers.delete(REQUEST_ID_HEADER);
       if (env.NEXT_PUBLIC_APP_ENV !== "production" && !sharedCacheable) {
         const timing = [...segments, { name: "db", dur: store.dbMs }, { name: "total", dur: total }];
-        response.headers.set("Server-Timing", serverTimingHeader(timing));
+        // A handler's own entry (respondWith headers, e.g. ACC-2's `cache;desc=hit`) is kept in front of the timings.
+        const own = response.headers.get("Server-Timing");
+        response.headers.set("Server-Timing", own ? `${own}, ${serverTimingHeader(timing)}` : serverTimingHeader(timing));
       }
       const logContext = {
         route: spec.id,
@@ -327,6 +331,9 @@ export function route<const E extends EndpointDef>(
             : undefined;
         return finish(apiErrorResponse(fault, requestId, { topLevel }), fault.code);
       }
+      // Step 2b: the maintenance gate (lib/api/maintenance.ts): MAINTENANCE_AFFECTS takes an area down with a 503.
+      const down = maintenanceError(spec, env, deps.clock());
+      if (down) return finish(apiErrorResponse(down, requestId), down.code);
       const now = resolveNow(req.headers, env, deps.clock);
       const rawQuery = rawQueryOf(req);
 
@@ -363,7 +370,14 @@ export function route<const E extends EndpointDef>(
         throw new ApiError("unauthorized");
       }
       if (spec.auth === "member" && viewer && !viewer.entitlement.member && !isPerfBypassRequest(req, env)) {
-        throw memberDenied(deps.memberDenialReason(viewer));
+        // The reason asks the trial ledger while the row says eligible (FIX-2: a ledger hit was told
+        // `trial_available` and sent to the trial offer the checkout then refused). Only on this deny path.
+        const asked = viewer.entitlement.trial.eligible
+          ? await withLedgerEligibility(viewer, deps.trialLedgerProbe, (err) =>
+              deps.log("warn", "route.trial_ledger_probe_failed", { route: spec.id, error: err instanceof Error ? err.name : "unknown" }),
+            )
+          : viewer;
+        throw memberDenied(deps.memberDenialReason(asked));
       }
       if (spec.auth === "admin" && viewerRole !== "admin") throw new ApiError("forbidden");
       if (decision && !decision.allowed) {

@@ -3,6 +3,10 @@
 # Scheduled workflows run from the default branch, so this file is committed to
 # `main` (workflow-only commit) and to `dev`; every job checks out `ref: dev`.
 # Later phases append jobs (P3 arm64 goldens, P4 provider canary, P6 weakness recompute).
+# P4 (phase-04 plan §12.4, §12.5b; WP-H): e2e-full runs the P4 specs against the upstream mock (:4010) with the
+# onboarding and import flags on; provider-canary reads one public Chess.com account and one Lichess user through the
+# chess-import clients in strict mode (never a database; two failures in a row open a `provider-drift` issue);
+# dodo-hosted runs checkout/dodo-hosted.spec.ts (real Dodo TEST-mode hosted checkout, card 4242) against the dev site.
 # P3 (phase-03 plan §12, WP-H): e2e-full runs the analysis worker from source (ENGINE=fake) with the review flags and
 # also the `lapsed-read` project (review-lapsed-read on); devices-full gets a Docker database (the review seed for
 # /r/<code> and the real-route layer); p3-goldens, p3-label-stability and p3-eval-provenance run on the Blacksmith
@@ -65,9 +69,15 @@ jobs:
       NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
       E2E_INCLUDE_QUARANTINED: "1"
       E2E_SLOW: "1"
-      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on,review-v3:on,review-share:on
+      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on,review-v3:on,review-share:on,onboarding-v3:on,import-v3:on
       ANALYSIS_WORKER_URL: http://127.0.0.1:3003
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      # P4: the providers and Dodo's REST API are the upstream mock (:4010, started by playwright.config.ts); the real
+      # Dodo test-mode checkout runs only in the dodo-hosted job below, against the dev site.
+      DODO_API_BASE_URL: http://127.0.0.1:4010/dodo
+      CHESSCOM_API_BASE: http://127.0.0.1:4010/chesscom
+      LICHESS_BASE_URL: http://localhost:4010/lichess
+      LICHESS_CLIENT_ID: replay-chess-dev
       E2E_TEST_TOKEN: ${{ secrets.E2E_TEST_TOKEN }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
@@ -130,6 +140,13 @@ jobs:
           echo "::add-mask::$int"
           echo "SOCKET_TOKEN_SECRET=$tok" >> "$GITHUB_ENV"
           echo "INTERNAL_API_SECRET=$int" >> "$GITHUB_ENV"
+          # P4: the signed onboarding / activation cookies and the trial-ledger pepper, random per run.
+          cookie="$(openssl rand -base64 32)"
+          pepper="$(openssl rand -hex 32)"
+          echo "::add-mask::$cookie"
+          echo "::add-mask::$pepper"
+          echo "SIGNED_COOKIE_SECRET=$cookie" >> "$GITHUB_ENV"
+          echo "HASH_PEPPER=$pepper" >> "$GITHUB_ENV"
       - name: Migrate and seed the Docker database
         # seed:content: the design legends for friend-full and the G-STUDY fixture (as in ci.yml e2e-smoke).
         run: |
@@ -148,6 +165,7 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v rt_password="$RT_PW" -f packages/db/sql/roles.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/socket.p3.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v wk_password="$WK_PW" -f packages/db/scripts/roles/replay_worker.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p4.sql
           echo "E2E_SOCKET_DATABASE_URL=postgresql://replay_realtime:$RT_PW@localhost:5432/replay" >> "$GITHUB_ENV"
           echo "E2E_WORKER_DATABASE_URL=postgresql://replay_worker:$WK_PW@localhost:5432/replay" >> "$GITHUB_ENV"
       - name: Build (test app env, hooks on, sinks on)
@@ -738,4 +756,111 @@ jobs:
           name: p3-eval-provenance
           path: perf/results/p03-eval-provenance-*.json
           retention-days: 30
+          if-no-files-found: ignore
+
+  # ── P4 provider canary and Dodo hosted checkout (phase-04 plan §12.4, §12.5b) ───────────────────────────────────────
+  provider-canary:
+    # Read-only and polite (serial, 1 s apart, a User-Agent with the contact; packages/chess-import/scripts/canary.ts):
+    # the provider schemas in strict mode, every game through the mappers and replayed with chess.js. Never a database.
+    # Repository variables (owner): CANARY_CHESSCOM_USER (the owner's own public account), CANARY_LICHESS_USER,
+    # CANARY_ISSUE_ASSIGNEE (the owner's GitHub login: the drift issue's assignee).
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 15
+    env:
+      UPSTREAM_CONTACT: hello@playchess.tech
+    steps:
+      - uses: actions/checkout@v5
+        with: { ref: "${{ env.REF }}" }
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Canary (Chess.com + Lichess, strict schemas)
+        id: canary
+        env:
+          CHESSCOM_USER: ${{ vars.CANARY_CHESSCOM_USER }}
+          LICHESS_USER: ${{ vars.CANARY_LICHESS_USER }}
+        run: |
+          test -n "$CHESSCOM_USER" && test -n "$LICHESS_USER" || { echo "::error::set the repository variables CANARY_CHESSCOM_USER and CANARY_LICHESS_USER"; exit 1; }
+          pnpm --filter @repo/chess-import canary --chesscom "$CHESSCOM_USER" --lichess "$LICHESS_USER" --report "$RUNNER_TEMP/canary.json"
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: provider-canary
+          path: ${{ runner.temp }}/canary.json
+          retention-days: 30
+          if-no-files-found: ignore
+      - name: Remember the outcome
+        if: always()
+        run: echo '{"failed":${{ steps.canary.outcome == 'failure' }}}' > .canary-history.json
+      - name: Restore the previous outcome
+        if: always()
+        uses: actions/cache/restore@v5
+        with:
+          path: .canary-previous.json
+          key: canary-history-${{ github.run_id }}
+          restore-keys: canary-history-
+      - name: Two failures in a row open a provider-drift issue
+        if: always() && steps.canary.outcome == 'failure'
+        uses: actions/github-script@v8
+        env:
+          # The owner's GitHub login (repository variable, owner action). Not context.repo.owner: that is the
+          # organisation, which GitHub drops as an assignee (packages/chess-import/scripts/lib/drift-issue.cjs).
+          CANARY_ISSUE_ASSIGNEE: ${{ vars.CANARY_ISSUE_ASSIGNEE }}
+        with:
+          script: |
+            const fs = require("fs");
+            const previous = fs.existsSync(".canary-previous.json") ? JSON.parse(fs.readFileSync(".canary-previous.json", "utf8")) : { failed: false };
+            const { fileDriftIssue } = require(`${process.env.GITHUB_WORKSPACE}/packages/chess-import/scripts/lib/drift-issue.cjs`);
+            const out = await fileDriftIssue({ github, context, core, previous, assignee: process.env.CANARY_ISSUE_ASSIGNEE });
+            core.info(`provider-drift: ${JSON.stringify(out)}`);
+      - name: Save the outcome for tomorrow
+        if: always()
+        run: cp .canary-history.json .canary-previous.json
+      - if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: .canary-previous.json
+          key: canary-history-${{ github.run_id }}
+
+  dodo-hosted:
+    # checkout/dodo-hosted.spec.ts (@dodo-hosted, retries 2, quarantinable): a pool persona on the deployed dev site
+    # pays Dodo's TEST-mode hosted checkout with card 4242 4242 4242 4242 and the real webhook activates the trial. The
+    # dev deployment must be in Dodo test mode (DODO_PAYMENTS_ENVIRONMENT=test_mode on replay-chess-dev, never live).
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    concurrency: { group: e2e-dev-shared, cancel-in-progress: false }
+    env:
+      CI: "1"
+      DODO_HOSTED: "1"
+      E2E_BASE_URL: https://replay-chess-dev-replaychess007-1069.vercel.app
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DEV_DATABASE_URL }}
+      HASH_PEPPER: ${{ secrets.DEV_HASH_PEPPER }}
+      E2E_TEST_TOKEN: ${{ secrets.E2E_TEST_TOKEN }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      E2E_USER_A_EMAIL: ${{ secrets.E2E_USER_A_EMAIL }}
+      E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { ref: "${{ env.REF }}" }
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium
+      - run: pnpm --filter @repo/db generate
+      - name: Dodo test-mode hosted checkout on the dev site
+        env:
+          E2E_SKIP_HEALTH: "1"
+        run: pnpm --filter web exec playwright test --project=chromium e2e/specs/checkout/dodo-hosted.spec.ts
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: dodo-hosted-report
+          path: apps/web/playwright-report/
+          retention-days: 14
           if-no-files-found: ignore

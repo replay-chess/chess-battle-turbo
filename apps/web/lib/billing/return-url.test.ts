@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildReturnUrl, isAllowedReturnPath, resolveAppOrigin } from "./return-url";
+import { activationDestination, buildActivationReturnUrl, buildReturnUrl, isAllowedReturnPath, resolveAppOrigin, safeActivationPath } from "./return-url";
 
 const ORIGIN = "https://www.playchess.tech";
 
@@ -98,5 +98,81 @@ describe("Phase 3 return paths", () => {
       `${ORIGIN}/review/cabc?ply=12&checkout=success`,
     );
     assert.equal(isAllowedReturnPath("/r/8kq2xh4m"), false, "public share pages never need a checkout return");
+  });
+});
+
+// ── Phase 4 (plan 7.5.1 step 6, 12.1 "buildActivationReturnUrl per source; open-redirect cases") ────────────────
+describe("buildActivationReturnUrl", () => {
+  const v3 = { onboardingV3: true, plan: "monthly" as const };
+  const legacy = { onboardingV3: false, plan: "yearly" as const };
+
+  it("onboarding with onboarding-v3 on returns to the onboarding activating step", () => {
+    const url = new URL(buildActivationReturnUrl("onboarding", "/games", ORIGIN, v3));
+    assert.equal(url.origin, ORIGIN);
+    assert.equal(url.pathname, "/onboarding/activating");
+    assert.equal(url.searchParams.get("checkout"), "success");
+    assert.equal(url.searchParams.get("plan"), "monthly");
+    assert.equal(url.searchParams.get("redirect_url"), null);
+  });
+
+  it("pricing, paywall and renew return to /checkout/activating with the checked destination", () => {
+    for (const source of ["pricing", "paywall", "renew"] as const) {
+      const url = new URL(buildActivationReturnUrl(source, "/review/cabc?tab=moves", ORIGIN, v3));
+      assert.equal(url.pathname, "/checkout/activating");
+      assert.equal(url.searchParams.get("source"), source);
+      assert.equal(url.searchParams.get("plan"), "monthly");
+      assert.equal(url.searchParams.get("redirect_url"), "/review/cabc?tab=moves");
+    }
+  });
+
+  it("onboarding while the flag is off goes through /checkout/activating back to the legacy page", () => {
+    const url = new URL(buildActivationReturnUrl("onboarding", "/onboarding?plan=yearly", ORIGIN, legacy));
+    assert.equal(url.pathname, "/checkout/activating");
+    assert.equal(url.searchParams.get("redirect_url"), "/onboarding?plan=yearly");
+    const bare = new URL(buildActivationReturnUrl("onboarding", undefined, ORIGIN, legacy));
+    assert.equal(bare.searchParams.get("redirect_url"), "/onboarding");
+  });
+
+  it("never nests an activation URL: a checkoutReturnPath() value is unwrapped to its destination", () => {
+    const url = new URL(buildActivationReturnUrl("paywall", "/checkout/activating?redirect_url=%2Fplay%3Ftc%3Dblitz", ORIGIN, v3));
+    assert.equal(url.pathname, "/checkout/activating");
+    assert.equal(url.searchParams.get("redirect_url"), "/play?tc=blitz");
+  });
+
+  it("drops open-redirect attempts and unlisted paths (no redirect_url)", () => {
+    for (const bad of ["//evil.com", "/\\evil.com", "https://evil.com/play", "/%2F%2Fevil.com", "/playground", "/admin", "/play\u0000x", "play", ""]) {
+      const url = new URL(buildActivationReturnUrl("pricing", bad, ORIGIN, v3));
+      assert.equal(url.origin, ORIGIN, bad);
+      assert.equal(url.searchParams.get("redirect_url"), null, bad);
+    }
+    assert.equal(
+      new URL(buildActivationReturnUrl("paywall", "/checkout/activating?redirect_url=%2F%2Fevil.com", ORIGIN, v3)).searchParams.get("redirect_url"),
+      null,
+    );
+  });
+});
+
+describe("safeActivationPath", () => {
+  it("accepts allow-listed paths at a segment boundary, with the P4 prefixes", () => {
+    for (const ok of ["/games", "/settings/connected", "/checkout/activating", "/home", "/train/x", "/learn", "/play?tc=blitz#x"]) {
+      assert.equal(safeActivationPath(ok), ok, ok);
+    }
+    assert.equal(isAllowedReturnPath("/settings/connected"), true);
+  });
+
+  it("rejects everything else", () => {
+    for (const bad of [null, undefined, "", "games", "//x", "/\\x", "/a/b", "/games%2F..%2Fadmin", "/pricingx", "/api/checkout"]) {
+      assert.equal(safeActivationPath(bad), null, String(bad));
+    }
+  });
+});
+
+describe("activationDestination", () => {
+  it("the checked redirect_url, never /checkout/*, /onboarding until set up, else /games", () => {
+    assert.equal(activationDestination("/review/cabc", true), "/review/cabc");
+    assert.equal(activationDestination("/checkout/activating?redirect_url=%2Fplay", true), "/games");
+    assert.equal(activationDestination("//evil.com", true), "/games");
+    assert.equal(activationDestination(undefined, true), "/games");
+    assert.equal(activationDestination("/review/cabc", false), "/onboarding");
   });
 });

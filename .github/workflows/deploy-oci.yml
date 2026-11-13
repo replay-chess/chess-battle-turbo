@@ -37,6 +37,7 @@ on:
       - "packages/game-core/**"
       - "packages/contracts/**"
       - "packages/chess-analysis/**"
+      - "packages/chess-import/**"
       - "packages/analytics/**"
       - "deploy/oci/**"
       - ".github/workflows/deploy-oci.yml"

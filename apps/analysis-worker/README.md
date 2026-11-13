@@ -157,6 +157,26 @@ hash a resumed run graded 14–24 % of the plies differently from an uninterrupt
 label stability"). Cost on the M4 (native, 3 games / 293 plies, cache off): 30.5 s → 31.7 s (+4 %). The Pass 1 column
 above predates the change; the dev-VM bench in stage B measures the profile with it.
 
+## Imports: rules settled in the Phase 4 fix round (FIX-1)
+
+The register is `docs/decisions.md` ("Readings settled in the Phase 4 fix round"); the worker follows these:
+
+- **Lichess paging (FX-1).** A non-initial read whose 1,000-game stream comes back full pages on in the same run with
+  `until = oldest createdAt − 1` (same `since`), up to IMPORT_MAX_GAMES for the run: nothing between two syncs is lost,
+  and past the run's newest 2,000 the "newest N" rule of a first import applies (`src/import/reading.ts`).
+- **Lichess correspondence (FX-2).** Every non-initial read ends with one `perfType=correspondence` stream over the
+  import window, so a game still running at a sync is imported once it finishes (the known-game filter drops the rest).
+- **Purge of a shared game (FX-3).** `import_purge_batch()` (migration `20261113000100_m4p_purge_survivors`) keeps the
+  opponent's surviving game with its queued analysis (the job moves to them) and deletes the departing member's share
+  links and legend comparisons of it.
+- **Parked imports (FIX-1).** The boot batch (unless IMPORT_PAUSED) and the daily HOUSEKEEPING sweep release runs parked
+  WAITING_FOR_MEMBERSHIP for users who are members now (`releaseParkedImportsStatement`, the web fan-out's backstop).
+- **First review telemetry (FX-6).** The analysis of an INITIAL run's newest game records `import.review_ready_ms`
+  (commit − run `startedAt`) and the PostHog event `review_ready_after_import` (`src/pipeline/final-batch/p04-import.ts`).
+- **Tests never call the providers.** With APP_ENV=test an unset CHESSCOM_API_BASE / LICHESS_BASE_URL is a closed
+  loopback port; the P3 full-worker int tests boot with IMPORT_PAUSED=on; `ImportWorld.close()` turns its accounts'
+  auto-import off. Sentry events, spans and breadcrumbs drop provider usernames (`workerSentryRedaction`).
+
 ## Runbook (dev box: `ssh -i ~/.ssh/oci_deploy deploy@<dev ip>`, then `cd /opt/replay-chess`)
 
 Read-only checks first. The SQL below runs as the branch owner on the Neon **dev** branch (`DIRECT_URL` of

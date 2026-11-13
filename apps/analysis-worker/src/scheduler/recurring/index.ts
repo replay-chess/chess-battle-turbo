@@ -2,6 +2,7 @@
 // last and asks every slice with a `plan()` for its timed rows. Later phases add one file and one line here.
 import { evalcacheTrim } from "./evalcache-trim";
 import { housekeepingPlan } from "./housekeeping-plan";
+import { importBackstop } from "./import-backstop";
 import { pruneJobs } from "./prune-jobs";
 import { pruneRateLimits } from "./prune-rate-limits";
 import { pruneShares } from "./prune-shares";
@@ -14,6 +15,7 @@ export const RECURRING_SLICES: readonly RecurringSlice[] = [
   pruneRateLimits,
   evalcacheTrim,
   regradeSweep(),
+  importBackstop,
   housekeepingPlan,
 ];
 

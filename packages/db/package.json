@@ -10,6 +10,8 @@
     "./games": "./src/games/index.ts",
     "./json": "./src/json/index.ts",
     "./jobs": "./src/jobs.ts",
+    "./import-backlog": "./src/import-backlog.ts",
+    "./audit": "./src/audit.ts",
     "./seed-guards": "./prisma/seed-guards.ts",
     "./seed/*": "./seed/*.ts",
     "./runtime/library": {
@@ -48,6 +50,8 @@
   },
   "devDependencies": {
     "@repo/chess-analysis": "workspace:*",
+    "@repo/chess-fixtures": "workspace:*",
+    "@repo/chess-import": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "22.15.3",
     "prisma": "6.17.1",

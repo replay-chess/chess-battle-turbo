@@ -18,9 +18,33 @@ export interface TrialRecord {
   subscriptionId: string | null;
 }
 
-/** True when the next checkout should include the free trial. */
-export function isTrialEligible(record: TrialRecord): boolean {
-  return !record.trialStartedAt && !record.subscriptionId;
+/**
+ * True when the next checkout should include the free trial: the row never started a trial nor held a subscription
+ * (Phase 0 rule) AND, when the caller asked the trial ledger (phase-04 plan 8.4.3), the ledger has no row for this
+ * person's email or verified handles. `ledgerHit` defaults to false for callers that read only the row (the viewer's
+ * `trial.eligible`); the checkout always asks the ledger before it offers a trial (decideTrial).
+ */
+export function isTrialEligible(record: TrialRecord, options: { ledgerHit?: boolean } = {}): boolean {
+  return !record.trialStartedAt && !record.subscriptionId && !options.ledgerHit;
+}
+
+export type TrialDecision =
+  | { trial: true; ledger: "miss" }
+  | { trial: false; reason: "row" }
+  | { trial: false; reason: "ledger"; kind: "email" | "handle" };
+
+/**
+ * The checkout's trial decision (plan 7.5.1 step 5, 8.4). The ledger is asked only when the row says eligible, so
+ * returning members pay no extra statement. `probe` is the ledger check (trial-ledger.ts checkTrialLedger).
+ */
+export async function decideTrial(
+  record: TrialRecord,
+  probe: () => Promise<{ hit: boolean; kind: "email" | "handle" | null }>,
+): Promise<TrialDecision> {
+  if (!isTrialEligible(record)) return { trial: false, reason: "row" };
+  const ledger = await probe();
+  if (ledger.hit && ledger.kind) return { trial: false, reason: "ledger", kind: ledger.kind };
+  return { trial: true, ledger: "miss" };
 }
 
 /** True while the user is inside their trial window. */
@@ -59,7 +83,17 @@ export interface TrialSnapshot {
   trial_period_days?: number | null;
   created_at?: string | Date;
   next_billing_date: string | Date;
+  /** The Dodo status; a subscription that never started (`failed`, `pending`) never records a trial. */
+  status?: string;
 }
+
+/**
+ * Dodo statuses of a subscription that never started: the first charge or the trial's card check failed (`failed`),
+ * or the mandate is still being set up (`pending`). Such a subscription used nothing: it records no trial and is not
+ * held on the users row (shouldApplySnapshot), so the retry the decline screens promise still gets the free trial
+ * (FIX-2, review round 2: a declined trial checkout burned the trial and the retry was charged at once).
+ */
+export const NEVER_STARTED_STATUSES: ReadonlySet<string> = new Set(["failed", "pending"]);
 
 function toDate(value: string | Date | undefined | null): Date | null {
   if (!value) return null;
@@ -78,6 +112,7 @@ export function trialFieldsFromSnapshot(
   snapshot: TrialSnapshot,
 ): { trialStartedAt: Date; trialEndsAt: Date } | null {
   if (current.trialStartedAt) return null;
+  if (snapshot.status !== undefined && NEVER_STARTED_STATUSES.has(snapshot.status)) return null;
   const days = snapshot.trial_period_days ?? 0;
   if (days <= 0) return null;
   const start = toDate(snapshot.created_at) ?? new Date();

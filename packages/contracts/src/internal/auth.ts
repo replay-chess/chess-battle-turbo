@@ -279,8 +279,18 @@ export function kidMayEmit(kid: string, event: string, policy = INTERNAL_POLICY)
 }
 
 // ── The analysis worker as a receiver (phase-03 plan §7.5, §8.17, §11.1) ────────────────────────────────────────
+/** P4 (phase-04 §7.7.3, D4-23): the web's Chess.com lookup fallback through the worker's provider gate. */
+export const WORKER_PROVIDER_LOOKUP_PATH = "/internal/provider/chesscom/lookup";
+/** P4 (phase-04 §7.7.4): the provider fault table (test hook; the worker refuses it unless IMPORT_FAULTS_ALLOWED). */
+export const WORKER_DEV_FAULT_PATH = "/internal/dev/fault";
+
 /** The worker's signed paths. `/health` and `/ready` are unsigned and reachable on the docker network only. */
-export const WORKER_INTERNAL_PATHS = ["/internal/analysis/kick", "/internal/metrics"] as const;
+export const WORKER_INTERNAL_PATHS = [
+  "/internal/analysis/kick",
+  "/internal/metrics",
+  WORKER_PROVIDER_LOOKUP_PATH,
+  WORKER_DEV_FAULT_PATH,
+] as const;
 export type WorkerInternalPath = (typeof WORKER_INTERNAL_PATHS)[number];
 
 /**
@@ -289,14 +299,17 @@ export type WorkerInternalPath = (typeof WORKER_INTERNAL_PATHS)[number];
  * deploy smoke inside the worker container (§12.8: a signed kick on localhost, then a metrics read). `wk` never calls
  * itself, and `web` / `ops` never reach the worker (see INTERNAL_KIDS). The worker accepts nothing but HMAC (no static
  * token, P3-D21).
+ *
+ * P4: the web (`webwk`) also calls the Chess.com lookup fallback (D4-23) and the dev fault route (the
+ * `/api/dev/import-fault` test hook); ops (`opswk`) may call the lookup for the post-deploy smoke, never the faults.
  */
 export const WORKER_POLICY: Readonly<Record<InternalKid, readonly WorkerInternalPath[]>> = {
   web: [],
   ws: ["/internal/analysis/kick"],
   ops: [],
   wk: [],
-  webwk: ["/internal/analysis/kick", "/internal/metrics"],
-  opswk: ["/internal/analysis/kick", "/internal/metrics"],
+  webwk: ["/internal/analysis/kick", "/internal/metrics", WORKER_PROVIDER_LOOKUP_PATH, WORKER_DEV_FAULT_PATH],
+  opswk: ["/internal/analysis/kick", "/internal/metrics", WORKER_PROVIDER_LOOKUP_PATH],
 };
 
 /** The kids a worker's key ring must hold to serve WORKER_POLICY (its own `wk` key signs its emits). */

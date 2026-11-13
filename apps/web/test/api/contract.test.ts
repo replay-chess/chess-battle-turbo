@@ -89,7 +89,28 @@ const HAPPY_PATH_ELSEWHERE: Record<string, string> = {
   "share.revoke": "test/api/share.contract.int.test.ts",
   "me.games": "test/api/archive.contract.int.test.ts",
   "practice.context": "test/api/archive.contract.int.test.ts",
+  // P4 billing (phase-04 plan §12.3): the checkout needs a body + Idempotency-Key, Dodo and the users row.
+  "billing.checkout": "test/api/billing.contract.int.test.ts",
+  // P4 accounts and import (phase-04 plan §12.3): real SQL on Docker Postgres, behind the `import-v3` flag.
+  "accounts.list": "test/api/accounts.contract.int.test.ts",
+  "accounts.chesscom.lookup": "test/api/accounts.contract.int.test.ts",
+  "accounts.chesscom.link": "test/api/accounts.contract.int.test.ts",
+  "accounts.lichess.start": "test/api/accounts.contract.int.test.ts",
+  "accounts.lichess.callback": "test/api/accounts.contract.int.test.ts",
+  "accounts.sync": "test/api/accounts.contract.int.test.ts",
+  "accounts.update": "test/api/accounts.contract.int.test.ts",
+  "accounts.unlink": "test/api/accounts.contract.int.test.ts",
+  "import.status": "test/api/accounts.contract.int.test.ts",
+  "import.retry": "test/api/accounts.contract.int.test.ts",
+  // P4 onboarding (phase-04 plan §12.3): real SQL on Docker Postgres.
+  "me.onboarding": "test/api/onboarding.contract.int.test.ts",
 };
+
+/**
+ * Browser navigations whose rate limit answers a 302 instead of a JSON 429 (phase-04 §7.3.4: the Lichess OAuth start
+ * redirects to `returnTo?lichess=error&reason=rate_limited`); asserted in test/api/accounts.contract.int.test.ts.
+ */
+const RATE_LIMIT_AS_REDIRECT: ReadonlySet<string> = new Set(["accounts.lichess.start"]);
 
 /** Requests that make a route's rate limit apply (rateLimitWhen). */
 const RATE_LIMIT_PROBE: Record<string, string> = { "health.get": "?deep=1" };
@@ -251,7 +272,7 @@ describe("contract: body, rate limit, responses", () => {
 
   it("429 carries Retry-After equal to retryAfterSec on every rate-limited endpoint", async () => {
     for (const entry of loaded.values()) {
-      if (!rateLimitsOf(entry.def).length) continue;
+      if (!rateLimitsOf(entry.def).length || RATE_LIMIT_AS_REDIRECT.has(entry.def.id)) continue;
       const t = installTestDeps({
         env: ENV,
         userId: "user_1",

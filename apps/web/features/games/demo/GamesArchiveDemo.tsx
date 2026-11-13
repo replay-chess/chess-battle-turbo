@@ -3,16 +3,23 @@
 // `/dev/ui/games` (plan §4.10): the real archive screen on fixtures, with no server. The URL is not touched; filters,
 // search and selection are local state, filtering runs in memory with the G1 rules, and paging is simulated (the next
 // 30 rows after 400 ms), so every design state and every interaction is reachable for the device × zoom suite.
+// `import_running` (P4, phase-04 plan §4.11): the rows carry Chess.com and Lichess sources, the source tabs filter
+// them in memory, and the banner shows the board's "IMPORTING 212 / 480 · Chess.com".
 import { useState } from "react";
 import { GamesArchiveView } from "../components/GamesArchiveView";
-import { withSearch, type GamesFilter } from "../model/filter";
+import { withSearch, withSource, type GamesFilter } from "../model/filter";
 import type { GameRowDTO } from "../model/rows";
-import { demoPage, demoRows, type DemoState } from "./fixtures";
+import { sourceTabs, type ImportBannerModel } from "../model/sources";
+import { demoPage, demoRows, demoSourceCounts, withImportedSources, type DemoState } from "./fixtures";
+
+/** The board's banner (DR/V3GamesArchive `import_running`). */
+export const DEMO_IMPORT_BANNER: ImportBannerModel = { label: "IMPORTING 212 / 480", value: 212, max: 480, provider: "Chess.com" };
 
 export const DEMO_NEXT_PAGE_MS = 400;
 
 export function GamesArchiveDemo({ state, stress, nextError }: { state: DemoState; stress: boolean; nextError: boolean }) {
-  const [all] = useState(() => (state === "empty" ? [] : demoRows(stress)));
+  const importing = state === "import_running";
+  const [all] = useState(() => (state === "empty" ? [] : importing ? withImportedSources(demoRows(stress)) : demoRows(stress)));
   const [filter, setFilter] = useState<GamesFilter>({});
   const [text, setText] = useState("");
   const [pages, setPages] = useState(1);
@@ -25,6 +32,7 @@ export function GamesArchiveDemo({ state, stress, nextError }: { state: DemoStat
   );
 
   const page = demoPage(all, filter, pages);
+  const tabs = sourceTabs({ enabled: importing, all: all.length, counts: demoSourceCounts(all), linked: ["chesscom", "lichess"], current: filter.source });
   const draftCount = draft ? demoPage(all, draft, 1).total : null;
 
   const apply = (next: GamesFilter) => {
@@ -86,6 +94,11 @@ export function GamesArchiveDemo({ state, stress, nextError }: { state: DemoStat
       compareHref={(ref) => `#opened-compare-${ref}`}
       playHref="#play"
       defaultFiltersOpen={state === "filters_open"}
+      sourceTabs={tabs}
+      onPickSource={(source) => apply(withSource(filter, source))}
+      importBanner={importing ? DEMO_IMPORT_BANNER : null}
+      importHref={importing ? "#connected" : null}
+      linkedProviders={importing ? ["chesscom", "lichess"] : []}
     />
   );
 }

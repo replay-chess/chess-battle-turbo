@@ -9,7 +9,11 @@
 // Adding a phase's events: create src/events/<area>.ts, spread it into EVENTS
 // below, and add its test beside it.
 import { z } from "zod";
+import { accountsClientEvents, accountsEvents, accountsServerEvents } from "./events/accounts";
+import { billingClientEvents, billingEvents, billingServerEvents } from "./events/billing";
 import { gameClientEvents, gameEvents, gameServerEvents, gameSocketEvents } from "./events/game";
+import { importEvents, importServerEvents } from "./events/import";
+import { onboardingClientEvents, onboardingEvents, onboardingServerEvents } from "./events/onboarding";
 import { reviewClientEvents, reviewEvents, reviewServerEvents } from "./events/review";
 import { shellEvents } from "./events/shell";
 import { systemClientEvents, systemEvents, systemServerEvents } from "./events/system";
@@ -18,9 +22,22 @@ export { shellEvents, DESTINATION_KEYS, NAV_SURFACES, ACCOUNT_ACTIONS } from "./
 export { systemEvents, systemClientEvents, systemServerEvents } from "./events/system";
 export { gameEvents, gameClientEvents, gameServerEvents, gameSocketEvents, GAME_OVER_CTAS, END_METHODS, GAME_PHASES } from "./events/game";
 export { reviewEvents, reviewClientEvents, reviewServerEvents, bucket10, countBucketOf, COUNT_BUCKETS } from "./events/review";
+export { billingEvents, billingClientEvents, billingServerEvents, CHECKOUT_EVENT_SOURCES, checkoutStatusParam } from "./events/billing";
+export { onboardingEvents, onboardingClientEvents, onboardingServerEvents } from "./events/onboarding";
+export { accountsEvents, accountsClientEvents, accountsServerEvents, CONNECTED_BOARD_STATES } from "./events/accounts";
+export { importEvents, importServerEvents, IMPORT_EVENT_CODES, IMPORT_EVENT_PROVIDERS, IMPORT_EVENT_TRIGGERS } from "./events/import";
 export { FORBIDDEN_PROPERTY_NAMES, PII_PATTERNS, findPii, type PiiFinding } from "./pii";
 
-export const EVENTS = { ...shellEvents, ...systemEvents, ...gameEvents, ...reviewEvents } as const;
+export const EVENTS = {
+  ...shellEvents,
+  ...systemEvents,
+  ...gameEvents,
+  ...reviewEvents,
+  ...billingEvents,
+  ...onboardingEvents,
+  ...accountsEvents,
+  ...importEvents,
+} as const;
 
 export type Events = typeof EVENTS;
 export type EventName = keyof Events;
@@ -33,6 +50,13 @@ export type GameServerEventName = keyof typeof gameServerEvents;
 export type GameSocketEventName = keyof typeof gameSocketEvents;
 export type ReviewClientEventName = keyof typeof reviewClientEvents;
 export type ReviewServerEventName = keyof typeof reviewServerEvents;
+export type BillingClientEventName = keyof typeof billingClientEvents;
+export type BillingServerEventName = keyof typeof billingServerEvents;
+export type OnboardingClientEventName = keyof typeof onboardingClientEvents;
+export type OnboardingServerEventName = keyof typeof onboardingServerEvents;
+export type AccountsClientEventName = keyof typeof accountsClientEvents;
+export type AccountsServerEventName = keyof typeof accountsServerEvents;
+export type ImportServerEventName = keyof typeof importServerEvents;
 
 /** Super properties PostHog adds to every event (set from NEXT_PUBLIC_APP_ENV). */
 export const COMMON_PROPERTIES = z

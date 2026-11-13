@@ -5,11 +5,25 @@
 // so the keyset is a real index condition rather than an `$x IS NULL OR …` filter.
 //
 // The counts (page 1 and limit=0 only, AP-38) run as a second statement over the same index prefix, in parallel.
+//
+// P4 (phase-04 plan §4.11): the source tab (`?source=replay|chesscom|lichess`) is one more condition on the player row
+// (`game_players.source`, written by the import batch writer), and the counts statement adds the three per-source
+// counts in the same pass.
 import type { GameResultFilter, GameTcFilter, GamesFilter } from "@repo/contracts/http/games";
+import type { GameSourceWire } from "@repo/contracts/http/review";
 import { Prisma } from "@repo/db";
 import { effectiveAnalysisStatusSql } from "./status-sql";
 
 export type ArchiveCursor = { endedAt: string; gameId: string };
+
+/** G1's filter plus the P4 source tab (absent = All). */
+export type ArchiveFilter = GamesFilter & { source?: GameSourceWire };
+
+const SOURCE_ENUM: Record<GameSourceWire, "REPLAY" | "CHESSCOM" | "LICHESS"> = {
+  replay: "REPLAY",
+  chesscom: "CHESSCOM",
+  lichess: "LICHESS",
+};
 
 const RESULT_ENUM: Record<GameResultFilter, "WIN" | "LOSS" | "DRAW"> = { win: "WIN", loss: "LOSS", draw: "DRAW" };
 const TC_ENUM: Record<GameTcFilter, "BULLET" | "BLITZ" | "RAPID" | "CLASSICAL"> = {
@@ -28,8 +42,9 @@ export function likePattern(q: string): string {
 }
 
 /** The filter conditions (AND-ed); empty when the filter is empty. */
-export function filterConditions(filter: GamesFilter): Prisma.Sql[] {
+export function filterConditions(filter: ArchiveFilter): Prisma.Sql[] {
   const out: Prisma.Sql[] = [];
+  if (filter.source) out.push(Prisma.sql`gp.source = ${SOURCE_ENUM[filter.source]}::"GameSource"`);
   if (filter.result?.length) {
     const values = filter.result.map((r) => RESULT_ENUM[r]);
     out.push(Prisma.sql`gp.result = ANY(${values}::"PlayerResult"[])`);
@@ -51,7 +66,7 @@ export function filterConditions(filter: GamesFilter): Prisma.Sql[] {
 const and = (parts: Prisma.Sql[]) => (parts.length ? Prisma.sql`AND ${Prisma.join(parts, " AND ")}` : Prisma.empty);
 
 /** One archive page: `limit + 1` rows (the extra row only says whether there is a next page). */
-export function archivePageSql(userId: bigint, filter: GamesFilter, cursor: ArchiveCursor | null, limit: number): Prisma.Sql {
+export function archivePageSql(userId: bigint, filter: ArchiveFilter, cursor: ArchiveCursor | null, limit: number): Prisma.Sql {
   const keyset = cursor
     ? Prisma.sql`AND (gp."endedAt", gp."gameId") < (${cursor.endedAt}::timestamptz AT TIME ZONE 'UTC', ${cursor.gameId}::bigint)`
     : Prisma.empty;
@@ -72,14 +87,20 @@ SELECT gp."gameId", g."referenceId" AS ref, gp.color, gp.result::text AS result,
  LIMIT ${limit + 1}`;
 }
 
-/** `filteredTotal` (the filter) and `all` (every finished game) in one pass over the user's index prefix. */
-export function archiveCountsSql(userId: bigint, filter: GamesFilter): Prisma.Sql {
+/**
+ * `filteredTotal` (the filter, source tab included), `all` (every finished game) and the per-source tab counts
+ * (P4) in one pass over the user's index prefix.
+ */
+export function archiveCountsSql(userId: bigint, filter: ArchiveFilter): Prisma.Sql {
   const conditions = filterConditions(filter);
   const filtered = conditions.length
     ? Prisma.sql`count(*) FILTER (WHERE ${Prisma.join(conditions, " AND ")})`
     : Prisma.sql`count(*)`;
   return Prisma.sql`
-SELECT (${filtered})::int AS "filteredTotal", count(*)::int AS "all"
+SELECT (${filtered})::int AS "filteredTotal", count(*)::int AS "all",
+       (count(*) FILTER (WHERE gp.source = 'REPLAY'::"GameSource"))::int AS replay,
+       (count(*) FILTER (WHERE gp.source = 'CHESSCOM'::"GameSource"))::int AS chesscom,
+       (count(*) FILTER (WHERE gp.source = 'LICHESS'::"GameSource"))::int AS lichess
   FROM game_players gp
   JOIN games g ON g.id = gp."gameId"
  WHERE gp."userId" = ${userId} AND ${FINISHED}`;
@@ -112,4 +133,5 @@ export type ArchiveRow = {
   hasComparison: boolean;
 };
 
-export type ArchiveCountsRow = { filteredTotal: number; all: number };
+/** The per-source columns arrive from the P4 statement; a row without them (an older fake) counts as Replay only. */
+export type ArchiveCountsRow = { filteredTotal: number; all: number; replay?: number; chesscom?: number; lichess?: number };

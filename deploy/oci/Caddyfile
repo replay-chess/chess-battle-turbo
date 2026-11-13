@@ -10,8 +10,9 @@
 	request_body @internal {
 		max_size 64KB
 	}
-	# The worker's kick body is ≤ 1 KB (phase-03 plan §7.5): 4 KB is the edge limit.
-	@worker path /internal/analysis/*
+	# The worker's kick body is ≤ 1 KB (phase-03 plan §7.5), as are the P4 lookup and dev-fault bodies (phase-04 plan
+	# §7.7.3): 4 KB is the edge limit.
+	@worker path /internal/analysis/* /internal/provider/* /internal/dev/*
 	request_body @worker {
 		max_size 4KB
 	}
@@ -41,13 +42,26 @@
 		# This one file serves both boxes: the worker routes exist only where the stack runs the `worker` profile
 		# (COMPOSE_PROFILES, substituted when Caddy loads this file). Elsewhere (production, no worker) they answer 404,
 		# never a 502 from an upstream that is not there (FIX-2).
+		#
+		# P4 (phase-04 plan §7.7.3): the web's signed Chess.com lookup fallback (/internal/provider/*) goes to the worker
+		# wherever the worker runs (the dev box now; production once P13 gives it a worker, with no edit here). The
+		# provider fault table (/internal/dev/*, a test hook) is proxied only on the dev box (APP_ENV=dev in the stack's
+		# .env): anywhere else it is a 404 at the edge, and the worker itself refuses to boot with the fault switch in
+		# production.
 		@toWorker {
-			path /internal/analysis/* /internal/metrics
+			path /internal/analysis/* /internal/metrics /internal/provider/*
 			expression `'{$COMPOSE_PROFILES:none}' == 'worker'`
 		}
 		reverse_proxy @toWorker analysis-worker:3003
+		@toWorkerDev {
+			path /internal/dev/*
+			expression `'{$COMPOSE_PROFILES:none}' == 'worker' && '{$APP_ENV:none}' == 'dev'`
+		}
+		reverse_proxy @toWorkerDev analysis-worker:3003
 		respond /internal/analysis/* 404
 		respond /internal/metrics 404
+		respond /internal/provider/* 404
+		respond /internal/dev/* 404
 
 		reverse_proxy websocket:3002
 	}

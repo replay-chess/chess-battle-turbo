@@ -243,6 +243,8 @@ describe("HOUSEKEEPING job", () => {
       "prune-buckets",
       "prune-windows",
       "outdated",
+      "import-backstop",
+      "import-release",
       "done",
     ]);
     const ids = h.queue.jobs.map((j) => j.id);

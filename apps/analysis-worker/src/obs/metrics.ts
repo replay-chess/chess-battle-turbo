@@ -1,8 +1,13 @@
 // In-memory gauges and counters (phase-03 plan §10.2): served by `GET /internal/metrics` as WorkerMetricsResponse,
 // with no database query. The queue gauges are what the last drain saw (`queueSeenAt`), because an idle worker
 // never queries Neon.
+//
+// P4 (phase-04 plan §10.2): the import series (import/metrics.ts) ride along as `imports`, validated by their own
+// schema. The contract's WorkerMetricsResponse does not declare them, so a reader that parses with it (the web's
+// daily cron) simply drops them; the ops report reads them as they are.
 import { PRIORITY_BANDS, type JobKind, type PriorityBand } from "@repo/contracts/internal/jobs";
 import { WorkerMetricsResponse } from "@repo/contracts/internal/kick";
+import { ImportMetrics, ImportMetricsSnapshot } from "../import/metrics";
 
 const DURATION_WINDOW = 100;
 const FAIL_CODE = /^[a-z_]{1,32}$/;
@@ -27,6 +32,9 @@ function median(values: readonly number[]): number {
 
 const iso = (ms: number | null): string | null => (ms === null ? null : new Date(ms).toISOString());
 
+/** What `GET /internal/metrics` serves: the P3 contract plus the P4 import series. */
+export type WorkerMetricsBody = WorkerMetricsResponse & { imports: ImportMetricsSnapshot };
+
 export class Metrics {
   readonly bootAtMs: number;
   private readonly done = new Map<JobKind, number>();
@@ -43,6 +51,8 @@ export class Metrics {
   dbStatements = 0;
   dbRetries = 0;
   lagPauseMs = 0;
+  /** P4: the import series (§10.2). */
+  readonly imports = new ImportMetrics();
 
   constructor(
     readonly identity: { workerId: string; bootId: string; version: string; profile: string },
@@ -76,7 +86,7 @@ export class Metrics {
     return this.queue;
   }
 
-  snapshot(nowMs: number, scheduler: SchedulerView): WorkerMetricsResponse {
+  snapshot(nowMs: number, scheduler: SchedulerView): WorkerMetricsBody {
     const zero = () => Object.fromEntries(PRIORITY_BANDS.map((b) => [b, 0])) as Record<PriorityBand, number>;
     const body: WorkerMetricsResponse = {
       v: 1,
@@ -106,6 +116,6 @@ export class Metrics {
       emits: Object.fromEntries(this.emits),
     };
     // A shape drift is a bug in this file: fail loudly in tests rather than serve a body the cron cannot read.
-    return WorkerMetricsResponse.parse(body);
+    return { ...WorkerMetricsResponse.parse(body), imports: ImportMetricsSnapshot.parse(this.imports.snapshot()) };
   }
 }

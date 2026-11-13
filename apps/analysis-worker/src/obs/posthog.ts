@@ -1,22 +1,26 @@
 // The worker's PostHog events (phase-03 plan §10, §10.1): `analysis_started`, `analysis_ready`, `analysis_failed`
-// and `analysis_retry_succeeded`, sent with posthog-node to the HTTP `/batch` endpoint, batched every 5 s.
+// and `analysis_retry_succeeded`; phase-04 plan 10.1 adds the import events (`import_started`, `import_finished`,
+// `import_failed`, `import_rate_limited`, `import_backlog_released`, `account_purge_completed`). Sent with posthog-node to the HTTP `/batch` endpoint, batched every 5 s.
 // `distinct_id` = the member's `User.referenceId` (ARCH X14); every event carries `app_env`.
 //
-// Every event is checked against the registry (`@repo/analytics` reviewServerEvents, strict schemas) before it is
+// Every event is checked against the registry (`@repo/analytics` reviewServerEvents / importServerEvents, strict schemas) before it is
 // queued: an event that would fail the e2e telemetry fixture is dropped and logged here instead, and the PII guard
 // (`findPii`) refuses FEN/PGN/SAN shapes. Unset POSTHOG_PROJECT_KEY (local runs, tests) → nothing is sent.
-import { findPii, parseEvent, type ReviewServerEventName } from "@repo/analytics";
+import { findPii, parseEvent, type ImportServerEventName, type ReviewServerEventName } from "@repo/analytics";
 import type { z } from "zod";
-import type { reviewServerEvents } from "@repo/analytics";
+import type { importServerEvents, reviewServerEvents } from "@repo/analytics";
 import { PostHog } from "posthog-node";
 import type { AppEnvName } from "../config/env";
 import type { Logger } from "./log";
 
-export type WorkerEventName = Extract<
+type WorkerReviewEventName = Extract<
   ReviewServerEventName,
   "analysis_started" | "analysis_ready" | "analysis_failed" | "analysis_retry_succeeded"
 >;
-export type WorkerEventProps<N extends WorkerEventName> = z.input<(typeof reviewServerEvents)[N]>;
+/** P3's analysis events and P4's import events (phase-04 plan 10.1, `importServerEvents`). */
+export type WorkerEventName = WorkerReviewEventName | ImportServerEventName;
+type WorkerEventSchemas = Pick<typeof reviewServerEvents, WorkerReviewEventName> & typeof importServerEvents;
+export type WorkerEventProps<N extends WorkerEventName> = z.input<WorkerEventSchemas[N]>;
 
 export interface ProductEvents {
   capture<N extends WorkerEventName>(event: N, distinctId: string, props: WorkerEventProps<N>): void;

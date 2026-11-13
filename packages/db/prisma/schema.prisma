@@ -69,6 +69,38 @@ model User {
   legendComparisons    LegendComparison[]
   shares               Share[]
 
+  // ── M4 (Phase 4): onboarding v3, the time zone and the billing columns P4 writes (phase-04 plan 6.1, 6.2).
+  /// Monotonic: the onboarding PATCH never moves it backwards (`onboarded` stays and is written with onboardedAt)
+  onboardingStep           OnboardingStep   @default(WELCOME)
+  onboardedAt              DateTime?
+  ratingBand               RatingBand?
+  /// "chesscom:rapid" | "lichess:blitz" | "self"
+  ratingBandSource         String?          @db.VarChar(24)
+  initialRating            Int?             @db.SmallInt
+  goals                    OnboardingGoal[] @default([])
+  /// 5 | 10 | 20
+  dailyMinutes             Int?             @db.SmallInt
+  signupSource             String?          @db.VarChar(200)
+  /// IANA zone (R-03): first reader the trial-end label, first writer the onboarding PATCH; the daily-sync hour
+  timeZone                 String           @default("UTC") @db.VarChar(64)
+  /// The trial was offered in a checkout (claims the one trial before the provider confirms it)
+  trialOfferedAt           DateTime?
+  pendingCheckoutSessionId String?          @db.VarChar(80)
+  /// "monthly" | "yearly"
+  pendingCheckoutPlan      String?          @db.VarChar(16)
+  pendingCheckoutAt        DateTime?
+  /// The open Dodo page of pendingCheckoutSessionId: a second checkout for the same plan within 30 min reuses it (BIL-1)
+  pendingCheckoutUrl       String?          @db.VarChar(512)
+  /// "pricing" | "onboarding" | "paywall" | "renew"
+  lastCheckoutSource       String?          @db.VarChar(16)
+  /// entitled → not entitled (the provider's event time)
+  membershipEndedAt        DateTime?
+  lastPaymentFailedAt      DateTime?
+  /// provider failure code, never a message with PII
+  lastPaymentFailureReason String?          @db.VarChar(120)
+  linkedAccounts           LinkedAccount[]
+  importRuns               ImportRun[]
+
   @@index([googleId])
   @@index([email])
   @@index([code])
@@ -513,6 +545,11 @@ model GamePlayer {
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// M3 (P3). The review of this member side (1:1 through the unique (gameId, color)).
   review         PlayerReview?
+  // ── M4 (Phase 4, R-01): the account that imported this row. SET NULL on unlink, so the purge works by
+  // (userId, source). The FK is created NOT VALID in M4 and validated in m4v; the partial index
+  // game_players_linked_account_idx (raw SQL, protected) serves the SET NULL action.
+  linkedAccountId BigInt?
+  linkedAccount   LinkedAccount? @relation(fields: [linkedAccountId], references: [id], onDelete: SetNull)
 
   @@id([gameId, userId])
   @@unique([gameId, color])
@@ -944,4 +981,235 @@ model RateLimitWindow {
   resetAt DateTime
 
   @@map("rate_limit_windows")
+}
+
+// ══ M4 (Phase 4): game import, connected accounts, onboarding v3, the trial ledger and the audit log ═══════════════
+// (phase-04 plan 6.1-6.5). Every value of every enum below ships in M4 and is first written by P4's own release.
+// The partial indexes (linked_accounts_verified_key, linked_accounts_autosync_idx, import_runs_one_active,
+// import_runs_waiting_idx, game_players_linked_account_idx), the NOT VALID FK, lz4 and fillfactor are raw SQL in the
+// migration; their index names are in prisma/protected-indexes.txt. Role grants: scripts/roles/*.p4.sql.
+// JobKind: no change (IMPORT_SYNC and IMPORT_PURGE are in M3's CREATE TYPE, R-05).
+
+enum ChessProvider {
+  CHESSCOM
+  LICHESS
+}
+
+/// RELINK_REQUIRED is reserved (not written in P4): created now so Chess.com verification (OD-4) needs no ADD VALUE.
+enum LinkStatus {
+  ACTIVE
+  ERROR
+  RELINK_REQUIRED
+}
+
+/// Summary of the account's import, mirrored from the active ImportRun; drives the connected-accounts pills.
+enum ImportState {
+  IDLE
+  WAITING_FOR_MEMBERSHIP
+  QUEUED
+  RUNNING
+  RATE_LIMITED
+  FAILED
+}
+
+enum ImportRunStatus {
+  WAITING_FOR_MEMBERSHIP
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+  CANCELLED
+}
+
+enum ImportTrigger {
+  INITIAL
+  MANUAL
+  DAILY
+  RETRY
+}
+
+enum OnboardingStep {
+  WELCOME
+  LINK
+  CONFIRM
+  LEVEL
+  GOALS
+  PLAN
+  ACTIVATING
+  DONE
+}
+
+enum RatingBand {
+  NEW_TO_CHESS
+  UNDER_800
+  R800_1200
+  R1200_1600
+  R1600_2000
+  R2000_PLUS
+}
+
+enum OnboardingGoal {
+  STOP_BLUNDERING
+  LEARN_OPENINGS
+  IMPROVE_ENDGAMES
+  STUDY_LEGENDS
+  PLAY_FRIENDS
+}
+
+/// data-model 5.1 verbatim (consistency R-04: created in M4, first writer P4)
+enum AuditCategory {
+  ACCOUNT
+  BILLING
+  ADMIN
+  CONTENT
+  TOURNAMENT
+  MODERATION
+  SYSTEM
+}
+
+enum AuditActor {
+  USER
+  ADMIN
+  SYSTEM
+  WORKER
+  WEBHOOK
+}
+
+/// M4 (moved from M1/M12 by R-04). Append-only audit trail. No FK: rows outlive deleted users. Never store an email
+/// or a token in meta (WEB/lib/audit.ts and @repo/db/audit reject them).
+model AuditLog {
+  id          BigInt        @id @default(autoincrement())
+  at          DateTime      @default(now())
+  category    AuditCategory
+  /// dotted verb: "account.linked", "account.unlinked", "billing.duplicate_trial_cancelled", "backfill.linked_accounts"
+  action      String        @db.VarChar(64)
+  actorKind   AuditActor
+  actorUserId BigInt?
+  targetType  String?       @db.VarChar(32)
+  /// referenceId / slug / provider id; never a raw email
+  targetId    String?       @db.VarChar(64)
+  requestId   String?       @db.VarChar(40)
+  meta        Json?
+
+  @@index([category, at(sort: Desc)])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
+
+/// M4. Replaces ChessComProfile (dual-written until contract step C4). Unlinking deletes the row. No token columns:
+/// the Lichess token is revoked inside the OAuth callback (D4-21). fillfactor 85 (raw SQL): counters and sync stamps
+/// are updated in place (HOT).
+model LinkedAccount {
+  id                BigInt        @id @default(autoincrement())
+  userId            BigInt
+  provider          ChessProvider
+  /// Chess.com player_id / Lichess id: stable across renames. Backfilled links hold the handle until the first sync.
+  externalId        String        @db.VarChar(64)
+  username          String        @db.VarChar(40)
+  usernameLower     String        @db.VarChar(40)
+  displayName       String?       @db.VarChar(80)
+  /// Stored, never rendered until the Chess.com terms review clears (D4-26)
+  avatarUrl         String?       @db.VarChar(300)
+  countryCode       String?       @db.Char(2)
+  /// GM, IM, BOT …
+  title             String?       @db.VarChar(4)
+  joinedAt          DateTime?
+  /// RatingsV1 (packages/db/src/json/ratings.ts) {v, bullet?, blitz?, rapid?, daily?, classical?}
+  ratings           Json?
+  /// all-time, from Chess.com stats / Lichess count.rated (D4-08)
+  totalRatedGames   Int?
+  /// Ownership proof. Lichess OAuth sets it at link; Chess.com stays null until verification ships (D4-10).
+  verifiedAt        DateTime?
+  verifyCode        String?       @db.VarChar(16)
+  status            LinkStatus    @default(ACTIVE)
+  importState       ImportState   @default(IDLE)
+  /// Lifetime counters (D4-03). Per-run counters live on ImportRun.
+  importedCount     Int           @default(0)
+  skippedCount      Int           @default(0)
+  autoImport        Boolean       @default(true)
+  nextAutoSyncAt    DateTime?
+  nextAllowedSyncAt DateTime?
+  lastSyncAt        DateTime?
+  lastSyncOkAt      DateTime?
+  /// ImportErrorV1 (packages/db/src/json/import-error.ts) {v, code, message, at, retryAt?, httpStatus?}
+  lastError         Json?
+  linkedAt          DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cursor            ImportCursor?
+  runs              ImportRun[]
+  gamePlayers       GamePlayer[]
+
+  @@unique([userId, provider])
+  @@index([provider, usernameLower])
+  @@map("linked_accounts")
+}
+
+/// M4. Incremental import position, 1:1 with LinkedAccount (kept apart so /api/me stays narrow). `archives` is lz4.
+model ImportCursor {
+  linkedAccountId      BigInt        @id
+  provider             ChessProvider
+  /// Chess.com archives-list validators (R-CC-04)
+  archivesEtag         String?       @db.VarChar(120)
+  archivesLastModified String?       @db.VarChar(40)
+  /// ArchivesV1 (packages/db/src/json/import-cursor.ts) {v, months: {"2026/10": {etag?, lastModified?, done, games, skipped}}}
+  archives             Json?
+  /// Lichess: createdAt (ms) of the newest imported game; the next run uses since = value + 1
+  lichessSinceMs       BigInt?
+  /// Lichess: set while a newest-first run is interrupted; the resume uses until = value − 1 (D4-12)
+  lichessResumeUntilMs BigInt?
+  oldestImportedAt     DateTime?
+  seen                 Int           @default(0)
+  skippedVariants      Int           @default(0)
+  updatedAt            DateTime      @updatedAt
+  linkedAccount        LinkedAccount @relation(fields: [linkedAccountId], references: [id], onDelete: Cascade)
+
+  @@map("import_cursors")
+}
+
+/// M4 (allocation B5). The user-visible progress row; the queue itself is `jobs` (P3). At most one active run per
+/// account (import_runs_one_active, raw SQL); waiting runs are released per user (import_runs_waiting_idx).
+model ImportRun {
+  id              BigInt          @id @default(autoincrement())
+  referenceId     String          @unique @default(cuid())
+  userId          BigInt
+  linkedAccountId BigInt
+  provider        ChessProvider
+  trigger         ImportTrigger
+  status          ImportRunStatus @default(QUEUED)
+  /// "reading" | "saving" (D4-18); null before the run starts
+  phase           String?         @db.VarChar(8)
+  seen            Int             @default(0)
+  /// Games in the window after filters, known at the end of the reading phase
+  total           Int?
+  imported        Int             @default(0)
+  skipped         Int             @default(0)
+  analysisQueued  Int             @default(0) @db.SmallInt
+  /// Games of this run whose analysis finished; bumped by P3's final batch through payload.importRunId (AP-10)
+  analysed        Int             @default(0) @db.SmallInt
+  /// Newest game of this run: the first review on Done / Home (no FK: a purged game leaves a dangling id)
+  firstGameId     BigInt?
+  /// ImportErrorV1
+  error           Json?
+  createdAt       DateTime        @default(now())
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  updatedAt       DateTime        @updatedAt
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedAccount   LinkedAccount   @relation(fields: [linkedAccountId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([linkedAccountId, createdAt(sort: Desc)])
+  @@map("import_runs")
+}
+
+/// M4 (data-model D15, D4-11). One free trial per person, surviving account deletion. No FK, no PII.
+model TrialLedger {
+  /// sha256hex(HASH_PEPPER + "\n" + normalised email); P10's deletion path calls the same trialLedgerEmailHash()
+  emailHash    String   @id @db.Char(64)
+  /// ("v:" verified | "u:" unverified) + sha256hex(HASH_PEPPER + "\n" + provider + ":" + usernameLower)
+  handleHashes String[] @default([])
+  firstTrialAt DateTime @default(now())
+
+  @@map("trial_ledger")
 }

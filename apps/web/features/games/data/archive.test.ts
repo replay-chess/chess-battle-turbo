@@ -11,9 +11,11 @@ import {
   archiveCountsQuery,
   archiveListKey,
   archiveListQuery,
+  fetchArchivePage,
   patchArchivePages,
   readPageMeta,
   rowsOf,
+  sourceCountsOf,
   totalsOf,
   type ArchiveData,
 } from "./archive";
@@ -108,5 +110,23 @@ describe("trailing throttle", () => {
     t.cancel();
     await new Promise((r) => setTimeout(r, 50));
     assert.equal(calls, 1);
+  });
+});
+
+describe("fetchArchivePage through api()", () => {
+  it("regression: archive-meta-dropped (FIX-1): a client fetch of page 1 keeps filteredTotal and the per-source counts", async () => {
+    const meta = { nextCursor: null, filteredTotal: 46, counts: { all: 46, replay: 1, chesscom: 45, lichess: 0 } };
+    const saved = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ data: [], meta }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
+    try {
+      const page = await fetchArchivePage({}, null);
+      assert.deepEqual(page.meta, meta);
+      const data: ArchiveData = { pages: [page], pageParams: [null] };
+      assert.deepEqual(totalsOf(data), { all: 46, filtered: 46 });
+      assert.deepEqual(sourceCountsOf(data), { replay: 1, chesscom: 45, lichess: 0 }, "the source tabs' counts survive a refetch");
+    } finally {
+      globalThis.fetch = saved;
+    }
   });
 });

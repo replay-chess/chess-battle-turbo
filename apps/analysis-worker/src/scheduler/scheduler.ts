@@ -67,6 +67,8 @@ export interface SchedulerOptions {
   telemetry?: Telemetry;
   /** Runs at the end of every drain, before the reaper + summary batch: the `analysis:batch` flush (§8.12). */
   onDrainEnd?(): Promise<void>;
+  /** P4: this boot's other lock ids (the I/O lane slots, queue/lanes.ts): never reaped as another boot's orphans. */
+  siblingIds?: readonly string[];
 }
 
 // The drain-end summary lives with the other queue statements (queue/summary.ts; explain-hot gates the real text).
@@ -106,8 +108,8 @@ export class Scheduler {
   /** Boot: the reaper (orphans of an earlier boot, stale heartbeats) + DAILY_PLAN in one batch, then the loop. */
   async start(): Promise<void> {
     const [reaped, siblings] = await this.opts.db.batch([
-      reapStatement({ workerId: this.opts.workerId, me: this.opts.me }),
-      freshSiblingsStatement({ workerId: this.opts.workerId, me: this.opts.me }),
+      reapStatement({ workerId: this.opts.workerId, me: this.opts.me, alsoMine: this.opts.siblingIds }),
+      freshSiblingsStatement({ workerId: this.opts.workerId, me: this.opts.me, alsoMine: this.opts.siblingIds }),
       ...this.opts.bootPlan(),
     ]);
     await handleReaped(reaped ?? [], this.opts);
@@ -231,9 +233,11 @@ export class Scheduler {
         const summaryAtMs = this.opts.clock.now();
         const recheck = this.orphanCheckAtMs !== null && summaryAtMs >= this.orphanCheckAtMs;
         const [reaped, summary, siblings] = await this.opts.db.batch([
-          reapStatement({ workerId: this.opts.workerId, me: this.opts.me, drainEnd: true }),
+          reapStatement({ workerId: this.opts.workerId, me: this.opts.me, drainEnd: true, alsoMine: this.opts.siblingIds }),
           queueSummaryStatement(this.opts.kinds, this.opts.payloadVMax),
-          ...(recheck ? [freshSiblingsStatement({ workerId: this.opts.workerId, me: this.opts.me })] : []),
+          ...(recheck
+            ? [freshSiblingsStatement({ workerId: this.opts.workerId, me: this.opts.me, alsoMine: this.opts.siblingIds })]
+            : []),
         ]);
         if (recheck) {
           this.orphanCheckAtMs = null;

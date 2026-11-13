@@ -122,6 +122,10 @@ describe("reasonFor (plan §8.3)", () => {
       "expired",
     );
   });
+  it("regression: ledger-402-reason (FIX-2): never subscribed but the ledger knows them (a ledger-aware viewer) → trial_used", () => {
+    assert.equal(reasonFor({ entitlement: { state: "none", trial: { used: false, eligible: false }, paymentIssue: null } }), "trial_used");
+    assert.equal(reasonFor({ entitlement: { state: "none", trial: { used: false, eligible: true }, paymentIssue: null } }), "trial_available");
+  });
   it("without billing facts trial_used falls back to expired (never guesses never-paid)", () => {
     assert.equal(reasonFor({ entitlement: { state: "lapsed", trial: { used: true, eligible: false }, paymentIssue: null } }), "expired");
   });

@@ -237,11 +237,17 @@ export const test = mergeTests(authTest, telemetryTest).extend<ReviewFixtures, R
 
 /** next dev's floating dev-tools button sits over phone action bars; production builds have none. */
 export async function hideDevOverlay(page: Page): Promise<void> {
+  // A constructed sheet, not a <style> element: the element was appended to <head> on DOMContentLoaded, which on a
+  // production build can fall inside React's streaming hydration of <head>, and React threw #418 (hydration
+  // mismatch) on ~3 % of page loads (regression: hydration-overlay-style; 0 in 120 loads without it, 2–3 with).
   await page.addInitScript(() => {
-    const css = "nextjs-portal{display:none!important}";
-    const add = () => document.head.append(Object.assign(document.createElement("style"), { textContent: css }));
-    if (document.head) add();
-    else document.addEventListener("DOMContentLoaded", add, { once: true });
+    try {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync("nextjs-portal{display:none!important}");
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    } catch {
+      // No constructable stylesheets: the dev overlay stays visible (it only exists under `next dev`).
+    }
   });
 }
 

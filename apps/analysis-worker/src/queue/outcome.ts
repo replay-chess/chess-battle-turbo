@@ -5,6 +5,15 @@
 //
 // A failed or reaped ANALYZE_GAME also marks the game FAILED, records `game_analyses."failedAtPly"`, bumps the members'
 // `users."gamesVersion"` (P3-D27) and returns the members' refs for `analysis:failed`: all in the same statement.
+//
+// P4 (phase-04 plan §7.7.1; interface check §5 "WK/src/queue/complete.ts"): the reused `import:<linkedAccountId>` row
+// is never DONE after a sync with auto-import on: `rescheduleStatement` puts it back to QUEUED at the next daily slot
+// (a fresh job: attempts 0, new payload), and the I/O lane's next-due sleep reads that runAt through the drain-end
+// queue summary (summary.ts), so a rescheduled sync costs no extra query. Back-off is per kind (`backoffSec`):
+// IMPORT_SYNC 60 s / 5 min / 15 min / 15 min, IMPORT_PURGE 30 s / 2 min / 10 min (CT IMPORT_BACKOFF_SEC). The I/O
+// lane's slots are this boot's other `lockedBy` ids (lanes.ts): the reaper's orphan rule never takes their rows
+// (`alsoMine`), so only the 3-minute stale rule can reap a slot that stopped heart-beating.
+import { IMPORT_BACKOFF_SEC } from "@repo/contracts/internal/jobs";
 import { analysisFailedEvent } from "../socket/events";
 import { idOrNull, idStr, num, numOrNull, stmt, type Row, type Statement } from "../db/client";
 import { NOW } from "./claim";
@@ -25,8 +34,19 @@ export const ORPHAN_STALE_SEC = 45;
 const LAST_ERROR_MAX = 1000;
 
 export function backoffSec(attempt: number): number {
+  return ladderStep(BACKOFF_SEC, attempt);
+}
+
+/** The back-off of `kind` (P3 kinds: BACKOFF_SEC; P4 kinds: IMPORT_BACKOFF_SEC) for an attempt number (1-based). */
+export function backoffSecFor(kind: string | undefined, attempt: number): number {
+  return kind !== undefined && Object.hasOwn(IMPORT_BACKOFF_SEC, kind)
+    ? ladderStep(IMPORT_BACKOFF_SEC[kind as keyof typeof IMPORT_BACKOFF_SEC], attempt)
+    : backoffSec(attempt);
+}
+
+function ladderStep(ladder: readonly number[], attempt: number): number {
   const i = Math.max(1, Math.floor(attempt)) - 1;
-  return BACKOFF_SEC[Math.min(i, BACKOFF_SEC.length - 1)]!;
+  return ladder[Math.min(i, ladder.length - 1)]!;
 }
 
 /** `"<code>: <short message>"`; never PII (§11.2 rule 9). */
@@ -157,6 +177,12 @@ export function failedEventOf(job: FailedJob, code: "engine_failed" | "worker_st
  * `analysis:failed` emit. Its retry form (`retry`) also matches the row this very attempt already failed (the same
  * attempt number and `lastError`, no lock, not RUNNING) and returns it again; the game side effects are idempotent
  * apart from one more `gamesVersion` bump, which only invalidates a cached list (FIX-1, `outcome.int.test.ts`).
+ *
+ * `refundAttempt` (P4, phase-04 plan §8.11 "429 … gate paused, job runAt = pauseUntil, run RUNNING → QUEUED"): a
+ * provider rate limit is a pause, not a failed attempt: the job goes back to QUEUED at `delaySec` with the claim's
+ * attempt given back (as releaseStatement does on SIGTERM), so sustained 429s never use up IMPORT_SYNC's attempts and
+ * never end the run FAILED (FIX-2). The retry form then matches the refunded attempt number and gives nothing back a
+ * second time (only the RUNNING row of this claim is refunded).
  */
 export function failStatement(input: {
   jobId: string;
@@ -165,17 +191,25 @@ export function failStatement(input: {
   message: string;
   attempt: number;
   terminal?: boolean;
+  /** The job's kind: picks the back-off ladder (P4 kinds have their own). */
+  kind?: string;
+  /** Overrides the ladder (P4: a provider's Retry-After or a gate pause that is longer than the ladder step). */
+  delaySec?: number;
+  /** A pause, not a failure (P4 rate limit): QUEUED at `delaySec`, the attempt given back, never terminal. */
+  refundAttempt?: boolean;
 }): Statement {
+  const refund = input.refundAttempt === true;
   const build = (alreadyFailedByMe: boolean): Statement => {
-    const terminal = `(attempts >= "maxAttempts" OR $5::boolean)`;
+    const terminal = `(NOT $6::boolean AND (attempts >= "maxAttempts" OR $5::boolean))`;
     const mine = `("lockedBy" = $2 AND status = 'RUNNING')`;
-    const again = `("lockedBy" IS NULL AND status IN ('QUEUED', 'FAILED') AND attempts = $6 AND "lastError" = $3)`;
+    const again = `("lockedBy" IS NULL AND status IN ('QUEUED', 'FAILED') AND attempts = $7 AND "lastError" = $3)`;
     return stmt(
       `WITH j AS (
   UPDATE jobs
      SET status = CASE WHEN ${terminal} THEN 'FAILED' ELSE 'QUEUED' END::"JobStatus",
          "runAt" = CASE WHEN ${terminal} THEN "runAt" ELSE ${NOW} + ($4::int * interval '1 second') END,
          "finishedAt" = CASE WHEN ${terminal} THEN ${NOW} END,
+         attempts = CASE WHEN $6::boolean AND status = 'RUNNING' THEN GREATEST(attempts - 1, 0) ELSE attempts END,
          "lastError" = $3, "lockedBy" = NULL, "lockedAt" = NULL, "heartbeatAt" = NULL
    WHERE id = $1::bigint AND (${mine}${alreadyFailedByMe ? ` OR ${again}` : ""})
   RETURNING id, kind, status, attempts, "maxAttempts", "runAt", "gameId"
@@ -184,13 +218,19 @@ export function failStatement(input: {
         input.jobId,
         input.me,
         lastError(input.code, input.message),
-        backoffSec(input.attempt),
+        Math.max(0, Math.ceil(input.delaySec ?? backoffSecFor(input.kind, input.attempt))),
         input.terminal === true,
-        ...(alreadyFailedByMe ? [input.attempt] : []),
+        refund,
+        ...(alreadyFailedByMe ? [refundedAttempt(input.attempt, refund)] : []),
       ],
     );
   };
   return { ...build(false), retry: build(true) };
+}
+
+/** The `attempts` value a failed attempt leaves behind: one less when the attempt was refunded (a pause). */
+export function refundedAttempt(attempt: number, refund: boolean): number {
+  return refund ? Math.max(attempt - 1, 0) : attempt;
 }
 
 let reapSeq = 0;
@@ -214,7 +254,14 @@ let reapSeq = 0;
  * retry form (`retry`) also returns the rows this very call already reaped, recognised by that token (regression:
  * lost-reap-response, FIX-2). Their game side effects are idempotent apart from one more `gamesVersion` bump.
  */
-export function reapStatement(input: { workerId: string; me: string; drainEnd?: boolean; token?: string }): Statement {
+export function reapStatement(input: {
+  workerId: string;
+  me: string;
+  drainEnd?: boolean;
+  token?: string;
+  /** This boot's other `lockedBy` ids (the engine lane and the I/O lane slots, lanes.ts): never orphans. */
+  alsoMine?: readonly string[];
+}): Statement {
   const token = input.token ?? `${input.me}#${++reapSeq}`;
   const build = (again: boolean): Statement =>
     stmt(
@@ -226,7 +273,7 @@ export function reapStatement(input: { workerId: string; me: string; drainEnd?: 
          "lastError" = $3, "lockedBy" = NULL, "lockedAt" = NULL, "heartbeatAt" = NULL
    WHERE (status = 'RUNNING'
           AND (COALESCE("heartbeatAt", "lockedAt", "startedAt") < ${NOW} - interval '${REAP_STALE_SEC} seconds'
-               OR ("lockedBy" LIKE $1 ESCAPE '\\' AND "lockedBy" <> $2
+               OR ("lockedBy" LIKE $1 ESCAPE '\\' AND "lockedBy" <> $2 AND "lockedBy" <> ALL($5::text[])
                    AND COALESCE("heartbeatAt", "lockedAt", "startedAt") < ${NOW} - interval '${ORPHAN_STALE_SEC} seconds')
                OR ("lockedBy" = $2 AND $4::boolean)))${
             // The rows this call reaped: QUEUED due 30 s from the reap, or FAILED just now (the partial indexes
@@ -243,6 +290,7 @@ export function reapStatement(input: { workerId: string; me: string; drainEnd?: 
         input.me,
         lastError("worker_stalled", `the worker holding it stopped (reap ${token})`),
         input.drainEnd === true,
+        [...(input.alsoMine ?? [])],
       ],
     );
   return { ...build(false), retry: build(true) };
@@ -254,13 +302,13 @@ export function reapStatement(input: { workerId: string; me: string; drainEnd?: 
  * crashed earlier boot's row becomes reapable at `lastBeatMs + ORPHAN_STALE_SEC`, and a row that still beats then
  * belongs to a live worker sharing this WORKER_ID (scheduler.ts).
  */
-export function freshSiblingsStatement(input: { workerId: string; me: string }): Statement {
+export function freshSiblingsStatement(input: { workerId: string; me: string; alsoMine?: readonly string[] }): Statement {
   return stmt(
     `SELECT count(*)::int AS n,
             (extract(epoch FROM max(COALESCE("heartbeatAt", "lockedAt", "startedAt"))) * 1000)::float8 AS "lastBeatMs"
        FROM jobs
-      WHERE status = 'RUNNING' AND "lockedBy" LIKE $1 ESCAPE '\\' AND "lockedBy" <> $2`,
-    [orphanPattern(input.workerId), input.me],
+      WHERE status = 'RUNNING' AND "lockedBy" LIKE $1 ESCAPE '\\' AND "lockedBy" <> $2 AND "lockedBy" <> ALL($3::text[])`,
+    [orphanPattern(input.workerId), input.me, [...(input.alsoMine ?? [])]],
   );
 }
 
@@ -285,6 +333,88 @@ export function doneByMeStatement(jobId: string, me: string): Statement {
     jobId,
     me,
   ]);
+}
+
+/** The `jobs.result` a reschedule writes: whose write it was (the lost-response check reads it back). */
+export interface RescheduleStamp {
+  v: 1;
+  rescheduledBy: string;
+  /** Unique per write: `<me>:<jobId>:<attempt>`. */
+  token: string;
+}
+
+export function rescheduleToken(me: string, jobId: string, attempt: number): string {
+  return `${me}:${jobId}:${attempt}`;
+}
+
+/**
+ * P4 (§7.7.1): the job runs again later as a FRESH job on the same row (the one `import:<linkedAccountId>` row per
+ * account is reused forever): QUEUED at `runAt` with `priority` and `payload`, attempts 0, unlocked, its run state
+ * cleared (`startedAt` too, so the next claim stamps a new one). Part of the handler's final batch, after
+ * lockGuardStatement. Returns 0 rows when this worker no longer holds the job.
+ *
+ * It clears `lockedBy`, so a resend after a lost response would match nothing: the retry form also returns the row
+ * this very write already rescheduled (unlocked, QUEUED, `result.token` = this write's token). Inside a guarded batch
+ * the guard fails first on a resend; `outcomeByMeStatement` then tells the caller whether its batch committed.
+ */
+export function rescheduleStatement(input: {
+  jobId: string;
+  me: string;
+  runAt: Date;
+  priority: number;
+  payload: unknown;
+  token: string;
+}): Statement {
+  const stamp: RescheduleStamp = { v: 1, rescheduledBy: input.me, token: input.token };
+  const build = (again: boolean): Statement =>
+    stmt(
+      `UPDATE jobs
+    SET status = 'QUEUED', "runAt" = ($3::timestamptz AT TIME ZONE 'UTC'), priority = $4::smallint, payload = $5::jsonb,
+        attempts = 0, "lockedBy" = NULL, "lockedAt" = NULL, "heartbeatAt" = NULL, "startedAt" = NULL,
+        "finishedAt" = ${NOW}, "lastError" = NULL, result = $6::jsonb
+  WHERE id = $1::bigint AND (("lockedBy" = $2 AND status = 'RUNNING')${
+    again ? ` OR ("lockedBy" IS NULL AND status = 'QUEUED' AND result->>'token' = $7)` : ""
+  })
+  RETURNING id::text AS id, (extract(epoch FROM "runAt") * 1000)::float8 AS "runAtMs"`,
+      [
+        input.jobId,
+        input.me,
+        input.runAt.toISOString(),
+        input.priority,
+        JSON.stringify(input.payload),
+        JSON.stringify(stamp),
+        ...(again ? [input.token] : []),
+      ],
+    );
+  return { ...build(false), retry: build(true) };
+}
+
+/**
+ * Did this worker's own final write commit? DONE by me (doneStatement keeps `lockedBy`), rescheduled by me (the
+ * reschedule's token), or failed by me (failStatement's attempt and `lastError`). For a guarded batch whose resend
+ * after a lost response failed on the lock guard (P3's `wasRetried` + 22012 pattern, sql-store.ts).
+ */
+export function outcomeByMeStatement(input: {
+  jobId: string;
+  me: string;
+  token?: string;
+  failed?: { attempt: number; code: string; message: string };
+}): Statement {
+  return stmt(
+    `SELECT id::text AS id, status::text AS status FROM jobs
+      WHERE id = $1::bigint
+        AND (("lockedBy" = $2 AND status = 'DONE')
+             OR ($3::text IS NOT NULL AND "lockedBy" IS NULL AND result->>'token' = $3)
+             OR ($4::int IS NOT NULL AND "lockedBy" IS NULL AND status IN ('QUEUED', 'FAILED') AND attempts = $4
+                 AND "lastError" = $5))`,
+    [
+      input.jobId,
+      input.me,
+      input.token ?? null,
+      input.failed?.attempt ?? null,
+      input.failed ? lastError(input.failed.code, input.failed.message) : null,
+    ],
+  );
 }
 
 /**

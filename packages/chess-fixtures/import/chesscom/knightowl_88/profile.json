@@ -1,0 +1,18 @@
+{
+  "avatar": "https://images.chesscomfiles.com/uploads/v1/user/0.0.jpeg",
+  "player_id": 41000088,
+  "@id": "https://api.chess.com/pub/player/knightowl_88",
+  "url": "https://www.chess.com/member/KnightOwl_88",
+  "name": "Knight Owl",
+  "username": "knightowl_88",
+  "followers": 12,
+  "country": "https://api.chess.com/pub/country/IN",
+  "location": "Pune",
+  "last_online": 1793491200,
+  "joined": 1615680000,
+  "status": "basic",
+  "is_streamer": false,
+  "verified": false,
+  "league": "Wood",
+  "streaming_platforms": []
+}

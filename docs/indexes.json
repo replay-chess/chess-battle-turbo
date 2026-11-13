@@ -226,6 +226,84 @@
       "phase": "P3",
       "query": "ON DELETE CASCADE from games (FK index)",
       "explain": "Index Scan using shares_game_idx"
+    },
+    {
+      "name": "linked_accounts_userId_provider_key",
+      "table": "linked_accounts",
+      "columns": ["userId", "provider"],
+      "unique": true,
+      "phase": "P4",
+      "query": "GET /api/me (viewer LATERAL over the member's ≤ 2 links); ACC-1/ACC-3/ACC-6; the link transaction's FOR UPDATE",
+      "explain": "Index Scan using linked_accounts_userId_provider_key"
+    },
+    {
+      "name": "import_runs_userId_createdAt_idx",
+      "table": "import_runs",
+      "columns": ["userId", "createdAt DESC"],
+      "phase": "P4",
+      "query": "GET /api/me (newest active-or-recent run), ACC-7 GET /api/import/status (≤ 5 runs)",
+      "explain": "Index Scan using import_runs_userId_createdAt_idx"
+    },
+    {
+      "name": "import_runs_one_active",
+      "table": "import_runs",
+      "columns": ["linkedAccountId"],
+      "unique": true,
+      "partial": "status IN ('WAITING_FOR_MEMBERSHIP', 'QUEUED', 'RUNNING')",
+      "protected": true,
+      "phase": "P4",
+      "query": "one active run per account (23505 → 409 sync_running); the worker's context LATERAL",
+      "explain": "Index Scan using import_runs_one_active"
+    },
+    {
+      "name": "import_runs_waiting_idx",
+      "table": "import_runs",
+      "columns": ["userId"],
+      "partial": "status = 'WAITING_FOR_MEMBERSHIP'",
+      "protected": true,
+      "phase": "P4",
+      "query": "entitlement fan-out releaseWaitingImports (plan 8.5.4)",
+      "explain": "Index Scan using import_runs_waiting_idx"
+    },
+    {
+      "name": "linked_accounts_verified_key",
+      "table": "linked_accounts",
+      "columns": ["provider", "externalId"],
+      "unique": true,
+      "partial": "\"verifiedAt\" IS NOT NULL",
+      "protected": true,
+      "phase": "P4",
+      "query": "verifiedElsewhere (ACC-2/ACC-3 linked_elsewhere, the Lichess callback)",
+      "explain": "Index Scan using linked_accounts_verified_key"
+    },
+    {
+      "name": "linked_accounts_autosync_idx",
+      "table": "linked_accounts",
+      "columns": ["nextAutoSyncAt"],
+      "partial": "\"autoImport\" AND status = 'ACTIVE'",
+      "protected": true,
+      "phase": "P4",
+      "query": "worker daily-sync backstop (D4-27)",
+      "explain": "Index Scan using linked_accounts_autosync_idx"
+    },
+    {
+      "name": "game_players_linked_account_idx",
+      "table": "game_players",
+      "columns": ["linkedAccountId"],
+      "partial": "\"linkedAccountId\" IS NOT NULL",
+      "protected": true,
+      "phase": "P4",
+      "query": "ON DELETE SET NULL from linked_accounts (unlink)",
+      "explain": "Index Scan using game_players_linked_account_idx"
+    },
+    {
+      "name": "import_cursors_pkey",
+      "table": "import_cursors",
+      "columns": ["linkedAccountId"],
+      "unique": true,
+      "phase": "P4",
+      "query": "the worker's import context and finish",
+      "explain": "Index Scan using import_cursors_pkey"
     }
   ]
 }

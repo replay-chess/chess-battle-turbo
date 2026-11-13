@@ -16,6 +16,181 @@
       }
     },
     "schemas": {
+      "AccountsData": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LinkedAccountView"
+            },
+            "maxItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "ActivationData": {
+        "properties": {
+          "emailMasked": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entitlement": {
+            "$ref": "#/components/schemas/Entitlement"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "properties": {
+                  "interval": {
+                    "enum": [
+                      "month",
+                      "year"
+                    ],
+                    "type": "string"
+                  },
+                  "legacy": {
+                    "type": "boolean"
+                  },
+                  "priceCents": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "interval",
+                  "priceCents",
+                  "legacy"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "declined",
+                  "cancelled"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/ActivationState"
+          },
+          "trial": {
+            "properties": {
+              "active": {
+                "type": "boolean"
+              },
+              "chargeDate": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "endsAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "active",
+              "endsAt",
+              "chargeDate"
+            ],
+            "type": "object"
+          },
+          "waitedMs": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "state",
+          "reason",
+          "entitlement",
+          "trial",
+          "plan",
+          "emailMasked",
+          "reference",
+          "waitedMs"
+        ],
+        "type": "object"
+      },
+      "ActivationQuery": {
+        "properties": {
+          "force": {
+            "const": "1",
+            "type": "string"
+          },
+          "session_id": {
+            "maxLength": 80,
+            "type": "string"
+          },
+          "status": {
+            "maxLength": 32,
+            "type": "string"
+          },
+          "subscription_id": {
+            "maxLength": 80,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ActivationState": {
+        "enum": [
+          "pending",
+          "active",
+          "failed"
+        ],
+        "type": "string"
+      },
       "AnalyseBody": {
         "properties": {
           "reason": {
@@ -131,6 +306,100 @@
           "legacy"
         ],
         "type": "object"
+      },
+      "CheckoutBody": {
+        "additionalProperties": false,
+        "properties": {
+          "plan": {
+            "$ref": "#/components/schemas/CheckoutPlan"
+          },
+          "returnPath": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "pricing",
+              "onboarding",
+              "paywall",
+              "renew"
+            ],
+            "type": "string"
+          },
+          "theme": {
+            "enum": [
+              "dark",
+              "light",
+              "system"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan",
+          "source"
+        ],
+        "type": "object"
+      },
+      "CheckoutData": {
+        "properties": {
+          "chargeDate": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checkoutUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "currency": {
+            "const": "USD",
+            "type": "string"
+          },
+          "interval": {
+            "enum": [
+              "month",
+              "year"
+            ],
+            "type": "string"
+          },
+          "priceCents": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sessionId": {
+            "maxLength": 80,
+            "type": "string"
+          },
+          "trial": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "checkoutUrl",
+          "sessionId",
+          "trial",
+          "chargeDate",
+          "priceCents",
+          "currency",
+          "interval"
+        ],
+        "type": "object"
+      },
+      "CheckoutPlan": {
+        "enum": [
+          "monthly",
+          "yearly"
+        ],
+        "type": "string"
       },
       "CheckpointBody": {
         "properties": {
@@ -811,6 +1080,35 @@
         },
         "required": [
           "type"
+        ],
+        "type": "object"
+      },
+      "FirstReview": {
+        "properties": {
+          "analysisStatus": {
+            "$ref": "#/components/schemas/AnalysisStatusWire"
+          },
+          "gameRef": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "momentsCount": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "gameRef",
+          "analysisStatus",
+          "momentsCount"
         ],
         "type": "object"
       },
@@ -2684,6 +2982,21 @@
                 "maximum": 9007199254740991,
                 "minimum": 0,
                 "type": "integer"
+              },
+              "chesscom": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "lichess": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "replay": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
               }
             },
             "required": [
@@ -2736,12 +3049,25 @@
             "maxLength": 40,
             "type": "string"
           },
+          "source": {
+            "$ref": "#/components/schemas/GameSourceWire"
+          },
           "tc": {
             "maxLength": 60,
             "type": "string"
           }
         },
         "type": "object"
+      },
+      "Goal": {
+        "enum": [
+          "stop_blundering",
+          "learn_openings",
+          "improve_endgames",
+          "study_legends",
+          "play_friends"
+        ],
+        "type": "string"
       },
       "HealthData": {
         "properties": {
@@ -2792,6 +3118,100 @@
           }
         },
         "type": "object"
+      },
+      "ImportErrorCode": {
+        "enum": [
+          "not_found",
+          "closed",
+          "upstream",
+          "timeout",
+          "rate_limited",
+          "internal"
+        ],
+        "type": "string"
+      },
+      "ImportErrorView": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "code": {
+            "$ref": "#/components/schemas/ImportErrorCode"
+          },
+          "retryAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "at",
+          "retryAt"
+        ],
+        "type": "object"
+      },
+      "ImportPhaseSchema": {
+        "enum": [
+          "reading",
+          "saving"
+        ],
+        "type": "string"
+      },
+      "ImportRunStatus": {
+        "enum": [
+          "waiting_for_membership",
+          "queued",
+          "running",
+          "done",
+          "failed",
+          "cancelled"
+        ],
+        "type": "string"
+      },
+      "ImportStatusData": {
+        "properties": {
+          "firstReview": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FirstReview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunView"
+            },
+            "maxItems": 5,
+            "type": "array"
+          }
+        },
+        "required": [
+          "runs",
+          "firstReview"
+        ],
+        "type": "object"
+      },
+      "ImportTriggerSchema": {
+        "enum": [
+          "initial",
+          "manual",
+          "daily",
+          "retry"
+        ],
+        "type": "string"
       },
       "JKey": {
         "enum": [
@@ -3348,8 +3768,473 @@
         ],
         "type": "object"
       },
+      "LichessStartQuery": {
+        "properties": {
+          "returnTo": {
+            "default": "/settings/connected",
+            "enum": [
+              "/onboarding/link",
+              "/settings/connected"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LinkChessComBody": {
+        "additionalProperties": false,
+        "properties": {
+          "context": {
+            "$ref": "#/components/schemas/LinkContext"
+          },
+          "username": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "context"
+        ],
+        "type": "object"
+      },
+      "LinkContext": {
+        "enum": [
+          "onboarding",
+          "settings"
+        ],
+        "type": "string"
+      },
+      "LinkData": {
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/LinkedAccountView"
+          },
+          "onboarding": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OnboardingView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "account",
+          "run",
+          "onboarding"
+        ],
+        "type": "object"
+      },
+      "LinkViewStatus": {
+        "enum": [
+          "linked",
+          "waiting_for_membership",
+          "queued",
+          "syncing",
+          "rate_limited",
+          "error"
+        ],
+        "type": "string"
+      },
+      "LinkedAccountView": {
+        "properties": {
+          "autoImport": {
+            "type": "boolean"
+          },
+          "avatarUrl": {
+            "anyOf": [
+              {
+                "format": "uri",
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "displayName": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "properties": {
+                  "rating": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "timeClass": {
+                    "$ref": "#/components/schemas/TimeClassSlug"
+                  }
+                },
+                "required": [
+                  "timeClass",
+                  "rating"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "importedCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "lastError": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImportErrorView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastSyncAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastSyncOkAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nextAllowedSyncAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nextAutoSyncAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderSlug"
+          },
+          "ratings": {
+            "$ref": "#/components/schemas/RatingsView"
+          },
+          "run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "skippedCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LinkViewStatus"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 4,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "totalRatedGames": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "username": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "provider",
+          "username",
+          "displayName",
+          "avatarUrl",
+          "title",
+          "ratings",
+          "headline",
+          "totalRatedGames",
+          "verified",
+          "status",
+          "autoImport",
+          "lastSyncAt",
+          "lastSyncOkAt",
+          "nextAllowedSyncAt",
+          "nextAutoSyncAt",
+          "importedCount",
+          "skippedCount",
+          "lastError",
+          "run"
+        ],
+        "type": "object"
+      },
+      "LookupBody": {
+        "additionalProperties": false,
+        "properties": {
+          "username": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "type": "object"
+      },
+      "LookupData": {
+        "properties": {
+          "headline": {
+            "anyOf": [
+              {
+                "properties": {
+                  "rating": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "timeClass": {
+                    "$ref": "#/components/schemas/TimeClassSlug"
+                  }
+                },
+                "required": [
+                  "timeClass",
+                  "rating"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile": {
+            "$ref": "#/components/schemas/LookupProfile"
+          },
+          "ratings": {
+            "$ref": "#/components/schemas/RatingsView"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LookupStatus"
+          },
+          "totalRatedGames": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "profile",
+          "ratings",
+          "headline",
+          "totalRatedGames"
+        ],
+        "type": "object"
+      },
+      "LookupProfile": {
+        "properties": {
+          "avatarUrl": {
+            "anyOf": [
+              {
+                "format": "uri",
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "countryCode": {
+            "anyOf": [
+              {
+                "maxLength": 2,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "displayUsername": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "joinedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 4,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "username": {
+            "maxLength": 40,
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "displayUsername",
+          "name",
+          "avatarUrl",
+          "countryCode",
+          "joinedAt",
+          "title"
+        ],
+        "type": "object"
+      },
+      "LookupStatus": {
+        "enum": [
+          "found",
+          "private",
+          "no_games"
+        ],
+        "type": "string"
+      },
+      "MeAccount": {
+        "properties": {
+          "lastSyncAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderSlug"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LinkViewStatus"
+          },
+          "username": {
+            "maxLength": 40,
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "username",
+          "status",
+          "lastSyncAt"
+        ],
+        "type": "object"
+      },
       "MeData": {
         "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/MeAccount"
+            },
+            "maxItems": 2,
+            "type": "array"
+          },
           "buildId": {
             "type": "string"
           },
@@ -3365,6 +4250,19 @@
             },
             "type": "object"
           },
+          "import": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeImport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "onboarding": {
+            "$ref": "#/components/schemas/OnboardingView"
+          },
           "user": {
             "$ref": "#/components/schemas/MeUser"
           }
@@ -3374,6 +4272,56 @@
           "entitlement",
           "flags",
           "buildId"
+        ],
+        "type": "object"
+      },
+      "MeImport": {
+        "properties": {
+          "imported": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImportPhaseSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderSlug"
+          },
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ImportRunStatus"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ref",
+          "provider",
+          "status",
+          "phase",
+          "imported",
+          "total"
         ],
         "type": "object"
       },
@@ -3421,6 +4369,10 @@
               "user",
               "admin"
             ],
+            "type": "string"
+          },
+          "timeZone": {
+            "maxLength": 64,
             "type": "string"
           }
         },
@@ -3650,6 +4602,114 @@
         },
         "type": "object"
       },
+      "OnboardingStep": {
+        "enum": [
+          "welcome",
+          "link",
+          "confirm",
+          "level",
+          "goals",
+          "plan",
+          "activating",
+          "done"
+        ],
+        "type": "string"
+      },
+      "OnboardingView": {
+        "properties": {
+          "dailyMinutes": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "const": 5,
+                    "type": "number"
+                  },
+                  {
+                    "const": 10,
+                    "type": "number"
+                  },
+                  {
+                    "const": 20,
+                    "type": "number"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "done": {
+            "type": "boolean"
+          },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/Goal"
+            },
+            "type": "array"
+          },
+          "initialRating": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "onboardedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ratingBand": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RatingBand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ratingBandSource": {
+            "anyOf": [
+              {
+                "maxLength": 24,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "step": {
+            "$ref": "#/components/schemas/OnboardingStep"
+          }
+        },
+        "required": [
+          "step",
+          "done",
+          "ratingBand",
+          "ratingBandSource",
+          "initialRating",
+          "goals",
+          "dailyMinutes",
+          "onboardedAt"
+        ],
+        "type": "object"
+      },
       "Opening": {
         "properties": {
           "eco": {
@@ -3726,6 +4786,112 @@
           "nextCursor"
         ],
         "type": "object"
+      },
+      "PatchAccountBody": {
+        "additionalProperties": false,
+        "properties": {
+          "autoImport": {
+            "type": "boolean"
+          },
+          "timeZone": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "autoImport"
+        ],
+        "type": "object"
+      },
+      "PatchOnboardingBody": {
+        "additionalProperties": false,
+        "properties": {
+          "complete": {
+            "const": true,
+            "type": "boolean"
+          },
+          "dailyMinutes": {
+            "anyOf": [
+              {
+                "const": 5,
+                "type": "number"
+              },
+              {
+                "const": 10,
+                "type": "number"
+              },
+              {
+                "const": 20,
+                "type": "number"
+              }
+            ]
+          },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/Goal"
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "initialRating": {
+            "maximum": 3000,
+            "minimum": 100,
+            "type": "integer"
+          },
+          "ratingBand": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RatingBand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ratingBandSource": {
+            "maxLength": 24,
+            "pattern": "^(self|chesscom:(bullet|blitz|rapid|daily)|lichess:(bullet|blitz|rapid|classical|daily))$",
+            "type": "string"
+          },
+          "step": {
+            "$ref": "#/components/schemas/PatchableStep"
+          },
+          "timeZone": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchOnboardingData": {
+        "properties": {
+          "onboarding": {
+            "$ref": "#/components/schemas/OnboardingView"
+          },
+          "timeZone": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [
+          "onboarding",
+          "timeZone"
+        ],
+        "type": "object"
+      },
+      "PatchableStep": {
+        "enum": [
+          "welcome",
+          "link",
+          "confirm",
+          "level",
+          "goals",
+          "plan",
+          "activating"
+        ],
+        "type": "string"
       },
       "PaymentIssue": {
         "properties": {
@@ -3991,6 +5157,24 @@
         ],
         "type": "object"
       },
+      "ProviderParams": {
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/ProviderSlug"
+          }
+        },
+        "required": [
+          "provider"
+        ],
+        "type": "object"
+      },
+      "ProviderSlug": {
+        "enum": [
+          "chesscom",
+          "lichess"
+        ],
+        "type": "string"
+      },
       "QueueInfo": {
         "properties": {
           "etaSec": {
@@ -4010,9 +5194,83 @@
         ],
         "type": "object"
       },
+      "RatingBand": {
+        "enum": [
+          "new_to_chess",
+          "under_800",
+          "r800_1200",
+          "r1200_1600",
+          "r1600_2000",
+          "r2000_plus"
+        ],
+        "type": "string"
+      },
+      "RatingEntry": {
+        "properties": {
+          "best": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "games": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "rating": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rating",
+          "best",
+          "games"
+        ],
+        "type": "object"
+      },
+      "RatingsView": {
+        "properties": {
+          "blitz": {
+            "$ref": "#/components/schemas/RatingEntry"
+          },
+          "bullet": {
+            "$ref": "#/components/schemas/RatingEntry"
+          },
+          "classical": {
+            "$ref": "#/components/schemas/RatingEntry"
+          },
+          "daily": {
+            "$ref": "#/components/schemas/RatingEntry"
+          },
+          "rapid": {
+            "$ref": "#/components/schemas/RatingEntry"
+          }
+        },
+        "type": "object"
+      },
       "RetryBody": {
         "additionalProperties": false,
         "properties": {},
+        "type": "object"
+      },
+      "RetryImportData": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/RunView"
+          }
+        },
+        "required": [
+          "run"
+        ],
         "type": "object"
       },
       "RetryResponse": {
@@ -4947,6 +6205,139 @@
         ],
         "type": "object"
       },
+      "RunRefParams": {
+        "properties": {
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref"
+        ],
+        "type": "object"
+      },
+      "RunView": {
+        "properties": {
+          "analysed": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "analysisQueued": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImportErrorView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "imported": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImportPhaseSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderSlug"
+          },
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "seen": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "skipped": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ImportRunStatus"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/ImportTriggerSchema"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref",
+          "provider",
+          "trigger",
+          "status",
+          "phase",
+          "seen",
+          "total",
+          "imported",
+          "skipped",
+          "analysisQueued",
+          "analysed",
+          "error",
+          "startedAt",
+          "finishedAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
       "ScheduledPlanChange": {
         "properties": {
           "effectiveAt": {
@@ -5152,12 +6543,33 @@
         ],
         "type": "string"
       },
+      "SyncData": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/RunView"
+          }
+        },
+        "required": [
+          "run"
+        ],
+        "type": "object"
+      },
       "TextStatus": {
         "enum": [
           "pending",
           "template",
           "ready",
           "fallback"
+        ],
+        "type": "string"
+      },
+      "TimeClassSlug": {
+        "enum": [
+          "bullet",
+          "blitz",
+          "rapid",
+          "classical",
+          "daily"
         ],
         "type": "string"
       },
@@ -5204,6 +6616,52 @@
           "daysLeft",
           "eligible"
         ],
+        "type": "object"
+      },
+      "UnlinkData": {
+        "properties": {
+          "purge": {
+            "anyOf": [
+              {
+                "properties": {
+                  "games": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "games"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "removed": {
+            "const": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "removed",
+          "purge"
+        ],
+        "type": "object"
+      },
+      "UnlinkQuery": {
+        "properties": {
+          "deleteGames": {
+            "default": "0",
+            "enum": [
+              "0",
+              "1"
+            ],
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "ValidationIssue": {
@@ -5286,6 +6744,1497 @@
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
   "paths": {
+    "/api/accounts": {
+      "get": {
+        "operationId": "accounts.list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AccountsData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified (If-None-Match matched the ETag)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable: `maintenance`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "The viewer's linked Chess.com and Lichess accounts",
+        "tags": [
+          "accounts"
+        ],
+        "x-auth": "user",
+        "x-cache": "private-etag",
+        "x-class": "R1"
+      }
+    },
+    "/api/accounts/chesscom": {
+      "post": {
+        "operationId": "accounts.chesscom.link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "context": {
+                    "enum": [
+                      "onboarding",
+                      "settings"
+                    ],
+                    "type": "string"
+                  },
+                  "username": {
+                    "maxLength": 64,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "username",
+                  "context"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LinkData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content: `idempotency_key_reused`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Gateway: `upstream_unavailable`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable: `maintenance`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Links a Chess.com account and creates its first import run",
+        "tags": [
+          "accounts"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "X",
+        "x-max-body-bytes": 1024,
+        "x-rate-limit": [
+          {
+            "bucket": "link",
+            "by": "user",
+            "limit": 5,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/accounts/chesscom/lookup": {
+      "post": {
+        "operationId": "accounts.chesscom.lookup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "username": {
+                    "maxLength": 64,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "username"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LookupData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Gateway: `upstream_unavailable`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable: `maintenance`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Looks up a Chess.com profile and its ratings",
+        "tags": [
+          "accounts"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "X",
+        "x-max-body-bytes": 1024,
+        "x-rate-limit": [
+          {
+            "bucket": "lookup",
+            "by": "user",
+            "limit": 10,
+            "store": "burst",
+            "windowSec": 60
+          },
+          {
+            "bucket": "lookup-ip",
+            "by": "ip",
+            "limit": 30,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/accounts/lichess/callback": {
+      "get": {
+        "operationId": "accounts.lichess.callback",
+        "responses": {
+          "302": {
+            "description": "Found",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Completes the Lichess OAuth link (redirect)",
+        "tags": [
+          "accounts"
+        ],
+        "x-auth": "optional",
+        "x-cache": "no-store",
+        "x-class": "X",
+        "x-side-effects": [
+          "oauth_link"
+        ]
+      }
+    },
+    "/api/accounts/lichess/start": {
+      "get": {
+        "operationId": "accounts.lichess.start",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "returnTo",
+            "required": false,
+            "schema": {
+              "default": "/settings/connected",
+              "enum": [
+                "/onboarding/link",
+                "/settings/connected"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Found",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Starts the Lichess OAuth link (redirect); signed out → the sign-in page",
+        "tags": [
+          "accounts"
+        ],
+        "x-auth": "optional",
+        "x-cache": "no-store",
+        "x-rate-limit": [
+          {
+            "bucket": "link",
+            "by": "user",
+            "limit": 5,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/accounts/{provider}": {
+      "delete": {
+        "operationId": "accounts.unlink",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "enum": [
+                "chesscom",
+                "lichess"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "deleteGames",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "enum": [
+                "0",
+                "1"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UnlinkData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable: `maintenance`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Unlinks one provider, optionally deleting its imported games",
+        "tags": [
+          "accounts"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "W2",
+        "x-rate-limit": [
+          {
+            "bucket": "link",
+            "by": "user",
+            "limit": 5,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "accounts.update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "enum": [
+                "chesscom",
+                "lichess"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "autoImport": {
+                    "type": "boolean"
+                  },
+                  "timeZone": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "autoImport"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LinkedAccountView"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable: `maintenance`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Turns the daily import of one linked account on or off",
+        "tags": [
+          "accounts"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 1024,
+        "x-rate-limit": [
+          {
+            "bucket": "settings",
+            "by": "user",
+            "limit": 30,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/accounts/{provider}/sync": {
+      "post": {
+        "operationId": "accounts.sync",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "enum": [
+                "chesscom",
+                "lichess"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "default": {},
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SyncData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Accepted",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable: `maintenance`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Starts a manual sync of one linked account",
+        "tags": [
+          "accounts"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W2",
+        "x-max-body-bytes": 1024
+      }
+    },
+    "/api/billing/activation": {
+      "get": {
+        "operationId": "billing.activation",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "subscription_id",
+            "required": false,
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "maxLength": 32,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "force",
+            "required": false,
+            "schema": {
+              "const": "1",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ActivationData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Gateway: `upstream_unavailable`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable: `not_configured`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Whether the viewer's checkout has activated their membership",
+        "tags": [
+          "activation"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "R1",
+        "x-rate-limit": [
+          {
+            "bucket": "billing-activation",
+            "by": "user",
+            "limit": 40,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ],
+        "x-side-effects": [
+          "billing_snapshot"
+        ]
+      }
+    },
     "/api/billing/refresh": {
       "post": {
         "operationId": "billing.refresh",
@@ -5412,6 +8361,259 @@
             "bucket": "billing-refresh",
             "by": "user",
             "limit": 10,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/checkout": {
+      "post": {
+        "operationId": "billing.checkout",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "plan": {
+                    "enum": [
+                      "monthly",
+                      "yearly"
+                    ],
+                    "type": "string"
+                  },
+                  "returnPath": {
+                    "maxLength": 512,
+                    "type": "string"
+                  },
+                  "source": {
+                    "enum": [
+                      "pricing",
+                      "onboarding",
+                      "paywall",
+                      "renew"
+                    ],
+                    "type": "string"
+                  },
+                  "theme": {
+                    "enum": [
+                      "dark",
+                      "light",
+                      "system"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "plan",
+                  "source"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CheckoutData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `payment_update_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `already_subscribed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content: `idempotency_key_reused`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Gateway: `upstream_unavailable`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable: `not_configured`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Opens a hosted checkout (with the 7-day trial when eligible)",
+        "tags": [
+          "activation"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "X",
+        "x-max-body-bytes": 2048,
+        "x-rate-limit": [
+          {
+            "bucket": "checkout",
+            "by": "user",
+            "limit": 6,
             "store": "burst",
             "windowSec": 60
           }
@@ -6806,6 +10008,311 @@
         "x-class": "R1"
       }
     },
+    "/api/import/status": {
+      "get": {
+        "operationId": "import.status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportStatusData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified (If-None-Match matched the ETag)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable: `maintenance`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "The viewer's newest import runs and the first imported review",
+        "tags": [
+          "import"
+        ],
+        "x-auth": "user",
+        "x-cache": "private-etag",
+        "x-class": "R1",
+        "x-side-effects": [
+          "kick_cas",
+          "release_waiting"
+        ]
+      }
+    },
+    "/api/import/{ref}/retry": {
+      "post": {
+        "operationId": "import.retry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "default": {},
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RetryImportData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Accepted",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable: `maintenance`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Retries a failed import run",
+        "tags": [
+          "import"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W2",
+        "x-max-body-bytes": 1024
+      }
+    },
     "/api/me": {
       "get": {
         "operationId": "me.get",
@@ -6961,6 +10468,19 @@
               "minimum": 0,
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "enum": [
+                "replay",
+                "chesscom",
+                "lichess"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -7070,6 +10590,246 @@
         "x-auth": "user",
         "x-cache": "private-etag",
         "x-class": "R2"
+      }
+    },
+    "/api/me/onboarding": {
+      "patch": {
+        "operationId": "me.onboarding",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "complete": {
+                    "const": true,
+                    "type": "boolean"
+                  },
+                  "dailyMinutes": {
+                    "anyOf": [
+                      {
+                        "const": 5,
+                        "type": "number"
+                      },
+                      {
+                        "const": 10,
+                        "type": "number"
+                      },
+                      {
+                        "const": 20,
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "goals": {
+                    "items": {
+                      "enum": [
+                        "stop_blundering",
+                        "learn_openings",
+                        "improve_endgames",
+                        "study_legends",
+                        "play_friends"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 5,
+                    "type": "array"
+                  },
+                  "initialRating": {
+                    "maximum": 3000,
+                    "minimum": 100,
+                    "type": "integer"
+                  },
+                  "ratingBand": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "new_to_chess",
+                          "under_800",
+                          "r800_1200",
+                          "r1200_1600",
+                          "r1600_2000",
+                          "r2000_plus"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "ratingBandSource": {
+                    "maxLength": 24,
+                    "pattern": "^(self|chesscom:(bullet|blitz|rapid|daily)|lichess:(bullet|blitz|rapid|classical|daily))$",
+                    "type": "string"
+                  },
+                  "step": {
+                    "enum": [
+                      "welcome",
+                      "link",
+                      "confirm",
+                      "level",
+                      "goals",
+                      "plan",
+                      "activating"
+                    ],
+                    "type": "string"
+                  },
+                  "timeZone": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PatchOnboardingData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Saves an onboarding step, or completes onboarding",
+        "tags": [
+          "onboarding"
+        ],
+        "x-auth": "user",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 2048,
+        "x-rate-limit": [
+          {
+            "bucket": "onboarding",
+            "by": "user",
+            "limit": 60,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
       }
     },
     "/api/openings": {
@@ -10132,6 +13892,12 @@
   ],
   "tags": [
     {
+      "name": "accounts"
+    },
+    {
+      "name": "activation"
+    },
+    {
       "name": "archive"
     },
     {
@@ -10144,7 +13910,13 @@
       "name": "games"
     },
     {
+      "name": "import"
+    },
+    {
       "name": "me"
+    },
+    {
+      "name": "onboarding"
     },
     {
       "name": "practice"

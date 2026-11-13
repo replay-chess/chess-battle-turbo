@@ -28,7 +28,7 @@ export const COMPARISON_STATUSES = ["facts_ready", "narrating", "ready", "failed
 export const DEVICE_CLASSES = ["phone", "tablet", "desktop"] as const;
 export const REVIEW_SOURCES = ["game_over", "archive", "home", "deeplink", "share_owner"] as const;
 export const SHARE_FROM = ["review_menu", "complete"] as const;
-export const ANALYZE_REASONS = ["live_end", "bot_end", "opened", "retry", "regrade", "backfill", "smoke"] as const;
+export const ANALYZE_REASONS = ["live_end", "bot_end", "opened", "retry", "regrade", "backfill", "smoke", "import"] as const;
 export const GAME_MODES = ["online", "friend", "bot", "legend_bot", "tournament", "imported"] as const;
 export const GAME_SOURCES = ["replay", "chesscom", "lichess"] as const;
 

@@ -1,0 +1,33 @@
+{
+  "name": "@repo/chess-import",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "test": "tsx --test \"src/**/*.test.ts\" \"scripts/**/*.test.ts\"",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src scripts --no-error-on-unmatched-pattern --max-warnings 0",
+    "record-fixture": "tsx scripts/record-fixture.ts",
+    "canary": "tsx scripts/canary.ts",
+    "build-fixtures": "tsx scripts/build-fixtures.ts"
+  },
+  "dependencies": {
+    "@repo/game-core": "workspace:*",
+    "chess.js": "1.4.0",
+    "zod": "4.1.12"
+  },
+  "devDependencies": {
+    "@repo/chess-fixtures": "workspace:*",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "22.15.3",
+    "eslint": "^9.34.0",
+    "tsx": "4.20.6",
+    "typescript": "5.9.2"
+  }
+}

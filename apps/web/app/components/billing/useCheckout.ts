@@ -1,81 +1,72 @@
 "use client";
 
-import { useState } from "react";
+// The legacy pricing page's checkout hook (phase-04 plan §3: "useCheckout stays as a thin facade for the legacy pricing
+// page" until P11). Everything goes through `useStartCheckout()` (lib/api/mutations/billing.ts): POST /api/checkout
+// with a `source` and an Idempotency-Key, the browser leaves for Dodo on success, and the return lands on
+// `/checkout/activating`, which confirms the activation. This hook only keeps the old call shape and maps errors to a
+// sentence for the pricing card.
 import { useTheme } from "next-themes";
+import type { CheckoutSource } from "@repo/contracts/http/billing";
+import { ApiError } from "@/lib/api/errors";
+import { useStartCheckout } from "@/lib/api/mutations/billing";
 import { useUserStore } from "@/lib/stores";
 import type { PlanKey } from "@/lib/billing/plans";
 
+export type StartCheckoutOptions = {
+  returnPath?: string;
+  /** Default "pricing". The legacy onboarding page passes "onboarding". */
+  source?: CheckoutSource;
+};
+
+/** The pricing card's sentence for a failed checkout start (null: no message, the hook handled it). */
+export function checkoutErrorMessage(err: unknown): string | null {
+  if (!(err instanceof ApiError)) return "Could not start checkout. Please try again.";
+  switch (err.code) {
+    case "already_subscribed":
+    case "payment_update_required":
+      return null;
+    case "not_configured":
+      return "This plan is not available right now.";
+    case "upstream_unavailable":
+      return "Checkout couldn't start. Try again in a moment.";
+    case "rate_limited":
+      return `Too many attempts. Try again in ${err.retryAfterSec ?? 30} seconds.`;
+    default:
+      return "Could not start checkout. Please try again.";
+  }
+}
+
 export function useCheckout(): {
-  startCheckout: (plan: PlanKey, options?: { returnPath?: string }) => Promise<void>;
+  startCheckout: (plan: PlanKey, options?: StartCheckoutOptions) => Promise<void>;
   loading: boolean;
   error: string | null;
   clearError: () => void;
 } {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { resolvedTheme } = useTheme();
   const storeUser = useUserStore((s) => s.user);
   const fetchSubscription = useUserStore((s) => s.fetchSubscription);
+  const mutation = useStartCheckout();
 
-  async function startCheckout(plan: PlanKey, options?: { returnPath?: string }) {
+  async function startCheckout(plan: PlanKey, options?: StartCheckoutOptions) {
     if (!storeUser) {
       const next = `/onboarding?plan=${plan}`;
       window.location.href = `/sign-in?redirect_url=${encodeURIComponent(next)}`;
       return;
     }
-
-    setLoading(true);
-    setError(null);
+    const theme = resolvedTheme === "dark" || resolvedTheme === "light" ? resolvedTheme : "system";
     try {
-      const theme =
-        resolvedTheme === "dark" || resolvedTheme === "light" ? resolvedTheme : "system";
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, returnPath: options?.returnPath, theme }),
-      });
-      const data: { checkoutUrl?: string; error?: unknown; code?: unknown } = await res
-        .json()
-        .catch(() => ({}));
-
-      if (res.status === 409 && data.code === "already_subscribed") {
-        // The store was stale: refresh it so callers switch to the
-        // subscriber view.
-        await fetchSubscription();
-        return;
-      }
-      if (res.status === 409 && data.code === "payment_update_required") {
-        // An existing subscription is waiting on a payment retry. Send the
-        // member to the billing portal to fix the payment method rather than
-        // creating a second subscription.
-        if (typeof window !== "undefined") {
-          window.location.href = "/api/customer-portal";
-          return;
-        }
-        throw new Error(
-          typeof data.error === "string"
-            ? data.error
-            : "Update your payment method to keep your existing subscription.",
-        );
-      }
-      if (!res.ok) {
-        throw new Error(typeof data.error === "string" ? data.error : res.statusText);
-      }
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-        return;
-      }
-      throw new Error("Checkout did not return a payment link");
+      await mutation.mutateAsync({ plan, source: options?.source ?? "pricing", returnPath: options?.returnPath, theme });
     } catch (err) {
-      setError(
-        err instanceof Error && err.message
-          ? err.message
-          : "Could not start checkout. Please try again.",
-      );
-    } finally {
-      setLoading(false);
+      // The store was stale: refresh it so the page switches to the subscriber view.
+      if (err instanceof ApiError && err.code === "already_subscribed") await fetchSubscription();
     }
   }
 
-  return { startCheckout, loading, error, clearError: () => setError(null) };
+  return {
+    startCheckout,
+    // Stays true after success: the browser is leaving for Dodo.
+    loading: mutation.isPending || mutation.isSuccess,
+    error: mutation.isError ? checkoutErrorMessage(mutation.error) : null,
+    clearError: () => mutation.reset(),
+  };
 }

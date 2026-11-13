@@ -6,6 +6,7 @@ import { serverBuildId } from "@/lib/api/context";
 import { qk } from "@/lib/api/keys";
 import { getViewer } from "@/lib/auth/viewer";
 import { meDataOf } from "@/lib/auth/viewer-dto";
+import { ledgerAwareViewer } from "@/lib/billing/ledger-viewer";
 import { getFlags } from "@/lib/flags";
 import { dehydrateFor, getServerQueryClient } from "@/lib/query/server";
 import { chromeModeFor, getShellSession } from "@/lib/shell/get-shell-session";
@@ -25,7 +26,8 @@ export default async function AppGroupLayout({ children }: { children: React.Rea
   const mode = chromeModeFor(session, flags);
 
   const qc = getServerQueryClient();
-  if (viewer) qc.setQueryData(qk.me(), meDataOf(viewer, flags, serverBuildId()));
+  // trial.eligible asks the trial ledger too (FIX-2: the store mirrors this seed; lib/billing/ledger-viewer.ts).
+  if (viewer) qc.setQueryData(qk.me(), meDataOf(await ledgerAwareViewer(viewer), flags, serverBuildId()));
 
   return (
     <HydrationBoundary state={dehydrateFor(qc)}>

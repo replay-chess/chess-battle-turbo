@@ -46,3 +46,14 @@ test("non-objects are raw", () => {
   assert.deepEqual(unwrapLegacy([1, 2]), { ok: true, shape: "raw", data: [1, 2] });
   assert.deepEqual(unwrapLegacy(null), { ok: true, shape: "raw", data: null });
 });
+
+test("regression: archive-meta-dropped (FIX-1): meta keys beyond the paging ones reach the caller", () => {
+  const meta = { nextCursor: null, filteredTotal: 46, counts: { all: 46, replay: 1, chesscom: 45, lichess: 0 } };
+  const r = unwrapLegacy({ data: [], meta });
+  assert.ok(r.ok);
+  assert.deepEqual(r.meta, meta);
+  // The typed keys are still checked: a wrong-typed paging key is dropped, the rest kept.
+  const bad = unwrapLegacy({ data: [], meta: { nextCursor: 5, total: "x", counts: { all: 1 } } });
+  assert.ok(bad.ok);
+  assert.deepEqual(bad.meta, { counts: { all: 1 } });
+});

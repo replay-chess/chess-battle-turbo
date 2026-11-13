@@ -69,7 +69,7 @@ describe("signed /internal/* endpoints", () => {
     assert.equal((await post("/internal/emit", room.raw, room.headers)).status, 400);
     const rooms = signed("/internal/emit", { v: 1, rooms: [ROOM.user(u.ref)], targets: [{ userRef: u.ref }], event: "test:echo", data: {} });
     assert.equal((await post("/internal/emit", rooms.raw, rooms.headers)).status, 400);
-    const unknown = signed("/internal/emit", { v: 1, targets: [{ userRef: u.ref }], event: "entitlement:changed", data: {} });
+    const unknown = signed("/internal/emit", { v: 1, targets: [{ userRef: u.ref }], event: "presence:state", data: {} });
     assert.equal((await post("/internal/emit", unknown.raw, unknown.headers)).status, 422);
     const wk = signed("/internal/emit", { v: 1, targets: [{ userRef: u.ref }], event: "test:echo", data: { text: "x" } }, "wk");
     assert.equal((await post("/internal/emit", wk.raw, wk.headers)).status, 403);

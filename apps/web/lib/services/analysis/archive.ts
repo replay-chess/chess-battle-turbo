@@ -8,6 +8,8 @@
 // - The strong ETag is `g<users.gamesVersion>-<hash(filter, cursor, limit, year)>`: every write that changes a row
 //   (a finish, A3/A4, the worker's done and fail batches) bumps gamesVersion, so a revalidation needs no statement
 //   beyond the viewer (P3-D27). The UTC year is in the hash because the date labels drop the year for this year.
+// - P4 (phase-04 plan §4.11): `?source=` picks one source tab; the counts carry `replay`/`chesscom`/`lichess` once
+//   the viewer has imported games (a Replay-only archive answers `{ all }`, so the tabs stay hidden for it).
 import { decodeCursor, encodeCursor } from "@repo/contracts/http/cursor";
 import {
   gamesFilterOf,
@@ -17,7 +19,7 @@ import {
   type GamesPageMeta,
   type GamesQuery,
 } from "@repo/contracts/http/games";
-import { MAX_MOMENTS } from "@repo/contracts/http/review";
+import { GAME_SOURCES_WIRE, MAX_MOMENTS, type GameSourceWire } from "@repo/contracts/http/review";
 import { ApiError } from "@/lib/api/api-error";
 import { fnv1a64 } from "@/lib/api/etag";
 import type { Viewer } from "@/lib/auth/viewer";
@@ -27,11 +29,13 @@ import {
   archivePageSql,
   type ArchiveCountsRow,
   type ArchiveCursor,
+  type ArchiveFilter,
   type ArchiveRow,
 } from "./archive-sql";
 import { opponentKindOf, playedAtLabelOf, tcOf } from "./review-dto";
 
-export type ArchiveRequest = { filter: GamesFilter; cursor: ArchiveCursor | null; limit: number };
+export type { ArchiveFilter };
+export type ArchiveRequest = { filter: ArchiveFilter; cursor: ArchiveCursor | null; limit: number };
 
 const ISO_MS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const BIGINT_ID = /^[1-9]\d{0,18}$/;
@@ -56,7 +60,7 @@ export function encodeArchiveCursor(row: Pick<ArchiveRow, "endedAt" | "gameId">)
 /** The parsed G1 query (the RSC builds the same from its searchParams with `gamesFilterOf`). */
 export function archiveRequestOf(query: GamesQuery): ArchiveRequest {
   return {
-    filter: gamesFilterOf({ q: query.q, result: query.result, tc: query.tc, moments: query.moments }),
+    filter: withSource(gamesFilterOf({ q: query.q, result: query.result, tc: query.tc, moments: query.moments }), query.source),
     cursor: decodeArchiveCursor(query.cursor),
     limit: query.limit,
   };
@@ -68,17 +72,24 @@ const firstOf = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] :
 /** zod 4 `stringbool()`'s truthy strings (GamesQuery.moments), so the page and G1 agree on `?moments=`. */
 const TRUTHY = new Set(["1", "true", "yes", "on", "y", "enabled"]);
 
-/** The filter of a `/games?…` URL for the RSC (unknown values dropped, a 1-character search ignored): G1's parsing. */
-export function parseGamesFilter(sp: SearchParams): GamesFilter {
-  const moments = (firstOf(sp.moments) ?? "").trim().toLowerCase();
-  return gamesFilterOf({ q: firstOf(sp.q), result: firstOf(sp.result), tc: firstOf(sp.tc), moments: TRUTHY.has(moments) });
+/** The filter plus a known source tab (an unknown or absent one is All). */
+function withSource(filter: GamesFilter, source: string | undefined): ArchiveFilter {
+  return source && (GAME_SOURCES_WIRE as readonly string[]).includes(source) ? { ...filter, source: source as GameSourceWire } : filter;
 }
 
-/** `g<gamesVersion>-<fnv1a64>` (quoted by route()). */
+/** The filter of a `/games?…` URL for the RSC (unknown values dropped, a 1-character search ignored): G1's parsing. */
+export function parseGamesFilter(sp: SearchParams): ArchiveFilter {
+  const moments = (firstOf(sp.moments) ?? "").trim().toLowerCase();
+  const filter = gamesFilterOf({ q: firstOf(sp.q), result: firstOf(sp.result), tc: firstOf(sp.tc), moments: TRUTHY.has(moments) });
+  return withSource(filter, firstOf(sp.source));
+}
+
+/** `g<gamesVersion>-<fnv1a64>` (quoted by route()). The source tab joins the hash only when one is picked. */
 export function archiveEtag(gamesVersion: number, req: ArchiveRequest, nowMs: number): string {
   const cursor = req.cursor ? `${req.cursor.endedAt}|${req.cursor.gameId}` : "";
   const year = new Date(nowMs).getUTCFullYear();
-  return `g${gamesVersion}-${fnv1a64(`${gamesFilterToSearch(req.filter)}#${cursor}#${req.limit}#${year}`)}`;
+  const source = req.filter.source ? `#source=${req.filter.source}` : "";
+  return `g${gamesVersion}-${fnv1a64(`${gamesFilterToSearch(req.filter)}#${cursor}#${req.limit}#${year}${source}`)}`;
 }
 
 const STATUS_WIRE: Record<ArchiveRow["analysisStatus"], GameRowDTO["analysisStatus"]> = {
@@ -132,6 +143,19 @@ export function gameRowOf(row: ArchiveRow, nowMs: number): GameRowDTO {
 
 export type ArchivePage = { rows: GameRowDTO[]; meta: GamesPageMeta };
 
+/**
+ * `meta.counts`: `all`, plus the three source counts once any imported game exists (P4 source tabs). A Replay-only
+ * archive keeps P3's `{ all }`: the client reads absent source counts as "everything is Replay Chess".
+ */
+export function countsOf(c: ArchiveCountsRow): NonNullable<GamesPageMeta["counts"]> {
+  const all = Number(c.all);
+  const chesscom = c.chesscom === undefined || c.chesscom === null ? 0 : Number(c.chesscom);
+  const lichess = c.lichess === undefined || c.lichess === null ? 0 : Number(c.lichess);
+  if (chesscom + lichess === 0) return { all };
+  const replay = c.replay === undefined || c.replay === null ? Math.max(0, all - chesscom - lichess) : Number(c.replay);
+  return { all, replay, chesscom, lichess };
+}
+
 /** Page 1 or a count-only request: the totals are part of the answer (AP-38). */
 export function countsWanted(req: Pick<ArchiveRequest, "cursor" | "limit">): boolean {
   return req.cursor === null || req.limit === 0;
@@ -155,7 +179,7 @@ export async function listMyGames(db: GamesDb, viewer: Pick<Viewer, "id">, req: 
   if (counts) {
     const c = counts[0] ?? { filteredTotal: 0, all: 0 };
     meta.filteredTotal = Number(c.filteredTotal);
-    meta.counts = { all: Number(c.all) };
+    meta.counts = countsOf(c);
   }
   return { rows: page.map((r) => gameRowOf(r, nowMs)), meta };
 }

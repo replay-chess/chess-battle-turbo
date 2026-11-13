@@ -23,6 +23,7 @@ export const NAV_SURFACES = ["sidebar", "rail", "tabbar", "subnav", "back", "pal
 export const ACCOUNT_ACTIONS = [
   "membership",
   "billing",
+  "connected",
   "account",
   "theme",
   "install",

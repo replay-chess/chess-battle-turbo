@@ -67,14 +67,15 @@ const LEGEND_SOURCE_COLUMNS = Prisma.sql`
 const BASE_FROM = (args: ReadArgs) => Prisma.sql`
   FROM games g
   JOIN LATERAL (
-    SELECT p."userId", p.color, p."opponentUserId", p."opponentName", p."opponentRating", p."ratingBefore",
+    SELECT p."gameId", p."userId", p.color, p."opponentUserId", p."opponentName", p."opponentRating", p."ratingBefore",
            p.accuracy, p."phaseAccuracy", p."momentsCount", (p."userId" = ${args.viewerId}) AS "isPlayer"
       FROM game_players p
      WHERE p."gameId" = g.id AND (p."userId" = ${args.viewerId} OR ${args.admin}::boolean)
      ORDER BY (p."userId" = ${args.viewerId}) DESC, p.color DESC
      LIMIT 1) gp ON true
   LEFT JOIN game_analyses a ON a."gameId" = g.id
-  LEFT JOIN player_reviews pr ON pr."gameId" = g.id AND pr.color = gp.color
+  -- Both key columns from gp: the planner always gets the (gameId, color) lookup, never a color-only scan (FIX-1).
+  LEFT JOIN player_reviews pr ON pr."gameId" = gp."gameId" AND pr.color = gp.color
   LEFT JOIN jobs j ON j."dedupeKey" = 'analyze:' || g.id
   LEFT JOIN legend_comparisons lc ON lc."gameId" = g.id AND lc."userId" = gp."userId"
   LEFT JOIN LATERAL (

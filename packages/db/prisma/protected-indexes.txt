@@ -17,3 +17,10 @@ openings_epd_idx
 shares_owner_idx
 shares_expires_idx
 shares_game_idx
+
+# M4 (P4, phase-04 plan 6.2, 6.3). games_source_externalId_key is a Prisma @@unique (M2), so it is not listed.
+game_players_linked_account_idx
+linked_accounts_verified_key
+linked_accounts_autosync_idx
+import_runs_one_active
+import_runs_waiting_idx

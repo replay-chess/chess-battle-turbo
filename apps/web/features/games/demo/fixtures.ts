@@ -5,7 +5,8 @@ import { gameRowFixtures } from "@repo/contracts/http/fixtures/review";
 import { PAGE_LIMIT, type GamesFilter } from "../model/filter";
 import type { GameRowDTO } from "../model/rows";
 
-export const DEMO_STATES = ["default", "filters_open", "empty", "loading", "error"] as const;
+/** P3's states plus P4's `import_running` (the source tabs and the import banner, phase-04 plan §4.11). */
+export const DEMO_STATES = ["default", "filters_open", "empty", "loading", "error", "import_running"] as const;
 export type DemoState = (typeof DEMO_STATES)[number];
 
 export function isDemoState(s: string | undefined): s is DemoState {
@@ -88,8 +89,21 @@ export function demoRows(stress = false): GameRowDTO[] {
   return [...gameRowFixtures(), ...Array.from({ length: 32 }, (_, i) => generated(i, false))];
 }
 
-/** The G1 filter applied to rows in memory (the §9.3 WHERE clause: result, time class, moments, search). */
+/** `import_running`: the same rows with every third one from Chess.com and every fifth from Lichess (an import is landing). */
+export function withImportedSources(rows: GameRowDTO[]): GameRowDTO[] {
+  return rows.map((r, i) => (i % 3 === 1 ? { ...r, source: "chesscom" } : i % 5 === 2 ? { ...r, source: "lichess" } : r));
+}
+
+/** Per-source counts of rows, as G1's `meta.counts` reports them. */
+export function demoSourceCounts(rows: GameRowDTO[]): { replay: number; chesscom: number; lichess: number } {
+  const counts = { replay: 0, chesscom: 0, lichess: 0 };
+  for (const r of rows) counts[r.source] += 1;
+  return counts;
+}
+
+/** The G1 filter applied to rows in memory (the §9.3 WHERE clause: source tab, result, time class, moments, search). */
 export function rowMatches(row: GameRowDTO, f: GamesFilter): boolean {
+  if (f.source && row.source !== f.source) return false;
   if (f.result?.length && !f.result.includes(row.result)) return false;
   if (f.tc?.length && !(row.tc.timeClass && (f.tc as readonly string[]).includes(row.tc.timeClass))) return false;
   if (f.moments && row.momentsCount <= 0) return false;

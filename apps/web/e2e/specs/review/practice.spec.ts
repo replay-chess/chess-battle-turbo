@@ -8,6 +8,14 @@ import type { Page } from "@playwright/test";
 import { boardInView, DEVICES, expect, gotoOk, noDocumentScroll, test } from "./_lib/review";
 
 const WASM = /sf18-[0-9a-f]+\/.*\.wasm(\?|$)/;
+// No service worker in these contexts. Since the worker installs (472fa32) the engine WASM is a CacheFirst route
+// (rc-engine-v18): the sign-in on "/" registers it, it controls /practice from the start, and the WASM request is
+// made by the service worker and answered to the page from it (seen: request.serviceWorker() set, response
+// fromServiceWorker), which Playwright's page.route never sees. The aborted-WASM test then loaded the engine
+// ("default", never engine_failed, every run), and the throttle was skipped whenever the worker answered. The same
+// pattern as game/bot-engine-slow.spec.ts. Each routed test also counts the requests its route handled, so a bypass
+// fails at once (regression: practice-wasm-route-bypassed-by-sw).
+const NO_SW = { serviceWorkers: "block" } as const;
 const isPhone = (page: Page) => (page.viewportSize()?.width ?? 1440) < 600;
 const btn = (page: Page, id: string) => page.getByTestId(isPhone(page) ? `practice-bar-${id}` : `practice-${id}`).filter({ visible: true }).first();
 
@@ -19,7 +27,7 @@ async function play(page: Page, from: string, to: string) {
 
 for (const device of ["desktop-1440", "iphone"] as const) {
   test.describe(`practice · ${device}@100`, { tag: ["@p3"] }, () => {
-    test.use(DEVICES[device]);
+    test.use({ ...DEVICES[device], ...NO_SW });
 
     test(
       "engine_loading (throttled WASM) → default; e4, the reply, Take Back, Reset",
@@ -27,7 +35,9 @@ for (const device of ["desktop-1440", "iphone"] as const) {
       async ({ member, page, seeded, telemetry }) => {
         test.setTimeout(300_000);
         await member("A");
+        let held = 0;
         await page.route(WASM, async (route) => {
+          held++;
           await new Promise((r) => setTimeout(r, 2_500));
           await route.continue();
         });
@@ -37,6 +47,7 @@ for (const device of ["desktop-1440", "iphone"] as const) {
         await expect(page.getByTestId("practice-loading")).toContainText(/Starting the engine · \d+%/);
         await expect(page.getByTestId("practice-loading")).toContainText("First load only: about 7 MB");
         await expect(screen).toHaveAttribute("data-state", "default", { timeout: 120_000 });
+        expect(held, "the throttle held the engine's WASM request (not a service-worker answer)").toBeGreaterThan(0);
         await telemetry.expect("engine_init", { ok: true }, { source: "client" });
         // A direct ?game=&ply= link with no referrer counts as from "review" (features/practice/copy.ts practiceFrom).
         await telemetry.expect("practice_started", { from: "review", ply_bucket: 0 }, { source: "client", count: 1 });
@@ -61,9 +72,11 @@ for (const device of ["desktop-1440", "iphone"] as const) {
     test("an aborted WASM → engine_failed + Retry", { tag: ["@state:V3Practice.engine_failed"] }, async ({ member, page, seeded }) => {
       test.setTimeout(240_000);
       await member("A");
-      await page.route(WASM, (route) => route.abort());
+      let aborted = 0;
+      await page.route(WASM, (route) => (aborted++, route.abort()));
       await gotoOk(page, `/practice?game=${seeded.GAME}&ply=10`);
       await expect(page.getByTestId("practice-screen")).toHaveAttribute("data-state", "engine_failed", { timeout: 90_000 });
+      expect(aborted, "the route aborted the engine's WASM request (not a service-worker answer)").toBeGreaterThan(0);
       await expect(page.getByTestId("practice-failed")).toBeVisible();
       await expect(page.getByTestId("practice-retry")).toBeVisible();
       await page.unroute(WASM);

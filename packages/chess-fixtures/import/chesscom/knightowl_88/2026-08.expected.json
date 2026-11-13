@@ -1,0 +1,169 @@
+{
+  "$comment": "Per game, in archive order: what @repo/chess-import's mapper must produce (or the skip reason). Built by scripts/build-fixtures.ts from chess.js, not from the mapper.",
+  "member": "knightowl_88",
+  "games": [
+    {
+      "externalId": "140000000684",
+      "colour": "w",
+      "outcome": "BLACK",
+      "endMethod": "CHECKMATE",
+      "plyCount": 226,
+      "fen": "8/8/8/8/8/5bkn/8/7K w - - 39 114",
+      "timeClass": "RAPID",
+      "clocksLength": 226,
+      "startPly": 0,
+      "endedAt": "2026-08-02T21:38:16.000Z"
+    },
+    {
+      "externalId": "140000000870",
+      "colour": "b",
+      "outcome": "WHITE",
+      "endMethod": "RESIGNATION",
+      "plyCount": 33,
+      "fen": "rnbr3k/pp3ppB/3R4/8/1nP2P2/2N2N2/P1Q3PP/5RK1 b - - 0 17",
+      "timeClass": "BLITZ",
+      "clocksLength": 33,
+      "startPly": 0,
+      "endedAt": "2026-08-04T17:58:18.000Z"
+    },
+    {
+      "externalId": "140000001154",
+      "colour": "w",
+      "outcome": "BLACK",
+      "endMethod": "RESIGNATION",
+      "plyCount": 51,
+      "fen": "2k5/1p3ppp/2p1p3/8/1Rn1n3/2P5/5PPP/r2BK3 b - - 1 26",
+      "timeClass": "BLITZ",
+      "clocksLength": 51,
+      "startPly": 0,
+      "endedAt": "2026-08-06T14:37:09.000Z"
+    },
+    {
+      "externalId": "140000001594",
+      "colour": "w",
+      "outcome": "DRAW",
+      "endMethod": "INSUFFICIENT_MATERIAL",
+      "plyCount": 174,
+      "fen": "2k5/8/8/8/4K3/8/8/8 w - - 0 88",
+      "timeClass": "BLITZ",
+      "clocksLength": 174,
+      "startPly": 0,
+      "endedAt": "2026-08-08T11:35:54.000Z",
+      "case": "insufficient material"
+    },
+    {
+      "externalId": "140000001996",
+      "colour": "w",
+      "outcome": "WHITE",
+      "endMethod": "TIMEOUT",
+      "plyCount": 65,
+      "fen": "4k3/1R2n1pp/p7/5r2/2p5/4B1P1/PP5P/3R2K1 b - - 0 33",
+      "timeClass": "BULLET",
+      "clocksLength": 65,
+      "startPly": 0,
+      "endedAt": "2026-08-10T08:43:12.000Z"
+    },
+    {
+      "externalId": "140000002450",
+      "colour": "b",
+      "outcome": "BLACK",
+      "endMethod": "RESIGNATION",
+      "plyCount": 48,
+      "fen": "r7/1b1pb1k1/3q2p1/ppn5/4P1Q1/P7/1PP3PP/5R1K w - - 0 25",
+      "timeClass": "RAPID",
+      "clocksLength": 48,
+      "startPly": 0,
+      "endedAt": "2026-08-12T05:41:19.000Z"
+    },
+    {
+      "externalId": "140000002683",
+      "colour": "w",
+      "outcome": "BLACK",
+      "endMethod": "RESIGNATION",
+      "plyCount": 170,
+      "fen": "8/8/8/6p1/2p3P1/8/1k6/3K4 w - - 2 86",
+      "timeClass": "RAPID",
+      "clocksLength": 170,
+      "startPly": 0,
+      "endedAt": "2026-08-14T01:39:54.000Z"
+    },
+    {
+      "externalId": "1030000001",
+      "colour": "b",
+      "outcome": "BLACK",
+      "endMethod": "RESIGNATION",
+      "plyCount": 14,
+      "fen": "r2q1rk1/ppp2ppp/3p1n2/2b1p3/2BnP3/2NP3P/PPP2PP1/R1BQ1RK1 b - - 2 17",
+      "timeClass": "DAILY",
+      "clocksLength": 14,
+      "startPly": 19,
+      "endedAt": "2026-08-15T22:31:05.000Z",
+      "case": "custom initial_setup, Black to move"
+    },
+    {
+      "externalId": "140000003161",
+      "colour": "w",
+      "outcome": "BLACK",
+      "endMethod": "ABANDONED",
+      "plyCount": 10,
+      "fen": "r1bqkb1r/pp2pppp/2n2n2/3P4/3Q4/2N5/PP2PPPP/R1B1KBNR w KQkq - 1 6",
+      "timeClass": "RAPID",
+      "clocksLength": 10,
+      "startPly": 0,
+      "endedAt": "2026-08-17T19:34:44.000Z"
+    },
+    {
+      "externalId": "140000003314",
+      "colour": "b",
+      "outcome": "BLACK",
+      "endMethod": "RESIGNATION",
+      "plyCount": 130,
+      "fen": "8/8/8/8/8/5pk1/7r/2R2K2 w - - 6 66",
+      "timeClass": "BLITZ",
+      "clocksLength": 130,
+      "startPly": 0,
+      "endedAt": "2026-08-19T16:38:46.000Z"
+    },
+    {
+      "externalId": "140000004274",
+      "colour": "w",
+      "outcome": "WHITE",
+      "endMethod": "RESIGNATION",
+      "plyCount": 61,
+      "fen": "6k1/p4pp1/2B4p/1P6/8/P2bN1P1/1r1r1P1P/R2R2K1 b - - 16 31",
+      "timeClass": "BLITZ",
+      "clocksLength": 61,
+      "startPly": 0,
+      "endedAt": "2026-08-21T13:45:21.000Z"
+    },
+    {
+      "externalId": "140000004368",
+      "skip": "parse_error",
+      "case": "archive fen disagrees with the PGN (parse_error)"
+    },
+    {
+      "externalId": "140000004826",
+      "colour": "w",
+      "outcome": "WHITE",
+      "endMethod": "RESIGNATION",
+      "plyCount": 23,
+      "fen": "r1b1k2r/pp2Nppp/5n2/2P1n3/2P5/4B3/PP3PBP/R2QK2R b KQkq - 0 12",
+      "timeClass": "BULLET",
+      "clocksLength": 23,
+      "startPly": 0,
+      "endedAt": "2026-08-25T06:46:46.000Z"
+    },
+    {
+      "externalId": "140000005606",
+      "colour": "b",
+      "outcome": "BLACK",
+      "endMethod": "RESIGNATION",
+      "plyCount": 30,
+      "fen": "r3k2r/p4ppp/2p1p3/3q1b2/1Q6/B2nPN1P/5PP1/RN2K2R w KQkq - 2 16",
+      "timeClass": "RAPID",
+      "clocksLength": 30,
+      "startPly": 0,
+      "endedAt": "2026-08-27T04:07:08.000Z"
+    }
+  ]
+}

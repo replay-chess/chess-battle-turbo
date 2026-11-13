@@ -178,6 +178,8 @@ export const GamesQuery = z.object({
   cursor: CursorParam,
   /** 0 = counts only (`meta.filteredTotal`, `meta.counts`), no rows. */
   limit: z.coerce.number().int().min(0).max(GAMES_PAGE_LIMIT).default(GAMES_PAGE_LIMIT),
+  /** P4 (phase-04 §4.11): one source tab (`replay`, `chesscom`, `lichess`); absent = All. */
+  source: GameSourceWire.optional(),
 });
 export type GamesQuery = z.infer<typeof GamesQuery>;
 
@@ -218,6 +220,14 @@ export type GamesListResponse = z.infer<typeof GamesListResponse>;
 export const GamesPageMeta = z.object({
   nextCursor: z.string().nullable(),
   filteredTotal: z.number().int().min(0).optional(),
-  counts: z.object({ all: z.number().int().min(0) }).optional(),
+  /** `all` since P3; the per-source tab counts since P4 (optional: an older handler sends `all` only). */
+  counts: z
+    .object({
+      all: z.number().int().min(0),
+      replay: z.number().int().min(0).optional(),
+      chesscom: z.number().int().min(0).optional(),
+      lichess: z.number().int().min(0).optional(),
+    })
+    .optional(),
 });
 export type GamesPageMeta = z.infer<typeof GamesPageMeta>;

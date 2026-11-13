@@ -65,6 +65,27 @@ describe("GET /api/me", () => {
     assert.equal(again.status, 304);
   });
 
+  it("regression: trial-eligible-ignores-ledger (FIX-1): trial.eligible asks the trial ledger, only while the row says eligible", async () => {
+    const fresh = viewerFixture({ entitlement: { state: "none", member: false, entitled: false, trial: { active: false, used: false, eligible: true } } });
+    const hit = deps({ userId: "user_1", viewer: fresh, ledgerHit: "email" });
+    const body = ok(MeData).parse(await (await getMe(request("/api/me"), noParams())).json());
+    assert.equal(body.data.entitlement.trial.eligible, false, "a used trial on this email is not offered again");
+    assert.equal(hit.recorded.ledgerProbes.length, 1);
+    hit.restore();
+    restore.pop();
+
+    const miss = deps({ userId: "user_1", viewer: fresh });
+    const offered = ok(MeData).parse(await (await getMe(request("/api/me"), noParams())).json());
+    assert.equal(offered.data.entitlement.trial.eligible, true);
+    assert.equal(miss.recorded.ledgerProbes.length, 1);
+    miss.restore();
+    restore.pop();
+
+    const member = deps({ userId: "user_1", viewer: viewerFixture({ entitlement: { state: "trial", trial: { active: true, used: true, daysLeft: 3 } } }), ledgerHit: "email" });
+    await getMe(request("/api/me"), noParams());
+    assert.equal(member.recorded.ledgerProbes.length, 0, "no probe when the row already says ineligible");
+  });
+
   it("a user Clerk can't provision → 502 upstream_unavailable { provider: clerk, kind }", async () => {
     deps({
       userId: "user_1",

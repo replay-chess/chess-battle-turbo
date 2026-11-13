@@ -1,0 +1,31 @@
+{
+  "$comment": "A real public Chess.com month, anonymised by packages/chess-import/scripts/record-fixture.ts (usernames, game ids, uuids and links replaced; moves, %clk, ratings and times as recorded). V-3: %clk presence and field names.",
+  "recordedAt": "2026-11-12",
+  "month": "2026/11",
+  "member": "knightowl_88",
+  "games": 9,
+  "totals": {
+    "imported": 5,
+    "unrated": 4
+  },
+  "clkGames": 9,
+  "fields": [
+    "accuracies",
+    "black",
+    "eco",
+    "end_time",
+    "fen",
+    "initial_setup",
+    "pgn",
+    "rated",
+    "rules",
+    "start_time",
+    "tcn",
+    "time_class",
+    "time_control",
+    "url",
+    "uuid",
+    "white"
+  ],
+  "droppedPgnHeaders": []
+}

@@ -2,8 +2,10 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "motion/react";
 import { useUserStore } from "@/lib/stores";
+import { useFlag } from "@/lib/flags/client";
 import { cn } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 import { Navbar } from "@/app/components/Navbar";
@@ -76,6 +78,9 @@ const ProfilePage = ({
   const router = useRouter();
   const { referenceId } = use(params);
   const chrome = useChrome();
+  // P4 (phase-04 plan §4.11): with `import-v3` on, "Connect" opens Settings › Connected accounts instead of the
+  // legacy modal (which stays for flag-off viewers until the parity check deletes it, §12.6).
+  const importV3 = useFlag("import-v3");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -238,25 +243,48 @@ const ProfilePage = ({
                 </div>
               </div>
 
-              <button
-                onClick={() => setShowConnectModal(true)}
-                className={cn(
-                  "group relative flex items-center gap-2 px-5 py-2.5",
-                  "bg-cb-accent text-cb-accent-fg",
-                  "transition-all duration-300 overflow-hidden",
-                  "flex-shrink-0"
-                )}
-                style={{ fontFamily: "'Geist', sans-serif" }}
-              >
-                <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-                <span className="relative z-10 text-sm font-medium group-hover:text-cb-text transition-colors duration-300">
-                  Connect
-                </span>
-                <ArrowRight
-                  className="w-3.5 h-3.5 relative z-10 group-hover:text-cb-text transition-colors duration-300"
-                  strokeWidth={1.5}
-                />
-              </button>
+              {importV3 ? (
+                <Link
+                  href="/settings/connected"
+                  data-testid="profile-connect-chesscom"
+                  className={cn(
+                    "group relative flex items-center gap-2 px-5 py-2.5",
+                    "bg-cb-accent text-cb-accent-fg",
+                    "transition-all duration-300 overflow-hidden",
+                    "flex-shrink-0"
+                  )}
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                >
+                  <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                  <span className="relative z-10 text-sm font-medium group-hover:text-cb-text transition-colors duration-300">
+                    Connect Chess.com
+                  </span>
+                  <ArrowRight
+                    className="w-3.5 h-3.5 relative z-10 group-hover:text-cb-text transition-colors duration-300"
+                    strokeWidth={1.5}
+                  />
+                </Link>
+              ) : (
+                <button
+                  onClick={() => setShowConnectModal(true)}
+                  className={cn(
+                    "group relative flex items-center gap-2 px-5 py-2.5",
+                    "bg-cb-accent text-cb-accent-fg",
+                    "transition-all duration-300 overflow-hidden",
+                    "flex-shrink-0"
+                  )}
+                  style={{ fontFamily: "'Geist', sans-serif" }}
+                >
+                  <span className="absolute inset-0 bg-cb-bg origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                  <span className="relative z-10 text-sm font-medium group-hover:text-cb-text transition-colors duration-300">
+                    Connect
+                  </span>
+                  <ArrowRight
+                    className="w-3.5 h-3.5 relative z-10 group-hover:text-cb-text transition-colors duration-300"
+                    strokeWidth={1.5}
+                  />
+                </button>
+              )}
             </motion.div>
           )}
 
@@ -268,12 +296,14 @@ const ProfilePage = ({
         </motion.div>
       </div>
 
-      {/* Connect modal */}
-      <ChessComConnectModal
-        isOpen={showConnectModal}
-        onClose={() => setShowConnectModal(false)}
-        onSuccess={handleConnectSuccess}
-      />
+      {/* Connect modal (legacy, `import-v3` off) */}
+      {importV3 ? null : (
+        <ChessComConnectModal
+          isOpen={showConnectModal}
+          onClose={() => setShowConnectModal(false)}
+          onSuccess={handleConnectSuccess}
+        />
+      )}
     </div>
   );
 };

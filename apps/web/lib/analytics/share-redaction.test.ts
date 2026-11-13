@@ -68,4 +68,34 @@ describe("share code redaction", () => {
     for (let i = 0; i < 20; i++) deep = { child: deep };
     assert.doesNotThrow(() => redactShareDeep(deep));
   });
+  it("regression: p04-pii-in-telemetry (FIX-1): handles and emails never reach PostHog or Sentry", () => {
+    const ph = posthogRedactShareCodes({
+      properties: {
+        $current_url: "https://dev.example/onboarding/confirm?provider=chesscom&u=knightowl_88",
+        $pathname: "/onboarding/confirm",
+        $referrer: "https://dev.example/onboarding/link?error=not_found&u=knightowl_88",
+      },
+      $set_once: { $initial_current_url: "https://dev.example/checkout/activating?subscription_id=sub_1&email=a%40b.c&plan=monthly" },
+    })!;
+    assert.ok(!JSON.stringify(ph).includes("knightowl_88"));
+    assert.ok(!JSON.stringify(ph).includes("a%40b.c"));
+    assert.equal(ph.properties.$current_url, "https://dev.example/onboarding/confirm?provider=chesscom&u=[redacted]");
+
+    const tx = sentryShareRedaction.beforeSendTransaction({
+      transaction: "/onboarding/confirm",
+      request: { url: "https://dev.example/onboarding/confirm?u=knightowl_88" },
+      spans: [
+        { description: "GET https://api.chess.com/pub/player/knightowl_88/stats", data: { "http.url": "https://api.chess.com/pub/player/knightowl_88/stats" } },
+        { description: "GET https://lichess.org/api/user/DrNykterstein" },
+      ],
+    });
+    assert.ok(!/knightowl_88|DrNykterstein/.test(JSON.stringify(tx)));
+    const crumb = sentryShareRedaction.beforeBreadcrumb({ category: "navigation", data: { from: "/onboarding/link", to: "/onboarding/confirm?u=knightowl_88" } });
+    assert.equal(crumb.data.to, "/onboarding/confirm?u=[redacted]");
+    const server = scrubEvent({ request: { url: "https://dev.example/onboarding/confirm?provider=chesscom&u=knightowl_88", query_string: "provider=chesscom&u=knightowl_88" } } as never) as {
+      request: { url: string; query_string: string };
+    };
+    assert.ok(!JSON.stringify(server).includes("knightowl_88"));
+    assert.match(server.request.query_string, /provider=chesscom/);
+  });
 });

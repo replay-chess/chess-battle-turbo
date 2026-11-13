@@ -159,6 +159,13 @@ export interface SkipWrite {
   reason: string;
 }
 
+/** A job whose game was deleted (AnalysisStore.gone). */
+export interface GoneWrite {
+  jobId: string;
+  me: string;
+  gameId: string;
+}
+
 /** `openings` rows the worker needs for the book set and the opening name. */
 export interface OpeningRow {
   eco: string;

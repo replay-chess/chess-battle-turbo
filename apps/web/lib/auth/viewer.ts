@@ -14,7 +14,16 @@
 //
 // Importable from plain Node (tests): Prisma, Clerk, next/* and the server-only product catalog load lazily.
 import { cache } from "react";
-import type { Entitlement, MeData, MeUser } from "@repo/contracts/http/me";
+import type { Entitlement, MeAccount, MeData, MeImport, MeUser } from "@repo/contracts/http/me";
+import {
+  providerFromDb,
+  toWire,
+  type OnboardingGoalDb,
+  type OnboardingStepDb,
+  type ProviderDb,
+  type RatingBandDb,
+} from "@repo/contracts/http/p04-plain";
+import { linkViewStatus, type ImportStateDb, type LinkStatusDb } from "../accounts/view-status";
 import type { EntitlementSummary } from "../billing/entitlement-rules";
 import { ApiError } from "../api/api-error";
 import { requestNow } from "../api/now";
@@ -38,6 +47,19 @@ export const ENTITLEMENT_COLUMNS = [
   "trialEndsAt",
 ] as const;
 
+/** P4 onboarding columns of the viewer row (phase-04 plan §7.2 `GET /api/me`, interface-check §0.10). */
+export const ONBOARDING_COLUMNS = [
+  "onboardingStep",
+  "onboardedAt",
+  "ratingBand",
+  "ratingBandSource",
+  "initialRating",
+  "goals",
+  "dailyMinutes",
+  "timeZone",
+  "pendingCheckoutAt",
+] as const;
+
 /** The users columns of the one viewer statement (plan §8.2). */
 export const VIEWER_COLUMNS = [
   "id",
@@ -54,6 +76,8 @@ export const VIEWER_COLUMNS = [
   "subscriptionSourceAt",
   "gamesVersion",
   ...ENTITLEMENT_COLUMNS,
+  // P4 (phase-04 plan §7.2, R-03): onboarding v3, the member's zone and the pending checkout (WP-C owns these lines).
+  ...ONBOARDING_COLUMNS,
 ] as const;
 
 export type ViewerColumn = (typeof VIEWER_COLUMNS)[number];
@@ -83,6 +107,15 @@ export const VIEWER_SELECT = {
   subscriptionUpdatedAt: true,
   trialStartedAt: true,
   trialEndsAt: true,
+  onboardingStep: true,
+  onboardedAt: true,
+  ratingBand: true,
+  ratingBandSource: true,
+  initialRating: true,
+  goals: true,
+  dailyMinutes: true,
+  timeZone: true,
+  pendingCheckoutAt: true,
 } as const satisfies Record<ViewerColumn, true>;
 
 /** One row of the viewer statement. */
@@ -111,51 +144,163 @@ export type ViewerRecord = {
   subscriptionUpdatedAt: Date | null;
   trialStartedAt: Date | null;
   trialEndsAt: Date | null;
+  /** P4: `OnboardingStep` (DB spelling). */
+  onboardingStep: OnboardingStepDb;
+  onboardedAt: Date | null;
+  ratingBand: RatingBandDb | null;
+  ratingBandSource: string | null;
+  initialRating: number | null;
+  /** `OnboardingGoal[]` (DB spelling), cast to text[] in the statement. */
+  goals: OnboardingGoalDb[];
+  dailyMinutes: number | null;
+  /** IANA zone, default "UTC" (R-03). */
+  timeZone: string;
+  pendingCheckoutAt: Date | null;
   /** chess_com_profiles (LEFT JOIN): null without a linked profile. */
   blitzRating: number | null;
   rapidRating: number | null;
+  /** P4: the member's linked accounts (≤ 2, link order) and the active / last-24-h import run (LATERAL joins). */
+  linkedAccounts: ViewerLinkedAccount[];
+  importRun: ViewerImportRun | null;
 };
 
+/** One linked account of the viewer row (the `MeAccount` source). */
+export type ViewerLinkedAccount = {
+  provider: ProviderDb;
+  username: string;
+  status: LinkStatusDb;
+  importState: ImportStateDb;
+  lastSyncAt: Date | null;
+  nextAllowedSyncAt: Date | null;
+  /** The trial-ledger key (plan 8.4.3; FIX-1). Optional so hand-built records need not carry it. */
+  usernameLower?: string;
+  /** verifiedAt IS NOT NULL: only verified handles can deny a trial (D4-10). */
+  verified?: boolean;
+};
+
+/** The viewer's active import run, or one finished in the last 24 h (the `MeImport` source). */
+export type ViewerImportRun = {
+  referenceId: string;
+  provider: ProviderDb;
+  status: "WAITING_FOR_MEMBERSHIP" | "QUEUED" | "RUNNING" | "DONE" | "FAILED" | "CANCELLED";
+  phase: string | null;
+  imported: number;
+  total: number | null;
+};
+
+/** The non-column fields of a ViewerRecord (joins). */
+type ViewerJoinField = "blitzRating" | "rapidRating" | "linkedAccounts" | "importRun";
+
 // Compile-time: ViewerRecord has exactly the statement's columns.
-type _RecordMatchesColumns = [Exclude<keyof ViewerRecord, ViewerColumn | "blitzRating" | "rapidRating">, Exclude<ViewerColumn, keyof ViewerRecord>];
+type _RecordMatchesColumns = [Exclude<keyof ViewerRecord, ViewerColumn | ViewerJoinField>, Exclude<ViewerColumn, keyof ViewerRecord>];
 const _recordMatchesColumns: _RecordMatchesColumns extends [never, never] ? true : false = true;
 void _recordMatchesColumns;
 
+/** Column expressions that need a cast to come back as plain JS values through $queryRawUnsafe. */
+const COLUMN_EXPR: Partial<Record<ViewerColumn, string>> = {
+  onboardingStep: `u."onboardingStep"::text AS "onboardingStep"`,
+  ratingBand: `u."ratingBand"::text AS "ratingBand"`,
+  goals: `u.goals::text[] AS goals`,
+};
+
+/** UTC `timestamp(3)` as an ISO string inside json_build_object (the column type carries no zone). */
+const isoJson = (col: string) => `to_char(${col}, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
+
+/** Run statuses that hold an account's one active slot (import_runs_one_active). */
+const ACTIVE_RUN_SQL = `('WAITING_FOR_MEMBERSHIP', 'QUEUED', 'RUNNING')`;
+
 /**
- * The one statement (plan §5.2). Column names are compile-time constants; the only input is the bound parameter $1
- * (the Clerk user id), so $queryRawUnsafe here carries no injection surface.
+ * The one statement (plan §5.2; P4 §7.2). Column names are compile-time constants; the only input is the bound
+ * parameter $1 (the Clerk user id, or the users.id for the provisioning re-read), so $queryRawUnsafe here carries no
+ * injection surface. P4 adds two LATERAL joins and stays one round trip: the ≤ 2 linked accounts as one json_agg
+ * (linked_accounts_userId_provider_key) and the newest active-or-recent import run with LIMIT 1
+ * (import_runs_userId_createdAt_idx).
  */
-export const VIEWER_SQL =
-  `SELECT ${VIEWER_COLUMNS.map((c) => `u."${c}"`).join(", ")}, c."blitzRating", c."rapidRating" ` +
-  `FROM users u LEFT JOIN chess_com_profiles c ON c."userId" = u.id ` +
-  `WHERE u."googleId" = $1 LIMIT 1`;
+function viewerSql(where: string): string {
+  return (
+    `SELECT ${VIEWER_COLUMNS.map((c) => COLUMN_EXPR[c] ?? `u."${c}"`).join(", ")}, c."blitzRating", c."rapidRating", ` +
+    `COALESCE(la.accounts, '[]'::json) AS "linkedAccounts", ` +
+    `ir."referenceId" AS "importRef", ir.provider::text AS "importProvider", ir.status::text AS "importStatus", ` +
+    `ir.phase AS "importPhase", ir.imported AS "importImported", ir.total AS "importTotal" ` +
+    `FROM users u LEFT JOIN chess_com_profiles c ON c."userId" = u.id ` +
+    `LEFT JOIN LATERAL (SELECT json_agg(json_build_object('provider', l.provider::text, 'username', l.username, ` +
+    `'status', l.status::text, 'importState', l."importState"::text, 'lastSyncAt', ${isoJson(`l."lastSyncAt"`)}, ` +
+    `'nextAllowedSyncAt', ${isoJson(`l."nextAllowedSyncAt"`)}, 'usernameLower', l."usernameLower", ` +
+    `'verified', (l."verifiedAt" IS NOT NULL)) ORDER BY l."linkedAt", l.id) AS accounts ` +
+    `FROM linked_accounts l WHERE l."userId" = u.id) la ON true ` +
+    `LEFT JOIN LATERAL (SELECT r."referenceId", r.provider, r.status, r.phase, r.imported, r.total FROM import_runs r ` +
+    `WHERE r."userId" = u.id AND (r.status IN ${ACTIVE_RUN_SQL} OR r."finishedAt" > (now() AT TIME ZONE 'UTC') - interval '1 day') ` +
+    `ORDER BY r."createdAt" DESC LIMIT 1) ir ON true ` +
+    `WHERE ${where} LIMIT 1`
+  );
+}
+
+export const VIEWER_SQL = viewerSql(`u."googleId" = $1`);
+/** The same statement by users.id (the provisioning re-read). */
+export const VIEWER_BY_ID_SQL = viewerSql(`u.id = $1::bigint`);
+
+/** The raw row of VIEWER_SQL before the joins are folded into the record. */
+type ViewerRow = Omit<ViewerRecord, "linkedAccounts" | "importRun"> & {
+  linkedAccounts: unknown;
+  importRef: string | null;
+  importProvider: ProviderDb | null;
+  importStatus: ViewerImportRun["status"] | null;
+  importPhase: string | null;
+  importImported: number | null;
+  importTotal: number | null;
+};
+
+const dateOrNull = (v: unknown): Date | null => (typeof v === "string" || v instanceof Date ? new Date(v) : null);
+
+/** Folds the LATERAL columns into the record (the json accounts get Date timestamps). */
+export function recordOfRow(row: ViewerRow): ViewerRecord {
+  const { linkedAccounts, importRef, importProvider, importStatus, importPhase, importImported, importTotal, ...rest } = row;
+  const accounts = Array.isArray(linkedAccounts) ? (linkedAccounts as Record<string, unknown>[]) : [];
+  return {
+    ...rest,
+    goals: Array.isArray(rest.goals) ? rest.goals : [],
+    linkedAccounts: accounts.map((a) => ({
+      provider: a.provider as ProviderDb,
+      username: String(a.username),
+      status: a.status as LinkStatusDb,
+      importState: a.importState as ImportStateDb,
+      lastSyncAt: dateOrNull(a.lastSyncAt),
+      nextAllowedSyncAt: dateOrNull(a.nextAllowedSyncAt),
+      ...(typeof a.usernameLower === "string" ? { usernameLower: a.usernameLower } : {}),
+      ...(typeof a.verified === "boolean" ? { verified: a.verified } : {}),
+    })),
+    importRun:
+      importRef && importProvider && importStatus
+        ? {
+            referenceId: importRef,
+            provider: importProvider,
+            status: importStatus,
+            phase: importPhase,
+            imported: Number(importImported ?? 0),
+            total: importTotal === null || importTotal === undefined ? null : Number(importTotal),
+          }
+        : null,
+  };
+}
 
 /** The Prisma surface the viewer reads use (the real client, or a test fake). */
 export type ViewerDb = {
   $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
-  user: {
-    findUnique(args: {
-      where: { id: bigint };
-      select: typeof VIEWER_SELECT & { chessComProfile: { select: { blitzRating: true; rapidRating: true } } };
-    }): Promise<(Omit<ViewerRecord, "blitzRating" | "rapidRating"> & { chessComProfile: { blitzRating: number | null; rapidRating: number | null } | null }) | null>;
-  };
 };
 
 /** Runs VIEWER_SQL. */
 export async function queryViewerRecord(db: Pick<ViewerDb, "$queryRawUnsafe">, googleId: string): Promise<ViewerRecord | null> {
-  const rows = await db.$queryRawUnsafe<ViewerRecord[]>(VIEWER_SQL, googleId);
-  return rows[0] ?? null;
+  const rows = await db.$queryRawUnsafe<ViewerRow[]>(VIEWER_SQL, googleId);
+  return rows[0] ? recordOfRow(rows[0]) : null;
 }
 
-/** The same row by users.id through Prisma (VIEWER_SELECT), for the re-read right after provisioning. */
-export async function readViewerRecordById(db: Pick<ViewerDb, "user">, id: bigint): Promise<ViewerRecord | null> {
-  const row = await db.user.findUnique({
-    where: { id },
-    select: { ...VIEWER_SELECT, chessComProfile: { select: { blitzRating: true, rapidRating: true } } },
-  });
-  if (!row) return null;
-  const { chessComProfile, ...rest } = row;
-  return { ...rest, blitzRating: chessComProfile?.blitzRating ?? null, rapidRating: chessComProfile?.rapidRating ?? null };
+/**
+ * The same row by users.id, for the re-read right after provisioning (VIEWER_BY_ID_SQL: the same statement, so the
+ * joins cannot drift from the googleId read). The id travels as a decimal string (`$1::bigint`).
+ */
+export async function readViewerRecordById(db: Pick<ViewerDb, "$queryRawUnsafe">, id: bigint): Promise<ViewerRecord | null> {
+  const rows = await db.$queryRawUnsafe<ViewerRow[]>(VIEWER_BY_ID_SQL, id.toString());
+  return rows[0] ? recordOfRow(rows[0]) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -182,11 +327,80 @@ export type Viewer = {
   };
   /** M1: bumped by every write that changes the member's game list (P3 archive ETag). */
   gamesVersion: number;
+  /**
+   * P4 (phase-04 §7.2): the onboarding row, the linked accounts (wire `MeAccount`) and the active / recent run (wire
+   * `MeImport`). Always set by toViewer(); optional so hand-built viewers (tests, fixtures) need not carry them.
+   */
+  onboarding?: ViewerOnboarding;
+  accounts?: MeAccount[];
+  importRun?: MeImport | null;
+  /**
+   * Server-only (never serialised): the VERIFIED linked handles, the trial ledger's handle keys (plan 8.4.3). Read by
+   * lib/billing/trial-eligibility.ts so `trial.eligible` can consult the ledger without another linked-accounts read.
+   */
+  ledgerHandles?: { provider: "chesscom" | "lichess"; usernameLower: string; verified: true }[];
+};
+
+/** The onboarding columns as the server reads them (DB spellings; the wire view is `MeData.onboarding`). */
+export type ViewerOnboarding = {
+  step: OnboardingStepDb;
+  onboarded: boolean;
+  onboardedAt: Date | null;
+  ratingBand: RatingBandDb | null;
+  ratingBandSource: string | null;
+  initialRating: number | null;
+  goals: OnboardingGoalDb[];
+  dailyMinutes: number | null;
+  timeZone: string;
+  pendingCheckoutAt: Date | null;
 };
 
 /** The record fields toViewer reads (a ViewerRecord; tests pass partial shell records too). */
-export type ViewerSource = Omit<ViewerRecord, "id" | "googleId" | "isActive" | "subscriptionSourceAt" | "gamesVersion"> &
-  Partial<Pick<ViewerRecord, "id" | "googleId" | "isActive" | "subscriptionSourceAt" | "gamesVersion">>;
+export type ViewerSource = Omit<
+  ViewerRecord,
+  "id" | "googleId" | "isActive" | "subscriptionSourceAt" | "gamesVersion" | P4RecordField
+> &
+  Partial<Pick<ViewerRecord, "id" | "googleId" | "isActive" | "subscriptionSourceAt" | "gamesVersion" | P4RecordField>>;
+
+/** P4 record fields: optional in a ViewerSource so P1's shell records (no onboarding columns) still map. */
+type P4RecordField = (typeof ONBOARDING_COLUMNS)[number] | "linkedAccounts" | "importRun";
+
+/** The P4 viewer fields of a record (defaults for a P1 shell record without the columns). */
+export function p4ViewerFields(record: ViewerSource, now: Date): Pick<Viewer, "onboarding" | "accounts" | "importRun" | "ledgerHandles"> {
+  const onboarding: ViewerOnboarding = {
+    step: record.onboardingStep ?? (record.onboarded ? "DONE" : "WELCOME"),
+    onboarded: Boolean(record.onboarded),
+    onboardedAt: record.onboardedAt ?? null,
+    ratingBand: record.ratingBand ?? null,
+    ratingBandSource: record.ratingBandSource ?? null,
+    initialRating: record.initialRating ?? null,
+    goals: record.goals ?? [],
+    dailyMinutes: record.dailyMinutes ?? null,
+    timeZone: record.timeZone ?? "UTC",
+    pendingCheckoutAt: record.pendingCheckoutAt ?? null,
+  };
+  const accounts: MeAccount[] = (record.linkedAccounts ?? []).slice(0, 2).map((a) => ({
+    provider: providerFromDb(a.provider),
+    username: a.username,
+    status: linkViewStatus(a, now),
+    lastSyncAt: a.lastSyncAt ? a.lastSyncAt.toISOString() : null,
+  }));
+  const r = record.importRun ?? null;
+  const importRun: MeImport | null = r
+    ? {
+        ref: r.referenceId,
+        provider: providerFromDb(r.provider),
+        status: toWire(r.status),
+        phase: r.phase === "reading" || r.phase === "saving" ? r.phase : null,
+        imported: r.imported,
+        total: r.total,
+      }
+    : null;
+  const ledgerHandles = (record.linkedAccounts ?? [])
+    .filter((a) => a.verified === true && typeof a.usernameLower === "string")
+    .map((a) => ({ provider: providerFromDb(a.provider), usernameLower: a.usernameLower!, verified: true as const }));
+  return { onboarding, accounts, importRun, ledgerHandles };
+}
 
 export function toViewer(record: ViewerSource, options: MembershipOptions): Viewer {
   const { entitlement, summary, billing } = membershipOf(record, options);
@@ -206,6 +420,7 @@ export function toViewer(record: ViewerSource, options: MembershipOptions): View
       summary,
     },
     gamesVersion: record.gamesVersion ?? 0,
+    ...p4ViewerFields(record, options.now),
   };
 }
 
@@ -277,7 +492,7 @@ export const lookupViewer = cache(async (): Promise<ViewerLookup> => {
     // must not trip GET purity on routes that don't declare it (/api/me declares provision_user).
     const result = await exemptWrites(() => provisionUser(userId));
     if (result.status !== "ok") return { status: "unprovisioned", reason: result.status };
-    record = await readViewerRecordById(prisma as unknown as Pick<ViewerDb, "user">, result.userId);
+    record = await readViewerRecordById(prisma, result.userId);
     if (!record) return { status: "unprovisioned", reason: "clerk_user_missing" };
     if (result.created || result.relinked) await scheduleClaimsSync(result.userId);
   }

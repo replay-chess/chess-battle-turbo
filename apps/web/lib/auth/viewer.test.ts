@@ -27,8 +27,11 @@ const {
   ENTITLEMENT_COLUMNS,
   VIEWER_COLUMNS,
   VIEWER_SELECT,
+  VIEWER_BY_ID_SQL,
   VIEWER_SQL,
+  ONBOARDING_COLUMNS,
   queryViewerRecord,
+  recordOfRow,
   readViewerRecordById,
   toMeData,
   toShellUserRecord,
@@ -44,6 +47,11 @@ const DAY = 24 * H;
 const at = (ms: number) => new Date(NOW.getTime() + ms);
 const catalog = { monthly: "pdt_m", yearly: "pdt_y", legacy: ["pdt_old"] };
 const opts = { now: NOW, paywallEnabled: true, catalog };
+
+/** A copy of `o` without `keys` (a P1-shaped record, a raw row before the joins are folded). */
+function omit<T extends object>(o: T, keys: readonly string[]): Partial<T> {
+  return Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k))) as Partial<T>;
+}
 
 /** A never-subscribed, onboarded user with no chess.com profile. */
 function viewerRecord(overrides: Partial<ViewerRecord> = {}): ViewerRecord {
@@ -71,8 +79,19 @@ function viewerRecord(overrides: Partial<ViewerRecord> = {}): ViewerRecord {
     subscriptionUpdatedAt: null,
     trialStartedAt: null,
     trialEndsAt: null,
+    onboardingStep: "DONE",
+    onboardedAt: null,
+    ratingBand: null,
+    ratingBandSource: null,
+    initialRating: null,
+    goals: [],
+    dailyMinutes: null,
+    timeZone: "UTC",
+    pendingCheckoutAt: null,
     blitzRating: null,
     rapidRating: null,
+    linkedAccounts: [],
+    importRun: null,
     ...overrides,
   };
 }
@@ -187,8 +206,10 @@ describe("toViewer / toMeData (plan §8.2)", () => {
       flags: {},
       buildId: "b1",
     });
-    assert.deepEqual(Object.keys(me), ["user", "entitlement", "flags", "buildId"]);
-    assert.deepEqual(Object.keys(me.user), ["ref", "code", "name", "email", "avatarUrl", "role", "onboarded", "ratingLabel"]);
+    // An onboarded user's /api/me carries no `onboarding` view (FIX-2, plan §9.6 /api/me growth): only the steps read it.
+    assert.equal(me.user.onboarded, true);
+    assert.deepEqual(Object.keys(me), ["user", "entitlement", "flags", "buildId", "accounts", "import"]);
+    assert.deepEqual(Object.keys(me.user), ["ref", "code", "name", "email", "avatarUrl", "role", "onboarded", "ratingLabel", "timeZone"]);
     assert.equal(me.user.name.length, 120);
     assert.equal(me.user.avatarUrl, "https://img.example/a.png");
     assert.equal(me.buildId, "b1");
@@ -211,44 +232,132 @@ describe("the viewer statement", () => {
     assert.deepEqual([...ENTITLEMENT_COLUMNS].sort(), Object.keys(ENTITLEMENT_SELECT).sort());
   });
 
-  it("one SELECT with a LEFT JOIN on chess_com_profiles, by googleId, bound as $1", () => {
+  it("one SELECT with a LEFT JOIN on chess_com_profiles and two LATERAL joins, by googleId (or id), bound as $1", () => {
     assert.match(VIEWER_SQL, /^SELECT u\."id", u\."referenceId", /);
-    assert.match(VIEWER_SQL, /c\."blitzRating", c\."rapidRating" FROM users u LEFT JOIN chess_com_profiles c ON c\."userId" = u\.id WHERE u\."googleId" = \$1 LIMIT 1$/);
-    for (const c of VIEWER_COLUMNS) assert.ok(VIEWER_SQL.includes(`u."${c}"`), c);
+    assert.match(VIEWER_SQL, /c\."blitzRating", c\."rapidRating", COALESCE\(la\.accounts, '\[\]'::json\) AS "linkedAccounts", /);
+    assert.match(VIEWER_SQL, /FROM users u LEFT JOIN chess_com_profiles c ON c\."userId" = u\.id LEFT JOIN LATERAL \(SELECT json_agg\(/);
+    assert.match(VIEWER_SQL, /FROM linked_accounts l WHERE l\."userId" = u\.id\) la ON true /);
+    assert.match(VIEWER_SQL, /FROM import_runs r WHERE r\."userId" = u\.id AND \(r\.status IN \('WAITING_FOR_MEMBERSHIP', 'QUEUED', 'RUNNING'\) OR r\."finishedAt" > /);
+    assert.match(VIEWER_SQL, /ORDER BY r\."createdAt" DESC LIMIT 1\) ir ON true WHERE u\."googleId" = \$1 LIMIT 1$/);
+    assert.match(VIEWER_BY_ID_SQL, /WHERE u\.id = \$1::bigint LIMIT 1$/);
+    assert.equal(VIEWER_SQL.replace(`u."googleId" = $1`, `u.id = $1::bigint`), VIEWER_BY_ID_SQL);
+    for (const c of VIEWER_COLUMNS) assert.ok(VIEWER_SQL.includes(`u."${c}"`) || VIEWER_SQL.includes(`u.${c}::`), c);
+    for (const c of ONBOARDING_COLUMNS) assert.ok((VIEWER_COLUMNS as readonly string[]).includes(c), c);
+    assert.ok(VIEWER_SQL.includes(`u."onboardingStep"::text AS "onboardingStep"`));
+    assert.ok(VIEWER_SQL.includes(`u.goals::text[] AS goals`));
   });
 
-  it("queryViewerRecord runs one statement and returns the first row or null", async () => {
+  /** A raw row as VIEWER_SQL returns it (the LATERAL columns unfolded). */
+  function rawRow(overrides: Record<string, unknown> = {}) {
+    return {
+      ...omit(viewerRecord(), ["linkedAccounts", "importRun"]),
+      linkedAccounts: [],
+      importRef: null,
+      importProvider: null,
+      importStatus: null,
+      importPhase: null,
+      importImported: null,
+      importTotal: null,
+      ...overrides,
+    };
+  }
+
+  it("queryViewerRecord runs one statement and returns the first row (joins folded) or null", async () => {
     const calls: unknown[][] = [];
     const db = {
       $queryRawUnsafe: async <T>(...args: unknown[]) => {
         calls.push(args);
-        return (args[1] === "user_test" ? [viewerRecord()] : []) as T;
+        return (args[1] === "user_test" ? [rawRow()] : []) as T;
       },
     };
-    assert.equal((await queryViewerRecord(db, "user_test"))?.code, "ABC123");
+    const record = await queryViewerRecord(db, "user_test");
+    assert.equal(record?.code, "ABC123");
+    assert.deepEqual(record?.linkedAccounts, []);
+    assert.equal(record?.importRun, null);
     assert.equal(await queryViewerRecord(db, "user_nobody"), null);
     assert.deepEqual(calls, [[VIEWER_SQL, "user_test"], [VIEWER_SQL, "user_nobody"]]);
   });
 
-  it("readViewerRecordById selects VIEWER_SELECT + the two ratings and flattens them", async () => {
-    let args: { where: unknown; select: Record<string, unknown> } | undefined;
-    const row: Partial<ViewerRecord> = viewerRecord();
-    delete row.blitzRating;
-    delete row.rapidRating;
+  it("readViewerRecordById runs the same statement by id (decimal string)", async () => {
+    const calls: unknown[][] = [];
     const db = {
-      user: {
-        findUnique: async (a: never) => {
-          args = a;
-          return { ...row, chessComProfile: { blitzRating: 1500, rapidRating: null } };
-        },
+      $queryRawUnsafe: async <T>(...args: unknown[]) => {
+        calls.push(args);
+        return [rawRow({ blitzRating: 1500 })] as T;
       },
     };
-    const record = await readViewerRecordById(db as never, 7n);
-    assert.deepEqual(args?.where, { id: 7n });
-    assert.deepEqual(Object.keys(args!.select).sort(), [...VIEWER_COLUMNS, "chessComProfile"].sort());
+    const record = await readViewerRecordById(db, 7n);
+    assert.deepEqual(calls, [[VIEWER_BY_ID_SQL, "7"]]);
     assert.equal(record?.blitzRating, 1500);
     assert.equal(record?.rapidRating, null);
-    assert.equal("chessComProfile" in record!, false);
+  });
+
+  it("recordOfRow folds the json accounts (ISO → Date) and the run columns", () => {
+    const r = recordOfRow(
+      rawRow({
+        linkedAccounts: [
+          { provider: "CHESSCOM", username: "knightowl_88", status: "ACTIVE", importState: "RUNNING", lastSyncAt: "2026-11-05T10:00:00.000Z", nextAllowedSyncAt: null },
+        ],
+        importRef: "cimportrun000000000000000",
+        importProvider: "CHESSCOM",
+        importStatus: "RUNNING",
+        importPhase: "saving",
+        importImported: 212,
+        importTotal: 480,
+      }) as never,
+    );
+    assert.deepEqual(r.linkedAccounts, [
+      { provider: "CHESSCOM", username: "knightowl_88", status: "ACTIVE", importState: "RUNNING", lastSyncAt: new Date("2026-11-05T10:00:00.000Z"), nextAllowedSyncAt: null },
+    ]);
+    assert.deepEqual(r.importRun, { referenceId: "cimportrun000000000000000", provider: "CHESSCOM", status: "RUNNING", phase: "saving", imported: 212, total: 480 });
+  });
+});
+
+describe("P4 viewer fields → MeData (phase-04 §7.2)", () => {
+  it("onboarding (lowercase wire), timeZone, accounts with the §8.11 view status, the active run", () => {
+    const record = viewerRecord({
+      onboarded: false,
+      onboardingStep: "GOALS",
+      ratingBand: "R800_1200",
+      ratingBandSource: "chesscom:rapid",
+      initialRating: 1184,
+      goals: ["STOP_BLUNDERING", "LEARN_OPENINGS"],
+      dailyMinutes: 10,
+      timeZone: "Asia/Kolkata",
+      linkedAccounts: [
+        { provider: "CHESSCOM", username: "knightowl_88", status: "ACTIVE", importState: "IDLE", lastSyncAt: at(-2 * H), nextAllowedSyncAt: at(30_000) },
+        { provider: "LICHESS", username: "KnightOwl88", status: "ACTIVE", importState: "WAITING_FOR_MEMBERSHIP", lastSyncAt: null, nextAllowedSyncAt: null },
+      ],
+      importRun: { referenceId: "cimportrun000000000000000", provider: "LICHESS", status: "WAITING_FOR_MEMBERSHIP", phase: null, imported: 0, total: null },
+    });
+    const v = toViewer(record, opts);
+    assert.equal(v.onboarding?.step, "GOALS");
+    const me = MeData.parse(toMeData(record, { ...opts, flags: {}, buildId: "b" }));
+    assert.equal(me.user.timeZone, "Asia/Kolkata");
+    assert.deepEqual(me.onboarding, {
+      step: "goals",
+      done: false,
+      ratingBand: "r800_1200",
+      ratingBandSource: "chesscom:rapid",
+      initialRating: 1184,
+      goals: ["stop_blundering", "learn_openings"],
+      dailyMinutes: 10,
+      onboardedAt: null,
+    });
+    assert.deepEqual(me.accounts, [
+      { provider: "chesscom", username: "knightowl_88", status: "rate_limited", lastSyncAt: at(-2 * H).toISOString() },
+      { provider: "lichess", username: "KnightOwl88", status: "waiting_for_membership", lastSyncAt: null },
+    ]);
+    assert.deepEqual(me.import, { ref: "cimportrun000000000000000", provider: "lichess", status: "waiting_for_membership", phase: null, imported: 0, total: null });
+  });
+
+  it("a P1 shell record without the columns still maps (step from `onboarded`, UTC, no accounts)", () => {
+    const p1 = omit(viewerRecord({ onboarded: false }), ["onboardingStep", "timeZone", "linkedAccounts", "importRun", "goals"]);
+    const v = toViewer(p1 as Parameters<typeof toViewer>[0], opts);
+    assert.equal(v.onboarding?.step, "WELCOME");
+    assert.equal(v.onboarding?.timeZone, "UTC");
+    assert.deepEqual(v.accounts, []);
+    assert.equal(v.importRun, null);
   });
 });
 

@@ -30,6 +30,7 @@ import type {
   ComparisonWrite,
   FinalWrite,
   GameMember,
+  GoneWrite,
   LegendCompareLoad,
   LegendSource,
   LoadedGame,
@@ -411,17 +412,25 @@ function toLegendCompareLoad(row: Row): LegendCompareLoad {
   };
 }
 
+/** The job result of an analysis whose game was deleted (AnalysisStore.gone). */
+export const GAME_GONE = "game_gone";
+
+/** One row when the game still exists. */
+export function gameExistsStatement(gameId: string): Statement {
+  return stmt(`SELECT 1 AS present FROM games WHERE id = $1::bigint`, [gameId]);
+}
+
 /**
  * A lock-guarded final batch that ends in doneStatement. A 22012 from the client's retry of an ambiguous failure
  * means "already DONE" when this worker's first attempt committed: then it returns normally (see the header).
  */
-export async function finalBatch(db: Db, jobId: string, me: string, ss: readonly Statement[]): Promise<void> {
+export async function finalBatch(db: Db, jobId: string, me: string, ss: readonly Statement[]): Promise<Row[][] | null> {
   try {
-    await db.batch(ss);
+    return await db.batch(ss);
   } catch (error) {
     if (isLockLost(error) && wasRetried(error)) {
       const rows = await db.query(doneByMeStatement(jobId, me));
-      if (rows.length > 0) return;
+      if (rows.length > 0) return null;
     }
     throw error;
   }
@@ -446,8 +455,8 @@ export class SqlAnalysisStore implements AnalysisStore, LegendCompareStore {
     return num(beat?.priority);
   }
 
-  async finish(w: FinalWrite): Promise<void> {
-    await finalBatch(this.db, w.jobId, w.me, [
+  async finish(w: FinalWrite): Promise<Row[][] | null> {
+    const head = [
       lockGuardStatement(w.jobId, w.me),
       finalAnalysisStatement(w),
       gameDoneStatement(w.gameId, w.opening),
@@ -455,9 +464,9 @@ export class SqlAnalysisStore implements AnalysisStore, LegendCompareStore {
       playersStatement(w.gameId, w.members),
       bumpMembersStatement(w.gameId),
       ...(w.comparisons.length ? [comparisonsStatement(w.gameId, w.chessPositionId, w.comparisons)] : []),
-      ...w.extensions,
-      doneStatement(w.jobId, w.me, w.result),
-    ]);
+    ];
+    const out = await finalBatch(this.db, w.jobId, w.me, [...head, ...w.extensions, doneStatement(w.jobId, w.me, w.result)]);
+    return out ? out.slice(head.length, head.length + w.extensions.length) : null;
   }
 
   async skip(w: SkipWrite): Promise<void> {
@@ -466,6 +475,13 @@ export class SqlAnalysisStore implements AnalysisStore, LegendCompareStore {
       skipStatement(w.gameId),
       doneStatement(w.jobId, w.me, { skipped: w.reason }),
     ]);
+  }
+
+  async gone(w: GoneWrite): Promise<boolean> {
+    const rows = await this.db.query(gameExistsStatement(w.gameId));
+    if (rows.length > 0) return false;
+    await finalBatch(this.db, w.jobId, w.me, [lockGuardStatement(w.jobId, w.me), doneStatement(w.jobId, w.me, { skipped: GAME_GONE })]);
+    return true;
   }
 
   async openings(): Promise<OpeningRow[]> {

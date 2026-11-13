@@ -8,6 +8,8 @@
 // - Metrics: `metric(kind, name, value, attributes)` → Sentry's metrics API (`enableMetrics`). The same gauges are
 //   always served from memory by `GET /internal/metrics` (obs/metrics.ts), which the daily cron backstop reads, so a
 //   plan without Sentry metrics loses nothing ([V4]).
+import { redactDeep } from "@repo/chess-import/redact";
+
 export type CronStatus = "in_progress" | "ok" | "error";
 export type MetricKind = "count" | "distribution" | "gauge";
 export type Attributes = Record<string, string | number | boolean>;
@@ -84,6 +86,18 @@ export class RecordingTelemetry implements Telemetry {
   }
 }
 
+/**
+ * Sentry hooks that drop provider usernames (plan §11.3, FIX-1): the default fetch/http integrations record every
+ * Chess.com and Lichess call of an import as a child span and a breadcrumb with the full URL
+ * (`/pub/player/<u>/games/YYYY/MM`, `/api/games/user/<u>?…`). Every string of an event, transaction and breadcrumb
+ * goes through `redactUsernames` (@repo/chess-import/redact) before it leaves the worker.
+ */
+export const workerSentryRedaction = {
+  beforeSend: <E>(event: E): E => redactDeep(event),
+  beforeSendTransaction: <E>(event: E): E => redactDeep(event),
+  beforeBreadcrumb: <B>(breadcrumb: B): B => redactDeep(breadcrumb),
+};
+
 export async function sentryTelemetry(opts: { dsn: string; environment: string; release: string }): Promise<Telemetry> {
   const Sentry = await import("@sentry/node");
   Sentry.init({
@@ -93,6 +107,7 @@ export async function sentryTelemetry(opts: { dsn: string; environment: string; 
     tracesSampleRate: 1.0,
     sendDefaultPii: false,
     enableMetrics: true,
+    ...workerSentryRedaction,
   });
   return {
     captureException(error, context) {

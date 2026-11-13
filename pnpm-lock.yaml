@@ -39,6 +39,9 @@ importers:
       '@repo/chess-analysis':
         specifier: workspace:*
         version: link:../../packages/chess-analysis
+      '@repo/chess-import':
+        specifier: workspace:*
+        version: link:../../packages/chess-import
       '@repo/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -176,6 +179,9 @@ importers:
       '@repo/chess-analysis':
         specifier: workspace:*
         version: link:../../packages/chess-analysis
+      '@repo/chess-import':
+        specifier: workspace:*
+        version: link:../../packages/chess-import
       '@repo/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -297,6 +303,9 @@ importers:
       '@prisma/nextjs-monorepo-workaround-plugin':
         specifier: 6.17.1
         version: 6.17.1
+      '@repo/chess-fixtures':
+        specifier: workspace:*
+        version: link:../../packages/chess-fixtures
       '@repo/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -462,6 +471,40 @@ importers:
         specifier: 5.9.2
         version: 5.9.2
 
+  packages/chess-import:
+    dependencies:
+      '@repo/game-core':
+        specifier: workspace:*
+        version: link:../game-core
+      chess.js:
+        specifier: 1.4.0
+        version: 1.4.0
+      zod:
+        specifier: 4.1.12
+        version: 4.1.12
+    devDependencies:
+      '@repo/chess-fixtures':
+        specifier: workspace:*
+        version: link:../chess-fixtures
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: 22.15.3
+        version: 22.15.3
+      eslint:
+        specifier: ^9.34.0
+        version: 9.34.0(jiti@2.6.1)
+      tsx:
+        specifier: 4.20.6
+        version: 4.20.6
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
   packages/contracts:
     devDependencies:
       '@repo/typescript-config':
@@ -501,6 +544,12 @@ importers:
       '@repo/chess-analysis':
         specifier: workspace:*
         version: link:../chess-analysis
+      '@repo/chess-fixtures':
+        specifier: workspace:*
+        version: link:../chess-fixtures
+      '@repo/chess-import':
+        specifier: workspace:*
+        version: link:../chess-import
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
@@ -7453,6 +7502,7 @@ packages:
   typescript@5.9.2:
     resolution: {integrity: sha512-CWBzXQrc/qOkhidw1OzBTQuYRbfyxDXJMVJ1XNwUHGROVmuaeiEm3OslpZ1RV96d7SKKjZKrSJu3+t/xlw3R9A==}
     engines: {node: '>=14.17'}
+    hasBin: true
 
   unbox-primitive@1.1.0:
     resolution: {integrity: sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw==}

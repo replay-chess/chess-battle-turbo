@@ -11,7 +11,10 @@
     "test:tournament": "node esbuild.config.mjs && k6 run dist/tournament.js",
     "test:combined": "node esbuild.config.mjs && k6 run dist/combined.js",
     "test:review-read": "node esbuild.config.mjs && k6 run dist/review-read.js",
-    "test:games-list": "node esbuild.config.mjs && k6 run dist/games-list.js"
+    "test:games-list": "node esbuild.config.mjs && k6 run dist/games-list.js",
+    "test:import-status": "node esbuild.config.mjs && k6 run dist/import-status.js",
+    "test:accounts": "node esbuild.config.mjs && k6 run dist/accounts.js",
+    "test:onboarding-patch": "node esbuild.config.mjs && k6 run dist/onboarding-patch.js"
   },
   "devDependencies": {
     "@types/k6": "2.3.1",

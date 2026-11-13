@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { Page, Browser } from "@playwright/test";
-import { ensureViewerOnboarded, signIn } from "./auth";
+import { markOnboardedForE2E, refreshSessionClaims, signIn } from "./auth";
+import { WEB_PORT } from "./socket-server";
 
 /**
  * Create a tournament via the authenticated API from a signed-in page context.
@@ -89,11 +90,12 @@ export async function createTempUsersAndJoin(
     const page = await context.newPage();
 
     try {
-      await signIn(page, email, password);
-
-      // signIn already did this; repeating it (idempotent, one GET /api/me)
-      // guards the onboarding redirect race before navigating away.
-      await ensureViewerOnboarded(page);
+      // A throwaway joiner: the sign-in provisions its row (GET /api/me), then the account is marked onboarded through
+      // the database and Clerk claims (no onboarding API, phase-04 plan §3 / testing X17) and the session reloads
+      // its claims, so middleware lets it through to the join page.
+      await signIn(page, email, password, { onboarding: "as-is" });
+      await markOnboardedForE2E(email);
+      await refreshSessionClaims(page);
 
       await page.goto(`/join-tournament/${tournamentRefId}`, {
         timeout: 60_000,
@@ -126,7 +128,8 @@ export async function deleteTournamentViaApi(
     throw new Error("E2E_CLEANUP_SECRET is required for tournament cleanup");
   }
 
-  const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || "http://localhost:3000";
+  // The run's own web server (E2E_PORT_OFFSET moves it) or the deployed site.
+  const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || process.env.E2E_BASE_URL || `http://localhost:${WEB_PORT}`;
   const res = await fetch(`${baseUrl}/api/tournament/${tournamentRefId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${secret}` },

@@ -21,6 +21,8 @@ COPY packages/game-core/package.json ./packages/game-core/
 COPY packages/chess-fixtures/package.json ./packages/chess-fixtures/
 # @repo/db devDepends on @repo/chess-analysis (P3 seeds and backfills), so the frozen install needs its manifest
 COPY packages/chess-analysis/package.json ./packages/chess-analysis/
+# @repo/db devDepends on @repo/chess-import (P4 personas and seeds) as well
+COPY packages/chess-import/package.json ./packages/chess-import/
 
 # Install the socket server and its workspace dependencies only
 RUN pnpm install --frozen-lockfile --filter "web-socket..."
@@ -44,6 +46,7 @@ COPY packages/db ./packages/db
 COPY packages/game-core ./packages/game-core
 COPY packages/chess-fixtures ./packages/chess-fixtures
 COPY packages/chess-analysis ./packages/chess-analysis
+COPY packages/chess-import ./packages/chess-import
 COPY apps/web-socket ./apps/web-socket
 COPY pnpm-workspace.yaml package.json ./
 

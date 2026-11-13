@@ -7,9 +7,11 @@
 // review status fallback, §5.2). A network error or a 5xx is retried once; a 4xx is a bug and is not retried. The
 // retry waits until the next second: the signature covers the unix-second timestamp and the body, and the socket's
 // replay guard remembers every signature it verified, so a same-second retry of the same body would be refused.
+import { randomUUID } from "node:crypto";
 import { signInternal, type KeyRing } from "@repo/contracts/internal/auth";
 import type { AnalysisEventName, AnalysisEventPayload } from "@repo/contracts/socket/analysis";
 import { EMIT_MAX_TARGETS } from "@repo/contracts/socket/limits";
+import type { UserEventName, UserEventPayload } from "@repo/contracts/socket/user";
 import type { Logger } from "../obs/log";
 import type { Metrics } from "../obs/metrics";
 
@@ -19,6 +21,22 @@ export const EMIT_TIMEOUT_MS = 2_000;
 export const EMIT_RETRY_DELAY_MS = 1_100;
 
 export type EmitResult = "sent" | "skipped" | "failed";
+
+/** The per-send key of an emit whose caller named none (≤ 120 characters, EmitBody). */
+export function autoDedupeKey(event: string): string {
+  return `${event}:${randomUUID()}`;
+}
+
+/**
+ * Every event the worker may emit: P3's analysis events and P4's import events (CT/internal/auth.ts lets `wk` emit
+ * `import:*` and `games:changed`, never `entitlement:changed`, which only the web sends).
+ */
+export type WorkerEventName = AnalysisEventName | Exclude<UserEventName, "entitlement:changed">;
+export type WorkerEventPayload<N extends WorkerEventName> = N extends AnalysisEventName
+  ? AnalysisEventPayload<N>
+  : N extends UserEventName
+    ? UserEventPayload<N>
+    : never;
 
 export interface EmitterOptions {
   baseUrl: string | null;
@@ -33,9 +51,9 @@ export interface EmitterOptions {
 }
 
 export interface EmitSink {
-  emit<N extends AnalysisEventName>(
+  emit<N extends WorkerEventName>(
     event: N,
-    data: AnalysisEventPayload<N>,
+    data: WorkerEventPayload<N>,
     userRefs: readonly string[],
     options?: { dedupeKey?: string },
   ): Promise<EmitResult>;
@@ -50,9 +68,9 @@ export class Emitter implements EmitSink {
     this.timeoutMs = opts.timeoutMs ?? EMIT_TIMEOUT_MS;
   }
 
-  async emit<N extends AnalysisEventName>(
+  async emit<N extends WorkerEventName>(
     event: N,
-    data: AnalysisEventPayload<N>,
+    data: WorkerEventPayload<N>,
     userRefs: readonly string[],
     options: { dedupeKey?: string } = {},
   ): Promise<EmitResult> {
@@ -63,9 +81,14 @@ export class Emitter implements EmitSink {
       return "skipped";
     }
     let result: EmitResult = "sent";
+    // Every send carries a dedupe key. Two sends with the same targets, event and data in one second (the analysis's
+    // pass-2 `compare:ready` and the LEGEND_COMPARE job's, a reconnecting member in between) were otherwise one
+    // signature, and the socket refused the second as a replay (401): the member who joined in between never heard
+    // it (regression: emit-same-second-replay). A caller's own key still makes its retries one delivery.
+    const dedupeKey = options.dedupeKey ?? autoDedupeKey(event);
     for (let i = 0; i < refs.length; i += EMIT_MAX_TARGETS) {
       const targets = refs.slice(i, i + EMIT_MAX_TARGETS).map((userRef) => ({ userRef }));
-      const body = JSON.stringify({ v: 1, targets, event, data, ...(options.dedupeKey ? { dedupeKey: options.dedupeKey } : {}) });
+      const body = JSON.stringify({ v: 1, targets, event, data, dedupeKey: i === 0 ? dedupeKey : `${dedupeKey}:${i}` });
       if ((await this.post(event, body)) === "failed") result = "failed";
     }
     if (result === "sent") this.opts.metrics.emitted(event);
@@ -101,11 +124,11 @@ export class Emitter implements EmitSink {
 
 /** Collects emits in memory (unit tests, and the worker when it runs without a socket server). */
 export class RecordingEmitter implements EmitSink {
-  readonly sent: { event: AnalysisEventName; data: unknown; userRefs: string[]; dedupeKey?: string }[] = [];
+  readonly sent: { event: WorkerEventName; data: unknown; userRefs: string[]; dedupeKey?: string }[] = [];
 
-  async emit<N extends AnalysisEventName>(
+  async emit<N extends WorkerEventName>(
     event: N,
-    data: AnalysisEventPayload<N>,
+    data: WorkerEventPayload<N>,
     userRefs: readonly string[],
     options: { dedupeKey?: string } = {},
   ): Promise<EmitResult> {

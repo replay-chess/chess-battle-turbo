@@ -73,12 +73,16 @@ describe("endpoint registry", () => {
     for (const f of areaFiles) assert.match(index, new RegExp(`from "\\./${f}"`), f);
   });
 
-  it("declares the P1 endpoints of plan §7.3/§7.4, the P2 games endpoints (phase-02 §7.1) and the P3 review, share, archive and practice endpoints (phase-03 §7.2)", () => {
+  it("declares the P1 endpoints of plan §7.3/§7.4, the P2 games endpoints (phase-02 §7.1), the P3 review, share, archive and practice endpoints (phase-03 §7.2) and the P4 accounts, import, onboarding and activation endpoints (phase-04 §7.0)", () => {
     assert.deepEqual(HTTP_ENDPOINTS.map((e) => e.id).sort(), [
+      "accounts.chesscom.link", "accounts.chesscom.lookup", "accounts.lichess.callback", "accounts.lichess.start",
+      "accounts.list", "accounts.sync", "accounts.unlink", "accounts.update",
+      "billing.activation", "billing.checkout",
       "billing.refresh", "catalog.openings.index", "cron.daily",
       "games.checkpoint", "games.complete", "games.create", "games.detail", "games.pgn",
       "health.get", "healthcheck.get",
-      "me.games", "me.get",
+      "import.retry", "import.status",
+      "me.games", "me.get", "me.onboarding",
       "practice.context",
       "review.analyse", "review.complete", "review.get", "review.legend", "review.legend.compute", "review.moment",
       "review.pgn", "review.progress", "review.retry", "review.status",

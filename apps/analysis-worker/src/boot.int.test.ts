@@ -14,7 +14,7 @@ import { loadEnv, type WorkerEnv } from "./config/env";
 import { silentLogger } from "./obs/log";
 import { HOUSEKEEPING_HOUR_UTC } from "./scheduler/recurring/housekeeping-plan";
 import { ORPHAN_STALE_SEC } from "./queue/outcome";
-import { insertJob, jobRow, setupInt, skipInt, type IntEnv } from "./testing/pg";
+import { insertJob, jobRow, makeUser, setupInt, skipInt, type IntEnv } from "./testing/pg";
 
 const k = () => randomBytes(32).toString("base64");
 
@@ -28,6 +28,8 @@ describe("worker boot (Postgres, ENGINE=fake)", { skip: skipInt }, () => {
     env = await setupInt("boot");
     workerEnv = loadEnv({
       APP_ENV: "test",
+      // A P3 test: no import work (the boot backstop would sweep other int files' linked accounts, FIX-1).
+      IMPORT_PAUSED: "on",
       WORKER_DATABASE_URL: env.workerUrl,
       INTERNAL_API_SECRET: ring,
       ENGINE: "fake",
@@ -123,6 +125,29 @@ describe("worker boot (Postgres, ENGINE=fake)", { skip: skipInt }, () => {
       assert.equal((await hkRows()).length, before);
     } finally {
       await worker?.shutdown();
+    }
+  });
+  it("regression: p3-boot-no-import-sweep (FIX-1): a worker booted with IMPORT_PAUSED enqueues no import work for overdue accounts", async () => {
+    // An overdue auto-import account in the shared public schema, as another int file would leave one.
+    const u = await makeUser(env.owner, "bootsweep");
+    const { rows } = await env.owner.query<{ id: string }>(
+      `INSERT INTO linked_accounts ("userId", provider, "externalId", username, "usernameLower", "autoImport", "nextAutoSyncAt", "updatedAt")
+       VALUES ($1, 'LICHESS', $2, $2, $2, true, (now() AT TIME ZONE 'UTC') - interval '3 days', now()) RETURNING id::text AS id`,
+      [u.id, `bootsweep_${u.id}`],
+    );
+    const la = rows[0]!.id;
+    const ours = `SELECT 1 FROM ${env.schema}.jobs WHERE "dedupeKey" = $1`;
+    try {
+      const worker = await bootWorker(workerEnv, { log: silentLogger });
+      await worker.shutdown();
+      // (An earlier test's HOUSEKEEPING may have swept other accounts into this schema's queue: inert, the paused worker
+      // has no I/O lane. This account was created after it, so only the boot could have queued it.)
+      const jobs = await env.owner.query(ours, [`import:${la}`]);
+      assert.equal(jobs.rowCount, 0, "no IMPORT_SYNC row: the boot backstop does not run while imports are paused");
+      const runs = await env.owner.query(`SELECT 1 FROM import_runs WHERE "linkedAccountId" = $1`, [la]);
+      assert.equal(runs.rowCount, 0, "nothing imported");
+    } finally {
+      await env.owner.query(`UPDATE linked_accounts SET "autoImport" = false WHERE id = $1`, [la]);
     }
   });
 });

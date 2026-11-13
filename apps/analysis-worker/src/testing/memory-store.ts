@@ -4,11 +4,13 @@
 // reads as "lost"), `finish`/`skip` mark the job DONE in the same step, a checkpoint returns the job's priority, and a
 // failed ANALYZE_GAME marks the game FAILED with `failedAtPly` (FakeQueue.gameOnFail). Each method counts one round
 // trip, like the SQL store's single statement or batch.
+import type { Row, Statement } from "../db/client";
 import type { AnalysisStore, LegendCompareStore } from "../pipeline/store";
 import type {
   CheckpointWrite,
   FinalWrite,
   GameMember,
+  GoneWrite,
   LegendCompareLoad,
   LegendSource,
   LoadedGame,
@@ -67,6 +69,7 @@ export type MemWrite =
   | { kind: "checkpoint"; gameId: string; gradedPlies: number; evals: number[]; judgements: number[] }
   | { kind: "finish"; gameId: string; statements: number; extensions: number }
   | { kind: "skip"; gameId: string; reason: string }
+  | { kind: "gone"; gameId: string }
   | { kind: "legend"; gameId: string; userId: string };
 
 export class MemoryAnalysisStore implements AnalysisStore, LegendCompareStore {
@@ -77,6 +80,8 @@ export class MemoryAnalysisStore implements AnalysisStore, LegendCompareStore {
   openingLoads = 0;
   /** The next N writes throw a transient network error (the client's retry is not modelled here). */
   failWrites = 0;
+  /** What each final-batch extension statement returns here (SQL is not run in memory); default no rows. */
+  extensionRows: (s: Statement) => Row[] = () => [];
 
   constructor(
     private readonly queue: FakeQueue,
@@ -124,6 +129,18 @@ export class MemoryAnalysisStore implements AnalysisStore, LegendCompareStore {
     return job;
   }
 
+  private pendingDelete: string | null = null;
+
+  /** deleteGameOnNextWrite: the row goes now, and the write fails like Postgres's FK check (23503). */
+  private foreignKey(gameId: string): void {
+    if (this.pendingDelete !== gameId) return;
+    this.pendingDelete = null;
+    this.games.delete(gameId);
+    throw Object.assign(new Error('insert or update on table "game_analyses" violates foreign key constraint "game_analyses_gameId_fkey"'), {
+      code: "23503",
+    });
+  }
+
   private trip(): void {
     this.trips++;
     if (this.failWrites > 0) {
@@ -161,6 +178,7 @@ export class MemoryAnalysisStore implements AnalysisStore, LegendCompareStore {
 
   async checkpoint(w: CheckpointWrite): Promise<number> {
     this.trip();
+    this.foreignKey(w.gameId);
     const job = this.held(w.jobId, w.me);
     const g = this.games.get(w.gameId)!;
     g.analysis = {
@@ -195,8 +213,9 @@ export class MemoryAnalysisStore implements AnalysisStore, LegendCompareStore {
     return job.priority;
   }
 
-  async finish(w: FinalWrite): Promise<void> {
+  async finish(w: FinalWrite): Promise<Row[][] | null> {
     this.trip();
+    this.foreignKey(w.gameId);
     const job = this.held(w.jobId, w.me);
     const g = this.games.get(w.gameId)!;
     g.analysis = {
@@ -258,6 +277,7 @@ export class MemoryAnalysisStore implements AnalysisStore, LegendCompareStore {
     // guard + analyses + games + reviews + players + users + [comparisons] + extensions + done
     const statements = 7 + (w.comparisons.length ? 1 : 0) + w.extensions.length;
     this.writes.push({ kind: "finish", gameId: w.gameId, statements, extensions: w.extensions.length });
+    return w.extensions.map((x) => this.extensionRows(x));
   }
 
   async skip(w: SkipWrite): Promise<void> {
@@ -270,6 +290,20 @@ export class MemoryAnalysisStore implements AnalysisStore, LegendCompareStore {
     }
     Object.assign(job, { status: "DONE", result: { skipped: w.reason }, finishedAtMs: this.now() });
     this.writes.push({ kind: "skip", gameId: w.gameId, reason: w.reason });
+  }
+
+  async gone(w: GoneWrite): Promise<boolean> {
+    this.trip();
+    if (this.games.has(w.gameId)) return false;
+    const job = this.held(w.jobId, w.me);
+    Object.assign(job, { status: "DONE", result: { skipped: "game_gone" }, finishedAtMs: this.now() });
+    this.writes.push({ kind: "gone", gameId: w.gameId });
+    return true;
+  }
+
+  /** Test hook: the game is deleted (an import purge) the next time the pipeline writes; that write fails with 23503. */
+  deleteGameOnNextWrite(gameId: string): void {
+    this.pendingDelete = gameId;
   }
 
   async openings(): Promise<OpeningRow[]> {

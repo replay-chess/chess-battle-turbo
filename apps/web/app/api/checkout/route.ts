@@ -1,179 +1,34 @@
-import { NextRequest, NextResponse } from "next/server"
-import { auth, currentUser } from "@clerk/nextjs/server"
-import { z } from "zod"
-import { dodo } from "@/lib/dodo"
-import { prisma } from "@/lib/prisma"
-import { BASE_URL } from "@/lib/seo"
-import { PLAN_KEYS } from "@/lib/billing/plans"
-import {
-  BillingNotConfiguredError,
-  getProductIdForPlan,
-} from "@/lib/billing/products"
-import { buildReturnUrl, resolveAppOrigin } from "@/lib/billing/return-url"
-import { TRIAL_DAYS, isTrialEligible } from "@/lib/billing/trial-rules"
+// BIL-1 · POST /api/checkout (phase-04 plan 7.5.1): opens a Dodo hosted checkout for the Coaching plan, with the 7-day
+// trial when this person never had one. The logic is lib/billing/checkout.ts `startCheckout`; this route adds the
+// required Idempotency-Key: a replay (double click, the bfcache Back button) answers the stored response with
+// `Idempotent-Replayed: true`, and a 4xx is stored too (the same request fails the same way). Rate limit `checkout`
+// 6 / 60 s per user (registry entry).
+import { activationEndpoints } from "@repo/contracts/http/registry";
+import type { CheckoutData } from "@repo/contracts/http/billing";
+import { getRouteDeps } from "@/lib/api/context";
+import { IDEMPOTENCY_REPLAYED_HEADER, readIdempotencyKey, requestHash, withIdempotency } from "@/lib/api/idempotency";
+import { respondWith } from "@/lib/api/respond";
+import { route } from "@/lib/api/route";
+import { defaultCheckoutDeps, startCheckout } from "@/lib/billing/checkout";
 
-const checkoutBodySchema = z.object({
-  plan: z.enum(PLAN_KEYS),
-  returnPath: z.string().max(512).optional(),
-  theme: z.enum(["dark", "light", "system"]).optional(),
-})
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
-/**
- * Creates a Dodo Payments checkout session for the Player plan.
- *
- * The client only chooses a plan key ("monthly" | "yearly"). The product ID,
- * customer email, and name all come from the server so a caller cannot start
- * a checkout for an arbitrary product or on behalf of another email address.
- */
-export async function POST(req: NextRequest) {
-  const { userId } = await auth()
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  let rawBody: unknown
-  try {
-    rawBody = await req.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
-  }
-
-  const parsed = checkoutBodySchema.safeParse(rawBody)
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Choose a monthly or yearly plan" },
-      { status: 400 },
-    )
-  }
-  const { plan, returnPath, theme } = parsed.data
-
-  const clerkUser = await currentUser()
-  const email =
-    clerkUser?.primaryEmailAddress?.emailAddress ??
-    clerkUser?.emailAddresses[0]?.emailAddress
-  if (!email) {
-    return NextResponse.json(
-      { error: "Your account has no email address" },
-      { status: 400 },
-    )
-  }
-  const name =
-    clerkUser?.fullName ??
-    [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(" ") ??
-    undefined
-
-  let productId: string
-  try {
-    productId = getProductIdForPlan(plan)
-  } catch (err) {
-    if (err instanceof BillingNotConfiguredError) {
-      console.error("[checkout]", err.message)
-      return NextResponse.json(
-        { error: "This plan is not available right now" },
-        { status: 503 },
-      )
-    }
-    throw err
-  }
-
-  // Avoid creating a second subscription for someone who is already active,
-  // or whose existing subscription Dodo is still retrying: a new checkout
-  // there would leave the customer with two live subscriptions once the retry
-  // succeeds. A pending (abandoned) first checkout must still be retried.
-  const dbUser = await prisma.user.findFirst({
-    where: { googleId: userId },
-    select: {
-      dodoCustomerId: true,
-      subscriptionId: true,
-      trialStartedAt: true,
-      trialEndsAt: true,
-    },
-  })
-  // One free trial per person: only someone who has never started a trial
-  // and never held a subscription gets one. Everyone else pays on day one.
-  const withTrial = isTrialEligible({
-    trialStartedAt: dbUser?.trialStartedAt ?? null,
-    trialEndsAt: dbUser?.trialEndsAt ?? null,
-    subscriptionId: dbUser?.subscriptionId ?? null,
-  })
-  if (dbUser?.dodoCustomerId) {
-    try {
-      let paymentUpdateSubscriptionId: string | null = null
-      const subscriptions = await dodo.subscriptions.list({
-        customer_id: dbUser.dodoCustomerId,
-      })
-      for await (const subscription of subscriptions) {
-        if (subscription.status === "active") {
-          return NextResponse.json(
-            {
-              error: "You already have an active subscription",
-              code: "already_subscribed",
-              customerId: dbUser.dodoCustomerId,
-            },
-            { status: 409 },
-          )
-        }
-        if (
-          !paymentUpdateSubscriptionId &&
-          (subscription.status === "on_hold" || subscription.status === "past_due")
-        ) {
-          paymentUpdateSubscriptionId = subscription.subscription_id
-        }
-      }
-      if (paymentUpdateSubscriptionId) {
-        return NextResponse.json(
-          {
-            error:
-              "Your subscription has a payment issue. Update your payment method to keep your plan instead of starting a new one.",
-            code: "payment_update_required",
-            subscriptionId: paymentUpdateSubscriptionId,
-            customerId: dbUser.dodoCustomerId,
-          },
-          { status: 409 },
-        )
-      }
-    } catch (err) {
-      // A lookup failure should not block a legitimate checkout.
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[checkout] Could not verify existing subscriptions:", err)
-      }
-    }
-  }
-
-  try {
-    const session = await dodo.checkoutSessions.create({
-      product_cart: [{ product_id: productId, quantity: 1 }],
-      customer: { email, name: name || undefined },
-      metadata: { clerkUserId: userId, plan, trial: withTrial ? "yes" : "no" },
-      // Card is collected now; Dodo charges it when the trial ends (day 8).
-      ...(withTrial ? { subscription_data: { trial_period_days: TRIAL_DAYS } } : {}),
-      return_url: buildReturnUrl(
-        returnPath,
-        resolveAppOrigin(
-          { DODO_PAYMENTS_RETURN_URL: process.env.DODO_PAYMENTS_RETURN_URL },
-          BASE_URL,
-        ),
-      ),
-      customization: { theme: theme ?? "system", show_order_details: true },
-      feature_flags: {
-        // Land the user straight back in the app instead of on Dodo's own
-        // success page; the return page confirms activation itself.
-        redirect_immediately: true,
-        allow_discount_code: true,
-      },
-    })
-
-    return NextResponse.json({
-      checkoutUrl: session.checkout_url,
-      sessionId: session.session_id,
-      trial: withTrial,
-    })
-  } catch (err) {
-    if (process.env.NODE_ENV === "development") {
-      console.error("[checkout] Dodo API error:", err)
-    }
-    const message =
-      err instanceof Error ? err.message : "Failed to create checkout session"
-    return NextResponse.json({ error: message }, { status: 500 })
-  }
-}
+export const POST = route(activationEndpoints.checkout, async (ctx) => {
+  // auth "user": route() answered 401 already when there is no viewer.
+  const viewer = ctx.viewer!;
+  const key = readIdempotencyKey(ctx.req.headers, { required: true })!;
+  const routeDeps = getRouteDeps();
+  const [{ prisma }, { rawDb }] = await Promise.all([import("@/lib/prisma"), import("@/lib/games/snapshot.server")]);
+  const deps = await defaultCheckoutDeps({
+    env: routeDeps.env,
+    after: ctx.after,
+    log: (level, message) => routeDeps.log(level, message, { requestId: ctx.requestId }),
+  });
+  const out = await withIdempotency<CheckoutData>(
+    rawDb(prisma),
+    { userId: viewer.id, key, route: activationEndpoints.checkout.id, hash: requestHash(ctx.body), now: ctx.now },
+    async () => ({ status: 200, body: await startCheckout(viewer, ctx.body, ctx.now, deps) }),
+  );
+  return respondWith(out.body, out.replayed ? { headers: { [IDEMPOTENCY_REPLAYED_HEADER]: "true" } } : {});
+});

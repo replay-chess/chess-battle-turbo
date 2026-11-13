@@ -38,7 +38,7 @@ export type ApiInit<S extends z.ZodType = z.ZodType<unknown>> = {
   fault?: ApiFault;
 };
 
-export type ApiResult<T> = { data: T; meta?: OkMeta };
+export type ApiResult<T> = { data: T; meta?: OkMeta & Record<string, unknown> };
 
 /** The build id the server's `upgrade_required` gate (P2) reads from x-rc-build. */
 export const BUILD_ID: string = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA || "dev";

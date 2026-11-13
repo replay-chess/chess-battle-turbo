@@ -9,6 +9,13 @@
 #              then Playwright @smoke on chromium + webkit-iphone + game-serial (P2 plan 12.6)
 # devices-game the P2 game one-viewport suite on P1's PR device tier (4 projects, plan 12.7)
 # devices-review the P3 screens on the same PR tier (phase-03 plan §12.3), with a Docker database for /r/<code>
+# devices-p4   the P4 screens (onboarding, connected accounts, activating) on the same PR tier + the P4 axe spec
+# P4 (phase-04 plan §12.4, WP-H): e2e-smoke runs the upstream mock (e2e/mocks/upstream-server.ts, :4010: Chess.com,
+#              Lichess, Dodo; Playwright starts it) with the onboarding and import flags on, per-run SIGNED_COOKIE_SECRET
+#              and HASH_PEPPER, the worker with IMPORT_FAULTS_ALLOWED=1; its @smoke set gains the P4 happy path, Lichess,
+#              connected accounts, checkout activating and the archive (desktop + iPhone). devices-p4 runs the onboarding,
+#              connected-accounts and activating one-viewport specs (with their CLS gate) on the PR tier and the P4 axe
+#              spec on ui-desktop and ui-iphone.
 # P3 (phase-03 plan §12, WP-H): integration also loads the 2,000-game perf seed and runs the P3 EXPLAIN gate
 #              (scripts/explain-hot.ts, report artifact perf/results/p03-explain-<sha>.json); e2e-smoke runs the
 #              analysis worker from source on :3003 (ENGINE=fake, APP_ENV=test, role replay_worker) with the review
@@ -82,6 +89,7 @@ jobs:
           pnpm --filter @repo/game-core check-types
           pnpm --filter @repo/chess-fixtures check-types
           pnpm --filter @repo/chess-analysis check-types
+          pnpm --filter @repo/chess-import check-types
           pnpm --filter analysis-worker check-types
 
       - name: Orphan-test guard
@@ -97,11 +105,13 @@ jobs:
           pnpm --filter @repo/chess-fixtures test
           pnpm --filter web-socket test
           pnpm --filter @repo/chess-analysis test
+          pnpm --filter @repo/chess-import test
           pnpm --filter analysis-worker test
 
-      - name: Lint the P3 packages (--max-warnings 0)
+      - name: Lint the P3 and P4 packages (--max-warnings 0)
         run: |
           pnpm --filter @repo/chess-analysis lint
+          pnpm --filter @repo/chess-import lint
           pnpm --filter analysis-worker lint
 
       - name: Licence gate for the grading library and the worker (deep, no AGPL/GPL; phase-03 A7)
@@ -219,6 +229,9 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v app_password="$APP_PW" -f scripts/db/replay-app-role.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_app.p3.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v wk_password="$WK_PW" -f packages/db/scripts/roles/replay_worker.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_app.p4.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p4.sql
+          pnpm --filter @repo/db exec tsx scripts/check-p4-preconditions.ts --url "$DATABASE_URL" --expect-m4
           echo "TEST_APP_DATABASE_URL=postgresql://replay_app:$APP_PW@localhost:5432/replay" >> "$GITHUB_ENV"
           echo "TEST_WORKER_DATABASE_URL=postgresql://replay_worker:$WK_PW@localhost:5432/replay" >> "$GITHUB_ENV"
       - name: Hot-query gate (index existence + EXPLAIN, phase-02 plan 9.2)
@@ -270,7 +283,16 @@ jobs:
       # The v2 socket servers (Playwright webServer + the restartable fixture) share SOCKET_TOKEN_SECRET and
       # INTERNAL_API_SECRET with the web app; both are random per run (below), so no secret is needed.
       NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:3002
-      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on,review-v3:on,review-share:on
+      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on,review-v3:on,review-share:on,onboarding-v3:on,import-v3:on
+      # P4: the providers and Dodo's REST API are the upstream mock (playwright.config.ts starts it on :4010 and points
+      # the web and the worker at it; DODO_API_BASE_URL is honoured only by an APP_ENV=test build). The product ids are
+      # the mock's; no Dodo, Chess.com or Lichess traffic leaves the runner.
+      DODO_API_BASE_URL: http://127.0.0.1:4010/dodo
+      CHESSCOM_API_BASE: http://127.0.0.1:4010/chesscom
+      LICHESS_BASE_URL: http://localhost:4010/lichess
+      LICHESS_CLIENT_ID: replay-chess-dev
+      DODO_PRODUCT_ID_MONTHLY: pdt_ci_monthly
+      DODO_PRODUCT_ID_YEARLY: pdt_ci_yearly
       # P3: the web and the :3002 socket kick the e2e worker (Playwright starts it, e2e/fixtures/analysis-worker.ts).
       ANALYSIS_WORKER_URL: http://127.0.0.1:3003
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
@@ -333,6 +355,13 @@ jobs:
           echo "::add-mask::$clerk"
           echo "DODO_PAYMENTS_WEBHOOK_KEY=$dodo" >> "$GITHUB_ENV"
           echo "CLERK_WEBHOOK_SIGNING_SECRET=$clerk" >> "$GITHUB_ENV"
+          # P4: the signed onboarding / activation cookies and the trial-ledger pepper (web, worker and the persona tool).
+          cookie="$(openssl rand -base64 32)"
+          pepper="$(openssl rand -hex 32)"
+          echo "::add-mask::$cookie"
+          echo "::add-mask::$pepper"
+          echo "SIGNED_COOKIE_SECRET=$cookie" >> "$GITHUB_ENV"
+          echo "HASH_PEPPER=$pepper" >> "$GITHUB_ENV"
       - name: Random socket keys for this run (web ↔ socket token and HMAC rings)
         # One ring with the web's, the socket's and the worker's keys, plus the web's worker-only key `webwk`; each
         # process signs with its own kid (the web with the first, the socket and the worker reorder it; the worker gets
@@ -364,6 +393,7 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v rt_password="$RT_PW" -f packages/db/sql/roles.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/socket.p3.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v wk_password="$WK_PW" -f packages/db/scripts/roles/replay_worker.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p4.sql
           echo "E2E_SOCKET_DATABASE_URL=postgresql://replay_realtime:$RT_PW@localhost:5432/replay" >> "$GITHUB_ENV"
           echo "E2E_WORKER_DATABASE_URL=postgresql://replay_worker:$WK_PW@localhost:5432/replay" >> "$GITHUB_ENV"
       - name: Build (test app env, hooks on, sinks on)
@@ -444,6 +474,51 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: devices-game-report
+          path: apps/web/playwright-report-devices/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  devices-p4:
+    # phase-04 plan §12.4: the onboarding steps, /settings/connected and the activation card in every demo state on the PR
+    # tier (desktop-1440@100, desktop-1280@125, iphone@100, ipad-portrait@100; nightly devices-full runs all 40), the
+    # CLS ≤ 0.05 lab gate of onboarding and the checkout return (plan §9.1), and axe on every P4 demo state in both
+    # themes (ui-desktop, ui-iphone). Demo routes only: no database rows are read.
+    needs: verify
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 45
+    env:
+      CI: "1"
+      DEVICES_TIER: pr
+      NEXT_PUBLIC_APP_ENV: test
+      NEXT_PUBLIC_POSTHOG_KEY: ""
+      NEXT_PUBLIC_SENTRY_DSN: ""
+      SENTRY_DSN: ""
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/none
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/none
+      # The Clerk development instance (as devices-game): Clerk's middleware handshake needs a resolvable Frontend API.
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:3002
+      DODO_PAYMENTS_API_KEY: ci-dummy-dodo-key
+      DODO_PAYMENTS_ENVIRONMENT: test_mode
+      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on,review-v3:on,review-share:on,onboarding-v3:on,import-v3:on
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium webkit
+      - run: pnpm --filter @repo/db generate
+      - name: Onboarding, connected accounts and activating one viewport + CLS (builds .next-devices, serves :3100)
+        run: pnpm --filter web exec playwright test -c playwright.devices.config.ts layout/onboarding.spec.ts layout/settings-connected.spec.ts layout/activating.spec.ts
+      - name: axe on every P4 demo state, light and dark
+        run: pnpm --filter web exec playwright test -c playwright.devices.config.ts ui/onboarding.a11y.spec.ts --project=ui-desktop --project=ui-iphone
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: devices-p4-report
           path: apps/web/playwright-report-devices/
           retention-days: 14
           if-no-files-found: ignore

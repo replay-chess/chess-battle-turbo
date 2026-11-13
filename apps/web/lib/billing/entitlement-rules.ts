@@ -5,7 +5,7 @@
  */
 import type { BillingInterval, ProductCatalog, ResolvedPlan } from "./plans";
 import { resolvePlanFromProductId } from "./plans";
-import { isInTrial, trialDaysLeft } from "./trial-rules";
+import { isInTrial, NEVER_STARTED_STATUSES, trialDaysLeft } from "./trial-rules";
 
 /** Dodo subscription statuses, mirrored from the SDK. */
 export type SubscriptionStatus =
@@ -134,6 +134,11 @@ export function shouldApplySnapshot(
   sourceAt: Date | null,
   now: Date = new Date(),
 ): boolean {
+  // A subscription that never started (a declined first charge or trial card check, a mandate still pending) is not
+  // the member's subscription: it never replaces what is stored and never lands on an empty row, so a declined
+  // checkout leaves no subscriptionId behind ("ever held a subscription" would refuse the trial on the retry, and the
+  // claims would say lapsed). The row's own subscription still follows its later events (FIX-2).
+  if (NEVER_STARTED_STATUSES.has(String(snapshot.status)) && current.subscriptionId !== snapshot.subscription_id) return false;
   // Nothing stored yet: always apply.
   if (!current.subscriptionId) return true;
 

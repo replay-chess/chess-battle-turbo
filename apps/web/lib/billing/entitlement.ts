@@ -1,9 +1,11 @@
 import "server-only";
 import type { PrismaClient } from "@repo/db";
+import { getRouteDeps } from "@/lib/api/context";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import {
   fieldsFromSnapshot,
+  isEntitled,
   providerTimeOf,
   shouldApplySnapshot,
   summarizeEntitlement,
@@ -74,8 +76,23 @@ export function summarizeUserEntitlement(
  * Clerk claims only when `changed` is true. `entitlement` is the user's state after the apply.
  */
 export type ApplyOutcome =
-  | { status: "applied"; changed: boolean; userId: bigint; userRef: string; entitlement: EntitlementSummary }
+  | {
+      status: "applied";
+      changed: boolean;
+      userId: bigint;
+      userRef: string;
+      entitlement: EntitlementSummary;
+      /** Phase 4 (8.5.4): the summary of the row the compare-and-set read, i.e. the state before this write. */
+      before?: EntitlementSummary;
+    }
   | { status: "stale"; changed: false; userId: bigint; userRef: string; entitlement: EntitlementSummary }
+  /**
+   * FIX-1: a second, different subscription that would grant access while the row holds another entitled one (two
+   * checkouts paid at once; FIX-2: trial or paid, from any path). Nothing is written; the webhook cancels it at Dodo
+   * (a paid one is listed for a refund, dodo-events.ts). Decided from the compare-and-set's own user read: no extra
+   * statement. `entitlement` is the row's (entitled) state.
+   */
+  | { status: "duplicate"; changed: false; userId: bigint; userRef: string; entitlement: EntitlementSummary; kept: string }
   | { status: "unmatched"; changed: false }
   | { status: "error"; changed: false; userId: bigint; userRef: string; error: "cas_exhausted" };
 
@@ -136,10 +153,45 @@ const defaultLog: ApplyLog = (level, message, context) => {
   }
 };
 
+/** What the entitlement fan-out (phase-04 plan 8.5.4, lib/billing/fanout.ts) gets after a write that landed. */
+export type AppliedChange = {
+  userId: bigint;
+  userRef: string;
+  before: EntitlementSummary;
+  after: EntitlementSummary;
+  /** The provider time of the snapshot, else the write time. */
+  eventTime: Date;
+  source: "webhook" | "api";
+};
+
 export interface ApplyDeps {
   store: SnapshotStore;
   log: ApplyLog;
+  /**
+   * Post-CAS hook (phase-04 plan 8.5.4): runs once per write that landed (`applied && changed`), never for a stale,
+   * unchanged or lost snapshot. Default: the entitlement fan-out (fanout.ts onEntitlementApplied) queued in
+   * route()'s `after()` when the production store is used; a caller that injects its own `store` (tests,
+   * scripts) owns its side effects and gets no fan-out unless it passes one.
+   */
+  afterApplied: (change: AppliedChange) => void;
 }
+
+/**
+ * The production hook: queues the fan-out in route()'s `after()` SYNCHRONOUSLY (inside the request, so Next keeps the
+ * function alive for it); fanout.ts (the socket emit, the import release) loads inside the task. Outside a request
+ * scope (a script) the fan-out runs detached.
+ */
+const scheduleFanout = (change: AppliedChange): void => {
+  const run = async (): Promise<void> => {
+    const { onEntitlementApplied } = await import("./fanout");
+    await onEntitlementApplied(change);
+  };
+  try {
+    getRouteDeps().after(run);
+  } catch {
+    void run().catch((err: unknown) => defaultLog("warn", "[billing] entitlement fan-out failed", { error: err instanceof Error ? err.name : "unknown" }));
+  }
+};
 
 /** Today's lookup order (Phase 0): the known user id, then the Dodo customer id, then the email. */
 export function pickSnapshotUser(
@@ -188,6 +240,7 @@ export async function applySubscriptionSnapshot(
 ): Promise<ApplyOutcome> {
   const store = deps.store ?? prismaStore;
   const log = deps.log ?? defaultLog;
+  const afterApplied = deps.afterApplied ?? (deps.store ? undefined : scheduleFanout);
   const keys = {
     userId: options.userId,
     customerId: snapshot.customer?.customer_id || undefined,
@@ -219,6 +272,32 @@ export async function applySubscriptionSnapshot(
       (firstReadSourceAt === null || storedAt.getTime() > firstReadSourceAt.getTime());
     if (firstReadSourceAt === undefined) firstReadSourceAt = storedAt;
 
+    // A second entitled subscription next to the entitled one the row holds is a duplicate, trial or paid (an
+    // entitled member cannot start a checkout, so it can only come from two checkouts opened at once). It is never
+    // applied, whichever path brings it: the webhook (which cancels it at Dodo, dodo-events.ts), the activation
+    // self-heal or a refresh. FIX-2 (review round 2): trial snapshots were exempt here because the webhook's
+    // duplicate-trial guard runs before the apply, so the self-heal and the refresh (which never pass that guard)
+    // replaced the member's entitled trial X with the second trial Y; nothing then cancelled X, which charged on day 8.
+    if (
+      user.subscriptionId &&
+      user.subscriptionId !== snapshot.subscription_id &&
+      isEntitled(user, now) &&
+      isEntitled(fieldsFromSnapshot(snapshot, {}), now)
+    ) {
+      log("warn", "[billing] duplicate subscription not applied", {
+        source: options.source,
+        subscription: snapshot.subscription_id,
+        kind: snapshot.trial_period_days && snapshot.trial_period_days > 0 ? "trial" : "paid",
+      });
+      return {
+        status: "duplicate",
+        changed: false,
+        userId: user.id,
+        userRef: user.referenceId,
+        entitlement: summarizeUserEntitlement(user, now),
+        kept: user.subscriptionId,
+      };
+    }
     if (lostToTimedWriter || !shouldApplySnapshot(user, snapshot, sourceAt, now)) {
       log("debug", "[billing] stale subscription snapshot ignored", {
         source: options.source,
@@ -253,13 +332,17 @@ export async function applySubscriptionSnapshot(
         status: fields.subscriptionStatus ?? "none",
         interval: fields.planInterval ?? "none",
       });
-      return {
-        status: "applied",
-        changed: true,
-        userId: user.id,
-        userRef: user.referenceId,
-        entitlement: summarizeUserEntitlement({ ...user, ...data, subscriptionUpdatedAt: now }, now),
-      };
+      const before = summarizeUserEntitlement(user, now);
+      const entitlement = summarizeUserEntitlement({ ...user, ...data, subscriptionUpdatedAt: now }, now);
+      if (afterApplied) {
+        try {
+          afterApplied({ userId: user.id, userRef: user.referenceId, before, after: entitlement, eventTime: sourceAt ?? now, source: options.source });
+        } catch (err) {
+          // The write landed; a failing hook must not turn it into an error (the fan-out is best-effort, §8.5.4).
+          log("warn", "[billing] post-apply hook failed", { user: String(user.id), error: err instanceof Error ? err.name : "unknown" });
+        }
+      }
+      return { status: "applied", changed: true, userId: user.id, userRef: user.referenceId, entitlement, before };
     }
     // 0 rows: another writer changed subscriptionSourceAt between our read and write. Re-read.
   }

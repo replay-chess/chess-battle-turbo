@@ -25,9 +25,9 @@ import {
   SUPPORT_EMAIL,
 } from "@/lib/billing/copy";
 import {
+  CHECKOUT_RETURN_PARAMS,
   checkoutReturnPath,
   needsPaymentUpdate,
-  waitForEntitlement,
 } from "@/lib/billing/client";
 import { isAllowedReturnPath } from "@/lib/billing/return-url";
 import {
@@ -43,8 +43,6 @@ const MONTHLY_PRICE = formatPrice(BILLING_PLANS.monthly.priceCents);
 const YEARLY_PRICE = formatPrice(BILLING_PLANS.yearly.priceCents);
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-
-type ActivationState = "idle" | "polling" | "stalled";
 
 /**
  * Query-string state, read on the server by `page.tsx` and handed over as
@@ -86,14 +84,14 @@ export function PricingContent({
   // Treat the redirect as informational only; entitlement comes from the
   // subscription API and webhooks, never from these query parameters.
   const checkoutSuccess = checkout === "success" && status !== "failed";
-  const checkoutFailed = status === "failed";
+  // `checkout=failed` is what /checkout/activating's "Try Again" sends (phase-04 plan 4.9).
+  const checkoutFailed = status === "failed" || checkout === "failed";
   const paywallRequired = reason === "required";
   const redirectUrl = safeRedirectPath(requestedRedirectUrl);
 
   const [billing, setBilling] = useState<PlanKey>(
     isPlanKey(requestedPlan) ? requestedPlan : "yearly",
   );
-  const [activation, setActivation] = useState<ActivationState>("idle");
   const [paywallChecked, setPaywallChecked] = useState(false);
   const redirected = useRef(false);
 
@@ -108,25 +106,22 @@ export function PricingContent({
   const isSubscribed = subscription?.entitled ?? subscription?.plan === "player";
   const paymentUpdateNeeded = needsPaymentUpdate(subscription);
 
-  // After a successful checkout the webhook may still be in flight, so refresh
-  // right away and then keep polling for a short while.
+  // A checkout return that still lands here (a session created before phase 4) is handed to /checkout/activating,
+  // which confirms the activation (socket + poll + Dodo self-heal) and then continues to `redirect_url` (plan 4.9).
+  // This page no longer polls.
   useEffect(() => {
-    if (!checkoutSuccess) return;
-    let cancelled = false;
-
-    setActivation("polling");
-    void waitForEntitlement({
-      refresh: fetchSubscription,
-      isEntitled: () => useUserStore.getState().subscription?.entitled === true,
-      isCancelled: () => cancelled,
-    }).then((entitled) => {
-      if (!cancelled) setActivation(entitled ? "idle" : "stalled");
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [checkoutSuccess, fetchSubscription]);
+    if (!checkoutSuccess || redirected.current) return;
+    redirected.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const out = new URLSearchParams();
+    for (const key of CHECKOUT_RETURN_PARAMS) {
+      const value = params.get(key);
+      if (value !== null) out.set(key, value);
+    }
+    out.set("source", "pricing");
+    if (redirectUrl) out.set("redirect_url", redirectUrl);
+    router.replace(`/checkout/activating?${out.toString()}`);
+  }, [checkoutSuccess, redirectUrl, router]);
 
   // A 402 sent the visitor here, so whatever the persisted store says about
   // their plan is suspect. Re-check before trusting a cached "entitled";
@@ -148,32 +143,12 @@ export function PricingContent({
   const awaitingPaywallCheck =
     paywallRequired && !checkoutSuccess && hasStoreUser && !paywallChecked;
 
-  // Once the plan is live, send the user back to where the paywall stopped
-  // them. New users go through onboarding first (it skips the plan step for
-  // entitled users and ends on /play). Wait for the store user so a fresh
-  // browser does not decide before UserSync has populated it.
-  const onboarded = storeUser ? storeUser.onboarded : null;
-  useEffect(() => {
-    if (!checkoutSuccess || !redirectUrl || !isSubscribed) return;
-    if (onboarded === null) return;
-    if (redirected.current) return;
-    redirected.current = true;
-    router.replace(onboarded ? redirectUrl : "/onboarding");
-  }, [checkoutSuccess, redirectUrl, isSubscribed, onboarded, router]);
-
-  async function handleRefresh() {
-    setActivation("polling");
-    await fetchSubscription();
-    setActivation(
-      useUserStore.getState().subscription?.entitled === true ? "idle" : "stalled",
-    );
-  }
-
   function handleSubscribe() {
-    // Return through /pricing so activation is confirmed before the gated
-    // page (which bounces anyone without a live plan) is reached.
+    // Return through /checkout/activating so activation is confirmed before the
+    // gated page (which bounces anyone without a live plan) is reached.
     void startCheckout(billing, {
       returnPath: redirectUrl ? checkoutReturnPath(redirectUrl) : undefined,
+      source: paywallRequired ? "paywall" : "pricing",
     });
   }
 
@@ -483,34 +458,13 @@ export function PricingContent({
                   data-testid="checkout-activating-banner"
                   className="border border-amber-500/30 bg-amber-500/10 p-4 text-center"
                 >
-                  {activation === "stalled" ? (
-                    <>
-                      <p
-                        style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="text-sm text-amber-400"
-                      >
-                        Payment received. Your plan is activating, this can take
-                        a minute.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={handleRefresh}
-                        data-testid="activation-refresh"
-                        style={{ fontFamily: "'Geist', sans-serif" }}
-                        className="mt-3 px-4 py-2 text-xs font-medium uppercase tracking-widest border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors"
-                      >
-                        Refresh
-                      </button>
-                    </>
-                  ) : (
-                    <p
-                      style={{ fontFamily: "'Geist', sans-serif" }}
-                      className="text-sm text-amber-400 flex items-center justify-center gap-2"
-                    >
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Card saved. Your membership is being activated.
-                    </p>
-                  )}
+                  <p
+                    style={{ fontFamily: "'Geist', sans-serif" }}
+                    className="text-sm text-amber-400 flex items-center justify-center gap-2"
+                  >
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Card saved. Your membership is being activated.
+                  </p>
                 </div>
               </motion.div>
             )}

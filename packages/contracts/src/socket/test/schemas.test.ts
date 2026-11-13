@@ -174,7 +174,7 @@ describe("registry", () => {
     for (const name of [...SERVER_EVENT_NAMES, ...COMMAND_NAMES]) assert.match(name, /^[a-z]+:[a-z_]+$/, name);
   });
 
-  it("the emit registry: P2's test:echo (refused in production) and P3's analysis events", () => {
+  it("the emit registry: P2's test:echo (refused in production), P3's analysis events and P4's user events", () => {
     assert.deepEqual(Object.keys(EMIT_EVENTS), [
       "test:echo",
       "analysis:queued",
@@ -185,13 +185,18 @@ describe("registry", () => {
       "analysis:batch",
       "compare:ready",
       "games:changed",
+      "import:progress",
+      "import:finished",
+      "import:failed",
+      "entitlement:changed",
     ]);
     const dev = emitEventFor("test:echo", "dev");
     assert.ok(dev.ok);
     assert.equal(dev.schema.safeParse({ text: "hi" }).success, true);
     assert.deepEqual(emitEventFor("test:echo", "production"), { ok: false, reason: "unknown" });
     assert.deepEqual(emitEventFor("move:applied", "dev"), { ok: false, reason: "unknown" }, "game events are never emitted over HTTP");
-    assert.deepEqual(emitEventFor("entitlement:changed", "dev"), { ok: false, reason: "unknown" });
+    // A later phase's event (P10 presence) is not registered yet; P4 registered entitlement:changed (user.p4.test.ts).
+    assert.deepEqual(emitEventFor("presence:state", "dev"), { ok: false, reason: "unknown" });
   });
 
   it("every error code list is unique", () => {

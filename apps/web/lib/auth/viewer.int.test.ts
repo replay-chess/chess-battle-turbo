@@ -1,6 +1,7 @@
 /**
  * The raw viewer statement against a real Postgres after `prisma migrate deploy` (plan §12.1): one row with the
- * chess.com ratings through the LEFT JOIN, the same row through VIEWER_SELECT, no row for an unknown googleId.
+ * chess.com ratings through the LEFT JOIN, the same row by id (the provisioning re-read), no row for an unknown
+ * googleId; P4 (phase-04 §7.2): the onboarding columns, the linked accounts and the active run through the LATERALs.
  * A renamed or dropped column fails here, not in production.
  *
  * Skipped unless TEST_DATABASE_URL is set: Docker in CI; locally a throwaway container or the Neon dev branch
@@ -9,7 +10,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { PrismaClient } from "@repo/db";
-import { VIEWER_COLUMNS, queryViewerRecord, readViewerRecordById, toViewer, type ViewerDb } from "./viewer";
+import { VIEWER_COLUMNS, queryViewerRecord, readViewerRecordById, toViewer } from "./viewer";
 
 const url = process.env.TEST_DATABASE_URL;
 
@@ -66,8 +67,50 @@ describe("viewer statement (Postgres)", { skip: url ? false : "TEST_DATABASE_URL
 
   it("the provisioning re-read (VIEWER_SELECT by id) returns the same row", async () => {
     const raw = await queryViewerRecord(db, googleId);
-    const byId = await readViewerRecordById(db as unknown as Pick<ViewerDb, "user">, userId);
+    const byId = await readViewerRecordById(db, userId);
     assert.deepEqual(byId, raw);
+  });
+
+  it("P4: onboarding columns, the linked accounts (link order) and the newest active run, one statement", async () => {
+    await db.$executeRawUnsafe(
+      `UPDATE users SET "onboardingStep" = 'GOALS', goals = '{STOP_BLUNDERING,LEARN_OPENINGS}', "timeZone" = 'Asia/Kolkata', "ratingBand" = 'R800_1200' WHERE id = $1::bigint`,
+      userId.toString(),
+    );
+    const now = new Date();
+    const accounts = await db.$queryRawUnsafe<{ id: bigint }[]>(
+      `INSERT INTO linked_accounts ("userId", provider, "externalId", username, "usernameLower", "importState", "lastSyncAt", "updatedAt")
+       VALUES ($1::bigint, 'CHESSCOM', '9001', 'Knight_${run}', 'knight_${run}', 'RUNNING', $2::timestamptz AT TIME ZONE 'UTC', now()),
+              ($1::bigint, 'LICHESS', 'li${run}', 'Li_${run}', 'li_${run}', 'IDLE', NULL, now())
+       RETURNING id`,
+      userId.toString(),
+      now.toISOString(),
+    );
+    await db.$executeRawUnsafe(
+      `INSERT INTO import_runs ("referenceId", "userId", "linkedAccountId", provider, trigger, status, phase, imported, total, "updatedAt")
+       VALUES ($1, $2::bigint, $3::bigint, 'CHESSCOM', 'INITIAL', 'RUNNING', 'saving', 212, 480, now())`,
+      `cviewerint${run}`.padEnd(25, "0").slice(0, 25),
+      userId.toString(),
+      accounts[0]!.id.toString(),
+    );
+    const record = await queryViewerRecord(db, googleId);
+    assert.equal(record?.onboardingStep, "GOALS");
+    assert.deepEqual(record?.goals, ["STOP_BLUNDERING", "LEARN_OPENINGS"]);
+    assert.equal(record?.timeZone, "Asia/Kolkata");
+    assert.equal(record?.ratingBand, "R800_1200");
+    assert.equal(record?.linkedAccounts.length, 2);
+    assert.equal(record?.linkedAccounts[0]?.provider, "CHESSCOM");
+    assert.equal(record?.linkedAccounts[0]?.lastSyncAt?.toISOString(), now.toISOString());
+    assert.equal(record?.linkedAccounts[1]?.lastSyncAt, null);
+    assert.deepEqual(record?.importRun, {
+      referenceId: `cviewerint${run}`.padEnd(25, "0").slice(0, 25),
+      provider: "CHESSCOM",
+      status: "RUNNING",
+      phase: "saving",
+      imported: 212,
+      total: 480,
+    });
+    assert.deepEqual(await readViewerRecordById(db, userId), record);
+    await db.$executeRawUnsafe(`DELETE FROM linked_accounts WHERE "userId" = $1::bigint`, userId.toString());
   });
 
   it("no row for an unknown googleId; a user without a profile has null ratings", async () => {

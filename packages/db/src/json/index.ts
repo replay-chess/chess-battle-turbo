@@ -5,3 +5,9 @@ export * from "./game-meta";
 export * from "./review";
 export * from "./legend";
 export * from "./share";
+// M4 (P4, phase-04 plan 6.4): linked_accounts.ratings / "lastError", import_runs.error, import_cursors.archives, and
+// the P4 job payloads (re-exported from @repo/contracts/internal/jobs).
+export * from "./ratings";
+export * from "./import-error";
+export * from "./import-cursor";
+export * from "./jobs";

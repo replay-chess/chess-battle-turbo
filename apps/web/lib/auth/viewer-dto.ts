@@ -6,11 +6,34 @@
 //                                           BillingRefreshData.legacy for useUserStore until P10)
 //
 // Fixed key order everywhere: the private-etag tier hashes the serialised body (lib/api/etag.ts).
-import type { MeData, MeUser } from "@repo/contracts/http/me";
+import type { MeAccount, MeData, MeImport, MeUser } from "@repo/contracts/http/me";
+import type { OnboardingView } from "@repo/contracts/http/onboarding";
+import type { OnboardingGoalDb, OnboardingStepDb, RatingBandDb } from "@repo/contracts/http/p04-plain";
 import type { EntitlementSummary } from "../billing/entitlement-rules";
 
-/** The viewer fields MeData reads (lib/auth/viewer.ts's Viewer satisfies it). */
-export type MeSource = { user: MeUser; entitlement: MeData["entitlement"] };
+/** The onboarding fields MeData.onboarding reads (lib/auth/viewer.ts's ViewerOnboarding satisfies it). */
+export type MeOnboardingSource = {
+  step: OnboardingStepDb;
+  onboarded: boolean;
+  onboardedAt: Date | null;
+  ratingBand: RatingBandDb | null;
+  ratingBandSource: string | null;
+  initialRating: number | null;
+  goals: readonly OnboardingGoalDb[];
+  dailyMinutes: number | null;
+};
+
+/**
+ * The viewer fields MeData reads (lib/auth/viewer.ts's Viewer satisfies it). The P4 fields are optional: a viewer
+ * without them (a P1 shell record, a test fixture) serialises the P1 MeData unchanged.
+ */
+export type MeSource = {
+  user: MeUser;
+  entitlement: MeData["entitlement"];
+  onboarding?: MeOnboardingSource;
+  accounts?: readonly MeAccount[];
+  importRun?: MeImport | null;
+};
 
 /** The record columns MeData.user reads. */
 export type MeUserRecord = {
@@ -24,6 +47,8 @@ export type MeUserRecord = {
   onboarded: boolean;
   blitzRating?: number | null;
   rapidRating?: number | null;
+  /** P4 (R-03): IANA zone; absent on P1 shell records. */
+  timeZone?: string;
 };
 
 const NAME_MAX = 120;
@@ -46,6 +71,27 @@ export function toMeUser(record: MeUserRecord): MeUser {
     role: record.role === "ADMIN" ? "admin" : "user",
     onboarded: Boolean(record.onboarded),
     ratingLabel: ratingLabelOf(record),
+    ...(record.timeZone ? { timeZone: record.timeZone } : {}),
+  };
+}
+
+/** Onboarding is over: the user row says onboarded, or the step reached DONE. */
+export function onboardingFinished(o: Pick<MeOnboardingSource, "onboarded" | "step">): boolean {
+  return o.onboarded || o.step === "DONE";
+}
+
+/** MeData.onboarding (wire enums are lowercase, D4-25). */
+export function onboardingViewOf(o: MeOnboardingSource): OnboardingView {
+  const minutes = o.dailyMinutes === 5 || o.dailyMinutes === 10 || o.dailyMinutes === 20 ? o.dailyMinutes : null;
+  return {
+    step: o.step.toLowerCase() as OnboardingView["step"],
+    done: o.onboarded,
+    ratingBand: o.ratingBand ? (o.ratingBand.toLowerCase() as OnboardingView["ratingBand"]) : null,
+    ratingBandSource: o.ratingBandSource,
+    initialRating: o.initialRating,
+    goals: o.goals.map((g) => g.toLowerCase()) as OnboardingView["goals"],
+    dailyMinutes: minutes,
+    onboardedAt: o.onboardedAt ? o.onboardedAt.toISOString() : null,
   };
 }
 
@@ -71,6 +117,12 @@ export function meDataOf(viewer: MeSource, flags: Record<string, boolean>, build
     },
     flags: { ...flags },
     buildId,
+    // P4 (phase-04 §7.2): present only when the viewer carries them (always, from the viewer statement). `onboarding`
+    // only while onboarding is unfinished: its readers are the steps (FIX-2, plan §9.6 "/api/me growth ≤ +350 B"; the
+    // finished view added ~220 B to every member's /api/me and nothing read it; docs/decisions.md FX-18).
+    ...(viewer.onboarding && !onboardingFinished(viewer.onboarding) ? { onboarding: onboardingViewOf(viewer.onboarding) } : {}),
+    ...(viewer.accounts ? { accounts: viewer.accounts.map((a) => ({ ...a })) } : {}),
+    ...(viewer.importRun !== undefined ? { import: viewer.importRun ? { ...viewer.importRun } : null } : {}),
   };
 }
 

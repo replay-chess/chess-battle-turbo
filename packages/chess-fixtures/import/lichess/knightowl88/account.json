@@ -1,0 +1,77 @@
+{
+  "id": "knightowl88",
+  "username": "KnightOwl88",
+  "perfs": {
+    "bullet": {
+      "games": 41,
+      "rating": 1388,
+      "rd": 75,
+      "prog": -12
+    },
+    "blitz": {
+      "games": 230,
+      "rating": 1512,
+      "rd": 52,
+      "prog": 18
+    },
+    "rapid": {
+      "games": 64,
+      "rating": 1561,
+      "rd": 66,
+      "prog": 9,
+      "prov": false
+    },
+    "classical": {
+      "games": 3,
+      "rating": 1620,
+      "rd": 140,
+      "prog": 0,
+      "prov": true
+    },
+    "correspondence": {
+      "games": 2,
+      "rating": 1700,
+      "rd": 160,
+      "prog": 0,
+      "prov": true
+    },
+    "ultraBullet": {
+      "games": 5,
+      "rating": 1290,
+      "rd": 150,
+      "prog": 0,
+      "prov": true
+    },
+    "puzzle": {
+      "games": 410,
+      "rating": 1650,
+      "rd": 70,
+      "prog": 21
+    }
+  },
+  "createdAt": 1641686400000,
+  "seenAt": 1793491200000,
+  "playTime": {
+    "total": 512000,
+    "tv": 0
+  },
+  "url": "https://lichess.org/@/KnightOwl88",
+  "count": {
+    "all": 345,
+    "rated": 340,
+    "ai": 0,
+    "draw": 12,
+    "drawH": 12,
+    "loss": 160,
+    "lossH": 160,
+    "win": 173,
+    "winH": 173,
+    "bookmark": 0,
+    "playing": 0,
+    "import": 0,
+    "me": 0
+  },
+  "followable": true,
+  "following": false,
+  "blocking": false
+}

@@ -7,7 +7,7 @@
 // Protocol v2 only: the handshake carries `{ token, proto: 2, build }`. The legacy screen (flag off) keeps its own
 // v1 socket inside features/game/legacy.
 
-import { io, type Socket } from "socket.io-client";
+import type { Socket } from "socket.io-client";
 import type { SocketTokenData } from "@repo/contracts/http/socket-token";
 import type { CommandAck, CommandName, CommandPayload } from "@repo/contracts/socket/commands";
 import { shouldResync, type HelloState } from "./resync";
@@ -52,8 +52,34 @@ export class RealtimeError extends Error {
 type AnyHandler = (...args: any[]) => void;
 type LooseSocket = Socket;
 
+type IoFactory = (typeof import("socket.io-client"))["io"];
+let ioLoad: Promise<IoFactory> | null = null;
+
+/**
+ * socket.io-client is loaded on the first hold, not with the page (phase-04 plan §9.6: Activating, Done and
+ * /checkout/activating carried its 12.7 kB in their First Load JS; FIX-1). One import per tab; a failed chunk load is
+ * forgotten so the next hold tries again.
+ */
+export function loadSocketIo(): Promise<IoFactory> {
+  ioLoad ??= import("socket.io-client").then(
+    (m) => m.io,
+    (err: unknown) => {
+      ioLoad = null;
+      throw err;
+    },
+  );
+  return ioLoad;
+}
+
+/** Retry delay after the socket.io chunk failed to load (offline, a deploy replaced the chunk). */
+export const SOCKET_LOAD_RETRY_MS = 3_000;
+
 export class RealtimeConnection {
   private socket: LooseSocket | null = null;
+  /** Handlers registered with `on()`, attached to the socket when it is built (it is built after the lazy load). */
+  private readonly handlers = new Map<string, Set<AnyHandler>>();
+  private loading = false;
+  private loadRetry: ReturnType<typeof setTimeout> | null = null;
   private state: ConnState = "idle";
   private auth: AuthStatus = { kind: "ok" };
   private lastLiveAt = 0;
@@ -104,10 +130,14 @@ export class RealtimeConnection {
 
   /** Registers an event handler without connecting; holds decide when the socket is up. */
   on<P>(event: string, fn: (payload: P) => void): () => void {
-    const s = this.build();
-    s.on(event, fn as AnyHandler);
+    const handler = fn as AnyHandler;
+    let set = this.handlers.get(event);
+    if (!set) this.handlers.set(event, (set = new Set()));
+    set.add(handler);
+    this.socket?.on(event, handler);
     return () => {
-      s.off(event, fn as AnyHandler);
+      this.handlers.get(event)?.delete(handler);
+      this.socket?.off(event, handler);
     };
   }
 
@@ -166,6 +196,9 @@ export class RealtimeConnection {
     this.socket?.disconnect();
     this.socket = null;
     this.token = null;
+    if (this.loadRetry) clearTimeout(this.loadRetry);
+    this.loadRetry = null;
+    this.handlers.clear();
     this.holds.clear();
     this.rejoin.clear();
     this.setState("idle");
@@ -175,7 +208,12 @@ export class RealtimeConnection {
 
   private ensure(): void {
     if (this.destroyed) return;
-    const s = this.build();
+    if (!this.socket) {
+      this.setState("connecting");
+      this.load();
+      return;
+    }
+    const s = this.socket;
     if (!s.connected && !s.active) {
       this.setState("connecting");
       s.connect();
@@ -188,7 +226,31 @@ export class RealtimeConnection {
     this.setState("idle");
   }
 
-  private build(): LooseSocket {
+  /** Loads socket.io-client once, builds the socket and connects if a hold is still waiting. */
+  private load(): void {
+    if (this.loading || this.socket || this.destroyed) return;
+    this.loading = true;
+    loadSocketIo().then(
+      (io) => {
+        this.loading = false;
+        if (this.destroyed || this.socket) return;
+        this.build(io);
+        if (this.holds.size > 0) this.ensure();
+        else this.setState("idle");
+      },
+      () => {
+        this.loading = false;
+        if (this.destroyed || this.holds.size === 0) return;
+        this.setState(online() ? "reconnecting" : "offline");
+        this.loadRetry = setTimeout(() => {
+          this.loadRetry = null;
+          if (this.holds.size > 0) this.load();
+        }, SOCKET_LOAD_RETRY_MS);
+      },
+    );
+  }
+
+  private build(io: IoFactory): LooseSocket {
     if (this.socket) return this.socket;
     const s: LooseSocket = io(this.cfg.url, {
       autoConnect: false,
@@ -257,6 +319,7 @@ export class RealtimeConnection {
         document.removeEventListener("visibilitychange", onVis);
       });
     }
+    for (const [event, set] of this.handlers) for (const fn of set) s.on(event, fn);
     this.socket = s;
     return s;
   }

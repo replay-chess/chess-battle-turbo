@@ -194,4 +194,71 @@ test.describe("real routes @p1", () => {
       expect(await list.evaluate((el) => el.scrollHeight >= el.clientHeight), "/games: the list is the scroller").toBe(true);
     });
   });
+
+  // P4 (phase-04 plan §12.4 "Real-route layer"): /onboarding/welcome and /onboarding/link for a fresh sign-up (pool
+  // persona `onboarding-fresh`), /settings/connected with both accounts linked (`connected-both`), and
+  // /checkout/activating for member A ("already a member", no checkout return). One viewport on the onboarding steps
+  // and the activating page (the document never scrolls, the primary action is in view); the settings page keeps the
+  // shell and never scrolls sideways.
+  test("P4 pages: onboarding, connected accounts, checkout activating @p4", async ({ page }, testInfo) => {
+    test.setTimeout(300_000);
+    const project = testInfo.project.name;
+    test.skip(!(REAL_ROUTE_PROJECTS as readonly string[]).includes(project), `real routes run on ${REAL_ROUTE_PROJECTS.join(", ")}`);
+    const { leasePersona } = await import("../../fixtures/lease");
+    const { poolEmail, poolSlot } = await import("../../fixtures/users");
+    const { refreshSessionClaims } = await import("../../fixtures/auth");
+    const email = poolEmail(poolSlot(testInfo.parallelIndex, 0));
+
+    const oneViewport = async (path: string, primary: string) => {
+      const m = await page.evaluate(() => ({
+        sh: document.scrollingElement!.scrollHeight,
+        ih: innerHeight,
+        sw: document.scrollingElement!.scrollWidth,
+        iw: document.documentElement.clientWidth,
+      }));
+      expect(m.sh, `${path}: no document scroll`).toBeLessThanOrEqual(m.ih + 1);
+      expect(m.sw, `${path}: no sideways scroll`).toBeLessThanOrEqual(m.iw + 1);
+      const box = await page.locator(primary).filter({ visible: true }).last().boundingBox();
+      expect(box, `${path}: primary action laid out`).not.toBeNull();
+      expect(box!.y + box!.height, `${path}: primary action inside the viewport`).toBeLessThanOrEqual(m.ih + 1);
+    };
+
+    await signIn(page, email, "");
+    await leasePersona("onboarding-fresh", testInfo);
+    await refreshSessionClaims(page);
+    for (const [path, ready, primary] of [
+      ["/onboarding/welcome", '[data-testid="onb-welcome"]', '[data-testid="onb-get-started"]'],
+      ["/onboarding/link", '[data-testid="onb-link"]', '[data-testid="onb-continue"]'],
+    ] as const) {
+      await test.step(path, async () => {
+        const res = await page.goto(path, { waitUntil: "domcontentloaded", timeout: 90_000 });
+        expect(res?.status(), `${path} status`).toBe(200);
+        await expect(page.locator(ready)).toBeVisible({ timeout: 60_000 });
+        await waitForStable(page);
+        await oneViewport(path, primary);
+      });
+    }
+
+    await leasePersona("connected-both", testInfo);
+    await refreshSessionClaims(page);
+    await test.step("/settings/connected", async () => {
+      await gotoReal(page, "/settings/connected");
+      await expect(page.getByTestId("settings-connected")).toHaveAttribute("data-state", /both_linked|private_games/, { timeout: 60_000 });
+      const m = await scrollAndMeasure(page);
+      expect(m.scrollW, `/settings/connected: no horizontal page scroll ${JSON.stringify(m)}`).toBeLessThanOrEqual(m.vw + 1);
+      if (m.main) expect(m.main.sw, "/settings/connected: main has no horizontal overflow").toBeLessThanOrEqual(m.main.cw + 1);
+    });
+
+    const memberEmail = process.env[`E2E_USER_${MEMBER}_EMAIL`];
+    test.skip(!memberEmail, `E2E_USER_${MEMBER}_EMAIL is not set (.env.test)`);
+    await page.context().clearCookies();
+    await signIn(page, memberEmail!, process.env[`E2E_USER_${MEMBER}_PASSWORD`] ?? "");
+    await test.step("/checkout/activating (already a member)", async () => {
+      const res = await page.goto("/checkout/activating", { waitUntil: "domcontentloaded", timeout: 90_000 });
+      expect(res?.status()).toBe(200);
+      await expect(page.getByTestId("activation-card")).toHaveAttribute("data-state", "success", { timeout: 60_000 });
+      await waitForStable(page);
+      await oneViewport("/checkout/activating", '[data-testid="activation-continue"]');
+    });
+  });
 });

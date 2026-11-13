@@ -24,7 +24,6 @@ export type LegacyRoute = {
 
 export const LEGACY_ROUTES: readonly LegacyRoute[] = [
   { file: "app/api/analysis/[gameId]/route.ts", method: "GET", anonymous: 401, owner: "P3" },
-  { file: "app/api/checkout/route.ts", method: "POST", anonymous: 401, owner: "P4/P10" },
   { file: "app/api/chess-positions/[id]/route.ts", method: "GET", anonymous: 401, signedInNonAdmin: 403, owner: "P12" },
   { file: "app/api/chess-positions/[id]/route.ts", method: "PUT", anonymous: 401, signedInNonAdmin: 403, owner: "P12" },
   { file: "app/api/chess-positions/[id]/route.ts", method: "DELETE", anonymous: 401, signedInNonAdmin: 403, owner: "P12" },
@@ -89,4 +88,7 @@ export const LEGACY_ROUTES: readonly LegacyRoute[] = [
   { file: "app/api/user/onboarding-skip/route.ts", method: "POST", anonymous: 401, owner: "P4" },
   // A16: deprecated; no caller after F4d; deleted in P2.
   { file: "app/api/user/sync/route.ts", method: "POST", anonymous: 401, owner: "P2 (delete)" },
+  // P4 test hook (phase-04 plan §7.7.4, §11.1): 404 for everyone but an admin / the e2e runner, and always in production.
+  { file: "app/api/dev/import-fault/route.ts", method: "GET", anonymous: 404, signedInNonAdmin: 404, owner: "P4 WP-E (test hook)" },
+  { file: "app/api/dev/import-fault/route.ts", method: "POST", anonymous: 404, signedInNonAdmin: 404, owner: "P4 WP-E (test hook)" },
 ];

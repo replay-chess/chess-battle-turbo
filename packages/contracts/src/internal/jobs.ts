@@ -60,15 +60,40 @@ export const JobKindSchema = z.enum(JOB_KINDS);
 export const P3_JOB_KINDS = ["ANALYZE_GAME", "LEGEND_COMPARE", "HOUSEKEEPING"] as const satisfies readonly JobKind[];
 export type P3JobKind = (typeof P3_JOB_KINDS)[number];
 
+/**
+ * The kinds P4 adds to the worker (phase-04 plan §7.7.1, D4-02): both run on the I/O lane (concurrency 2), never on
+ * the engine lane. Both values already exist in M3's `JobKind`, so P4 writes no enum migration.
+ */
+export const P4_JOB_KINDS = ["IMPORT_SYNC", "IMPORT_PURGE"] as const satisfies readonly JobKind[];
+export type P4JobKind = (typeof P4_JOB_KINDS)[number];
+
+/** Every kind a worker of this build runs (the engine lane's P3 kinds plus the I/O lane's P4 kinds). */
+export const RUN_JOB_KINDS = [...P3_JOB_KINDS, ...P4_JOB_KINDS] as const;
+export type RunJobKind = P3JobKind | P4JobKind;
+
 export const JOB_STATUSES = ["QUEUED", "RUNNING", "DONE", "FAILED", "CANCELLED"] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
-/** `jobs."maxAttempts"` written at insert (§7.7): ANALYZE_GAME 4, LEGEND_COMPARE 3, HOUSEKEEPING 2. */
+/**
+ * `jobs."maxAttempts"` written at insert (§7.7): ANALYZE_GAME 4, LEGEND_COMPARE 3, HOUSEKEEPING 2; P4 (phase-04
+ * §7.7.1) IMPORT_SYNC 5, IMPORT_PURGE 5.
+ */
 export const JOB_MAX_ATTEMPTS = {
   ANALYZE_GAME: 4,
   LEGEND_COMPARE: 3,
   HOUSEKEEPING: 2,
-} as const satisfies Record<P3JobKind, number>;
+  IMPORT_SYNC: 5,
+  IMPORT_PURGE: 5,
+} as const satisfies Record<RunJobKind, number>;
+
+/**
+ * P4 back-off per attempt (phase-04 §7.7.1, §8.11), seconds; the last entry repeats. IMPORT_SYNC honours a
+ * provider `Retry-After` when it is longer. P3's kinds keep the worker's BACKOFF_SEC [30, 120, 600].
+ */
+export const IMPORT_BACKOFF_SEC = {
+  IMPORT_SYNC: [60, 300, 900, 900],
+  IMPORT_PURGE: [30, 120, 600],
+} as const satisfies Record<P4JobKind, readonly number[]>;
 
 /** Games under this many plies (and aborted games) are SKIPPED and get no job (§7.6); zod-free in http/plain.ts. */
 export { ANALYSIS_MIN_PLIES } from "../http/plain";
@@ -93,6 +118,19 @@ export function legendDedupeKey(gameId: Id, userId: Id): string {
   return `legend:${String(gameId)}:${String(userId)}`;
 }
 
+/**
+ * `import:<linkedAccountId>`: the one reusable IMPORT_SYNC row per linked account (initial, manual, daily, retry;
+ * the worker reschedules it for the next daily sync instead of finishing it, D4-27).
+ */
+export function importDedupeKey(linkedAccountId: Id): string {
+  return `import:${String(linkedAccountId)}`;
+}
+
+/** `importpurge:<userId>:<provider>`: one IMPORT_PURGE row per member and provider (`chesscom` | `lichess`). */
+export function importPurgeDedupeKey(userId: Id, provider: "CHESSCOM" | "LICHESS"): string {
+  return `importpurge:${String(userId)}:${provider.toLowerCase()}`;
+}
+
 /** `housekeeping:<yyyy-mm-dd>`: one HOUSEKEEPING row per UTC day, planned by DAILY_PLAN. */
 export function housekeepingDedupeKey(day: string): string {
   if (!IsoDay.safeParse(day).success) throw new Error(`housekeepingDedupeKey: "${day}" is not yyyy-mm-dd`);
@@ -103,14 +141,37 @@ export function housekeepingDedupeKey(day: string): string {
 /** The highest payload version this build reads. */
 export const PAYLOAD_V_MAX = 1;
 
-export const ANALYZE_REASONS = ["live_end", "bot_end", "opened", "retry", "regrade", "backfill", "smoke"] as const;
+/** P4 appends `import` (imported games: the batch writer's eager ranks and the backlog slices, phase-04 §8.8–8.9). */
+export const ANALYZE_REASONS = ["live_end", "bot_end", "opened", "retry", "regrade", "backfill", "smoke", "import"] as const;
 export type AnalyzeReason = (typeof ANALYZE_REASONS)[number];
 
+/** The longest game an `evalHint` may describe (games."plyCount" is a smallint; Lichess games stay far below). */
+export const EVAL_HINT_MAX_PLIES = 2_000;
+/** Mate scores are `sign · (30000 − n)` (CA codec), so every centipawn value fits ±30000. */
+export const EVAL_HINT_MAX_ABS = 30_000;
+
+/**
+ * P4 (phase-04 §6.4, §8.7; R-LI-08): White-POV centipawns per position from the Lichess export (`analysis[i].eval`,
+ * or a mate as `sign · (30000 − |n|)`), sent only when it covers every ply. Lets the worker skip pass 1 and write
+ * `evalSource = LICHESS` (or `MIXED` when it had to fill gaps).
+ */
+export const EvalHint = z.object({
+  source: z.literal("lichess"),
+  cp: z.array(z.int().min(-EVAL_HINT_MAX_ABS).max(EVAL_HINT_MAX_ABS)).min(1).max(EVAL_HINT_MAX_PLIES),
+});
+export type EvalHint = z.infer<typeof EvalHint>;
+
+/**
+ * Both P4 fields are optional, so `v` stays 1: a P3 worker strips them (zod `object`), a P4 worker reads them.
+ * `importRunId`: P3's final batch also bumps `import_runs.analysed` (a no-op once the run row is pruned).
+ */
 export const AnalyzeGamePayloadV1 = z.object({
   v: z.literal(1),
   gameId: BigIntString,
   gameRef: z.string().min(1).max(40),
   reason: z.enum(ANALYZE_REASONS),
+  importRunId: BigIntString.optional(),
+  evalHint: EvalHint.optional(),
 });
 export type AnalyzeGamePayloadV1 = z.infer<typeof AnalyzeGamePayloadV1>;
 
@@ -125,21 +186,48 @@ export type LegendComparePayloadV1 = z.infer<typeof LegendComparePayloadV1>;
 export const HousekeepingPayloadV1 = z.object({ v: z.literal(1), day: IsoDay });
 export type HousekeepingPayloadV1 = z.infer<typeof HousekeepingPayloadV1>;
 
-/** The payload schema of each kind P3 runs. */
+/** `ImportTrigger` (DB spelling: job payloads are internal and keep the Postgres enum values, D4-25). */
+export const IMPORT_TRIGGERS_DB = ["INITIAL", "MANUAL", "DAILY", "RETRY"] as const;
+export type ImportTriggerDb = (typeof IMPORT_TRIGGERS_DB)[number];
+
+/**
+ * IMPORT_SYNC (phase-04 §6.4). `runId` = the `import_runs` row this job drives; null for a DAILY wake that creates
+ * its run only when it finds new games (a DAILY run with 0 new games is never inserted, §6.8).
+ */
+export const ImportSyncPayloadV1 = z.object({
+  v: z.literal(1),
+  linkedAccountId: BigIntString,
+  runId: BigIntString.nullable(),
+  trigger: z.enum(IMPORT_TRIGGERS_DB),
+});
+export type ImportSyncPayloadV1 = z.infer<typeof ImportSyncPayloadV1>;
+
+/** IMPORT_PURGE (phase-04 §8.12): purges by (userId, source), so it works after the link row is gone. */
+export const ImportPurgePayloadV1 = z.object({
+  v: z.literal(1),
+  userId: BigIntString,
+  provider: z.enum(["CHESSCOM", "LICHESS"]),
+  requestedAt: z.iso.datetime(),
+});
+export type ImportPurgePayloadV1 = z.infer<typeof ImportPurgePayloadV1>;
+
+/** The payload schema of each kind a worker of this build runs (P3 engine lane, P4 I/O lane). */
 export const JOB_PAYLOADS = {
   ANALYZE_GAME: AnalyzeGamePayloadV1,
   LEGEND_COMPARE: LegendComparePayloadV1,
   HOUSEKEEPING: HousekeepingPayloadV1,
-} as const satisfies Record<P3JobKind, z.ZodType>;
-export type JobPayload<K extends P3JobKind> = z.infer<(typeof JOB_PAYLOADS)[K]>;
+  IMPORT_SYNC: ImportSyncPayloadV1,
+  IMPORT_PURGE: ImportPurgePayloadV1,
+} as const satisfies Record<RunJobKind, z.ZodType>;
+export type JobPayload<K extends RunJobKind> = z.infer<(typeof JOB_PAYLOADS)[K]>;
 
-export type PayloadRead<K extends P3JobKind> =
+export type PayloadRead<K extends RunJobKind> =
   | { ok: true; payload: JobPayload<K> }
   /** `newer`: a later build wrote it; the claimer releases the job untouched. `invalid`: fail the job. */
   | { ok: false; reason: "newer" | "invalid" };
 
 /** Reads a claimed job's payload: a version above PAYLOAD_V_MAX is `newer` (release it), anything else is parsed. */
-export function readJobPayload<K extends P3JobKind>(kind: K, payload: unknown): PayloadRead<K> {
+export function readJobPayload<K extends RunJobKind>(kind: K, payload: unknown): PayloadRead<K> {
   const v = typeof payload === "object" && payload !== null ? (payload as { v?: unknown }).v : undefined;
   if (typeof v === "number" && Number.isInteger(v) && v > PAYLOAD_V_MAX) return { ok: false, reason: "newer" };
   const parsed = JOB_PAYLOADS[kind].safeParse(payload);

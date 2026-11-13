@@ -15,7 +15,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 /**
  * `/dev/ui/games` (phase-03 plan §4.10): the /games screen in each design state of DR/V3GamesArchive*, with no
  * server. Fails closed outside dev/test (app/dev/layout.tsx). Params:
- *   state=default|filters_open|empty|loading|error   (no state: the index; `import_running` is P4's)
+ *   state=default|filters_open|empty|loading|error|import_running   (no state: the index; import_running: P4 tabs + banner)
  *   stress=1          120 rows, 20-character names, the longest opening
  *   next=error        the next page fails (the inline "Couldn't load more · Try Again" row)
  *   chrome=none       no app shell

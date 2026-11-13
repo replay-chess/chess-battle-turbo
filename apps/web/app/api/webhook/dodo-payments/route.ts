@@ -12,8 +12,13 @@ export const maxDuration = 15;
  *
  * 1. Verify the Standard Webhooks signature on the raw body (`dodo.webhooks.unwrap`); bad → 401.
  * 2. Claim `webhook-id` in `webhook_events` (first statement); a duplicate → 200 `{ duplicate: true }`.
- * 3. Apply with the compare-and-set (`lib/billing/dodo-events.ts`, §8.11); write the outcome.
- * 4. In after(): sync the Clerk claims when the row changed, and the `webhook_processed` event.
+ * 3. Apply with the compare-and-set (`lib/billing/dodo-events.ts`, §8.11); write the outcome. A write that landed queues
+ *    the phase-4 entitlement fan-out in after() through the compare-and-set's post-apply hook (lib/billing/fanout.ts:
+ *    `entitlement:changed`, waiting imports, trial ledger, backlog, membershipEndedAt); a stale or replayed snapshot
+ *    writes nothing and fans out nothing. Phase 4 also records `payment.failed` / `subscription.failed` and runs the
+ *    duplicate-trial guard there (phase-04 plan 7.5.3, 8.4.5).
+ * 4. In after(): sync the Clerk claims when the row changed, the payment-failure emit and the paid-charge backlog
+ *    release (phase 4), and the `webhook_processed` event.
  *
  * The key is read per request, never at module load: `next build` imports this module, and a build
  * without DODO_PAYMENTS_WEBHOOK_KEY must not fail. Without the key every delivery is refused (503).
@@ -45,10 +50,18 @@ export const POST = route({ ...webhookEndpoints.dodo, rawBody: true }, async ({ 
       handle: () => handleDodoEvent(event),
       after,
       userRefOf: (outcome) => outcome.userRef,
-      onProcessed: (outcome) =>
-        outcome.userId && outcome.changed && event.type.startsWith("subscription.")
-          ? syncClerkClaims(outcome.userId)
-          : undefined,
+      onProcessed: async (outcome) => {
+        if (outcome.userId && outcome.changed && event.type.startsWith("subscription.")) await syncClerkClaims(outcome.userId);
+        if (outcome.userId && outcome.userRef && (outcome.paymentFailed || outcome.releaseBacklog)) {
+          const { onPaymentEffects } = await import("@/lib/billing/fanout");
+          await onPaymentEffects({
+            userId: outcome.userId,
+            userRef: outcome.userRef,
+            paymentFailed: outcome.paymentFailed === true,
+            releaseBacklog: outcome.releaseBacklog === true,
+          });
+        }
+      },
     });
     return { received: true as const, duplicate };
   } catch (err) {

@@ -18,7 +18,7 @@ import { parseShareSnapshot } from "../src/json/share";
 import { runEnqueueAnalysis } from "../scripts/backfill/enqueue-analysis";
 import { runLegendFacts } from "../scripts/backfill/legend-facts";
 import { runOpeningEpd } from "../scripts/backfill/opening-epd";
-import { p3Queries, perfParams, runExplain } from "../scripts/explain-hot";
+import { a1Sql, p3Queries, perfParams, runExplain } from "../scripts/explain-hot";
 import { seededRef } from "../seed/builders";
 import { runPerfSeed } from "../seed/perf-archive";
 import { runReviewSeed, writePersonaFixtures } from "../seed/review";
@@ -223,11 +223,27 @@ describe("Phase 3 seeds and backfills (Postgres)", { skip: TEST_URL ? false : "T
 
   it("the perf seed is idempotent, and every P3 hot query has an index path and meets its buffer target", async () => {
     await insertUser("perf");
-    const first = await runPerfSeed(db, { apply: true, rows: 150, email: email("perf") });
-    assert.deepEqual([first.insert, first.written], [150, 150]);
-    const again = await runPerfSeed(db, { apply: true, rows: 150, email: email("perf") });
-    assert.deepEqual([again.unchanged, again.written], [150, 0]);
-    const reports = await runExplain(db, p3Queries(await perfParams(db, email("perf"))), { measure: true });
+    // 600 rows (FIX-1; was 150): page 3 must leave far more than one page behind the cursor. With 90 rows left, other
+    // files' game_players rows (the suite runs in parallel) skewed the endedAt estimate below the LIMIT, and the
+    // planner fetched all 90 and sorted them (277 buffers > 200), a choice that only exists at toy sizes.
+    const PERF_TEST_ROWS = 600;
+    const first = await runPerfSeed(db, { apply: true, rows: PERF_TEST_ROWS, email: email("perf") });
+    assert.deepEqual([first.insert, first.written], [PERF_TEST_ROWS, PERF_TEST_ROWS]);
+    const again = await runPerfSeed(db, { apply: true, rows: PERF_TEST_ROWS, email: email("perf") });
+    assert.deepEqual([again.unchanged, again.written], [PERF_TEST_ROWS, 0]);
+    // Fresh statistics first: the measured plans are the planner's own choices, and with stats from before the seeds
+    // (auto-analyze not run yet) it sometimes sorted game_players for G1 page 3 (277 buffers > 200) under a busy
+    // machine (regression: p3-explain-stale-stats).
+    await db.$executeRawUnsafe(`ANALYZE games, game_players, game_analyses, player_reviews, jobs`);
+    const params = await perfParams(db, email("perf"));
+    // regression: p3-a1-player-reviews-key (FIX-1): the review row is looked up on both key columns, never on color
+    // alone with gameId as a join filter (41 rows, 39 buffers > 30 on a fresh int DB).
+    type Node = { "Relation Name"?: string; "Index Cond"?: string; Plans?: Node[] };
+    const doc = await db.$queryRawUnsafe<{ "QUERY PLAN": [{ Plan: Node }] }[]>(`EXPLAIN (FORMAT JSON) ${a1Sql(params)}`);
+    const find = (n: Node): Node | null => (n["Relation Name"] === "player_reviews" ? n : (n.Plans ?? []).map(find).find(Boolean) ?? null);
+    const pr = find(doc[0]!["QUERY PLAN"][0].Plan);
+    assert.match(pr?.["Index Cond"] ?? "", /"gameId" = .*color = /, `player_reviews lookup: ${pr?.["Index Cond"]}`);
+    const reports = await runExplain(db, p3Queries(params), { measure: true });
     assert.ok(reports.length >= 13);
     for (const r of reports) {
       assert.ok(r.shape.ok, `${r.name}: ${r.shape.problems.join("; ")}`);

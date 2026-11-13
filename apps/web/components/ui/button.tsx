@@ -1,7 +1,7 @@
 "use client";
 
+import { Children, cloneElement, isValidElement } from "react";
 import { cva } from "class-variance-authority";
-import { Slot } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { Spinner } from "./spinner";
 
@@ -53,7 +53,7 @@ export type ButtonProps = React.ComponentProps<"button"> & {
   pressed?: boolean;
   iconStart?: React.ReactNode;
   iconEnd?: React.ReactNode;
-  /** Slot.Root, e.g. for next/link. */
+  /** Renders the one child element (e.g. a next/link) with the button's props and classes (slotInto). */
   asChild?: boolean;
 };
 
@@ -88,15 +88,7 @@ export function Button({
     },
   };
 
-  if (asChild) {
-    return (
-      <Slot.Root {...props} {...shared}>
-        {iconStart}
-        <Slot.Slottable>{children}</Slot.Slottable>
-        {iconEnd}
-      </Slot.Root>
-    );
-  }
+  if (asChild) return slotInto(children, { ...props, ...shared }, iconStart, iconEnd);
 
   // Both labels share one grid cell, so the width never jumps when loading flips.
   const label =
@@ -120,4 +112,43 @@ export function Button({
       {iconEnd}
     </button>
   );
+}
+
+type SlotProps = Record<string, unknown> & { className?: string; style?: React.CSSProperties };
+
+function composeRefs(...refs: unknown[]): (node: unknown) => void {
+  return (node) => {
+    for (const ref of refs) {
+      if (typeof ref === "function") ref(node);
+      else if (ref && typeof ref === "object" && "current" in ref) (ref as { current: unknown }).current = node;
+    }
+  };
+}
+
+/**
+ * `asChild`: the one child element gets the button's props, as Radix Slot did (FIX-2: Radix Slot and compose-refs were
+ * ~1.5 kB gzip on every page with a button, for this one merge). The child's own props win, except that the classes
+ * are joined (the button's first), the styles merged, and event handlers both run (the child's first, then the
+ * button's); the icons wrap the child's own children.
+ */
+export function slotInto(children: React.ReactNode, slot: SlotProps, iconStart?: React.ReactNode, iconEnd?: React.ReactNode): React.ReactElement {
+  const child = Children.only(children);
+  if (!isValidElement<SlotProps & { children?: React.ReactNode }>(child)) throw new Error("Button asChild needs one element child");
+  const own = child.props;
+  const merged: SlotProps = { ...slot, ...own };
+  for (const key of Object.keys(slot)) {
+    const mine = slot[key];
+    const theirs = own[key];
+    if (/^on[A-Z]/.test(key) && typeof mine === "function" && typeof theirs === "function") {
+      merged[key] = (...args: unknown[]) => {
+        const result = (theirs as (...a: unknown[]) => unknown)(...args);
+        (mine as (...a: unknown[]) => unknown)(...args);
+        return result;
+      };
+    }
+  }
+  if (slot.ref && own.ref && slot.ref !== own.ref) merged.ref = composeRefs(slot.ref, own.ref);
+  merged.className = cn(slot.className, own.className);
+  if (slot.style || own.style) merged.style = { ...slot.style, ...own.style };
+  return cloneElement(child, merged, iconStart, own.children, iconEnd);
 }

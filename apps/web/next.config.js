@@ -188,7 +188,7 @@ const nextConfig = {
   productionBrowserSourceMaps: process.env.NEXT_BUNDLE_SOURCEMAPS === "1",
   devIndicators: process.env.NEXT_PUBLIC_DEV_WIDGETS === "0" ? false : undefined,
   // Workspace packages ship TypeScript source (phase-01 plan 7.3, 10.1; phase-02 plan 6.9).
-  transpilePackages: ["@repo/contracts", "@repo/analytics", "@repo/db", "@repo/game-core", "@repo/chess-analysis"],
+  transpilePackages: ["@repo/contracts", "@repo/analytics", "@repo/db", "@repo/game-core", "@repo/chess-analysis", "@repo/chess-import"],
   // The Prisma client is generated into packages/db/generated/prisma (phase-02 plan 6.9). File tracing follows the
   // client's own path.join(__dirname, ...) annotations, but this keeps the query engines (darwin locally,
   // rhel-openssl on Vercel, linux-musl in Docker) and schema.prisma in every server bundle even if a bundler

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { GameRowDTO } from "@repo/contracts/http/games";
-import { DEMO_STATES, demoPage, demoRows, isDemoState, rowMatches } from "./fixtures";
+import { DEMO_STATES, demoPage, demoRows, demoSourceCounts, isDemoState, rowMatches, withImportedSources } from "./fixtures";
 
 describe("/dev/ui/games fixtures", () => {
   it("every row is a valid G1 row with a unique ref, newest first", () => {
@@ -38,9 +38,20 @@ describe("/dev/ui/games fixtures", () => {
   });
 
   it("states", () => {
-    assert.deepEqual([...DEMO_STATES], ["default", "filters_open", "empty", "loading", "error"]);
+    assert.deepEqual([...DEMO_STATES], ["default", "filters_open", "empty", "loading", "error", "import_running"]);
     assert.ok(isDemoState("empty"));
-    assert.ok(!isDemoState("import_running"));
+    assert.ok(isDemoState("import_running"), "P4 lights the import banner and the source tabs");
+    assert.ok(!isDemoState("syncing"));
     assert.ok(!isDemoState(undefined));
+  });
+
+  it("import_running: mixed sources, counted and filtered by tab like G1", () => {
+    const rows = withImportedSources(demoRows());
+    const counts = demoSourceCounts(rows);
+    assert.equal(counts.replay + counts.chesscom + counts.lichess, rows.length);
+    assert.ok(counts.chesscom > 0 && counts.lichess > 0 && counts.replay > 0);
+    assert.equal(demoPage(rows, { source: "chesscom" }, 1).total, counts.chesscom);
+    assert.ok(demoPage(rows, { source: "lichess" }, 1).rows.every((r) => r.source === "lichess"));
+    assert.deepEqual(demoSourceCounts(demoRows()), { replay: 40, chesscom: 0, lichess: 0 }, "the P3 states stay Replay only");
   });
 });

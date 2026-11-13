@@ -13,6 +13,7 @@ import { endpoints } from "@/lib/api/endpoints";
 import { norm, qk } from "@/lib/api/keys";
 import { g1Search, keyFilter, PAGE_LIMIT, type GamesFilter } from "../model/filter";
 import type { GameRowDTO } from "../model/rows";
+import type { SourceCounts } from "../model/sources";
 
 export const ARCHIVE_STALE_MS = 60_000;
 /** At most this many pages stay in the cache per filter (plan §5.10). */
@@ -30,13 +31,22 @@ export function archiveCountsKey(filter: GamesFilter) {
   return [...qk.games.counts(), norm(keyFilter(filter))] as const;
 }
 
-/** G1's meta, narrowed (page 1 and limit=0 carry filteredTotal and counts; later pages only nextCursor). */
+/**
+ * G1's meta, narrowed (page 1 and limit=0 carry filteredTotal and counts; later pages only nextCursor). The P4
+ * per-source counts are kept when all three are numbers.
+ */
 export function readPageMeta(meta: unknown): GamesPageMeta {
   const m = (meta ?? {}) as Record<string, unknown>;
   const out: GamesPageMeta = { nextCursor: typeof m.nextCursor === "string" ? m.nextCursor : null };
   if (typeof m.filteredTotal === "number") out.filteredTotal = m.filteredTotal;
-  const counts = m.counts as { all?: unknown } | undefined;
-  if (counts && typeof counts.all === "number") out.counts = { all: counts.all };
+  const counts = m.counts as { all?: unknown; replay?: unknown; chesscom?: unknown; lichess?: unknown } | undefined;
+  if (counts && typeof counts.all === "number") {
+    out.counts = { all: counts.all };
+    const { replay, chesscom, lichess } = counts;
+    if (typeof replay === "number" && typeof chesscom === "number" && typeof lichess === "number") {
+      out.counts = { all: counts.all, replay, chesscom, lichess };
+    }
+  }
   return out;
 }
 
@@ -84,6 +94,19 @@ export function rowsOf(data: ArchiveData | undefined): GameRowDTO[] {
 export function totalsOf(data: ArchiveData | undefined): { all: number | null; filtered: number | null } {
   const first = data?.pages[0];
   return { all: first?.meta.counts?.all ?? null, filtered: first?.meta.filteredTotal ?? null };
+}
+
+/**
+ * Page 1's per-source counts, or null before page 1 arrives. G1 sends them once the viewer has imported games;
+ * without them every game is a Replay Chess game.
+ */
+export function sourceCountsOf(data: ArchiveData | undefined): SourceCounts | null {
+  const counts = data?.pages[0]?.meta.counts;
+  if (!counts) return null;
+  if (counts.replay !== undefined && counts.chesscom !== undefined && counts.lichess !== undefined) {
+    return { replay: counts.replay, chesscom: counts.chesscom, lichess: counts.lichess };
+  }
+  return { replay: counts.all, chesscom: 0, lichess: 0 };
 }
 
 /** Applies a row patch to every cached archive list (analysis:progress / analysis:done, plan §5.1). */

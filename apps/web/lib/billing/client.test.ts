@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  ACTIVATION_POLL_ATTEMPTS,
-  ACTIVATION_POLL_MS,
+  leaveActivation,
   SUBSCRIPTION_REQUIRED_CODE,
   SESSION_RELOAD_CAP_MS,
   checkoutReturnPath,
@@ -13,7 +12,6 @@ import {
   needsPaymentUpdate,
   paywallUrl,
   stripCheckoutParams,
-  waitForEntitlement,
 } from "./client";
 
 describe("paywallUrl", () => {
@@ -33,8 +31,8 @@ describe("paywallUrl", () => {
 });
 
 describe("checkoutReturnPath", () => {
-  it("routes the return through /pricing with the gated path as redirect_url", () => {
-    assert.equal(checkoutReturnPath("/play"), "/pricing?redirect_url=%2Fplay");
+  it("routes the return through /checkout/activating with the gated path as redirect_url", () => {
+    assert.equal(checkoutReturnPath("/play"), "/checkout/activating?redirect_url=%2Fplay");
   });
 
   it("does not carry the paywall reason, so the return shows no paywall banner", () => {
@@ -83,165 +81,27 @@ describe("stripCheckoutParams", () => {
   });
 });
 
-describe("waitForEntitlement", () => {
-  const noWait = async () => {};
-
-  it("exports the activation schedule shared by every checkout return", () => {
-    assert.equal(ACTIVATION_POLL_MS, 2000);
-    assert.equal(ACTIVATION_POLL_ATTEMPTS, 6);
+describe("activation helpers (phase 4: the poll moved to /checkout/activating)", () => {
+  it("no client poll is exported any more (lib/billing/useActivation.ts owns the schedule)", async () => {
+    const mod = (await import("./client")) as Record<string, unknown>;
+    for (const gone of ["waitForEntitlement", "ACTIVATION_POLL_MS", "ACTIVATION_POLL_ATTEMPTS"]) assert.equal(mod[gone], undefined, gone);
   });
 
-  it("resolves true as soon as a refresh shows entitlement", async () => {
-    let refreshes = 0;
-    const entitled = await waitForEntitlement({
-      refresh: async () => {
-        refreshes += 1;
-      },
-      isEntitled: () => refreshes >= 3,
-      wait: noWait,
-    });
-    assert.equal(entitled, true);
-    assert.equal(refreshes, 3);
-  });
-
-  it("gives up after the configured attempts when entitlement never appears", async () => {
-    let refreshes = 0;
-    const waits: number[] = [];
-    const entitled = await waitForEntitlement({
-      refresh: async () => {
-        refreshes += 1;
-      },
-      isEntitled: () => false,
-      attempts: 3,
-      intervalMs: 50,
-      wait: async (ms) => {
-        waits.push(ms);
-      },
-    });
-    assert.equal(entitled, false);
-    assert.equal(refreshes, 4);
-    assert.deepEqual(waits, [50, 50, 50]);
-  });
-
-  it("stops polling once cancelled and reports false", async () => {
-    let refreshes = 0;
-    let cancelled = false;
-    const entitled = await waitForEntitlement({
-      refresh: async () => {
-        refreshes += 1;
-      },
-      isEntitled: () => true,
-      isCancelled: () => cancelled,
-      wait: async () => {
-        cancelled = true;
-      },
-    });
-    // Entitled after the first refresh, so it never needed to wait.
-    assert.equal(entitled, true);
-    assert.equal(refreshes, 1);
-
-    refreshes = 0;
-    cancelled = false;
-    const abandoned = await waitForEntitlement({
-      refresh: async () => {
-        refreshes += 1;
-      },
-      isEntitled: () => false,
-      isCancelled: () => cancelled,
-      wait: async () => {
-        cancelled = true;
-      },
-    });
-    assert.equal(abandoned, false);
-    assert.equal(refreshes, 1);
-  });
-
-  it("reloads the Clerk session once on success, before resolving", async () => {
-    const order: string[] = [];
-    let refreshes = 0;
-    const entitled = await waitForEntitlement({
-      refresh: async () => {
-        refreshes += 1;
-        order.push(`refresh ${refreshes}`);
-      },
-      isEntitled: () => refreshes >= 2,
-      wait: noWait,
-      reloadSession: async () => {
-        order.push("reload");
-      },
-    });
-    order.push("resolved");
-    assert.equal(entitled, true);
-    assert.deepEqual(order, ["refresh 1", "refresh 2", "reload", "resolved"]);
-  });
-
-  it("never reloads the session when entitlement does not appear or the wait is cancelled", async () => {
-    let reloads = 0;
-    const reloadSession = async () => {
-      reloads += 1;
-    };
-    assert.equal(
-      await waitForEntitlement({ refresh: async () => {}, isEntitled: () => false, attempts: 2, wait: noWait, reloadSession }),
-      false,
-    );
-    let cancelled = false;
-    assert.equal(
-      await waitForEntitlement({
-        refresh: async () => {},
-        isEntitled: () => false,
-        isCancelled: () => cancelled,
-        wait: async () => {
-          cancelled = true;
-        },
-        reloadSession,
-      }),
-      false,
-    );
-    assert.equal(reloads, 0);
-  });
-
-  it("still resolves true when the session reload fails or hangs (capped)", async () => {
-    assert.equal(
-      await waitForEntitlement({
-        refresh: async () => {},
-        isEntitled: () => true,
-        wait: noWait,
-        reloadSession: async () => {
-          throw new Error("clerk offline");
-        },
-      }),
-      true,
-    );
-    const waits: number[] = [];
-    assert.equal(
-      await waitForEntitlement({
-        refresh: async () => {},
-        isEntitled: () => true,
-        wait: async (ms) => {
-          waits.push(ms);
-        },
-        reloadSession: () => new Promise(() => {}),
-      }),
-      true,
-    );
-    assert.deepEqual(waits, [SESSION_RELOAD_CAP_MS]);
+  it("caps the Clerk session reload at 5 s", () => {
+    assert.equal(SESSION_RELOAD_CAP_MS, 5000);
   });
 
   it("reloadClerkSession is a no-op without a browser", async () => {
     await reloadClerkSession();
   });
+});
 
-  it("does not swallow a refresh that rejects", async () => {
-    await assert.rejects(
-      waitForEntitlement({
-        refresh: async () => {
-          throw new Error("network");
-        },
-        isEntitled: () => false,
-        wait: noWait,
-      }),
-      /network/,
-    );
+describe("leaveActivation", () => {
+  it("leaves with a document navigation (a client push raced Clerk's refresh after the session reload)", () => {
+    const assigned: string[] = [];
+    leaveActivation("/onboarding/done", { location: { assign: (u: string | URL) => assigned.push(String(u)) } });
+    assert.deepEqual(assigned, ["/onboarding/done"]);
+    assert.doesNotThrow(() => leaveActivation("/onboarding/done", undefined));
   });
 });
 

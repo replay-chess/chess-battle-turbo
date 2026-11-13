@@ -12,7 +12,10 @@ export async function openDemo(page: Page, path: string, ready: string) {
   // next dev's floating dev-tools button sits over the bottom-left of the control bar; production has none.
   await page.addInitScript(() => {
     const css = "nextjs-portal{display:none!important}";
-    document.addEventListener("DOMContentLoaded", () => document.head.append(Object.assign(document.createElement("style"), { textContent: css })));
+    // A constructed sheet: a <style> appended on DOMContentLoaded can race React's hydration of <head> (#418).
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
   });
   // One retry: a `next dev` that compiles another route meanwhile can abort the first navigation (ERR_ABORTED).
   for (let attempt = 0; ; attempt++) {

@@ -97,6 +97,16 @@ describe("route(): request id and headers (step 1)", () => {
     const prod = await GET(request("/api/test"), noParams());
     assert.equal(prod.headers.get("server-timing"), null);
   });
+  it("keeps a handler's own Server-Timing entry in front of the timings, and alone in production", async () => {
+    setup();
+    const GET = route(base, async () => respondWith({ ok: true }, { headers: { "Server-Timing": "cache;desc=hit" } }));
+    const res = await GET(request("/api/test"), noParams());
+    assert.match(res.headers.get("server-timing") ?? "", /^cache;desc=hit, .*total;dur=/);
+    restore?.();
+    setup({ env: { NODE_ENV: "production", NEXT_PUBLIC_APP_ENV: "production" } });
+    const prod = await GET(request("/api/test"), noParams());
+    assert.equal(prod.headers.get("server-timing"), "cache;desc=hit");
+  });
 });
 
 describe("route(): test hooks (step 2)", () => {
@@ -215,6 +225,25 @@ describe("route(): auth (step 3)", () => {
     restore?.();
     setup({ userId: "user_1", viewer: member });
     assert.equal((await GET(request("/api/test"), noParams())).status, 200);
+  });
+  // regression: ledger-402-reason (FIX-2, billing review round 2, the rest of FIX-1 #17): a never-subscribed non-member
+  // whose trial the ledger already holds was told `trial_available` and sent to the trial offer.
+  it("member: the 402 reason asks the trial ledger while the row says eligible (a hit → trial_used, /pricing?reason=ended)", async () => {
+    const GET = route({ ...base, auth: "member" }, async () => ({ ok: true }));
+    const fresh = viewerFixture({ entitlement: { member: false, state: "none", trial: { used: false, eligible: true } } });
+    const hit = setup({ userId: "user_1", viewer: fresh, ledgerHit: "email" });
+    const error = await errorOf(await GET(request("/api/test"), noParams()));
+    assert.deepEqual([error.details?.reason, error.details?.upgradeUrl], ["trial_used", "/pricing?reason=ended"]);
+    assert.equal(hit.ledgerProbes.length, 1);
+    restore?.();
+    const miss = setup({ userId: "user_1", viewer: fresh });
+    assert.equal((await errorOf(await GET(request("/api/test"), noParams()))).details?.reason, "trial_available");
+    assert.equal(miss.ledgerProbes.length, 1);
+    restore?.();
+    // A lapsed member is not eligible on the row: no probe.
+    const lapsed = setup({ userId: "user_1", viewer: viewerFixture({ entitlement: { member: false, state: "lapsed", trial: { used: true, eligible: false }, neverPaid: true } }), ledgerHit: "email" });
+    assert.equal((await errorOf(await GET(request("/api/test"), noParams()))).details?.reason, "trial_used");
+    assert.equal(lapsed.ledgerProbes.length, 0);
   });
   it("member: LEGACY_402_MIRROR=off drops the top-level mirror", async () => {
     const GET = route({ ...base, auth: "member" }, async () => ({ ok: true }));

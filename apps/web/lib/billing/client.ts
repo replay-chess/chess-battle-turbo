@@ -15,14 +15,6 @@ export const SUBSCRIPTION_REQUIRED_CODE = "subscription_required";
 export const SUBSCRIPTION_REQUIRED_STATUS = 402;
 
 /**
- * How often and how many times entitlement is re-checked after a checkout
- * returns. Dodo redirects before its webhook (and sometimes before its own
- * subscription list) reflects the new plan, so a single read is not enough.
- */
-export const ACTIVATION_POLL_MS = 2000;
-export const ACTIVATION_POLL_ATTEMPTS = 6;
-
-/**
  * Query parameters that only describe a checkout return: the `checkout` flag
  * we append and the fields Dodo adds to the return URL. They must never be
  * carried into a paywall `redirect_url`, otherwise a later bounce would send a
@@ -46,13 +38,14 @@ export function paywallUrl(returnPath: string): string {
 
 /**
  * The path a checkout should return to when the buyer ultimately wants to
- * land on `gatedPath`. Every return goes through /pricing, which polls for
- * activation and then forwards to `redirect_url`, so a gated page never has to
- * cope with a plan that is still activating. `reason=required` is deliberately
- * absent: the return must not show the paywall banner.
+ * land on `gatedPath`. Every return goes through `/checkout/activating`
+ * (phase-04 plan 4.9), which confirms the activation (socket + poll) and then
+ * forwards to `redirect_url`, so a gated page never has to cope with a plan
+ * that is still activating. The server unwraps this value when it builds the
+ * Dodo return URL (`buildActivationReturnUrl`), so it is never nested.
  */
 export function checkoutReturnPath(gatedPath: string): string {
-  return `/pricing?redirect_url=${encodeURIComponent(gatedPath)}`;
+  return `/checkout/activating?redirect_url=${encodeURIComponent(gatedPath)}`;
 }
 
 /**
@@ -78,7 +71,7 @@ export function currentAppPath(): string {
   return `${window.location.pathname}${window.location.search}`;
 }
 
-/** Longest the activation flow waits for Clerk to re-mint the session token. */
+/** Longest the activation pages wait for Clerk to re-mint the session token (lib/billing/useActivation.ts). */
 export const SESSION_RELOAD_CAP_MS = 5000;
 
 type ClerkGlobal = { Clerk?: { session?: { reload?: () => Promise<unknown> } | null } };
@@ -88,6 +81,16 @@ type ClerkGlobal = { Clerk?: { session?: { reload?: () => Promise<unknown> } | n
  * middleware member gate) reflect a plan that was just activated. A no-op
  * without a browser or a loaded Clerk; never throws.
  */
+/**
+ * Leaves an activation screen with a document navigation. On success the screen reloads the Clerk session, and Clerk's
+ * App Router integration answers that with a refresh of the current route, which can cancel a client-side push started
+ * at the same moment: "Continue" then left the member on Activating (INTEGRATE-2). A document navigation cannot be
+ * cancelled that way, and the next page's middleware reads the new session cookie.
+ */
+export function leaveActivation(path: string, target: { location: Pick<Location, "assign"> } | undefined = typeof window === "undefined" ? undefined : window): void {
+  target?.location.assign(path);
+}
+
 export async function reloadClerkSession(): Promise<void> {
   if (typeof window === "undefined") return;
   try {
@@ -95,53 +98,6 @@ export async function reloadClerkSession(): Promise<void> {
   } catch {
     // A stale token only delays the claim gate; the API reads the database.
   }
-}
-
-/**
- * Refreshes entitlement right away and then keeps re-checking on the
- * activation schedule until `isEntitled()` is true, the attempts run out, or
- * `isCancelled()` reports that nobody is waiting any more. Resolves to the
- * final entitlement answer (false when cancelled).
- *
- * On success the Clerk session is reloaded (at most `SESSION_RELOAD_CAP_MS`)
- * before resolving, so a caller that navigates next reaches the middleware
- * with fresh claims (plan §3.2, 1B·F4d).
- */
-export async function waitForEntitlement(options: {
-  refresh: () => Promise<unknown>;
-  isEntitled: () => boolean;
-  isCancelled?: () => boolean;
-  attempts?: number;
-  intervalMs?: number;
-  wait?: (ms: number) => Promise<void>;
-  /** Defaults to `reloadClerkSession`. */
-  reloadSession?: () => Promise<unknown>;
-}): Promise<boolean> {
-  const {
-    refresh,
-    isEntitled,
-    isCancelled = () => false,
-    attempts = ACTIVATION_POLL_ATTEMPTS,
-    intervalMs = ACTIVATION_POLL_MS,
-    wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    reloadSession = reloadClerkSession,
-  } = options;
-
-  const succeed = async (): Promise<true> => {
-    await Promise.race([reloadSession().catch(() => undefined), wait(SESSION_RELOAD_CAP_MS)]);
-    return true;
-  };
-
-  await refresh();
-  for (let attempt = 0; attempt < attempts; attempt++) {
-    if (isCancelled()) return false;
-    if (isEntitled()) return succeed();
-    await wait(intervalMs);
-    if (isCancelled()) return false;
-    await refresh();
-  }
-  if (isCancelled() || !isEntitled()) return false;
-  return succeed();
 }
 
 /**

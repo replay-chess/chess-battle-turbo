@@ -104,6 +104,32 @@ describe("failure", () => {
     assert.equal(h.queue.jobs[0]!.status, "QUEUED");
   });
 
+  it("regression: p04-analyze-purged-game — the game is deleted mid-analysis: the job ends DONE quietly, no failure", async () => {
+    const h = await harness();
+    h.addGame(structuredClone(GAME));
+    h.store.deleteGameOnNextWrite("1"); // the first checkpoint meets the foreign key (an import purge ran meanwhile)
+    h.enqueue("1", REF);
+    assert.equal(await h.run(), "done");
+    const job = h.queue.jobs[0]!;
+    assert.equal(job.status, "DONE");
+    assert.deepEqual(job.result, { skipped: "game_gone" });
+    assert.equal(job.lastError ?? null, null);
+    assert.deepEqual(h.store.writes.map((w) => w.kind), ["gone"]);
+    assert.equal(h.sent("analysis:failed").length, 0);
+    assert.equal(h.sent("analysis:done").length, 0);
+    assert.deepEqual(h.events.named("analysis_failed"), []);
+    assert.deepEqual(h.telemetry.named("worker.job.fail"), []);
+  });
+
+  it("regression: p04-analyze-purged-game — a job whose game was deleted before the claim ends DONE quietly", async () => {
+    const h = await harness();
+    h.enqueue("1", REF); // no game row
+    assert.equal(await h.run(), "done");
+    assert.equal(h.queue.jobs[0]!.status, "DONE");
+    assert.deepEqual(h.queue.jobs[0]!.result, { skipped: "game_gone" });
+    assert.equal(h.sent("analysis:failed").length, 0);
+  });
+
   it("stall_at_ply stops heart-beating and holds past the reaper's limit, then fails worker_stalled", async () => {
     const h = await harness({ fault: { kind: "stall_at_ply", ply: 20 } });
     h.addGame(structuredClone(GAME));

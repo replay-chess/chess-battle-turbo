@@ -6,6 +6,7 @@
 // static `x-internal-token` is never sent: the v2 server does not read it (only `WS/src/v1/` behind PROTOCOL_V1 does).
 //
 // The base URL is the socket server's HTTP origin, derived from NEXT_PUBLIC_WEBSOCKET_URL (ws → http, wss → https).
+import { randomUUID } from "node:crypto";
 import { type KeyRing, parseKeyRing, signInternal } from "@repo/contracts/internal/auth";
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -54,11 +55,25 @@ export type InternalFetchInit = {
  * Signs and sends one request to the socket server. `path` starts with "/internal/" and may carry a query string
  * (it is signed as sent). Resolves with the Response; network errors and timeouts reject (callers decide).
  */
+const EMIT_PATH = "/internal/emit";
+
+/**
+ * An `/internal/emit` body always carries a dedupe key: two emits with the same targets, event and data in one second
+ * were one signature, and the socket's replay guard refused the second (401), so a member who connected in between
+ * never heard it (regression: emit-same-second-replay; the worker's emitter does the same). A caller's own key stays.
+ */
+export function withEmitDedupeKey(body: unknown): unknown {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+  const b = body as { event?: unknown; dedupeKey?: unknown };
+  if (typeof b.dedupeKey === "string" && b.dedupeKey) return body;
+  return { ...b, dedupeKey: `${typeof b.event === "string" ? b.event : "emit"}:${randomUUID()}` };
+}
+
 export async function internalFetch(path: string, init: InternalFetchInit = {}): Promise<Response> {
   if (!path.startsWith("/internal/")) throw new Error(`internalFetch: ${path} is not an /internal/* path`);
   const env = init.env ?? process.env;
   const method = init.method ?? (init.body === undefined ? "GET" : "POST");
-  const body = init.body === undefined ? "" : JSON.stringify(init.body);
+  const body = init.body === undefined ? "" : JSON.stringify(path === EMIT_PATH ? withEmitDedupeKey(init.body) : init.body);
   const headers: Record<string, string> = {
     ...signInternal({ keys: internalKeyRing(env), method, path, body, nowMs: init.nowMs ?? Date.now() }),
   };

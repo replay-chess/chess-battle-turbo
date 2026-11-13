@@ -9,6 +9,7 @@ import {
   Download,
   FileText,
   LifeBuoy,
+  Link2,
   LogOut,
   Moon,
   Shield,
@@ -18,6 +19,7 @@ import {
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
+import { useFlag } from "@/lib/flags/client";
 import { usePWAInstall } from "@/lib/hooks/usePWAInstall";
 import { membershipHref } from "@/lib/nav/destinations";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
@@ -95,6 +97,7 @@ export function useAccountActions(user: ShellUser, { demo = false }: { demo?: bo
   const { isLoaded: clerkLoaded } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
   const { canInstall, isInstalled, isIOS, install } = usePWAInstall();
+  const importV3 = useFlag("import-v3");
   const [iosInstallOpen, setIosInstallOpen] = useState(false);
 
   const track = (action: AccountActionId) => trackShell({ name: "shell_account_action", action }, { demo });
@@ -120,6 +123,10 @@ export function useAccountActions(user: ShellUser, { demo = false }: { demo?: bo
         if (!demo) openBillingPortal(() => router.refresh());
       },
     });
+  }
+  // Settings › Connected accounts (phase-04 plan §4.11), while `import-v3` is on (the page 404s without it).
+  if (importV3) {
+    items.push({ id: "connected", label: "Connected Accounts", icon: Link2, href: "/settings/connected", run: () => track("connected") });
   }
   items.push(
     {

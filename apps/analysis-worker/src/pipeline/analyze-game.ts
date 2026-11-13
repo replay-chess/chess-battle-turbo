@@ -33,13 +33,14 @@ import type { AnalysisFailureCode } from "@repo/contracts/http/review";
 import { analysisDoneDedupeKey } from "@repo/contracts/socket/analysis";
 import { buildReviewContent, LinesV1 } from "@repo/db/json";
 import type { Fault } from "../config/faults";
+import { evalSourceOf, hintedPass1, usableHint } from "../import/eval-hint";
 import { REAP_STALE_SEC } from "../queue/outcome";
 import { buildEvent } from "../socket/events";
 import { JobAborted, JobError, type JobContext, type JobHandler } from "../jobs/types";
 import type { ProductEvents } from "../obs/posthog";
 import type { FailureHookInput } from "../jobs/types";
 import type { BatchAccumulator } from "./batch-events";
-import { extensionStatements, FINAL_BATCH_EXTENSIONS, type FinalBatchExtension } from "./final-batch";
+import { FINAL_BATCH_EXTENSIONS, planExtensions, reportCommitted, type FinalBatchExtension } from "./final-batch";
 import { divergenceOf, evalAtDivergence, legendPosition, memberFacts, type MemberFacts } from "./legend";
 import { openingOf, type OpeningBook, type OpeningIndex } from "./openings";
 import { fromInitialPosition, planPositions, type PositionPlan } from "./positions";
@@ -72,6 +73,9 @@ export interface AnalyzeDeps {
 type Ctx = JobContext<"ANALYZE_GAME">;
 
 /** Why a loaded game is not analysed (§8.12 step 1), or null. */
+/** The Postgres error code of a driver error (23503: a foreign key the write needs is gone). */
+const codeOf = (e: unknown): unknown => (typeof e === "object" && e !== null ? (e as { code?: unknown }).code : undefined);
+
 export function skipReasonOf(game: LoadedGame): string | null {
   if (game.status !== "COMPLETED") return `status_${game.status.toLowerCase()}`;
   if (game.moves.length === 0) return "no_moves";
@@ -223,8 +227,33 @@ class Run {
     const { ctx } = this;
     if (this.fault?.kind === "engine_crash") ctx.engine?.injectCrash(this.fault.count);
     const game = await this.span("load", () => this.deps.store.load(ctx.payload.gameId, ctx.job.id));
-    if (!game) throw new JobError("internal", "the game no longer exists", { terminal: true });
+    if (!game) {
+      if (await this.endIfGone()) return "done";
+      throw new JobError("internal", "the game no longer exists", { terminal: true });
+    }
+    try {
+      return await this.analyse(game);
+    } catch (error) {
+      // An import purge (or an account's cascade) deleted the game mid-analysis: the checkpoint or the final batch
+      // meets the foreign key. The job ends quietly instead of failing twice (regression: p04-analyze-purged-game).
+      if (codeOf(error) === "23503" && (await this.endIfGone())) return "done";
+      throw error;
+    }
+  }
 
+  /** AnalysisStore.gone: ends the job DONE `{skipped: "game_gone"}` when the game row no longer exists. */
+  private async endIfGone(): Promise<boolean> {
+    const { ctx } = this;
+    const ended = await this.span("write", () => this.deps.store.gone({ jobId: ctx.job.id, me: ctx.me, gameId: ctx.payload.gameId }));
+    if (ended) {
+      await this.stream?.drain();
+      ctx.log.info("analysis ended: the game was deleted", { gameRef: this.gameRef });
+    }
+    return ended;
+  }
+
+  private async analyse(game: LoadedGame): Promise<"done"> {
+    const { ctx } = this;
     const reason = skipReasonOf(game);
     let replay: Replay | null = null;
     if (!reason) {
@@ -292,7 +321,14 @@ class Run {
     const newFacts = facts.filter((f) => !f.stored);
     let factsPending = newFacts.length > 0;
     const pass1Ms0 = ctx.clock.now();
+    // P4: an imported Lichess game whose export evaluated every ply skips pass 1's searches (import/eval-hint.ts).
+    const hint = usableHint(ctx.payload.evalHint, n, resume.graded);
     await this.span("pass1", async () => {
+      if (hint) {
+        const start = await searcher.evaluate(positions[0] as PositionPlan, ENGINE_PROFILE.pass1, { pass1: true });
+        Object.assign(arrays, hintedPass1(hint, start, positions.map((p) => p.terminal)));
+        return;
+      }
       // No per-game `ucinewgame` here: the Searcher clears the engine before every search (history-independent facts).
       for (let i = arrays.evals.length; i <= n; i++) {
         await this.safePoint({
@@ -383,9 +419,21 @@ class Run {
       return { userId: f.userId, facts: f.facts, ready: false };
     });
     const members = await this.span("text", async () => this.memberWrites(game, result));
+    const plan = planExtensions(this.extensions, {
+      gameId: game.id,
+      gameRef: game.ref,
+      startPly: game.startPly,
+      moves: replay!.uci,
+      members: game.members,
+      result,
+      memberSides: game.members.map((m) => m.color),
+      regrade: false,
+      importRunId: ctx.payload.importRunId ?? null,
+      evalSource: evalSourceOf(hint !== null, searched),
+    });
 
     await this.pauseAt("write");
-    await this.span("write", () =>
+    const extensionRows = await this.span("write", () =>
       this.deps.store.finish({
         jobId: ctx.job.id,
         me: ctx.me,
@@ -404,18 +452,10 @@ class Run {
         comparisons: comparisons.filter((c) => c.ready || !this.inserted(c.userId, facts)),
         chessPositionId: game.legend?.chessPositionId ?? null,
         result: { plies: n, resumedFrom: resume.graded, pass2: searched, regrade: false },
-        extensions: extensionStatements(this.extensions, {
-          gameId: game.id,
-          gameRef: game.ref,
-          startPly: game.startPly,
-          moves: replay!.uci,
-          members: game.members,
-          result,
-          memberSides: game.members.map((m) => m.color),
-          regrade: false,
-        }),
+        extensions: plan.statements,
       }),
     );
+    reportCommitted(plan, extensionRows, { metrics: ctx.metrics, telemetry: ctx.telemetry, events: this.deps.events });
     ctx.heartbeat.noteWrite();
     ctx.evalCache?.flush();
     await this.stream.drain();
@@ -711,8 +751,18 @@ class Run {
       }),
     );
     const members = await this.span("text", async () => this.memberWrites(game, result));
+    const plan = planExtensions(this.extensions, {
+      gameId: game.id,
+      gameRef: game.ref,
+      startPly: game.startPly,
+      moves: replay.uci,
+      members: game.members,
+      result,
+      memberSides: game.members.map((m) => m.color),
+      regrade: true,
+    });
     await this.pauseAt("write");
-    await this.span("write", () =>
+    const extensionRows = await this.span("write", () =>
       this.deps.store.finish({
         jobId: ctx.job.id,
         me: ctx.me,
@@ -742,18 +792,10 @@ class Run {
           changedPlies: result.changedPlies.length,
           fromVersion: stored.version,
         },
-        extensions: extensionStatements(this.extensions, {
-          gameId: game.id,
-          gameRef: game.ref,
-          startPly: game.startPly,
-          moves: replay.uci,
-          members: game.members,
-          result,
-          memberSides: game.members.map((m) => m.color),
-          regrade: true,
-        }),
+        extensions: plan.statements,
       }),
     );
+    reportCommitted(plan, extensionRows, { metrics: ctx.metrics, telemetry: ctx.telemetry, events: this.deps.events });
     ctx.heartbeat.noteWrite();
     await this.announce(game, result, false);
     this.ready(game, result, { regrade: true, pass2: 0, pass1Ms: 0, pass2Ms: 0 });

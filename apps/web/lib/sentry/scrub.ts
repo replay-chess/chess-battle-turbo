@@ -6,7 +6,9 @@
 // and, on dev, `x-e2e-token` / `x-perf-token`. This runs as `beforeSend` and `beforeSendTransaction`, so the
 // guarantee lives in code and not in Sentry's server-side scrubbing settings.
 
+import { PII_PARAM_NAMES } from "@repo/chess-import/redact";
 import { redactShareDeep } from "@/lib/analytics/share-redaction";
+import { dropNotModifiedPoll } from "./traces-sampler";
 
 /** Headers kept on events: none of them identify a person or carry a credential. */
 export const SENTRY_HEADER_ALLOWLIST: ReadonlySet<string> = new Set([
@@ -39,9 +41,12 @@ type ScrubbableRequest = {
 };
 type ScrubbableEvent = { request?: ScrubbableRequest; user?: Dict | null };
 
+/** A credential, or a personal value (a provider handle `u`, an email: plan §11.3, FIX-1). */
+const dropParam = (name: string) => SECRET_PARAM.test(name) || PII_PARAM_NAMES.has(name.toLowerCase());
+
 function scrubQuery(qs: string): string {
   const params = new URLSearchParams(qs.startsWith("?") ? qs.slice(1) : qs);
-  for (const name of [...params.keys()]) if (SECRET_PARAM.test(name)) params.set(name, REDACTED);
+  for (const name of [...params.keys()]) if (dropParam(name)) params.set(name, REDACTED);
   return params.toString();
 }
 
@@ -73,8 +78,8 @@ export function scrubEvent<E extends ScrubbableEvent>(event: E): E {
     else if (req.query_string && typeof req.query_string === "object") {
       const q = req.query_string as Dict | [string, string][];
       req.query_string = Array.isArray(q)
-        ? q.map(([k, v]) => [k, SECRET_PARAM.test(k) ? REDACTED : v])
-        : Object.fromEntries(Object.entries(q).map(([k, v]) => [k, SECRET_PARAM.test(k) ? REDACTED : v]));
+        ? q.map(([k, v]) => [k, dropParam(k) ? REDACTED : v])
+        : Object.fromEntries(Object.entries(q).map(([k, v]) => [k, dropParam(k) ? REDACTED : v]));
     }
     if (typeof req.url === "string") req.url = scrubUrl(req.url);
   }
@@ -85,8 +90,10 @@ export function scrubEvent<E extends ScrubbableEvent>(event: E): E {
   return event;
 }
 
-/** Sentry.init options for server and edge: one place, both configs. */
+/** Sentry.init options for server and edge: one place, both configs. A 304 poll of `/api/import/status` is dropped
+ * (phase-04 plan §10.2 "0 for import.status 304s"; the sampler runs before the status is known). */
 export const sentryScrubOptions = {
   beforeSend: <E extends ScrubbableEvent>(event: E): E => scrubEvent(event),
-  beforeSendTransaction: <E extends ScrubbableEvent>(event: E): E => scrubEvent(event),
+  beforeSendTransaction: <E extends ScrubbableEvent>(event: E): E | null =>
+    dropNotModifiedPoll(event as Parameters<typeof dropNotModifiedPoll>[0]) ? null : scrubEvent(event),
 };

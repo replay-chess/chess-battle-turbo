@@ -239,6 +239,19 @@ describe("ANALYZE_GAME through SqlAnalysisStore (Postgres)", { skip: skipInt }, 
     assert.equal(game.s, "QUEUED", "nothing committed");
   });
 
+  it("regression: p04-analyze-purged-game — gone(): nothing while the game exists; DONE {skipped: game_gone} once deleted", async () => {
+    const g = await makeGame(env.owner, white, black, { analysisStatus: "QUEUED" });
+    await setGame(g.id, GAME_UCI.slice(0, 8));
+    const jobId = await insertJob(env, { gameId: g.id, status: "RUNNING", lockedBy: ME, heartbeatSec: 0, dedupeKey: `analyze:${g.id}` });
+    const store = new SqlAnalysisStore(env.db);
+    assert.equal(await store.gone({ jobId, me: ME, gameId: g.id }), false);
+    assert.equal((await jobRow(env, jobId)).status, "RUNNING", "nothing written while the game exists");
+    await env.owner.query(`DELETE FROM games WHERE id = $1`, [g.id]);
+    assert.equal(await store.gone({ jobId, me: ME, gameId: g.id }), true);
+    const job = await jobRow(env, jobId);
+    assert.deepEqual({ status: job.status, result: job.result }, { status: "DONE", result: { skipped: "game_gone" } });
+  });
+
   it("a legend game: facts inserted with the first checkpoint, READY with the divergence evals; LEGEND_COMPARE confirms", async () => {
     const f = legendFixture("opera");
     const moves = legendFixtureMoves(f);

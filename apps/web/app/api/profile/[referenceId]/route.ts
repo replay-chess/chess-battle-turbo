@@ -42,6 +42,7 @@ export async function GET(
     const recentGames = await prisma.game.findMany({
       where: {
         status: "COMPLETED",
+        source: "REPLAY", // P4: imported games are COMPLETED with creatorId = the importer; the legacy profile lists played games only
         OR: [{ creatorId: user.id }, { opponentId: user.id }],
       },
       orderBy: { completedAt: "desc" },

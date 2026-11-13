@@ -1,4 +1,8 @@
-// The /games filter (phase-03 plan §4.9, §5.10): the URL is the state (`?q=&result=&tc=&moments=1&sel=`).
+// The /games filter (phase-03 plan §4.9, §5.10): the URL is the state (`?q=&result=&tc=&moments=1&source=&sel=`).
+//
+// P4 (phase-04 plan §4.11) adds the source tab, `?source=replay|chesscom|lichess` (absent = All). It travels in the
+// filter object (so the query keys, G1's query string and the URL carry it) but it is not one of the popover's
+// filters: `isFiltered`, the chips, the Filter count and Clear All leave it alone.
 //
 // Client-safe and zod-free: the parsing (`gamesFilterOf`), the constants and the query string come from the zod-free
 // contract module (@repo/contracts/http/plain), the same functions G1 and the RSC page use; this file adds the URL
@@ -11,11 +15,14 @@ import {
   GAME_TC_FILTERS,
   gamesFilterOf,
   gamesFilterToSearch,
-  type GamesFilter,
+  type GamesFilter as BaseGamesFilter,
 } from "@repo/contracts/http/plain";
 import type { GameResultFilter, GameTcFilter } from "@repo/contracts/http/games";
+import type { GameSourceWire } from "@repo/contracts/http/review";
 
-export type { GamesFilter, GameResultFilter, GameTcFilter };
+/** G1's filter plus the P4 source tab. */
+export type GamesFilter = BaseGamesFilter & { source?: GameSourceWire };
+export type { BaseGamesFilter, GameResultFilter, GameTcFilter, GameSourceWire };
 
 export const RESULT_FILTERS = GAME_RESULT_FILTERS;
 export const TC_FILTERS = GAME_TC_FILTERS;
@@ -35,10 +42,20 @@ function read(sp: SearchInput, key: string): string | undefined {
   return Array.isArray(v) ? v[0] : v;
 }
 
+/** The contract's GAME_SOURCES_WIRE, repeated here so this client module stays zod-free (filter.test.ts pins it). */
+export const SOURCES = ["replay", "chesscom", "lichess"] as const satisfies readonly GameSourceWire[];
+
+/** A known source tab, or undefined (an unknown value is All, as G1 would 400 it). */
+export function sourceOf(raw: string | undefined | null): GameSourceWire | undefined {
+  return raw && (SOURCES as readonly string[]).includes(raw) ? (raw as GameSourceWire) : undefined;
+}
+
 /** The normalised filter of raw query values: the contract's `gamesFilterOf()` after reading `moments` as G1 does. */
-export function filterOf(raw: { q?: string; result?: string; tc?: string; moments?: string | boolean }): GamesFilter {
+export function filterOf(raw: { q?: string; result?: string; tc?: string; moments?: string | boolean; source?: string }): GamesFilter {
   const moments = typeof raw.moments === "boolean" ? raw.moments : TRUTHY.has((raw.moments ?? "").trim().toLowerCase());
-  return gamesFilterOf({ q: raw.q, result: raw.result, tc: raw.tc, moments });
+  const base: GamesFilter = gamesFilterOf({ q: raw.q, result: raw.result, tc: raw.tc, moments });
+  const source = sourceOf(raw.source);
+  return source ? { ...base, source } : base;
 }
 
 export type ArchiveUrlState = {
@@ -52,14 +69,21 @@ export type ArchiveUrlState = {
 /** Parses `/games?…` (the RSC searchParams or the client's URLSearchParams). */
 export function parseArchiveSearch(sp: SearchInput): ArchiveUrlState {
   const text = (read(sp, "q") ?? "").slice(0, SEARCH_MAX);
-  const filter = filterOf({ q: text, result: read(sp, "result"), tc: read(sp, "tc"), moments: read(sp, "moments") });
+  const filter = filterOf({
+    q: text,
+    result: read(sp, "result"),
+    tc: read(sp, "tc"),
+    moments: read(sp, "moments"),
+    source: read(sp, "source"),
+  });
   const sel = read(sp, "sel");
   return { filter, text, sel: sel && /^[a-z0-9]{1,64}$/i.test(sel) ? sel : null };
 }
 
-/** The query string of a filter in canonical form (no leading `?`); `sel` last. Inverse of parseArchiveSearch. */
+/** The query string of a filter in canonical form (no leading `?`); `source`, then `sel` last. Inverse of parseArchiveSearch. */
 export function archiveSearch(filter: GamesFilter, sel?: string | null): string {
   const q = new URLSearchParams(gamesFilterToSearch(filter));
+  if (filter.source) q.set("source", filter.source);
   if (sel) q.set("sel", sel);
   return q.toString();
 }
@@ -76,12 +100,13 @@ export function g1Search(filter: GamesFilter, cursor: string | null, limit: numb
  * The query-key form of a filter for `qk.games.list(…)` / counts: scalar values only (the key factory's `norm()`
  * takes a flat record), lists as canonical csv. Two equal filters always give equal keys.
  */
-export function keyFilter(filter: GamesFilter): { q?: string; result?: string; tc?: string; moments?: boolean } {
+export function keyFilter(filter: GamesFilter): { q?: string; result?: string; tc?: string; moments?: boolean; source?: string } {
   return {
     q: filter.q,
     result: filter.result?.length ? filter.result.join(",") : undefined,
     tc: filter.tc?.length ? filter.tc.join(",") : undefined,
     moments: filter.moments ? true : undefined,
+    source: filter.source,
   };
 }
 
@@ -89,8 +114,22 @@ export function sameFilter(a: GamesFilter, b: GamesFilter): boolean {
   return archiveSearch(a) === archiveSearch(b);
 }
 
+/** Search or a popover filter is set (the source tab is not a filter: a tab with no games has its own empty copy). */
 export function isFiltered(filter: GamesFilter): boolean {
-  return archiveSearch(filter) !== "";
+  return gamesFilterToSearch(filter) !== "";
+}
+
+/** The filter on another source tab (null = All); every other filter is kept. */
+export function withSource(filter: GamesFilter, source: GameSourceWire | null): GamesFilter {
+  const next: GamesFilter = { ...filter };
+  if (source) next.source = source;
+  else delete next.source;
+  return next;
+}
+
+/** The filter without its source tab: what the archive telemetry reports (the tab is not a filter dimension). */
+export function withoutSource(filter: GamesFilter): GamesFilter {
+  return withSource(filter, null);
 }
 
 /** Filter dimensions in use (search, result, time control, moments): `filters_active` of the archive events. */
@@ -172,7 +211,10 @@ export function withSearch(filter: GamesFilter, text: string): GamesFilter {
   return next;
 }
 
-/** Clear All in the popover keeps the search (it has its own Clear). */
+/** Clear All in the popover keeps the search (it has its own Clear) and the source tab. */
 export function clearedFilters(filter: GamesFilter): GamesFilter {
-  return filter.q ? { q: filter.q } : {};
+  const next: GamesFilter = {};
+  if (filter.q) next.q = filter.q;
+  if (filter.source) next.source = filter.source;
+  return next;
 }

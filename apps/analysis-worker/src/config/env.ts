@@ -13,7 +13,9 @@
 //   non-local host;
 // - INTERNAL_API_SECRET without `wk` as its signing kid, without a key of a caller it accepts (ws, webwk, opswk), or
 //   with a `web` or `ops` key (the socket accepts those; a worker must never hold them: CT/internal/auth.ts);
-// - WS_INTERNAL_URL missing in dev/production.
+// - WS_INTERNAL_URL missing in dev/production;
+// - P4: IMPORT_FAULTS_ALLOWED on with APP_ENV=production (the provider fault table is a test hook, dev/faults.ts), and
+//   CHESSCOM_API_BASE / LICHESS_BASE_URL other than the real providers with APP_ENV=production (import/settings.ts).
 import {
   parseKeyRing,
   restrictKeyRing,
@@ -26,6 +28,8 @@ import { WORKER_PORT } from "@repo/contracts/internal/kick";
 import { ENGINE_PROFILE } from "@repo/chess-analysis/version";
 import { isDevHost } from "@repo/db/seed-guards";
 import { hostname } from "node:os";
+import { parseImportSettings, type ImportSettings } from "../import/settings";
+import { FaultsAllowedError, parseFaultsAllowed } from "../dev/faults";
 import { parseFault, type Fault } from "./faults";
 
 export type AppEnvName = "dev" | "production" | "test" | "local";
@@ -63,6 +67,10 @@ export interface WorkerEnv {
   sentryDsn: string | null;
   posthog: { key: string; host: string } | null;
   logLevel: LogLevel;
+  /** P4 imports (phase-04 §7.9): window, analysis budget, provider base URLs (production: the real ones only). */
+  imports: ImportSettings;
+  /** P4 (§7.7.4): IMPORT_FAULTS_ALLOWED, the provider fault table and `/internal/dev/fault` (never in production). */
+  faultsAllowed: boolean;
 }
 
 export class EnvError extends Error {
@@ -187,6 +195,13 @@ export function loadEnv(raw: RawEnv = process.env): WorkerEnv {
       throw new EnvError(`WORKER_FAULT: ${error instanceof Error ? error.message : "invalid"}`);
     }
   }
+  let faultsAllowed: boolean;
+  try {
+    faultsAllowed = parseFaultsAllowed(raw, appEnv);
+  } catch (error) {
+    if (error instanceof FaultsAllowedError) throw new EnvError(error.message);
+    throw error;
+  }
   const engineKind = (str(raw, "ENGINE") ?? "stockfish").toLowerCase();
   if (engineKind !== "stockfish" && engineKind !== "fake") throw new EnvError("ENGINE must be stockfish or fake");
   if (engineKind === "fake" && appEnv !== "test") {
@@ -266,6 +281,8 @@ export function loadEnv(raw: RawEnv = process.env): WorkerEnv {
     sentryDsn: str(raw, "SENTRY_DSN"),
     posthog: posthogKey ? { key: posthogKey, host: str(raw, "POSTHOG_HOST") ?? "https://us.i.posthog.com" } : null,
     logLevel,
+    imports: parseImportSettings(raw, appEnv),
+    faultsAllowed,
   };
 }
 

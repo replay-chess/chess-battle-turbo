@@ -6,6 +6,7 @@ import {
   isTrialEligible,
   trialDaysLeft,
   trialFieldsFromSnapshot,
+  decideTrial,
 } from "./trial-rules";
 
 const now = new Date("2026-11-01T12:00:00Z");
@@ -80,4 +81,27 @@ test("a subscription is in trial only inside its trial window", async () => {
   assert.equal(isSubscriptionInTrial({ trial_period_days: 7, created_at: created }, new Date("2026-11-08T00:00:01Z")), false);
   assert.equal(isSubscriptionInTrial({ trial_period_days: 0, created_at: created }, new Date("2026-11-02T00:00:00Z")), false);
   assert.equal(isSubscriptionInTrial({ trial_period_days: 7, created_at: null }), false);
+});
+
+// ── Phase 4 (plan 8.4.3): the ledger joins the eligibility rule ───────────────────────────────────────────────────
+test("isTrialEligible with a ledger hit is false; without one the row decides", () => {
+  const fresh = { trialStartedAt: null, trialEndsAt: null, subscriptionId: null };
+  assert.equal(isTrialEligible(fresh, { ledgerHit: true }), false);
+  assert.equal(isTrialEligible(fresh, { ledgerHit: false }), true);
+  assert.equal(isTrialEligible({ ...fresh, subscriptionId: "sub_1" }, { ledgerHit: false }), false);
+});
+
+test("decideTrial asks the ledger only when the row is eligible", async () => {
+  let probes = 0;
+  const probe = (hit: boolean, kind: "email" | "handle" | null) => async () => {
+    probes++;
+    return { hit, kind };
+  };
+  const fresh = { trialStartedAt: null, trialEndsAt: null, subscriptionId: null };
+  assert.deepEqual(await decideTrial(fresh, probe(false, null)), { trial: true, ledger: "miss" });
+  assert.deepEqual(await decideTrial(fresh, probe(true, "email")), { trial: false, reason: "ledger", kind: "email" });
+  assert.deepEqual(await decideTrial(fresh, probe(true, "handle")), { trial: false, reason: "ledger", kind: "handle" });
+  assert.equal(probes, 3);
+  assert.deepEqual(await decideTrial({ ...fresh, trialStartedAt: now }, probe(true, "email")), { trial: false, reason: "row" });
+  assert.equal(probes, 3, "a returning member costs no ledger statement");
 });

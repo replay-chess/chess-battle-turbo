@@ -56,7 +56,11 @@ describe("job priorities and bands", () => {
     assert.equal(new Set(JOB_KINDS).size, JOB_KINDS.length);
     assert.equal((JOB_KINDS as readonly string[]).includes("HOURLY_TICK"), false, "P3-D22: no hourly tick");
     for (const kind of P3_JOB_KINDS) assert.ok((JOB_KINDS as readonly string[]).includes(kind), kind);
-    assert.deepEqual(JOB_MAX_ATTEMPTS, { ANALYZE_GAME: 4, LEGEND_COMPARE: 3, HOUSEKEEPING: 2 });
+    // P3's three caps; P4 adds IMPORT_SYNC 5 and IMPORT_PURGE 5 (phase-04 §7.7.1, jobs.p4.test.ts).
+    assert.deepEqual(
+      { ANALYZE_GAME: JOB_MAX_ATTEMPTS.ANALYZE_GAME, LEGEND_COMPARE: JOB_MAX_ATTEMPTS.LEGEND_COMPARE, HOUSEKEEPING: JOB_MAX_ATTEMPTS.HOUSEKEEPING },
+      { ANALYZE_GAME: 4, LEGEND_COMPARE: 3, HOUSEKEEPING: 2 },
+    );
     assert.equal(ANALYSIS_MIN_PLIES, 6);
   });
 });

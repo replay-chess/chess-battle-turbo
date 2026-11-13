@@ -8,17 +8,28 @@
 // - The popover's "Show N Games" counts the draft with G1 limit=0, debounced 150 ms (no request while the draft
 //   equals the applied filter: page 1 already carries its filteredTotal).
 // - Selecting a row writes `?sel=` and, after an 80 ms dwell on a fine pointer, prefetches its review route.
+// - P4 (phase-04 plan §4.11), while `import-v3` is on: the source tabs (`?source=`, counts from page 1's
+//   `meta.counts`, providers from `qk.me().accounts`) and the `import_running` banner (`qk.imports()`, kept live by the
+//   `import:*` events; the list itself follows `games:changed`).
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useImportStatus } from "@/lib/api/queries/imports";
+import { useMe } from "@/lib/api/queries/me";
+import { useFlag } from "@/lib/flags/client";
+import { useImportEvents } from "@/lib/realtime/handlers/import";
 import { COARSE_POINTER_MQ } from "@/lib/layout/media-queries";
 import { GamesArchiveView, type ArchivePhase } from "./components/GamesArchiveView";
-import { archiveCountsQuery, archiveListQuery, rowsOf, totalsOf } from "./data/archive";
+import { archiveCountsQuery, archiveListQuery, rowsOf, sourceCountsOf, totalsOf } from "./data/archive";
 import { useArchiveLive } from "./data/useArchiveLive";
-import { archiveSearch, parseArchiveSearch, sameFilter, withSearch, type GamesFilter } from "./model/filter";
+import { archiveSearch, parseArchiveSearch, sameFilter, withSearch, withSource, withoutSource, type GamesFilter } from "./model/filter";
 import { compareHrefOf, PLAY_HREF, reviewHrefOf } from "./model/hrefs";
 import { isAnalysed, type GameRowDTO } from "./model/rows";
+import { importBannerOf, sourceTabs } from "./model/sources";
 import { filteredProps, trackArchive, viewedProps } from "./model/telemetry";
+
+/** Where the empty state's "Import from Chess.com" and an unlinked provider tab send the member. */
+export const CONNECTED_HREF = "/settings/connected";
 
 export const SEARCH_DEBOUNCE_MS = 250;
 export const COUNT_DEBOUNCE_MS = 150;
@@ -92,12 +103,21 @@ export function GamesArchiveScreen() {
 
   useArchiveLive();
 
+  // P4 slots: source tabs and the import banner (only while `import-v3` is on).
+  const importOn = useFlag("import-v3");
+  const linked = useMe((m) => (m.accounts ?? []).map((a) => a.provider)).data ?? [];
+  const imports = useImportStatus({ enabled: importOn });
+  useImportEvents({ enabled: importOn });
+  const tabs = sourceTabs({ enabled: importOn, all: totals.all, counts: sourceCountsOf(list.data), linked, current: filter.source });
+  const importBanner = importOn ? importBannerOf(imports.data) : null;
+
   // Telemetry: the first ready view, then each settled filter change (never the search text itself).
   const viewed = useRef(false);
   const lastTracked = useRef<string | null>(null);
   useEffect(() => {
     if (phase !== "ready" || refreshing) return;
-    const key = archiveSearch(filter);
+    // The source tab is not a filter dimension: switching tabs is not a `games_archive_filtered`.
+    const key = archiveSearch(withoutSource(filter));
     if (!viewed.current) {
       viewed.current = true;
       lastTracked.current = key;
@@ -157,6 +177,11 @@ export function GamesArchiveScreen() {
       reviewHref={reviewHrefOf}
       compareHref={compareHrefOf}
       playHref={PLAY_HREF}
+      sourceTabs={tabs}
+      onPickSource={(source) => writeUrl(withSource(filter, source), null)}
+      importBanner={importBanner}
+      importHref={importOn ? CONNECTED_HREF : null}
+      linkedProviders={linked}
     />
   );
 }

@@ -14,6 +14,7 @@ import { reasonFor } from "@/lib/auth/membership";
 import type { Viewer } from "@/lib/auth/viewer";
 import { logger, type LogContext } from "@/lib/logger";
 import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit-db";
+import type { LedgerProbe } from "@/lib/billing/trial-eligibility";
 
 type Env = Readonly<Record<string, string | undefined>>;
 
@@ -60,6 +61,10 @@ export type RouteDeps = {
   /** Monotonic ms for durations. */
   perf(): number;
   sleep(ms: number): Promise<void>;
+  /** lib/auth/claims.ts syncClerkClaims (never throws; a no-op when the claims already match). Run it in after(). */
+  syncClaims(userId: bigint): Promise<void>;
+  /** The trial-ledger probe behind `/api/me` `trial.eligible` (lib/billing/trial-eligibility.ts; one statement). */
+  trialLedgerProbe: LedgerProbe;
 };
 
 // ---------------------------------------------------------------------------
@@ -91,6 +96,26 @@ const sentryTelemetry: Telemetry = {
   count: (name, attributes) => Sentry.metrics.count(name, 1, { attributes }),
 };
 
+/**
+ * route()'s after(): the task starts on the next macrotask (once the handler's synchronous part is done) and is handed
+ * to Next's `after()` as a PROMISE, which Next keeps alive with `waitUntil`. FIX-1: Next's callback form waits for the
+ * response's `close` event, and when the browser navigated away right after a POST (Settings → /games after a link)
+ * that never arrived on `next start`: every after-effect of the request was lost (the import kick, the audit rows,
+ * the legacy dual-write, the fan-out), 2 of 3 links in a row on the e2e stack. A task failure is reported, never
+ * thrown (as Next's own after() does). Exported for the unit test.
+ */
+export function scheduleAfter(
+  task: () => unknown,
+  keepAlive: (promise: Promise<unknown>) => void,
+  onError: (err: unknown) => void = (err) => logger.error("route after() task failed", err),
+): void {
+  const run = new Promise<void>((resolve) => setImmediate(resolve)).then(task).then(
+    () => undefined,
+    (err: unknown) => onError(err),
+  );
+  keepAlive(run);
+}
+
 function defaultDeps(): RouteDeps {
   return {
     env: process.env,
@@ -104,7 +129,7 @@ function defaultDeps(): RouteDeps {
     checkRateLimit,
     clientIp: clientIpFrom,
     dataCache: (fn, keyParts, options) => unstable_cache(fn, keyParts, options),
-    after: (task) => after(task),
+    after: (task) => scheduleAfter(task, after),
     telemetry: sentryTelemetry,
     // logger.error's second argument is the error object; route() reports exceptions itself, so pass none.
     log: (level, message, context) =>
@@ -112,6 +137,8 @@ function defaultDeps(): RouteDeps {
     clock: () => Date.now(),
     perf: () => performance.now(),
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    syncClaims: async (userId) => (await import("@/lib/auth/claims")).syncClerkClaims(userId),
+    trialLedgerProbe: async (input) => (await import("@/lib/billing/trial-eligibility")).defaultLedgerProbe(input),
   };
 }
 

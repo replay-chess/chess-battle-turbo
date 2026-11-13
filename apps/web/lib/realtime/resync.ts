@@ -19,4 +19,8 @@ export function shouldResync(prev: HelloState | null, hello: HelloState, lastUse
 }
 
 /** The user-level query prefixes P2 marks stale on a resync (more phases add theirs). */
-export const RESYNC_QUERY_KEYS: readonly (readonly unknown[])[] = [qk.me()];
+export const RESYNC_QUERY_KEYS: readonly (readonly unknown[])[] = [
+  qk.me(),
+  // P4 (WP-D, phase-04 plan 5.5): every activation wait (`qk.billing.activation(*)`) may have missed entitlement:changed.
+  ["billing", "activation"],
+];
