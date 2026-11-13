@@ -90,9 +90,17 @@ export function rateLimitedCopy(provider: ProviderSlug): { before: string; after
   return { before: `${providerName(provider)} is limiting requests. You can sync again in `, after: "." };
 }
 
-/** inv-acct Q19 copy: skipped games are variants, unrated or unfinished games (never "private"). */
+/**
+ * inv-acct Q19 copy: skipped games are variants, unrated or unfinished games (never "private"). The games the run saw
+ * but neither imported nor skipped are the older ones past the import limit (the last 12 months, newest 2,000; plan
+ * D4-09): they get their own sentence, so the numbers add up (D10: "We imported 2,000 of 2,393 games. 2 were
+ * skipped…" left 391 unexplained).
+ */
 export function skippedCopy(imported: number, seen: number, skipped: number): string {
-  return `We imported ${formatCount(imported)} of ${formatCount(seen)} games. ${formatCount(skipped)} were skipped: variants, unrated or unfinished games.`;
+  const left = Math.max(0, seen - imported - skipped);
+  const skippedLine = `${formatCount(skipped)} ${skipped === 1 ? "was" : "were"} skipped: variants, unrated or unfinished games.`;
+  const leftLine = left > 0 ? ` ${formatCount(left)} older ${left === 1 ? "game is" : "games are"} past the import limit.` : "";
+  return `We imported ${formatCount(imported)} of ${formatCount(seen)} games. ${skippedLine}${leftLine}`;
 }
 
 export function closedCopy(provider: ProviderSlug, importedCount: number): string {

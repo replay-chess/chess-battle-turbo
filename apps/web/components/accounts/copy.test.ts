@@ -89,6 +89,13 @@ describe("banners and errors (plan §4.10, §8.11)", () => {
     assert.equal(s, "We imported 312 of 480 games. 168 were skipped: variants, unrated or unfinished games.");
     assert.ok(!/private/i.test(s));
   });
+  it("regression: D10 — a capped import explains the games past the limit, so the numbers add up", () => {
+    assert.equal(
+      skippedCopy(2000, 2393, 2),
+      "We imported 2,000 of 2,393 games. 2 were skipped: variants, unrated or unfinished games. 391 older games are past the import limit.",
+    );
+    assert.equal(skippedCopy(10, 12, 1), "We imported 10 of 12 games. 1 was skipped: variants, unrated or unfinished games. 1 older game is past the import limit.");
+  });
   it("closed and vanished accounts", () => {
     assert.equal(closedCopy("chesscom", 480), "This Chess.com account was closed, so new games can't be imported. Your 480 imported games are safe.");
     assert.equal(goneCopy("chesscom", "knightowl_88"), "We couldn't find knightowl_88 on Chess.com. If you renamed your account, link it again.");
