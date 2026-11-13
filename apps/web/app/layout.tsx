@@ -11,7 +11,7 @@ import { ThemeProvider } from "./components/ThemeProvider";
 import { ThemeAwareClerkProvider } from "./components/ThemeAwareClerkProvider";
 import { ThemeAwareToaster } from "./components/ThemeAwareToaster";
 import { SampledSpeedInsights } from "./components/SampledSpeedInsights";
-import { vercelAnalyticsEnabled } from "@/lib/analytics/vercel";
+import { vercelAnalyticsEnabled, vercelWebAnalyticsEnabled } from "@/lib/analytics/vercel";
 import { ThemeColorSync } from "./components/ThemeColorSync";
 import { ServiceWorkerRegistration } from "./components/ServiceWorkerRegistration";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -164,12 +164,9 @@ export default function RootLayout({
             <Providers sessionWatcher={<SessionWatcher />}>
               <GoogleAnalytics />
               {/* /_vercel/* scripts exist only on Vercel deployments (lib/analytics/vercel.ts). */}
-              {vercelAnalyticsEnabled() && (
-                <>
-                  <Analytics />
-                  <SampledSpeedInsights />
-                </>
-              )}
+              {/* Web Analytics only where the Vercel project enables it (VERCEL_WEB_ANALYTICS=1): else its script 404s. */}
+              {vercelWebAnalyticsEnabled() && <Analytics />}
+              {vercelAnalyticsEnabled() && <SampledSpeedInsights />}
               <UserSync />
               <PostHogIdentify />
               <ThemeAwareToaster />
