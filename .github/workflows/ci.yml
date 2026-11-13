@@ -18,7 +18,7 @@
 # (main-guard.yml); this workflow does not run there, because main has none of the new packages until P13.
 #
 # Secrets (owner adds; names only): E2E_TEST_TOKEN, NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY
-# (Clerk development instance; e2e-smoke and devices-game), INTERNAL_API_SECRET, E2E_USER_{A..P,R}_{EMAIL,PASSWORD}.
+# (Clerk development instance; e2e-smoke, devices-game and devices-review), INTERNAL_API_SECRET, E2E_USER_{A..P,R}_{EMAIL,PASSWORD}.
 # The verify and integration jobs need none.
 name: CI
 
@@ -472,8 +472,12 @@ jobs:
       NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/replay
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
-      CLERK_SECRET_KEY: sk_test_ci_dummy_not_a_real_key
+      # The Clerk development instance, as in devices-game: Clerk's middleware answers a first document request without
+      # a dev-browser cookie with a handshake redirect to the key's Frontend API (/dev/ui/** and /how-we-grade included).
+      # The verify build's dummy key names clerk.example.com, which does not resolve: every page.goto of run
+      # 43401675366 failed with net::ERR_NAME_NOT_RESOLVED (chromium) or "Error resolving clerk.example.com" (webkit).
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:3002
       DODO_PAYMENTS_API_KEY: ci-dummy-dodo-key
       DODO_PAYMENTS_ENVIRONMENT: test_mode
