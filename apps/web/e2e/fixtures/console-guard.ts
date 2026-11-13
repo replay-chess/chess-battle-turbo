@@ -85,6 +85,23 @@ export const CLERK_PROTECT_PROBE =
 export const CLERK_TIMER_BLOB =
   /(?:^|\/)(?:localhost|127\.0\.0\.1)(?::\d+)?\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} due to access control checks\.?$/;
 
+/**
+ * clerk-js's own loads cancelled by a full-page navigation (the Lichess OAuth round trip leaves /settings/connected
+ * while Clerk polls): WebKit rejects the in-flight FAPI fetches and the token poller's blob worker ("Fetch API cannot
+ * load https://<instance>.clerk.accounts.dev/v1/client… due to access control checks.", "Cannot load
+ * blob:http://localhost:3800/<uuid> due to access control checks.") and clerk-js leaves them unhandled. Excused only
+ * when the error's first stack frame is clerk-js itself on Clerk's CDN; the same message from our code still fails.
+ * The blob case is also matched by CLERK_TIMER_BLOB (any page being left); this rule adds the cancelled FAPI fetches
+ * to Clerk's own host, which CLERK_TIMER_BLOB (page origin only) does not cover.
+ * regression: p04-webkit-clerk-abort (webkit-iphone accounts/connected.spec.ts @smoke).
+ */
+const CLERK_JS_FRAME = /^\s*at .*\(https:\/\/(?:[a-z0-9-]+\.clerk\.accounts\.dev|clerk\.playchess\.tech)\/npm\/@clerk\/clerk-js@[\w.-]+\/dist\/[\w.-]+\.js:\d+:\d+\)$/;
+export function isClerkJsAbort(message: string, stack: string | undefined): boolean {
+  if (!/ due to access control checks\.?$/.test(message) || !stack) return false;
+  const firstFrame = stack.split("\n").find((line) => /^\s*at /.test(line));
+  return firstFrame !== undefined && CLERK_JS_FRAME.test(firstFrame);
+}
+
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const BASELINE_FILE = path.join(WEB_DIR, "e2e/console-baseline.json");
 
@@ -151,6 +168,7 @@ export function guardContext(context: BrowserContext, allow: RegExp[] = []): Con
   problemsByContext.set(context, problems);
   context.on("weberror", (err) => {
     const text = err.error().message;
+    if (isClerkJsAbort(text, err.error().stack)) return;
     if (
       !allow.some((r) => r.test(text)) &&
       !CLERK_CHUNK_ABORT.test(text) &&

@@ -21,8 +21,15 @@ async function playMoves(page: Page, n: number) {
   for (let k = 0; k < n; k++) {
     await expect(board(page)).toHaveAttribute("data-current-turn", "w", { timeout: 90_000 });
     const before = Number(await board(page).getAttribute("data-ply"));
-    await helper.playValidMove("w");
-    await expect.poll(async () => Number(await board(page).getAttribute("data-ply")), { timeout: 90_000 }).toBeGreaterThan(before);
+    // gotoOk returns at DOMContentLoaded and the board's data-* attributes are server-rendered, so the first move can be
+    // clicked before React hydrates the board and is lost (CI run 43401675366, chromium: the board stayed at ply 0
+    // for 90 s). Hydration-safe like clickUntil: play again until the ply moves (a move that landed late is seen first).
+    const ply = async () => Number(await board(page).getAttribute("data-ply"));
+    await expect(async () => {
+      if ((await ply()) > before) return;
+      await helper.playValidMove("w");
+      await expect.poll(ply, { timeout: 10_000 }).toBeGreaterThan(before);
+    }).toPass({ timeout: 90_000, intervals: [500, 1_000, 2_000] });
   }
   await expect(board(page)).toHaveAttribute("data-current-turn", "w", { timeout: 90_000 });
 }

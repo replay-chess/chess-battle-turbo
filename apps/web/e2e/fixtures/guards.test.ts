@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CLERK_CHUNK_ABORT, CLERK_PROTECT_PROBE, CLERK_TIMER_BLOB, classifyConsole, classifyResponse } from "./console-guard";
+import {
+  CLERK_CHUNK_ABORT,
+  CLERK_PROTECT_PROBE,
+  CLERK_TIMER_BLOB,
+  classifyConsole,
+  classifyResponse,
+  isClerkJsAbort,
+} from "./console-guard";
 import { auditEvents, matchesProps } from "./telemetry";
 
 describe("console guard rules", () => {
@@ -116,6 +123,29 @@ describe("console guard: Clerk's timer worker refused on a page being left (WebK
       assert.equal(CLERK_TIMER_BLOB.test(t), false, t);
       assert.ok(classifyConsole("error", t, []), t);
     }
+  });
+});
+
+describe("console guard: clerk-js loads aborted by a navigation (regression: p04-webkit-clerk-abort)", () => {
+  const cdn = "https://loving-martin-7959.clerk.accounts.dev/npm/@clerk/clerk-js@5.128.0/dist/clerk.browser.js";
+  it("excuses WebKit's cancelled FAPI fetch and token-poller blob when clerk-js is the first frame", () => {
+    assert.equal(
+      isClerkJsAbort(
+        "ttp://localhost:3800/2dd2517d-90dd-496d-b6af-119bb4e40ba4 due to access control checks.",
+        `Cannot load blob:http://localhost:3800/2dd2517d due to access control checks.\n    at a (${cdn}:19:18617)\n    at startPollingForToken (${cdn}:5:13591)`,
+      ),
+      true,
+    );
+    assert.equal(
+      isClerkJsAbort("/loving-martin-7959.clerk.accounts.dev/v1/client?x=1 due to access control checks.", `Fetch API cannot load …\n    at unknown (${cdn}:19:8145)`),
+      true,
+    );
+  });
+  it("still reports the same message from our code, other errors from clerk-js, and look-alike hosts", () => {
+    assert.equal(isClerkJsAbort("/localhost:3800/api/me due to access control checks.", "x\n    at load (http://localhost:3800/_next/static/chunks/1.js:1:2)"), false);
+    assert.equal(isClerkJsAbort("Cannot read properties of undefined", `TypeError\n    at a (${cdn}:1:1)`), false);
+    assert.equal(isClerkJsAbort("x due to access control checks.", "x\n    at a (https://clerk.accounts.dev.evil.example/npm/@clerk/clerk-js@5/dist/c.js:1:1)"), false);
+    assert.equal(isClerkJsAbort("x due to access control checks.", undefined), false);
   });
 });
 
