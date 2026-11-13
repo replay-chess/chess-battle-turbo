@@ -2,8 +2,11 @@
 // the web DAL (LegendSummaryDTO, LegendCompareDTO) and the review builder agree.
 //
 //   summary rows   up to 6 rows of the member's moves, centred on the split: "12." · yours "Ba4" · the legend's
-//                  "O-O-O" · mark (match before the split, split on the first member move at or after the
-//                  divergence, none after it). With no divergence: the last 6 compared rows.
+//                  "O-O-O" · mark (match before the divergence, split on the member's divergent move, none after).
+//                  The comparison stops at the divergence (§8.9): later rows show the member's moves with no legend
+//                  move beside them (the two games are in different positions then), and when the opponent left the
+//                  line first no member move is marked as leaving it (dev pass D11). With no divergence: the last 6
+//                  compared rows.
 //   line rows      the Your Moves / legend's Moves tables, one row per move number (White, Black, mark).
 //   outcomeLine    "Morphy won this; you drew." (the legend's result from the member's side).
 //   summaryLine    "You matched 2 of 3 moves, then left Morphy’s path with 12.Ba4." / "You found every one of
@@ -13,8 +16,9 @@
 //   paragraph      the Explanation tab (§8.9): "You matched Morphy for 2 of 3 moves. On move 12 you played Ba4; Morphy
 //                  played O-O-O.{ After that your winning chances were 41% against 78% for Morphy’s move.}"; the
 //                  followed and opponent-left variants of §4.6.
-//   replayHref     `/practice?game=<ref>&ply=<divergencePly>` (the position before the divergent move); null when the
-//                  member followed the legend.
+//   replayHref     `/practice?game=<ref>&ply=<divergencePly>` (the position before the member's divergent move); null
+//                  when the member followed the legend or the opponent left the line first (nothing of the member's to
+//                  replay; dev pass D11).
 // The plan's board copy says "his path"; the templates name the legend instead ("Morphy’s path"), which needs no
 // pronoun. Every SAN is replayed from the stored lines with chess.js.
 
@@ -55,16 +59,18 @@ function sansOf(startFen: string, line: string): string[] {
   return playLine(startFen, line === "" ? [] : line.split(" ")).map((m) => m.san);
 }
 
-/** The ply offset of the first member move at or after the divergence (null without one). */
+/** The member's divergent ply: the divergence when the member left the line (null when followed or opponent-left). */
 function splitPly(c: LegendContext): number | null {
-  const f = c.facts;
-  if (f.divergencePly === null) return null;
-  const startMover = sideToMove(c.startFen);
-  return moverAt(f.divergencePly, startMover) === f.side ? f.divergencePly : f.divergencePly + 1;
+  return c.facts.divergenceBy === "user" ? c.facts.divergencePly : null;
 }
 
-function markOf(ply: number, split: number | null): RowMark {
-  if (split === null || ply < split) return "match";
+/** Where the lines part, whoever left first (null when followed). The comparison stops there. */
+function partPly(c: LegendContext): number | null {
+  return c.facts.divergencePly;
+}
+
+function markOf(ply: number, split: number | null, part: number | null): RowMark {
+  if (part === null || ply < part) return "match";
   return ply === split ? "split" : "none";
 }
 
@@ -75,16 +81,19 @@ export function summaryRows(c: LegendContext): SummaryRow[] {
   const yours = sansOf(c.startFen, f.userLineUci);
   const legend = sansOf(c.startFen, f.legendLineUci);
   const split = splitPly(c);
-  const last = split === null ? Math.min(yours.length, legend.length) - 1 : Math.max(yours.length, legend.length) - 1;
+  const part = partPly(c);
+  // After the lines part only the member's own moves remain to show (a legend move there is from another position).
+  const last = part === null ? Math.min(yours.length, legend.length) - 1 : yours.length - 1;
   const rows: { ply: number; row: SummaryRow }[] = [];
   for (let k = 0; k <= last; k++) {
     if (moverAt(k, startMover) !== f.side) continue;
+    const legendSan = part === null || k <= (split ?? part - 1) ? (legend[k] ?? "") : "";
     rows.push({
       ply: k,
-      row: { n: moveLabel(k, f.startPly), yours: yours[k] ?? "", legend: legend[k] ?? "", mark: markOf(k, split) },
+      row: { n: moveLabel(k, f.startPly), yours: yours[k] ?? "", legend: legendSan, mark: markOf(k, split, part) },
     });
   }
-  const at = split === null ? rows.length - 1 : rows.findIndex((r) => r.ply === split);
+  const at = part === null ? rows.length - 1 : rows.findIndex((r) => r.ply >= part);
   let from = Math.max(0, (at < 0 ? rows.length - 1 : at) - 3);
   const to = Math.min(rows.length, from + LEGEND_SUMMARY_MAX_ROWS);
   from = Math.max(0, to - LEGEND_SUMMARY_MAX_ROWS);
@@ -100,6 +109,7 @@ export function lineRows(c: LegendContext, which: "yours" | "legend"): LineRow[]
   const startMover = sideToMove(c.startFen);
   const sans = sansOf(c.startFen, which === "yours" ? f.userLineUci : f.legendLineUci);
   const split = splitPly(c);
+  const part = partPly(c);
   const rows: LineRow[] = [];
   const memberMarked = new Set<LineRow>();
   sans.forEach((san, k) => {
@@ -114,9 +124,9 @@ export function lineRows(c: LegendContext, which: "yours" | "legend"): LineRow[]
     if (which === "legend") row.mark = "none";
     else if (color === f.side) {
       // The member's move decides the row's mark.
-      row.mark = markOf(k, split);
+      row.mark = markOf(k, split, part);
       memberMarked.add(row);
-    } else if (!memberMarked.has(row) && split !== null && k > split) row.mark = "none";
+    } else if (!memberMarked.has(row) && part !== null && k >= part) row.mark = "none";
   });
   return rows;
 }
@@ -183,9 +193,11 @@ export function comparisonParagraph(f: ComparisonFacts, opts: ParagraphOptions =
   return `${base} After that your winning chances were ${Math.round(e.userWin)}% against ${Math.round(e.legendWin)}% for ${name}${APOS}s move.`;
 }
 
-/** `/practice?game=<ref>&ply=<divergencePly>`; null when the member followed the legend. */
+/** `/practice?game=<ref>&ply=<divergencePly>`; null when the member followed the legend or the opponent left first. */
 export function replayHref(ref: string, f: ComparisonFacts): string | null {
-  return f.divergencePly === null ? null : `/practice?game=${encodeURIComponent(ref)}&ply=${f.divergencePly}`;
+  return f.divergencePly === null || f.divergenceBy !== "user"
+    ? null
+    : `/practice?game=${encodeURIComponent(ref)}&ply=${f.divergencePly}`;
 }
 
 /** The divergence as the game-over block shows it, or null. */

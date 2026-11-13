@@ -44,7 +44,7 @@
     "matchedLine": "Matched 2 of 2 · the game left Kasparov’s path with 25…Qxe7",
     "outcomeLine": "Kasparov won this; you won.",
     "paragraph": "The engine left the game’s path on 25…Qxe7 (Topalov played 25…Kb6), so the comparison stops there.",
-    "replayHref": "/practice?game=fixture-ref&ply=3",
+    "replayHref": null,
     "rows": [
       {
         "n": "24.",
@@ -61,25 +61,7 @@
       {
         "n": "26.",
         "yours": "Qxd4+",
-        "legend": "Qxd4+",
-        "mark": "split"
-      },
-      {
-        "n": "27.",
-        "yours": "",
-        "legend": "b4+",
-        "mark": "none"
-      },
-      {
-        "n": "28.",
-        "yours": "",
-        "legend": "Qc3",
-        "mark": "none"
-      },
-      {
-        "n": "29.",
-        "yours": "",
-        "legend": "Ra7",
+        "legend": "",
         "mark": "none"
       }
     ]

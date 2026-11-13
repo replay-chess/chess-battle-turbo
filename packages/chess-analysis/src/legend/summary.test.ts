@@ -98,3 +98,25 @@ describe("legend summary texts", () => {
     assert.equal(outcomeLine({ ...facts, legendResult: "draw" }, "win"), "Morphy drew this; you won.");
   });
 });
+
+describe("after the lines part (regression: dev pass D11)", () => {
+  it("the opponent left first: no member move is marked as leaving, no legend move is paired after it, no replay", () => {
+    const f = legendFixture("opponent-left");
+    const facts = legendFixtureFacts(f);
+    const ctx = { startFen: f.startFen, facts };
+    assert.equal(facts.divergenceBy, "opponent");
+    for (const r of summaryRows(ctx)) assert.notEqual(r.mark, "split", `${r.n} ${r.yours}`);
+    for (const r of lineRows(ctx, "yours")) assert.notEqual(r.mark, "split", `${r.n}`);
+    assert.equal(replayHref(LEGEND_FIXTURE_REF, facts), null);
+  });
+  it("the member left: the legend column ends at the split row (later legend moves are from another position)", () => {
+    for (const name of ["opera", "kt"]) {
+      const f = legendFixture(name);
+      const rows = summaryRows({ startFen: f.startFen, facts: legendFixtureFacts(f) });
+      const at = rows.findIndex((r) => r.mark === "split");
+      assert.ok(at >= 0, name);
+      assert.ok(rows[at]!.legend !== "", `${name}: the split row names the legend's move`);
+      for (const r of rows.slice(at + 1)) assert.equal(r.legend, "", `${name} ${r.n}`);
+    }
+  });
+});
