@@ -212,6 +212,18 @@ async function clearInTx(
   const ledgerRows = await tx.$executeRaw(Prisma.sql`
     DELETE FROM trial_ledger WHERE "emailHash" = ${ledger.emailHash(email)} OR "handleHashes" && ${hashes}::text[]`);
   const jobs = await tx.$executeRaw(Prisma.sql`DELETE FROM jobs WHERE "userId" = ${user.id} AND status = 'QUEUED'`);
+  // Every purge call below runs in this one transaction, so the first one's users row is held while the next one
+  // locks its games: a final analysis batch on one of those games (it locks the game, then users) deadlocked against
+  // the reset (e2e stress, after m4t made each single call safe). The reset takes all the imported games' locks
+  // first, in the final batch's order (game_analyses, games), before any purge touches a player or the users row.
+  await tx.$queryRaw(Prisma.sql`
+    SELECT 1 FROM game_analyses a
+     WHERE a."gameId" IN (SELECT gp."gameId" FROM game_players gp WHERE gp."userId" = ${user.id} AND gp.source <> 'REPLAY')
+     ORDER BY a."gameId" FOR UPDATE`);
+  await tx.$queryRaw(Prisma.sql`
+    SELECT 1 FROM games g
+     WHERE g.id IN (SELECT gp."gameId" FROM game_players gp WHERE gp."userId" = ${user.id} AND gp.source <> 'REPLAY')
+     ORDER BY g.id FOR UPDATE`);
   let purgedGames = 0;
   for (const source of ["CHESSCOM", "LICHESS"] as const) {
     for (;;) {
