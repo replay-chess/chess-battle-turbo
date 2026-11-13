@@ -5,7 +5,7 @@ export type OnbDemoStep = "welcome" | "link" | "confirm" | "level" | "goals" | "
 
 /** The demo states per step (app/dev/ui/onboarding/_demos), the board each belongs to, and its board-state values. */
 export const ONBOARDING_DEMO_STATES: Record<OnbDemoStep, { board: string; states: Record<string, string[]> }> = {
-  welcome: { board: "OnbWelcome", states: { default: ["default"], trial_used: [], already_linked: [] } },
+  welcome: { board: "OnbWelcome", states: { default: ["default"], trial_used: [], already_linked: [], trialing: [] } },
   link: {
     board: "OnbLink",
     states: {

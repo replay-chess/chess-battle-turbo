@@ -6,6 +6,7 @@ import { WelcomeStep } from "@/components/onboarding/WelcomeStep";
 import { ledgerAwareViewer } from "@/lib/billing/ledger-viewer";
 import { loadStepPage } from "@/lib/data/onboarding";
 import { displayName } from "@/lib/onboarding/display-name";
+import { welcomeMembership } from "@/lib/onboarding/welcome-view";
 import { LEGEND_POSITION } from "@/lib/onboarding/sample-puzzles";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,7 @@ export default async function WelcomePage({ searchParams }: { searchParams: Prom
       name={name}
       trialEligible={trialEligible}
       linked={onb.hasActiveLink}
+      membership={welcomeMembership(viewer.entitlement)}
       board={<StaticBoard fen={LEGEND_POSITION.fen} label={LEGEND_POSITION.label} />}
     />
   );

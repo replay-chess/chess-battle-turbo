@@ -2,7 +2,8 @@
 
 // Welcome `/onboarding/welcome` (phase-04 plan §4.1; V3OnbWelcome, V3iPhoneOnbWelcome, V3iPadOnbWelcome).
 // States: default; trial used (row 04 "Start your membership", no "7 DAYS FREE"); already linked (Get Started goes
-// to Level with the band prefilled). Get Started = advance(link | level) with the browser's zone on the tab's first
+// to Level with the band prefilled). A viewer who is already a member (a trial or a subscription started at /pricing)
+// sees row 04 say so (lib/onboarding/welcome-view.ts, D9). Get Started = advance(link | level) with the browser's zone on the tab's first
 // PATCH. Enter submits (the panel is a form).
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useOnboardingStep } from "@/lib/api/mutations/onboarding";
 import { stepPath } from "@/lib/onboarding/steps";
 import { trackOnboarding } from "@/lib/onboarding/telemetry";
+import { welcomeMembershipRow, type WelcomeMembership } from "@/lib/onboarding/welcome-view";
 import { OnbFooter, OnbStage, StepHeading } from "./OnbStage";
 
 export type WelcomeState = "default" | "trial_used" | "already_linked";
@@ -20,6 +22,8 @@ export type WelcomeStepProps = {
   trialEligible: boolean;
   /** An ACTIVE link exists: Get Started skips Link (the resolver never shows it). */
   linked: boolean;
+  /** Already a member (trial or subscription): row 04 says so instead of "Start …". */
+  membership?: WelcomeMembership;
   /** The legend board (StaticBoard, rendered on the server). */
   board: React.ReactNode;
   /** Demo routes: no navigation, no PATCH. */
@@ -37,11 +41,12 @@ export function welcomeState(p: Pick<WelcomeStepProps, "trialEligible" | "linked
   return p.trialEligible ? "default" : "trial_used";
 }
 
-export function WelcomeStep({ name, trialEligible, linked, board, demo = false }: WelcomeStepProps) {
+export function WelcomeStep({ name, trialEligible, linked, membership = null, board, demo = false }: WelcomeStepProps) {
   const router = useRouter();
   const { advance, isSaving } = useOnboardingStep();
   const target = linked ? "level" : "link";
   const shownAt = useRef(0);
+  const row04 = welcomeMembershipRow(trialEligible, membership);
 
   useEffect(() => {
     shownAt.current = performance.now();
@@ -104,8 +109,8 @@ export function WelcomeStep({ name, trialEligible, linked, board, demo = false }
           <span className="no" aria-hidden="true">
             04
           </span>
-          <span>{trialEligible ? "Start your free trial" : "Start your membership"}</span>
-          {trialEligible ? <span className="t">7 DAYS FREE</span> : <span />}
+          <span>{row04.text}</span>
+          {row04.tag ? <span className="t">{row04.tag}</span> : <span />}
         </li>
       </ol>
       <p className="onb-hint">About a minute. You can change all of it later in Settings.</p>

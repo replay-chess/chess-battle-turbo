@@ -22,8 +22,11 @@ describe("doneBody", () => {
       doneBody("Chess.com"),
       "The coach is analysing your Chess.com games now. Your first review and puzzle set land on Home. Warm up with a classic position while you wait.",
     );
-    assert.match(doneBody(null), /^The coach is analysing your games now\./);
-    assert.match(doneBody("Chess.com and Lichess"), /your Chess\.com and Lichess games/);
+    assert.match(doneBody("Chess.com and Lichess"), /^The coach is analysing your Chess\.com and Lichess games now\./);
+  });
+  it("regression: D9 — nothing linked: no claim that games are being analysed", () => {
+    assert.equal(doneBody(null), "Your first review and puzzle set land on Home after your first game here. Warm up with a classic position.");
+    assert.doesNotMatch(doneBody(null), /analysing/);
   });
 });
 

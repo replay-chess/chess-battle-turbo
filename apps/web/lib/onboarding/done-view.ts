@@ -3,7 +3,7 @@
 //   tag       "Trial · 7 days left" (a trial), nothing extra for a paid member, "Trial starting…" while the trial is
 //             not confirmed yet (the member came through "Continue in Background"): completion waits for
 //             `entitlement:changed`, Go to Home is disabled with the hint "Almost there…".
-//   body      names the linked provider(s); "your games" with none.
+//   body      names the linked provider(s); with none, no "analysing" claim (D9).
 //   completed the `onb_completed` properties (§10.1: no username, no FEN).
 //   failed    a declined card while "Trial starting…" waited → the plan with `?status=failed` (FIX-1).
 
@@ -25,10 +25,14 @@ export function doneTag(e: DoneEntitlement): DoneTag | null {
   return { tone: "trial", text: `Trial · ${e.daysLeft} ${e.daysLeft === 1 ? "day" : "days"} left` };
 }
 
-/** `providers`: "Chess.com", "Chess.com and Lichess", or null (plan-view.ts providersLabel). */
+/**
+ * `providers`: "Chess.com", "Chess.com and Lichess", or null (plan-view.ts providersLabel). With nothing linked there
+ * is nothing being analysed, so the body says where the coaching starts instead (D9: "The coach is analysing your
+ * games now." with no account linked; the card below offers the link in Settings).
+ */
 export function doneBody(providers: string | null): string {
-  const games = providers ? `your ${providers} games` : "your games";
-  return `The coach is analysing ${games} now. Your first review and puzzle set land on Home. Warm up with a classic position while you wait.`;
+  if (!providers) return "Your first review and puzzle set land on Home after your first game here. Warm up with a classic position.";
+  return `The coach is analysing your ${providers} games now. Your first review and puzzle set land on Home. Warm up with a classic position while you wait.`;
 }
 
 export const ALMOST_THERE = "Almost there…";
