@@ -16,7 +16,7 @@ APP_DIR=/opt/replay-chess
 
 # The analysis worker's CPU slice (phase-03 plan P3-D8): CPUWeight=idle sets cpu.idle=1 on the cgroup, so under
 # cgroup v2 the worker container (compose `cgroup_parent: worker-idle.slice`) only gets CPU the socket container
-# does not want. Check after the worker started: cat /sys/fs/cgroup/worker-idle.slice/cpu.idle  → 1
+# does not want. systemd nests a dashed slice under its prefix (worker.slice/worker-idle.slice). Check: cat /sys/fs/cgroup/worker.slice/worker-idle.slice/cpu.idle  → 1
 worker_slice() {
   cat > /etc/systemd/system/worker-idle.slice <<'UNIT'
 [Unit]
@@ -28,7 +28,7 @@ CPUWeight=idle
 UNIT
   systemctl daemon-reload
   systemctl start worker-idle.slice
-  echo "worker-idle.slice: cpu.idle=$(cat /sys/fs/cgroup/worker-idle.slice/cpu.idle 2>/dev/null || echo '?')"
+  echo "worker-idle.slice: cpu.idle=$(cat /sys/fs/cgroup/worker.slice/worker-idle.slice/cpu.idle 2>/dev/null || echo '?')"
 }
 
 if [ "${1:-}" = "--worker-slice" ]; then

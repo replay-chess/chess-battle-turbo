@@ -217,7 +217,7 @@ jobs:
                 sleep 2
               done
               if [ "$HEALTHY" != 1 ]; then docker compose logs --tail 50 analysis-worker; echo "analysis-worker not healthy within 120 s"; exit 1; fi
-              IDLE="$(cat /sys/fs/cgroup/worker-idle.slice/cpu.idle 2>/dev/null || echo missing)"
+              IDLE="$(cat /sys/fs/cgroup/worker.slice/worker-idle.slice/cpu.idle 2>/dev/null || echo missing)"
               echo "worker-idle.slice cpu.idle=$IDLE"
               if [ "$IDLE" != 1 ]; then echo "worker-idle.slice is not idle: run deploy/oci/setup-server.sh --worker-slice on the box"; exit 1; fi
               docker compose exec -T analysis-worker node dist/smoke.cjs
