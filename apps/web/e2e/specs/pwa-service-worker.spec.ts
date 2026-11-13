@@ -403,10 +403,22 @@ test.describe("service worker @p1 @smoke @prod-build", () => {
           r.text(),
         ),
       );
+      // The reloaded document reads /api/me with whatever session token the cookie holds; Clerk's token lives 60 s and
+      // clerk-js refreshes it in the background, so on a slow WebKit run the read could go out with an expired one and
+      // get an error envelope (CI 43409659970: "Cannot read properties of undefined (reading 'user')"). Wait for Clerk
+      // and mint a fresh token first, then read, and report the status if it still is not 200.
+      await page.waitForFunction(() => (window as unknown as { Clerk?: { loaded?: boolean } }).Clerk?.loaded === true, null, {
+        timeout: 60_000,
+      });
+      await page.evaluate(async () => {
+        const clerk = (window as unknown as { Clerk?: { session?: { getToken?: (o: { skipCache: boolean }) => Promise<unknown> } } }).Clerk;
+        await clerk?.session?.getToken?.({ skipCache: true });
+      });
       const me = await page.evaluate(() =>
-        fetch("/api/me", { credentials: "same-origin" }).then((r) => r.json()),
+        fetch("/api/me", { credentials: "same-origin" }).then(async (r) => ({ status: r.status, body: (await r.json()) as unknown })),
       );
-      const email = (me as { data: { user: { email: string } } }).data.user
+      expect(me.status, JSON.stringify(me.body)).toBe(200);
+      const email = (me.body as { data: { user: { email: string } } }).data.user
         .email;
       expect(email).toBeTruthy();
       // The account menu: the sidebar button on desktop, the top-bar avatar (a sheet) on the phone.

@@ -9,6 +9,10 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { getQueryClient } from "@/lib/api/query-client";
 import { NavigationBridge } from "@/lib/navigation/bridge";
+import { installChunkRetry } from "@/lib/pwa/chunk-retry";
+
+// Before any lazy chunk loads: a chunk that fails to load is retried (lib/pwa/chunk-retry.ts). A no-op on the server.
+installChunkRetry();
 
 // Dev only: `process.env.NODE_ENV` is a literal at build time, so production bundles never reference the package.
 // Hidden with NEXT_PUBLIC_DEV_WIDGETS=0, like the other dev widgets (screenshots, axe and e2e runs set it).
