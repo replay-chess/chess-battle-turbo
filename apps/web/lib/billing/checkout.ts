@@ -23,6 +23,8 @@
 // Dodo failures are `502 upstream_unavailable {provider: "dodo", kind}` (never the raw message); no API key, a refused
 // DODO_API_BASE_URL or no product id is `503 not_configured`. Dependencies are injected (checkout.test.ts and the
 // contract tests run without Dodo or Postgres).
+// D5: Dodo locks the checkout's Full Name to what we send: a real name or none, never "Anonymous User".
+import { realName } from "@/lib/onboarding/display-name";
 import type { CheckoutBody, CheckoutData } from "@repo/contracts/http/billing";
 import { ONBOARDING_STEPS_DB, PENDING_CHECKOUT_TTL_MS } from "@repo/contracts/http/p04-plain";
 import { ApiError } from "@/lib/api/api-error";
@@ -230,7 +232,7 @@ export async function startCheckout(viewer: Viewer, body: CheckoutBody, now: Dat
   try {
     session = await api.createCheckoutSession({
       productId,
-      customer: user.dodoCustomerId ? { customerId: user.dodoCustomerId } : { email: user.email, name: user.name || undefined },
+      customer: user.dodoCustomerId ? { customerId: user.dodoCustomerId } : { email: user.email, name: realName(user.name) ?? undefined },
       metadata: { clerkUserId: viewer.clerkUserId, userRef: viewer.ref, plan: body.plan, trial: trial ? "yes" : "no", source: body.source },
       trialDays: trial ? TRIAL_DAYS : null,
       returnUrl,

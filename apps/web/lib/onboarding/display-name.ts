@@ -53,12 +53,35 @@ export function displayName(input: DisplayNameInput): string {
     if (first) return first;
   }
 
-  const email = typeof input.email === "string" ? input.email : "";
-  const at = email.lastIndexOf("@");
-  const local = clean(at > 0 ? email.slice(0, at) : null);
+  const local = emailLocalName(input.email);
   if (local) return local;
 
   return "there";
+}
+
+/**
+ * The local part of an email, without a "+tag" ("ana.lima+chess@x.io" → "ana.lima"), or null. A sub-address is how
+ * the member files our mail, never a name to show (D5: "Welcome, p4pass.b8fdec7e+clerk_test.").
+ */
+export function emailLocalName(email: string | null | undefined): string | null {
+  if (typeof email !== "string") return null;
+  const at = email.lastIndexOf("@");
+  if (at <= 0) return null;
+  return clean(email.slice(0, at).split("+")[0]);
+}
+
+/** users.name unless it is empty or Clerk's placeholder ("Anonymous User"), else null. */
+export function realName(name: string | null | undefined): string | null {
+  const n = clean(name);
+  return n && n !== PLACEHOLDER_NAME ? n : null;
+}
+
+/**
+ * The member's full name for the account chrome (app shell, account menu, review "you"): users.name unless it is the
+ * placeholder, else the §8.13 fallback without a +tag (D5: every fresh sign-up was "Anonymous User" in the shell).
+ */
+export function accountName(input: { name?: string | null; email?: string | null }): string {
+  return realName(input.name) ?? emailLocalName(input.email) ?? "Member";
 }
 
 /** Up to two initials of a display name ("knightowl_88" → "KN", "Ana Lima" → "AL", "1984" → "19"). */

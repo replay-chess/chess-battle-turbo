@@ -54,7 +54,10 @@ const GAME_COLUMNS = Prisma.sql`
 
 /** "You" (users.name + gp.ratingBefore) and the opponent snapshot (gp.opponentName/Rating; opp row if a member). */
 const PLAYER_COLUMNS = Prisma.sql`
-  u.name AS "youName", gp."ratingBefore", gp."opponentUserId", gp."opponentName", gp."opponentRating",
+  -- An imported game's own side is the member's provider handle (games.whiteName / blackName), not users.name (D5).
+  CASE WHEN g.source <> 'REPLAY'
+       THEN COALESCE(NULLIF(CASE gp.color WHEN 'w' THEN g."whiteName" ELSE g."blackName" END, ''), u.name)
+       ELSE u.name END AS "youName", gp."ratingBefore", gp."opponentUserId", gp."opponentName", gp."opponentRating",
   gp.accuracy AS "myAccuracy", gp."phaseAccuracy" AS "myPhaseAccuracy", gp."momentsCount",
   opp.accuracy AS "oppAccuracy", opp."phaseAccuracy" AS "oppPhaseAccuracy"`;
 

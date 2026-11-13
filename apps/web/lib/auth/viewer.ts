@@ -13,6 +13,7 @@
 // Prisma select the provisioning re-read uses) and viewer.int.test.ts runs the statement on Postgres.
 //
 // Importable from plain Node (tests): Prisma, Clerk, next/* and the server-only product catalog load lazily.
+import { accountName } from "@/lib/onboarding/display-name";
 import { cache } from "react";
 import type { Entitlement, MeAccount, MeData, MeImport, MeUser } from "@repo/contracts/http/me";
 import {
@@ -435,7 +436,8 @@ export function toMeData(record: ViewerSource, options: MeDataOptions): MeData {
 export function toShellUserRecord(record: ViewerRecord): ShellUserRecord {
   return {
     referenceId: record.referenceId,
-    name: record.name,
+    // §8.13 (D5): never Clerk's "Anonymous User" placeholder or an email +tag in the shell.
+    name: accountName({ name: record.name, email: record.email }),
     profilePictureUrl: record.profilePictureUrl,
     role: record.role,
     dodoCustomerId: record.dodoCustomerId,

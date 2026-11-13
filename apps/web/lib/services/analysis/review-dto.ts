@@ -4,6 +4,7 @@
 //
 // SAN is not stored: it is derived from `games.moves` with chess.js and memoised per game ref and ply count in a
 // module-scope LRU (500 entries, OPT §4.5). The memo holds move text and positions of a game only, keyed by its ref.
+import { realName } from "@/lib/onboarding/display-name";
 import { encodeBestTokens, encodeJudgements, judgementKey, moveLabel, moverAt } from "@repo/chess-analysis/codec";
 import { legendSummary } from "@repo/chess-analysis/legend/summary";
 import { outcomeForMember } from "@repo/chess-analysis/legend/slice";
@@ -170,7 +171,8 @@ export function playerCardsOf(
   row: ProbeRow & PlayerColumns & Pick<GameColumns, "mode" | "source">,
   opponentIsLegend = false,
 ): ReviewDTO["players"] {
-  const you = card(row.youName, "You", row.ratingBefore, "member", row.isPlayer);
+  // D5: Clerk's placeholder name is never shown; "You" instead.
+  const you = card(realName(row.youName), "You", row.ratingBefore, "member", row.isPlayer);
   const kind = opponentKindOf({ opponentUserId: row.opponentUserId, mode: row.mode, source: row.source, opponentIsLegend });
   const opp = card(row.opponentName, kind === "bot" ? "Engine" : "Opponent", row.opponentRating, kind, false);
   return row.color === "w" ? { w: you, b: opp } : { w: opp, b: you };

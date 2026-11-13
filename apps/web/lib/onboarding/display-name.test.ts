@@ -1,7 +1,7 @@
 // The greeting name (phase-04 plan §8.13, §12.1 display-name.test.ts).
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DISPLAY_NAME_MAX, PLACEHOLDER_NAME, displayName, initialsOf } from "./display-name";
+import { DISPLAY_NAME_MAX, PLACEHOLDER_NAME, accountName, displayName, emailLocalName, initialsOf, realName } from "./display-name";
 
 describe("displayName: the fallback chain", () => {
   it("1. the Clerk username wins", () => {
@@ -26,7 +26,7 @@ describe("displayName: the fallback chain", () => {
   });
 
   it("4. then the email's local part", () => {
-    assert.equal(displayName({ name: "", email: "pawn+tag@example.com" }), "pawn+tag");
+    assert.equal(displayName({ name: "", email: "pawn+tag@example.com" }), "pawn", "without the sub-address (D5)");
     assert.equal(displayName({ name: null, email: "a@b@example.com" }), "a@b");
   });
 
@@ -51,5 +51,22 @@ describe("initialsOf", () => {
     assert.equal(initialsOf("DrNykterstein"), "DR");
     assert.equal(initialsOf("1984"), "19");
     assert.equal(initialsOf("!!!"), "?");
+  });
+});
+
+describe("D5: no +tag, no placeholder, anywhere the member's name shows", () => {
+  it("regression: D5 (welcome-plus-tag): the email fallback drops the sub-address", () => {
+    assert.equal(displayName({ name: PLACEHOLDER_NAME, email: "p4pass.b8fdec7e+clerk_test@example.com" }), "p4pass.b8fdec7e");
+    assert.equal(emailLocalName("ana+chess@x.io"), "ana");
+    assert.equal(emailLocalName("+tag@x.io"), null, "nothing left: the chain goes on");
+    assert.equal(displayName({ email: "+tag@x.io" }), "there");
+  });
+  it("regression: D5 (anonymous-user): accountName skips Clerk's placeholder for the shell and the review", () => {
+    assert.equal(accountName({ name: PLACEHOLDER_NAME, email: "p4pass.b8fdec7e+clerk_test@example.com" }), "p4pass.b8fdec7e");
+    assert.equal(accountName({ name: "Ada Lovelace", email: "ada@x.io" }), "Ada Lovelace", "a real name stays whole");
+    assert.equal(accountName({ name: PLACEHOLDER_NAME, email: null }), "Member");
+    assert.equal(realName(PLACEHOLDER_NAME), null);
+    assert.equal(realName("  "), null);
+    assert.equal(realName("Ana Lima"), "Ana Lima");
   });
 });

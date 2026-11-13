@@ -98,6 +98,10 @@ describe("startCheckout", () => {
     const s = seen.sessions[0]!;
     assert.deepEqual(s.customer, { email: "fresh@example.test", name: "Fresh Player" });
     assert.equal(s.trialDays, 7);
+    // regression: D5: Clerk's placeholder never reaches Dodo (it locks the checkout's Full Name to what we send).
+    const anon = deps({ ...user(), name: "Anonymous User" });
+    await startCheckout(nonMember, body(), NOW, anon.d);
+    assert.deepEqual(anon.seen.sessions[0]!.customer, { email: "fresh@example.test", name: undefined });
     assert.equal(s.productId, "pdt_monthly");
     assert.deepEqual(s.metadata, { clerkUserId: "user_fixture", userRef: "cviewer00000000000000000000", plan: "monthly", trial: "yes", source: "pricing" });
     assert.deepEqual(seen.records, [
