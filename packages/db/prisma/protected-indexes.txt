@@ -18,6 +18,9 @@ shares_owner_idx
 shares_expires_idx
 shares_game_idx
 
+# m4s (P4 stage B, D2): the rows an unlink with "delete games" marked for the purge (partial, so raw SQL).
+game_players_purge_marked_idx
+
 # M4 (P4, phase-04 plan 6.2, 6.3). games_source_externalId_key is a Prisma @@unique (M2), so it is not listed.
 game_players_linked_account_idx
 linked_accounts_verified_key

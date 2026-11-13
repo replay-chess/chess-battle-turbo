@@ -438,9 +438,38 @@ describe("P4 accounts and import routes: contract (Postgres)", { skip: url ? fal
     const { recorded } = await link("m");
     await w.runAfter(recorded);
     const id = await linkedAccountId("m");
+    // regression: D2 (m4s): one game this link imported and one an earlier unlink kept (linkedAccountId NULL). Only the
+    // link's row is marked for the purge, and the answer counts only it.
+    const importedGame = async (tag: string, linked: bigint | null) => {
+      const endedAt = new Date("2026-10-01T10:00:00Z");
+      const g = await w.db.game.create({
+        data: {
+          creatorId: w.users.m.id, opponentId: null, status: "COMPLETED", startingFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          startPly: 0, initialTimeSeconds: 300, incrementSeconds: 0, creatorTimeRemaining: 0, opponentTimeRemaining: 0, expiresAt: endedAt,
+          mode: "IMPORTED", timeClass: "BLITZ", whitePlayerId: w.users.m.id, blackPlayerId: null, moves: "e2e4 e7e5", plyCount: 2,
+          fen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2", outcome: "DRAW", endMethod: "OTHER", completedAt: endedAt,
+          analysisStatus: "NONE", source: "CHESSCOM", externalId: `d2-${tag}-${id}`, whiteName: "me", blackName: "opp",
+        },
+        select: { id: true },
+      });
+      await w.db.gamePlayer.create({
+        data: { gameId: g.id, userId: w.users.m.id, color: "w", mode: "IMPORTED", timeClass: "BLITZ", result: "DRAW", endedAt, source: "CHESSCOM", opponentName: "opp", linkedAccountId: linked },
+      });
+      return g.id;
+    };
+    const ownGame = await importedGame("own", id);
+    const keptGame = await importedGame("kept", null);
     const { res, recorded: r2 } = await w.call(H.link, "DELETE", "/api/accounts/chesscom?deleteGames=1", "m");
     assert.equal(res.status, 200, await res.clone().text());
-    assert.deepEqual(ok(UnlinkData).parse(await jsonOf(res)).data, { removed: true, purge: { games: 0 } });
+    assert.deepEqual(ok(UnlinkData).parse(await jsonOf(res)).data, { removed: true, purge: { games: 1 } }, "only the link's own game");
+    const marks = await w.db.$queryRawUnsafe<{ gameId: bigint; purgeLinkId: bigint | null; linkedAccountId: bigint | null }[]>(
+      `SELECT "gameId", "purgeLinkId", "linkedAccountId" FROM game_players WHERE "gameId" = ANY($1::bigint[])`,
+      [ownGame, keptGame],
+    );
+    const markOf = (g: bigint) => marks.find((m) => m.gameId === g);
+    assert.equal(markOf(ownGame)?.purgeLinkId?.toString(), id.toString(), "the link's row is marked for its purge");
+    assert.equal(markOf(ownGame)?.linkedAccountId, null, "the FK cleared the link id as before");
+    assert.equal(markOf(keptGame)?.purgeLinkId, null, "a kept game is never marked");
     const left = await w.db.$queryRawUnsafe<unknown[]>(`SELECT 1 FROM linked_accounts WHERE id = $1::bigint`, id.toString());
     assert.equal(left.length, 0);
     assert.equal((await w.db.$queryRawUnsafe<unknown[]>(`SELECT 1 FROM import_runs WHERE "linkedAccountId" = $1::bigint`, id.toString())).length, 0);
@@ -452,6 +481,8 @@ describe("P4 accounts and import routes: contract (Postgres)", { skip: url ? fal
     );
     assert.equal(purge[0]?.priority, JOB_PRIORITY.IMPORT_PURGE);
     assert.equal(purge[0]?.payload.provider, "CHESSCOM");
+    assert.equal(purge[0]?.payload.linkedAccountId, id.toString(), "the purge is for this link only (D2)");
+    await w.db.$executeRawUnsafe(`DELETE FROM games WHERE id = ANY($1::bigint[])`, [ownGame, keptGame]);
     await w.runAfter(r2);
     assert.ok(w.kicks.length >= 1);
     await errorOf((await w.call(H.provider, "DELETE", "/api/accounts/lichess", "m", { params: { provider: "lichess" } })).res, 404, "not_found");

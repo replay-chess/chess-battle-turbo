@@ -550,6 +550,10 @@ model GamePlayer {
   // game_players_linked_account_idx (raw SQL, protected) serves the SET NULL action.
   linkedAccountId BigInt?
   linkedAccount   LinkedAccount? @relation(fields: [linkedAccountId], references: [id], onDelete: SetNull)
+  // m4s (D2): the id of the removed link whose purge owns this row, set by the unlink with "delete games" before the
+  // link row goes (so the SET NULL above cannot hide which rows were its). No FK. Partial index
+  // game_players_purge_marked_idx (raw SQL, protected). import_purge_marked_batch() deletes only these rows.
+  purgeLinkId     BigInt?
 
   @@id([gameId, userId])
   @@unique([gameId, color])

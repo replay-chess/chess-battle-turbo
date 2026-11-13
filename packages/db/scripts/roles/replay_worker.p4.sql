@@ -70,6 +70,12 @@ GRANT INSERT ("gameId", "userId", color, source, mode, "timeClass", rated, "ende
 
 -- The purge (8.12).
 GRANT EXECUTE ON FUNCTION import_purge_batch(bigint, "GameSource", integer) TO replay_worker;
+-- m4s (D2): the purge of the rows removed links marked (the migration grants it too when the role already exists).
+SELECT to_regprocedure('public.import_purge_marked_batch(bigint, "GameSource", integer)') IS NOT NULL AS m4s_applied \gset
+\if :m4s_applied
+GRANT EXECUTE ON FUNCTION import_purge_marked_batch(bigint, "GameSource", integer) TO replay_worker;
+REVOKE ALL ON FUNCTION import_purge_marked_batch(bigint, "GameSource", integer) FROM PUBLIC;
+\endif
 
 \set QUIET off
 SELECT check_name, ok FROM (

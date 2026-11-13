@@ -207,6 +207,12 @@ export const ImportPurgePayloadV1 = z.object({
   v: z.literal(1),
   userId: BigIntString,
   provider: z.enum(["CHESSCOM", "LICHESS"]),
+  /**
+   * Set by an unlink with "delete games" (m4s / D2): the purge removes only the member's rows of this source that an
+   * unlink marked (game_players."purgeLinkId"; this link's, and any other link removed the same way before the job
+   * ran). Absent: every row of the member and source (the ops rollback tool, and purges queued before m4s).
+   */
+  linkedAccountId: BigIntString.optional(),
   requestedAt: z.iso.datetime(),
 });
 export type ImportPurgePayloadV1 = z.infer<typeof ImportPurgePayloadV1>;

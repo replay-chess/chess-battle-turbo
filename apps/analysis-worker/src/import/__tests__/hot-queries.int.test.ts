@@ -29,6 +29,7 @@ describe("P4 worker hot-query plans (Postgres)", { skip: skipInt }, () => {
       { name: "import context, no run id", s: loadImportContextStatement("1", null) },
       { name: "known filter", s: knownStatement("1", "CHESSCOM", ["111", "222"], ["111~1", "222~1"]) },
       { name: "purge target", s: purgeTargetStatement("1", "LICHESS") },
+      { name: "purge target (marked rows, D2)", s: purgeTargetStatement("1", "CHESSCOM", "7") },
       { name: "daily-sync backstop", s: importBackstopStatement() },
     ];
     const failures: string[] = [];

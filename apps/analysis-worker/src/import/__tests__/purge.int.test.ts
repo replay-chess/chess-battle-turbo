@@ -311,4 +311,120 @@ describe("IMPORT_PURGE (Postgres)", { skip: skipInt }, () => {
     assert.equal(audit.length, 1, "the final batch committed once");
     assert.equal((await gamesOf(w, u.id, "CHESSCOM")).length, 0);
   });
+  // ── D2 (m4s): a disconnect with "delete games" purges only the link's own rows ──────────────────────────────────
+
+  /**
+   * What ACC-6 (apps/web/lib/accounts/link-service.ts unlinkAccount) writes: with deleteGames the link's rows are
+   * marked (purgeLinkId) before the link row goes (its FK then sets linkedAccountId to NULL), and the purge is queued
+   * for that link. Returns the count the web answers (the confirm's "Also delete the N imported games" is the link's
+   * importedCount, read here before the unlink).
+   */
+  async function unlink(w: ImportWorld, u: TestUser, la: string, provider: "CHESSCOM" | "LICHESS", deleteGames: boolean) {
+    const [acct] = await w.q<{ n: number }>(`SELECT "importedCount" AS n FROM linked_accounts WHERE id = $1`, [la]);
+    const marked = deleteGames
+      ? ((await env.owner.query(`UPDATE game_players SET "purgeLinkId" = $2::bigint WHERE "userId" = $1::bigint AND "linkedAccountId" = $2::bigint`, [u.id, la]))
+          .rowCount ?? 0)
+      : 0;
+    await env.owner.query(`DELETE FROM linked_accounts WHERE id = $1::bigint`, [la]);
+    // enqueueJob's `requeue` policy on the one row per member and provider: a QUEUED purge takes the new payload.
+    if (deleteGames) await env.owner.query(`DELETE FROM ${env.schema}.jobs WHERE "dedupeKey" = $1 AND status = 'QUEUED'`, [importPurgeDedupeKey(u.id, provider)]);
+    const jobId = deleteGames
+      ? await insertJob(env, {
+          kind: "IMPORT_PURGE",
+          priority: JOB_PRIORITY.IMPORT_PURGE,
+          payload: { v: 1, userId: u.id, provider, linkedAccountId: la, requestedAt: new Date().toISOString() },
+          dedupeKey: importPurgeDedupeKey(u.id, provider),
+          maxAttempts: JOB_MAX_ATTEMPTS.IMPORT_PURGE,
+        })
+      : null;
+    return { confirmCount: Number(acct!.n), marked, jobId };
+  }
+
+  it("regression: D2 keep-then-purge-other: unlink A keeping its games, link B, purge B: only B's games go", async () => {
+    const w = world();
+    w.upstream.addChessComFixture("hikaru_d2");
+    w.upstream.addChessComMany("anish_d2", Date.UTC(2026, 10, 12, 9, 30), 2, 12);
+    const u = await w.member("paying", "d2a");
+    const laA = await importAll(w, u, "CHESSCOM", "hikaru_d2");
+    const keptA = (await gamesOf(w, u.id, "CHESSCOM")).map((r) => r.gameId).sort();
+    assert.equal(keptA.length, 45);
+    await unlink(w, u, laA, "CHESSCOM", false);
+    const laB = await importAll(w, u, "CHESSCOM", "anish_d2");
+    const all = (await gamesOf(w, u.id, "CHESSCOM")).map((r) => r.gameId);
+    const nB = all.length - keptA.length;
+    assert.ok(nB > 0, `B imported ${nB}`);
+
+    const out = await unlink(w, u, laB, "CHESSCOM", true);
+    assert.equal(out.marked, nB, "only B's rows are marked");
+    assert.equal(out.confirmCount, nB, "the confirm names exactly what will be deleted");
+    assert.equal(await runPurge(w), "done");
+    assert.deepEqual((await gamesOf(w, u.id, "CHESSCOM")).map((r) => r.gameId).sort(), keptA, "A's kept games all stay");
+    assert.equal(((await jobRow(env, out.jobId!)).result as { games?: number } | null)?.games, nB, "the job reports what it deleted");
+    const [left] = await w.q(`SELECT count(*)::int AS n FROM game_players WHERE "userId" = $1 AND "purgeLinkId" IS NOT NULL`, [u.id]);
+    assert.equal(left!.n, 0);
+  });
+
+  it("regression: D2 three links of one provider in turn (kept, deleted, live): the purge takes only the deleted link's games", async () => {
+    const w = world();
+    w.upstream.addChessComFixture("first_d2");
+    w.upstream.addChessComMany("second_d2", Date.UTC(2026, 10, 12, 9, 30), 2, 8);
+    const w3 = world(); // its own game-id tag: the third account's games are not the others'
+    w3.upstream.addChessComFixture("third_d2");
+    const u = await w.member("paying", "d2b");
+    const la1 = await importAll(w, u, "CHESSCOM", "first_d2");
+    const first = (await gamesOf(w, u.id, "CHESSCOM")).map((r) => r.gameId);
+    await unlink(w, u, la1, "CHESSCOM", false); // kept
+    const la2 = await importAll(w, u, "CHESSCOM", "second_d2");
+    const p2 = await unlink(w, u, la2, "CHESSCOM", true);
+    assert.ok(p2.marked > 0);
+    assert.equal(await runPurge(w), "done");
+    await importAll(w3, u, "CHESSCOM", "third_d2"); // a live link after the purge
+    const third = (await gamesOf(w, u.id, "CHESSCOM")).map((r) => r.gameId).filter((id) => !first.includes(id));
+    assert.equal(third.length, 45, "the live link imports in full");
+    // A later purge of nothing marked (e.g. a resend) leaves the kept and the live link's games alone.
+    await insertJob(env, {
+      kind: "IMPORT_PURGE",
+      priority: JOB_PRIORITY.IMPORT_PURGE,
+      payload: { v: 1, userId: u.id, provider: "CHESSCOM", linkedAccountId: la2, requestedAt: new Date().toISOString() },
+      dedupeKey: `${importPurgeDedupeKey(u.id, "CHESSCOM")}:again`,
+      maxAttempts: JOB_MAX_ATTEMPTS.IMPORT_PURGE,
+    });
+    assert.equal(await runPurge(w), "done");
+    assert.equal((await gamesOf(w, u.id, "CHESSCOM")).length, first.length + third.length);
+  });
+
+  it("regression: D2 co-claimed games: a co-claimant's purge removes their claim copies; the first claimant keeps every game", async () => {
+    const w = world();
+    w.upstream.addChessComFixture();
+    const a = await w.member("paying", "d2c");
+    const b = await w.member("paying", "d2d");
+    await importAll(w, a, "CHESSCOM", "KnightOwl_88");
+    const laB = await importAll(w, b, "CHESSCOM", "KnightOwl_88"); // "link anyway": b gets claim copies
+    const aGames = (await gamesOf(w, a.id, "CHESSCOM")).map((r) => r.gameId).sort();
+    const bGames = (await gamesOf(w, b.id, "CHESSCOM")).map((r) => r.gameId);
+    assert.equal(aGames.length, 45);
+    assert.equal(bGames.length, 45);
+    const out = await unlink(w, b, laB, "CHESSCOM", true);
+    assert.equal(out.marked, 45);
+    assert.equal(out.confirmCount, 45);
+    assert.equal(await runPurge(w), "done");
+    assert.equal((await gamesOf(w, b.id, "CHESSCOM")).length, 0);
+    assert.deepEqual((await gamesOf(w, a.id, "CHESSCOM")).map((r) => r.gameId).sort(), aGames, "a's games and sides are untouched");
+    const [copies] = await w.q(`SELECT count(*)::int AS n FROM games WHERE id = ANY($1::bigint[])`, [bGames]);
+    assert.equal(copies!.n, aGames.filter((id) => bGames.includes(id)).length, "b's own claim copies are deleted");
+  });
+
+  it("regression: D2 re-link of a kept account: purging the new link deletes only what it imported, never the kept games", async () => {
+    const w = world();
+    w.upstream.addChessComFixture();
+    const u = await w.member("paying", "d2e");
+    const la1 = await importAll(w, u, "CHESSCOM", "KnightOwl_88");
+    const kept = (await gamesOf(w, u.id, "CHESSCOM")).map((r) => r.gameId).sort();
+    await unlink(w, u, la1, "CHESSCOM", false);
+    const la2 = await importAll(w, u, "CHESSCOM", "KnightOwl_88"); // the same account again: every game is already the member's
+    const out = await unlink(w, u, la2, "CHESSCOM", true);
+    assert.equal(out.marked, out.confirmCount, "the confirm count is what the purge deletes");
+    assert.equal(await runPurge(w), "done");
+    assert.deepEqual((await gamesOf(w, u.id, "CHESSCOM")).map((r) => r.gameId).sort(), kept, "the kept games stay");
+  });
 });

@@ -1,6 +1,9 @@
 // IMPORT_PURGE (phase-04 plan §8.12, §9.4 "Purge 2,000 games", §12.2 test 11). Queued by the web when a member
 // disconnects an account with "delete games" (ACC-6, `importpurge:<userId>:<provider>`) and by the rollback tool
-// (WEB/scripts/ops/purge-imports.ts). It purges by (userId, source), so it works after the link row is gone.
+// (WEB/scripts/ops/purge-imports.ts). With a `linkedAccountId` (D2, m4s) it purges only the member's rows of the source
+// that an unlink marked (game_players."purgeLinkId", through `import_purge_marked_batch`): never games an earlier
+// unlink kept, a live link's games of the same provider, or another member's side. Without one (the rollback tool, a
+// purge queued before m4s) it purges by (userId, source).
 //
 //   1. one read: the member's ref and how many of their game_players rows of that source exist (the `games` figure
 //      of the audit row and the metric; a resend of a lost purge response cannot lose it from the count);
@@ -34,7 +37,16 @@ export const PURGE_MAX_BATCHES = 2_000;
 type Ctx = JobContext<"IMPORT_PURGE">;
 
 /** The member's ref and the rows the purge will remove (null when the user is gone). */
-export function purgeTargetStatement(userId: string, source: "CHESSCOM" | "LICHESS"): Statement {
+export function purgeTargetStatement(userId: string, source: "CHESSCOM" | "LICHESS", linkedAccountId: string | null = null): Statement {
+  if (linkedAccountId !== null) {
+    return stmt(
+      `SELECT u."referenceId" AS "userRef",
+              (SELECT count(*)::int FROM game_players gp
+                WHERE gp."userId" = u.id AND gp.source = $2::"GameSource" AND gp."purgeLinkId" IS NOT NULL) AS rows
+         FROM users u WHERE u.id = $1::bigint`,
+      [userId, source],
+    );
+  }
   return stmt(
     `SELECT u."referenceId" AS "userRef",
             (SELECT count(*)::int FROM game_players gp WHERE gp."userId" = u.id AND gp.source = $2::"GameSource") AS rows
@@ -43,8 +55,19 @@ export function purgeTargetStatement(userId: string, source: "CHESSCOM" | "LICHE
   );
 }
 
-/** One §8.12 batch through the M4 function (returns the counts, not the ids). */
-export function purgeBatchStatement(userId: string, source: "CHESSCOM" | "LICHESS", limit = PURGE_BATCH): Statement {
+/** One §8.12 batch through the M4 function, or m4s's over the marked rows (returns the counts, not the ids). */
+export function purgeBatchStatement(
+  userId: string,
+  source: "CHESSCOM" | "LICHESS",
+  limit = PURGE_BATCH,
+  linkedAccountId: string | null = null,
+): Statement {
+  if (linkedAccountId !== null) {
+    return stmt(
+      `SELECT deleted_players, deleted_games, cleared_games FROM import_purge_marked_batch($1::bigint, $2::"GameSource", $3::int)`,
+      [userId, source, limit],
+    );
+  }
   return stmt(
     `SELECT deleted_players, deleted_games, cleared_games FROM import_purge_batch($1::bigint, $2::"GameSource", $3::int)`,
     [userId, source, limit],
@@ -60,10 +83,11 @@ export function importPurgeHandler(deps: { events?: ProductEvents } = {}): JobHa
 
 async function purge(ctx: Ctx, product: ProductEvents): Promise<JobOutcome> {
   const { userId, provider: source, requestedAt } = ctx.payload;
+  const link = ctx.payload.linkedAccountId ?? null;
   const provider = source === "CHESSCOM" ? "chesscom" : "lichess";
-  const log = ctx.log.child({ provider, dedupeKey: importPurgeDedupeKey(userId, source) });
+  const log = ctx.log.child({ provider, dedupeKey: importPurgeDedupeKey(userId, source), ...(link ? { linkedAccountId: link } : {}) });
 
-  const [target] = await ctx.db.query(purgeTargetStatement(userId, source));
+  const [target] = await ctx.db.query(purgeTargetStatement(userId, source, link));
   if (!target) {
     // The account was deleted (its rows went with it): nothing to purge, nothing to audit.
     log.info("purge: the member is gone");
@@ -92,7 +116,7 @@ async function purge(ctx: Ctx, product: ProductEvents): Promise<JobOutcome> {
     }
     const t0 = ctx.clock.now();
     const [row] = await ctx.telemetry.span("db.import.purge", { kind: "IMPORT_PURGE", provider }, () =>
-      ctx.db.query(purgeBatchStatement(userId, source)),
+      ctx.db.query(purgeBatchStatement(userId, source, PURGE_BATCH, link)),
     );
     ctx.heartbeat.noteWrite();
     batches++;

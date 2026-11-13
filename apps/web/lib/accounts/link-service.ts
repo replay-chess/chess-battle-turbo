@@ -15,7 +15,8 @@
 //   retryRun         ACC-8: FAILED → QUEUED (trigger RETRY) and the job upsert.
 //   setAutoImport    ACC-5: the switch, `nextAutoSyncAt` in the member's zone (§8.10), the DAILY job on / off.
 //   unlinkAccount    ACC-6: drops the queued job and the link (cascades cursor and runs; game_players.linkedAccountId
-//                    → NULL), the legacy chess_com_profiles row for Chess.com, and with deleteGames queues IMPORT_PURGE.
+//                    → NULL), the legacy chess_com_profiles row for Chess.com, and with deleteGames marks the link's
+//                    rows (purgeLinkId, m4s) and queues IMPORT_PURGE for exactly those (D2).
 //
 // Side effects after the commit (kick, audit, the legacy dual-write, cache tags, telemetry) are returned as a list of
 // `effects` the route runs in `after()`, so a failed effect never fails the request and tests can inspect them.
@@ -550,22 +551,27 @@ export async function unlinkAccount(input: {
     const existing = await lockExisting(tx, viewer.id, db);
     if (!existing) throw new DataError("not_found");
     await tx.$executeRaw(Prisma.sql`DELETE FROM jobs WHERE "dedupeKey" = ${importDedupeKey(existing.id)} AND status = 'QUEUED'`);
+    // The purge removes exactly the rows this link imported (D2, m4s): they are marked BEFORE the link row goes, since
+    // its FK then sets game_players."linkedAccountId" to NULL like on any kept game. Never the games an earlier unlink
+    // kept, another link's games of the same provider, or other members' sides of a shared game.
+    const marked = deleteGames
+      ? await tx.$executeRaw(Prisma.sql`UPDATE game_players SET "purgeLinkId" = ${existing.id}::bigint
+          WHERE "userId" = ${viewer.id}::bigint AND "linkedAccountId" = ${existing.id}::bigint`)
+      : 0;
     await tx.$executeRaw(Prisma.sql`DELETE FROM linked_accounts WHERE id = ${existing.id}::bigint`);
     if (db === "CHESSCOM") await tx.$executeRaw(Prisma.sql`DELETE FROM chess_com_profiles WHERE "userId" = ${viewer.id}::bigint`);
     if (!deleteGames) return null;
-    const counted = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT count(*)::int AS n FROM game_players
-      WHERE "userId" = ${viewer.id}::bigint AND source = ${db}::"GameSource"`);
     await enqueueJob(tx, {
       kind: "IMPORT_PURGE",
       priority: JOB_PRIORITY.IMPORT_PURGE,
       dedupeKey: importPurgeDedupeKey(viewer.id, db),
       userId: viewer.id,
-      payload: { v: 1, userId: viewer.id.toString(), provider: db, requestedAt: now.toISOString() },
+      payload: { v: 1, userId: viewer.id.toString(), provider: db, linkedAccountId: existing.id.toString(), requestedAt: now.toISOString() },
       runAt: now,
       maxAttempts: JOB_MAX_ATTEMPTS.IMPORT_PURGE,
       onConflict: "requeue",
     });
-    return { games: Number(counted[0]?.n ?? 0) };
+    return { games: marked };
   });
   const effects: LinkEffect[] = [
     { kind: "audit", action: "account.unlinked", provider, meta: { provider, deleteGames } },
