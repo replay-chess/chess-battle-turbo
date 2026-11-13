@@ -666,12 +666,13 @@ describe("IMPORT_SYNC (Postgres, mock upstream)", { skip: skipInt }, () => {
     await w.job(la, run.id, "INITIAL");
     let killed = 0;
     w.driver.beforeRun = async (ss) => {
-      // After the early chunk, before the saving chunk: terminate every backend of the worker's connection pool.
+      // After the early chunk, before the saving chunk: terminate every backend of this world's connection pool (only
+      // these: the package's other int files run at the same time as the same role).
       if (killed === 0 && ss.some((s) => s.text.includes("jsonb_to_recordset")) && w.driver.sent.some((t) => t.includes("jsonb_to_recordset"))) {
         const res = await env.owner.query(
           `SELECT count(pg_terminate_backend(pid))::int AS n FROM pg_stat_activity
-            WHERE datname = current_database() AND pid <> pg_backend_pid() AND usename = $1`,
-          [new URL(env.workerUrl).username],
+            WHERE datname = current_database() AND pid <> pg_backend_pid() AND application_name = $1`,
+          [w.appName],
         );
         killed = Number(res.rows[0].n);
       }

@@ -88,6 +88,12 @@ export class ImportWorld {
   readonly providers: ImportProviders;
   readonly settings: ImportSettings;
   readonly driver: ReturnType<typeof recordingDriver>;
+  /**
+   * The `application_name` of this world's connections: a test that kills them (import-sync 12) must kill only these.
+   * Every int test file of the package runs at once, as the same role, so a role-wide kill also cut other files'
+   * pools (CI 43462320611: smoke.int.test's booted worker died with "Connection terminated unexpectedly").
+   */
+  readonly appName: string;
   readonly db: CountingDb;
   readonly metrics: Metrics;
   readonly telemetry = new RecordingTelemetry();
@@ -103,7 +109,10 @@ export class ImportWorld {
     this.upstream = new FakeUpstream(tag);
     this.settings = defaultImportSettings({ chesscomBaseUrl: CHESSCOM_BASE, lichessBaseUrl: LICHESS_BASE, ...settings });
     this.providers = createProviders({ settings: this.settings, clock: this.clock, fetch: this.upstream.fetch });
-    this.driver = recordingDriver(env.workerUrl);
+    this.appName = `rc_imp_${tag}`.slice(0, 60);
+    const url = new URL(env.workerUrl);
+    url.searchParams.set("application_name", this.appName);
+    this.driver = recordingDriver(url.toString());
     this.db = new CountingDb(this.driver);
     this.metrics = new Metrics({ workerId: "imp", bootId: "00000001", version: "0", profile: "sf18-v1" }, this.clock.now());
     this.handlers = {
