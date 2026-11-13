@@ -212,12 +212,13 @@ export async function signIn(page: Page, email: string, password: string, opts: 
 /**
  * Tracks the page's in-flight GET /api/me; `settled()` waits (≤ 15 s) until none is left, then stops tracking.
  *
- * It first lets the page go quiet (`networkidle`, ≤ 10 s): UserSync's read starts only once Clerk has loaded on the
- * page, so an empty set right after the landing did not mean "no read": the read began a moment later and the spec's
- * next navigation cut it, which WebKit reports as "…/api/me due to access control checks." (lichess.spec on Linux
- * WebKit, about 1 run in 15; Clerk's own FAPI fetches were cut and reported the same way). The app cannot avoid
- * that report: WebKit cuts the loads before the old document sees `beforeunload` or `pagehide` (aborting the reads
- * from those events was tried and changed nothing, 6 of 30 runs still failed).
+ * `settled({ quiet: true })` first lets the page go quiet (`networkidle`, ≤ 10 s): after a claims refresh the page's
+ * read starts a moment later (UserSync / qk.me, once Clerk has the new token), so an empty set right away did not mean
+ * "no read"; the spec's next navigation cut it, which WebKit reports as "…/api/me due to access control checks."
+ * (lichess.spec on Linux WebKit, about 1 run in 15; Clerk's own FAPI fetches were cut and reported the same way). The
+ * app cannot avoid that report: WebKit cuts the loads before the old document sees `beforeunload` or `pagehide`
+ * (aborting the reads from those events was tried and changed nothing, 6 of 30 runs still failed). Only the P4 lease
+ * asks for it: signIn's callers continue at once (in-game-auth.spec reads a 3 s chip on another page right after).
  */
 export function pendingViewerReads(page: Page) {
   const pending = new Set<Request>();
@@ -228,9 +229,9 @@ export function pendingViewerReads(page: Page) {
   page.on("requestfinished", onDone);
   page.on("requestfailed", onDone);
   return {
-    async settled(timeoutMs = 15_000) {
+    async settled(timeoutMs = 15_000, opts: { quiet?: boolean } = {}) {
       const until = Date.now() + timeoutMs;
-      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+      if (opts.quiet) await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
       while (pending.size > 0 && Date.now() < until) await page.waitForTimeout(50);
       page.off("request", onRequest);
       page.off("requestfinished", onDone);

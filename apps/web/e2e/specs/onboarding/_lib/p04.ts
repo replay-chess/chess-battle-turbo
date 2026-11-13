@@ -274,7 +274,7 @@ export const test = mergeTests(authTest, telemetryTest, timeTest, freshTest).ext
       // (fixtures/auth.ts pendingViewerReads; regression: webkit-lease-me-cut).
       const viewerReads = pendingViewerReads(page);
       await refreshSessionClaims(page);
-      await viewerReads.settled();
+      await viewerReads.settled(15_000, { quiet: true });
       const row = await userRow(p4db, email);
       // Its per-user rate-limit windows belong to the previous lease too (a spec run a minute earlier on this pool
       // user would otherwise spend this one's lookups, links or syncs).
