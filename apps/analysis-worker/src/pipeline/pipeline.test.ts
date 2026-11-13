@@ -176,7 +176,19 @@ describe("ANALYZE_GAME pipeline (band ≥ 80)", () => {
 
     // ── writing, then done (one per member, personalised), games:changed ──
     const order = h.emitter.sent.map((s) => s.event).filter((e) => e !== "analysis:progress");
-    assert.deepEqual(order, ["analysis:writing", "analysis:done", "analysis:done", "games:changed"]);
+    const writes = order.filter((e) => e === "analysis:writing").length;
+    assert.deepEqual(order, [...Array(writes).fill("analysis:writing"), "analysis:done", "analysis:done", "games:changed"]);
+    // Pass 2 reports its progress (regression: dev pass D3, the card sat at 95 % for ~10 s): the start without counts,
+    // then `at` 0 of the plan and one frame per deep search, ending at `at` = `of`.
+    const steps = h.sent("analysis:writing").map((w) => w.data as { at?: number; of?: number });
+    assert.equal(steps[0]!.at, undefined);
+    const counted = steps.slice(1);
+    assert.ok(counted.length >= 2, `pass 2 progress frames (${JSON.stringify(steps)})`);
+    const of = counted[0]!.of!;
+    assert.ok(of > 0 && of <= 8);
+    assert.deepEqual(counted.map((x) => x.at), Array.from({ length: counted.length }, (_, i) => i));
+    assert.ok(counted.every((x) => x.of === of));
+    assert.equal(counted.at(-1)!.at, of, "the last frame says every planned search is done");
     const lastFrameAt = h.emitter.sent.map((s) => s.event).lastIndexOf("analysis:progress");
     assert.ok(
       h.emitter.sent.findIndex((s) => s.event === "analysis:writing") > lastFrameAt,

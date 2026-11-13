@@ -188,13 +188,20 @@ export type ReviewPhase =
   | { kind: "none" }
   | { kind: "queued"; etaSec: number | null; position: number | null }
   | { kind: "running" }
-  | { kind: "writing" }
+  /** `step`: pass 2's `at` of `of` deep searches (`analysis:writing` counts), null until the first counted frame. */
+  | { kind: "writing"; step: WritingStep | null }
   | { kind: "failed"; retryable: boolean; retryAt: string | null; failedAtPly: number }
   | { kind: "skipped" }
   | { kind: "done"; clean: boolean; moments: number };
 
-/** The screen's state from the payload (`writing` is the client's `analysis:writing` flag). */
-export function phaseOf(dto: Pick<ReviewDTO, "status" | "analysis" | "review">, writing: boolean): ReviewPhase {
+export type WritingStep = { at: number; of: number };
+
+/** The screen's state from the payload (`writing` is the client's `analysis:writing` flag, `step` its last counts). */
+export function phaseOf(
+  dto: Pick<ReviewDTO, "status" | "analysis" | "review">,
+  writing: boolean,
+  step: WritingStep | null = null,
+): ReviewPhase {
   const a = dto.analysis;
   switch (dto.status) {
     case "none":
@@ -202,7 +209,7 @@ export function phaseOf(dto: Pick<ReviewDTO, "status" | "analysis" | "review">, 
     case "queued":
       return { kind: "queued", etaSec: a?.queue?.etaSec ?? null, position: a?.queue?.position ?? null };
     case "running":
-      return writing ? { kind: "writing" } : { kind: "running" };
+      return writing ? { kind: "writing", step } : { kind: "running" };
     case "failed":
       return {
         kind: "failed",
@@ -227,12 +234,21 @@ export interface Progress {
   movesTotal: number;
 }
 
-/** "move 23 of 61 · 38%": full moves are `ceil(plies / 2)` (plan §4.1 copy notes); writing shows 95 %. */
-export function progressOf(a: Pick<ReviewAnalysis, "gradedPlies" | "totalPlies"> | null, writing: boolean): Progress {
+/**
+ * "move 23 of 61 · 38%": full moves are `ceil(plies / 2)` (plan §4.1 copy notes). Writing (pass 2) starts at 95 % and
+ * moves with its `at` of `of` deep searches up to 99 % (dev pass D3: it sat at 95 % for the phase's ~10 s).
+ */
+export function progressOf(
+  a: Pick<ReviewAnalysis, "gradedPlies" | "totalPlies"> | null,
+  writing: boolean,
+  step: WritingStep | null = null,
+): Progress {
   const graded = a?.gradedPlies ?? 0;
   const total = a?.totalPlies ?? 0;
   const { movesDone, movesTotal } = movesProgress(graded, total);
-  const pct = writing ? 95 : total > 0 ? Math.min(100, Math.round((graded / total) * 100)) : 0;
+  const pct = writing
+    ? 95 + (step && step.of > 0 ? Math.floor((4 * Math.min(step.at, step.of)) / step.of) : 0)
+    : total > 0 ? Math.min(100, Math.round((graded / total) * 100)) : 0;
   return { pct, movesDone, movesTotal };
 }
 

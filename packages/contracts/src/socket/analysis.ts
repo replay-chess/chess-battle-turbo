@@ -68,8 +68,24 @@ export const AnalysisProgressEvent = z
   });
 export type AnalysisProgressEvent = z.infer<typeof AnalysisProgressEvent>;
 
-/** Pass 2 started (the "Writing your review" phase). ≤ 60 B. */
-export const AnalysisWritingEvent = z.object({ v: z.literal(1), gameRef: Ref });
+/** Pass 2 deep searches in one run: at most ENGINE_PROFILE.pass2.maxPositions (6) + the legend pair (2). */
+export const WRITING_STEPS_MAX = 8;
+
+/**
+ * Pass 2 (the "Finding your key moments" phase): sent when it starts, then after each deep search with `at` of `of`
+ * planned searches, so the card shows real progress through the phase's ~10 s on the dev box instead of sitting at 95 %
+ * (dev pass D3): `at` of `of` (short keys: the 60 B budget). Both are absent on a frame from before the counts existed. ≤ 60 B.
+ */
+export const AnalysisWritingEvent = z
+  .object({
+    v: z.literal(1),
+    gameRef: Ref,
+    at: z.number().int().min(0).max(WRITING_STEPS_MAX).optional(),
+    of: z.number().int().min(0).max(WRITING_STEPS_MAX).optional(),
+  })
+  .refine((e) => (e.at === undefined) === (e.of === undefined) && (e.at ?? 0) <= (e.of ?? 0), {
+    message: "at and of come together, at ≤ of",
+  });
 export type AnalysisWritingEvent = z.infer<typeof AnalysisWritingEvent>;
 
 /** Personalised per recipient (one emit per member side). The client refetches A1 once on it. ≤ 400 B. */

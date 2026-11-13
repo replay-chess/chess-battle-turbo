@@ -48,7 +48,7 @@ export function useReviewPrimary(): ReviewPrimary {
     case "queued":
     case "running":
     case "writing": {
-      const pct = phase.kind === "queued" || phase.kind === "none" ? 0 : progressOf(dto.analysis, phase.kind === "writing").pct;
+      const pct = phase.kind === "queued" || phase.kind === "none" ? 0 : progressOf(dto.analysis, phase.kind === "writing", phase.kind === "writing" ? phase.step : null).pct;
       return { kind: "button", label: `Analysing… ${pct}%`, run: () => undefined, disabled: true, testId: "primary-analysing" };
     }
     case "failed":

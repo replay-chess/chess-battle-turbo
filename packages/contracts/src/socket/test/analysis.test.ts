@@ -11,8 +11,10 @@ import {
   ANALYSIS_EVENTS,
   analysisDoneDedupeKey,
   AnalysisProgressEvent,
+  AnalysisWritingEvent,
   GameResultReview,
   PROGRESS_FRAME_MAX_PLIES,
+  WRITING_STEPS_MAX,
 } from "../analysis";
 import { analysisEventFixtures, worstAnalysisEventFixtures } from "../fixtures/analysis";
 import { EmitBody } from "../internal";
@@ -49,6 +51,16 @@ describe("analysis events: schemas", () => {
     for (const name of ANALYSIS_EVENT_NAMES) {
       assert.equal(ANALYSIS_EVENTS[name].safeParse({ ...fixtures[name], useq: 4_812 }).success, true, name);
     }
+  });
+
+  it("analysis:writing carries pass 2's progress (`at` of the planned searches), together or not at all (dev pass D3)", () => {
+    const ref = "c947f1cda7cc1e50f81edbcef";
+    assert.ok(AnalysisWritingEvent.safeParse({ v: 1, gameRef: ref }).success);
+    assert.ok(AnalysisWritingEvent.safeParse({ v: 1, gameRef: ref, at: 0, of: 4 }).success);
+    assert.ok(AnalysisWritingEvent.safeParse({ v: 1, gameRef: ref, at: 4, of: 4 }).success);
+    assert.equal(AnalysisWritingEvent.safeParse({ v: 1, gameRef: ref, at: 5, of: 4 }).success, false);
+    assert.equal(AnalysisWritingEvent.safeParse({ v: 1, gameRef: ref, at: 1 }).success, false);
+    assert.equal(AnalysisWritingEvent.safeParse({ v: 1, gameRef: ref, at: 0, of: WRITING_STEPS_MAX + 1 }).success, false);
   });
 
   it("analysis:done reserves bank as null (P5 fills it) and caps the coach line at 160", () => {

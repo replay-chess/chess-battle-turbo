@@ -346,6 +346,13 @@ class Run {
         identity,
         divergence,
         newFacts: factsPending ? newFacts : [],
+        // Pass 2's own progress (dev pass D3: ~10 s on the dev box that the card spent at 95 %).
+        onStep: (at, of) =>
+          this.streams()
+            ? ctx.emitter
+                .emit("analysis:writing", buildEvent("analysis:writing", { gameRef: this.gameRef, at, of }), memberRefs)
+                .then(() => undefined)
+            : Promise.resolve(),
       }),
     );
     const pass2Ms = ctx.clock.now() - pass2Ms0;
@@ -516,6 +523,8 @@ class Run {
     identity: AnalysisIdentity;
     divergence: { ply: number; gameUci: string; legendUci: string } | null;
     newFacts: readonly MemberFacts[];
+    /** After planning (`at` 0) and after each deep search: `at` of the `of` planned searches. */
+    onStep?: (at: number, of: number) => Promise<void>;
   }): Promise<{
     lines: Record<number, LineFacts>;
     searched: number;
@@ -560,16 +569,28 @@ class Run {
       hasBest,
       reserve,
     });
+    // The plan first (the same positions, in the same order, as searching candidate by candidate within the budget),
+    // so the phase can report `at` of `of`; the time limit still stops the searches early.
+    const plan: number[] = [];
     for (const ply of candidates) {
-      if (!timeLeft()) break;
       const need = [ply, ply + 1].filter(
-        (j) => j <= n && !deep.has(j) && (positions[j] as PositionPlan).terminal === null,
+        (j) => j <= n && !plan.includes(j) && (positions[j] as PositionPlan).terminal === null,
       );
-      if (searched + need.length > budget) continue;
-      for (const j of need) {
-        if (!timeLeft()) break;
-        deep.set(j, await search(positions[j] as PositionPlan));
-      }
+      if (plan.length + need.length > budget) continue;
+      plan.push(...need);
+    }
+    const legendGamePly = input.divergence && legendPos ? input.divergence.ply + 1 : null;
+    const of = plan.length + (legendGamePly === null ? 0 : (plan.includes(legendGamePly) ? 1 : 2));
+    let at = 0;
+    const step = async () => {
+      await input.onStep?.(Math.min(at, of), of);
+    };
+    await step();
+    for (const j of plan) {
+      if (!timeLeft()) break;
+      deep.set(j, await search(positions[j] as PositionPlan));
+      at++;
+      await step();
     }
     for (const [j, e] of deep) {
       arrays.evals[j] = e.eval;
@@ -590,8 +611,15 @@ class Run {
     let legendEvals: { game: number; legend: number } | null = null;
     if (input.divergence && legendPos && timeLeft()) {
       const gamePos = positions[input.divergence.ply + 1] as PositionPlan;
-      const g = deep.get(gamePos.index) ?? (await search(gamePos));
+      let g = deep.get(gamePos.index);
+      if (!g) {
+        g = await search(gamePos);
+        at++;
+        await step();
+      }
       const l = await search(legendPos);
+      at++;
+      await step();
       legendEvals = { game: g.eval, legend: l.eval };
     }
     ctx.evalCache?.flush();

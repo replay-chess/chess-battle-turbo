@@ -105,7 +105,8 @@ test("phases follow the status, the writing flag and the content", () => {
   assert.deepEqual(phaseOf(reviewFixture("none"), false), { kind: "none" });
   assert.deepEqual(phaseOf(reviewFixture("queued"), false), { kind: "queued", etaSec: 40, position: 2 });
   assert.deepEqual(phaseOf(reviewFixture("running"), false), { kind: "running" });
-  assert.deepEqual(phaseOf(reviewFixture("running"), true), { kind: "writing" });
+  assert.deepEqual(phaseOf(reviewFixture("running"), true), { kind: "writing", step: null });
+  assert.deepEqual(phaseOf(reviewFixture("running"), true, { at: 1, of: 4 }), { kind: "writing", step: { at: 1, of: 4 } });
   assert.deepEqual(phaseOf(reviewFixture("failed"), false), {
     kind: "failed",
     retryable: true,
@@ -124,6 +125,13 @@ test("progress counts full moves (ceil of plies / 2) and writing shows 95 %", ()
   assert.deepEqual(progressOf({ gradedPlies: 45, totalPlies: 121 }, false), { pct: 37, movesDone: 23, movesTotal: 61 });
   assert.deepEqual(progressOf({ gradedPlies: 0, totalPlies: 54 }, false), { pct: 0, movesDone: 1, movesTotal: 27 });
   assert.equal(progressOf({ gradedPlies: 54, totalPlies: 54 }, true).pct, 95);
+  // regression: dev pass D3: pass 2 moves the bar (95 → 99) with its deep searches instead of sitting at 95 %.
+  assert.deepEqual(
+    [0, 1, 2, 3, 4].map((at) => progressOf({ gradedPlies: 54, totalPlies: 54 }, true, { at, of: 4 }).pct),
+    [95, 96, 97, 98, 99],
+  );
+  assert.equal(progressOf({ gradedPlies: 54, totalPlies: 54 }, true, { at: 9, of: 4 }).pct, 99, "never past 99 before done");
+  assert.equal(progressOf({ gradedPlies: 54, totalPlies: 54 }, true, { at: 0, of: 0 }).pct, 95);
   assert.deepEqual(progressOf(null, false), { pct: 0, movesDone: 0, movesTotal: 0 });
 });
 

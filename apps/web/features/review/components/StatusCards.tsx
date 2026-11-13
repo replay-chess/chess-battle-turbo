@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import { useClientNow } from "../clock";
-import { BUTTONS, COPY, engineLine, queuedLine, retryCountdownLine, runningLine } from "../copy";
+import { BUTTONS, COPY, engineLine, queuedLine, retryCountdownLine, runningLine, writingLine } from "../copy";
 import { useReview } from "../context";
 import { failureLine, progressOf, secondsUntil, type ReviewPhase } from "../model";
 
@@ -31,9 +31,10 @@ function RetryIcon() {
 export function AnalysingCard({ phase }: { phase: Extract<ReviewPhase, { kind: "queued" | "running" | "writing" | "none" }> }) {
   const { dto } = useReview();
   const writing = phase.kind === "writing";
-  const p = progressOf(dto.analysis, writing);
+  const step = phase.kind === "writing" ? phase.step : null;
+  const p = progressOf(dto.analysis, writing, step);
   const queued = phase.kind === "queued" || phase.kind === "none";
-  const title = queued ? queuedLine(phase.kind === "queued" ? phase.etaSec : null) : writing ? COPY.writing : runningLine(p.movesDone, p.movesTotal);
+  const title = queued ? queuedLine(phase.kind === "queued" ? phase.etaSec : null) : writing ? writingLine(step) : runningLine(p.movesDone, p.movesTotal);
   const a = dto.analysis;
   return (
     <div

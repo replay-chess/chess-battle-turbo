@@ -73,7 +73,10 @@ export function ReviewScreen({
   const data = useReviewData(refId, {
     demo,
     onEvent: (name, payload) => {
-      if (name === "analysis:writing") storeRef.current?.getState().setWriting(true);
+      if (name === "analysis:writing") {
+        const w = payload as { at?: number; of?: number } | undefined;
+        storeRef.current?.getState().setWriting(true, typeof w?.at === "number" && typeof w.of === "number" ? { at: w.at, of: w.of } : null);
+      }
       if (name === "analysis:progress" && firstFrameAt.current === null && (analysisEventPly(payload) ?? 0) > 0) {
         firstFrameAt.current = performance.now();
       }
@@ -100,11 +103,12 @@ export function ReviewScreen({
     storeRef.current = store;
   }, [store]);
   const writing = useStore(store, (v) => v.writing);
+  const writingStep = useStore(store, (v) => v.writingStep);
   const mode = useStore(store, (v) => v.mode);
   const momentIndex = useStore(store, (v) => v.momentIndex);
   const tab = useStore(store, (v) => v.tab);
   const momentPhase = useStore(store, (v) => v.phase);
-  const phase = phaseOf(dto, writing);
+  const phase = phaseOf(dto, writing, writingStep);
 
   // The writing flag only lives while the job runs.
   useEffect(() => {

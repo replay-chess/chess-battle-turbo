@@ -69,7 +69,7 @@ export function worstAnalysisEventFixtures(): { [N in AnalysisEventName]: Analys
       j: "BGbEgkFX",
       depthP50: 99,
     },
-    "analysis:writing": { v: 1, gameRef },
+    "analysis:writing": { v: 1, gameRef, at: 8, of: 8 },
     "analysis:done": {
       v: 1,
       gameRef,

@@ -10,6 +10,7 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import type { MomentResult, PlanKey, ProgressEvent } from "@repo/contracts/http/review";
 import type { MomentPhase } from "./moments";
+import type { WritingStep } from "./model";
 
 export type ReviewTab = "coach" | "moves";
 export type { MomentPhase };
@@ -39,6 +40,8 @@ export interface ReviewView {
   /** When Start Review was pressed (review_completed.duration_ms); null before. */
   walkStartedAt: number | null;
   writing: boolean;
+  /** Pass 2's last counts from `analysis:writing` (`at` of `of`), null until a counted frame. */
+  writingStep: WritingStep | null;
   /** Walkthrough events waiting for A5 (≤ PROGRESS_EVENTS_MAX per send). */
   pending: ProgressEvent[];
 }
@@ -47,7 +50,7 @@ export interface ReviewViewActions {
   setPly(ply: number): void;
   setTab(tab: ReviewTab): void;
   flip(): void;
-  setWriting(writing: boolean): void;
+  setWriting(writing: boolean, step?: WritingStep | null): void;
   /** Enters a key moment (Start Review, Next/Previous Moment, `?m=`); a new moment starts at `ask`. */
   enterMoment(index: number): void;
   /** Back to the move list (Esc from a moment, the end of the walkthrough). */
@@ -105,11 +108,12 @@ export function createReviewViewStore(init: ReviewViewInit): ReviewViewStore {
     attempts: {},
     walkStartedAt: null,
     writing: init.writing ?? false,
+    writingStep: null,
     pending: [],
     setPly: (ply) => set({ ply }),
     setTab: (tab) => set({ tab }),
     flip: () => set({ flipped: !get().flipped }),
-    setWriting: (writing) => set({ writing }),
+    setWriting: (writing, step) => set({ writing, writingStep: writing ? (step ?? get().writingStep) : null }),
     enterMoment: (index) => set({ mode: "moment", momentIndex: Math.max(0, index), ...MOMENT_RESET }),
     leaveMoments: () => set({ mode: "moves", ...MOMENT_RESET }),
     setPhase: (phase, patch = {}) => set({ phase, ...patch }),

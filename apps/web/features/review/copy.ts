@@ -41,8 +41,10 @@ export const COPY = {
   graphStart: "Move 1",
   graphHint: "Click the graph to jump",
   graphEnd: "End",
+  // P3-Q5: "usually in under 10 seconds" only while the dev p50 for a 40-ply game is ≤ 10 s. Measured on dev
+  // (stage B, dev pass D3): all badges 14.5–15.6 s, the summary 23.9–26.3 s, so the copy promises half a minute.
   stepThrough:
-    "You can step through the moves already. Badges and the coach appear as each move is graded, usually in under 10 seconds.",
+    "You can step through the moves already. Badges and the coach appear as each move is graded, usually within half a minute.",
   writing: "Finding your key moments…",
   failedTitle: "Couldn’t finish analysis",
   terminal: "We couldn’t analyse this game. Your moves are still here.",
@@ -72,6 +74,11 @@ export function queuedLine(etaSec: number | null): string {
 /** "Analysing · move 23 of 61" (the percentage renders beside it). */
 export function runningLine(movesDone: number, movesTotal: number): string {
   return `Analysing · move ${movesDone} of ${movesTotal}`;
+}
+
+/** "Finding your key moments… · 2 of 4": pass 2's deep searches once the worker has counted them (dev pass D3). */
+export function writingLine(step: { at: number; of: number } | null): string {
+  return step && step.of > 0 ? `${COPY.writing} · ${Math.min(step.at, step.of)} of ${step.of}` : COPY.writing;
 }
 
 /** "Stockfish 18 · depth 18 · on our server". */
