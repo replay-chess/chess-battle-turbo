@@ -229,6 +229,8 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
     stopSignal,
     isWatched: (ref: string) => scheduler.isWatched(ref),
     takeFault: (ref: string) => scheduler.takeFault(ref),
+    // D1: an import (I/O lane) queues ANALYZE_GAME jobs for the engine lane, which sleeps without polling.
+    wakeEngine: () => scheduler.wake(),
   });
   const lane = new IoLane({
     db,

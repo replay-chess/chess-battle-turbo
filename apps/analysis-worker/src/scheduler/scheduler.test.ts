@@ -234,6 +234,20 @@ describe("scheduler: kicks", () => {
     assert.equal(job.status, "DONE");
   });
 
+  it("regression: D1 (import-analysis-wake): wake() from another lane drains at once, like a kick without a body", async () => {
+    const s = setup();
+    await boot(s);
+    // An import of the I/O lane wrote this job while the engine lane slept its long sleep (no poll, no HTTP kick).
+    const job = analysis(s.queue, s.clock.now());
+    s.scheduler.wake();
+    await s.clock.advance(0);
+    assert.deepEqual(
+      s.ran.map((r) => r.id),
+      [job.id],
+    );
+    assert.equal(job.status, "DONE");
+  });
+
   it("a kick with a future runAt only shortens the sleep (no query until then)", async () => {
     const s = setup();
     await boot(s);

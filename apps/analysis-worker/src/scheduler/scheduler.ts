@@ -164,6 +164,18 @@ export class Scheduler {
     return { draining: this.draining || (wakeNow && !this.held), nextRunAt: this.iso(this.computeNext()) };
   }
 
+  /**
+   * In-process wake (D1): another lane of this process queued work for this one (the I/O lane's import wrote its
+   * ANALYZE_GAME jobs). Same as a kick without a body: drain now, or once more after the current drain, unless a
+   * test hold is on. The lane never polls, so without this the import's eager analyses waited for the next HTTP kick
+   * (4 and 14 minutes on dev).
+   */
+  wake(): void {
+    if (this.stopping) return;
+    if (this.draining) this.kickedDuringDrain = true;
+    else if (!this.held) this.wakeUp();
+  }
+
   isWatched(gameRef: string): boolean {
     const until = this.watched.get(gameRef);
     if (until === undefined) return false;

@@ -48,6 +48,27 @@ describe("IMPORT_SYNC (Postgres, mock upstream)", { skip: skipInt }, () => {
   });
 
   // ── 1. Chess.com initial import for a trialist ────────────────────────────────────────────────────────────────
+  it("regression: D1 (import-analysis-wake): the import wakes the engine lane in-process when it queues analyses; the jobs are due now", async () => {
+    const w = world();
+    w.upstream.addChessComFixture();
+    const u = await w.member("trial", "d1");
+    const la = await w.link(u, "CHESSCOM", "KnightOwl_88");
+    const run = await w.run(u, la, "CHESSCOM", "INITIAL");
+    await w.job(la, run.id, "INITIAL");
+    assert.equal(w.engineWakes, 0);
+    assert.equal(await w.runNext(ME), "done");
+    const [r] = await w.q<{ queued: number }>(`SELECT "analysisQueued" AS queued FROM import_runs WHERE id = $1`, [run.id]);
+    assert.ok(Number(r!.queued) > 0, "the trialist's eager reviews were queued");
+    // Without the wake the engine lane slept on (it never polls) until an unrelated HTTP kick: 4 and 14 minutes on dev.
+    assert.ok(w.engineWakes >= 1, "the engine lane was woken in-process");
+    const due = await w.q<{ n: number }>(
+      `SELECT count(*)::int AS n FROM ${env.schema}.jobs WHERE kind = 'ANALYZE_GAME' AND status = 'QUEUED' AND "userId" = $1
+          AND "runAt" <= (now() AT TIME ZONE 'UTC')`,
+      [u.id],
+    );
+    assert.equal(due[0]!.n, Number(r!.queued), "every eager job is due at once, so the woken lane claims them");
+  });
+
   it("1: imports the fixture account for a trialist: rows, priorities, chunks, cursor, events, reschedule", async () => {
     const w = world();
     w.upstream.addChessComFixture();

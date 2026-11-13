@@ -51,6 +51,11 @@ export interface JobContext<K extends RunJobKind = RunJobKind> {
   isWatched(gameRef: string): boolean;
   /** The one-shot fault a test kick attached to this game (APP_ENV=test), else the env fault (dev/test). */
   takeFault(gameRef: string): Fault | null;
+  /**
+   * Work was queued for the engine lane from another lane (an import's ANALYZE_GAME jobs): wake it in-process. The
+   * engine lane does not poll; without this the jobs waited for an unrelated kick (D1). Absent in harnesses without one.
+   */
+  wakeEngine?(): void;
 }
 
 /** What the runner's fail write did, for the kind's own follow-up (telemetry, a failed comparison, a batch count). */

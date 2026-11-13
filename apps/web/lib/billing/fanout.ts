@@ -261,6 +261,22 @@ export const FANOUT_USER_SQL = `SELECT u.role::text AS role, u.email, u."dodoCus
 FROM users u WHERE u.id = $1`;
 
 /** Plan 8.5.4 step 5: the end date only moves forward (a replayed older lapse never rewinds it). */
+/**
+ * The kick after a backlog release (D1): the analysis lane never polls, so the slices' ANALYZE_GAME rows waited for the
+ * lane's next unrelated wake. One kick naming the engine kind, with the earliest slice's time as `runAt` (a future
+ * runAt only shortens the lane's sleep, no query until then). Null when nothing was queued.
+ */
+export function backlogKickBody(released: { queued: number; slots: { runAt: Date }[] }): {
+  v: 1;
+  reason: "import";
+  kinds: ["ANALYZE_GAME"];
+  runAt: string;
+} | null {
+  if (released.queued <= 0 || released.slots.length === 0) return null;
+  const first = Math.min(...released.slots.map((s) => s.runAt.getTime()));
+  return { v: 1, reason: "import", kinds: ["ANALYZE_GAME"], runAt: new Date(first).toISOString() };
+}
+
 export const MEMBERSHIP_ENDED_SQL = `UPDATE users SET "membershipEndedAt" = $2::timestamp(3)
 WHERE id = $1 AND ("membershipEndedAt" IS NULL OR "membershipEndedAt" < $2::timestamp(3))`;
 
@@ -305,6 +321,11 @@ async function defaultFanoutDeps(): Promise<FanoutDeps> {
     async releaseBacklog(userId) {
       const { backlogSettingsFromEnv, releaseImportBacklog } = await import("@repo/db/import-backlog");
       const released = await releaseImportBacklog(db, { userId, now: new Date(), ...backlogSettingsFromEnv() });
+      const kick = backlogKickBody(released);
+      if (kick) {
+        const { kickWorker } = await import("@/lib/services/analysis/kick");
+        await kickWorker(kick); // never throws; a lost kick waits for the lane's next due wake
+      }
       return { queued: released.queued, slices: released.slots.length };
     },
     async setMembershipEnded(userId, at) {

@@ -207,8 +207,12 @@ export class ImportWorld {
       stopSignal: opts.stop ?? new AbortController().signal,
       isWatched: () => false,
       takeFault: () => null,
+      wakeEngine: () => void this.engineWakes++,
     });
   }
+
+  /** How many times a job of this world woke the engine lane in-process (D1). */
+  engineWakes = 0;
 
   /** Claims the next due import job as `me` and runs it. */
   async runNext(me = "imp-worker-0000aai1"): Promise<RunResult> {

@@ -402,6 +402,9 @@ class ImportSync {
         this.firstChunkMs = ctx.clock.now() - this.startedAtMs;
         importMetric(ctx, "import.first_chunk_ms", this.firstChunkMs, { provider });
       }
+      // D1: this chunk queued analysis jobs (eager reviews): the engine lane sleeps without polling, wake it now so the
+      // newest game is reviewed while the import goes on, not at the next unrelated kick.
+      if (res.analysisQueued > this.totals.analysisQueued) ctx.wakeEngine?.();
       this.totals = { imported: res.imported, analysed: res.analysed, analysisQueued: res.analysisQueued };
       this.taken += res.taken;
       this.newRows += res.newRows;
@@ -542,6 +545,9 @@ class ImportSync {
     const out = await ctx.telemetry.span("db.import.finish", { kind: "IMPORT_SYNC" }, () =>
       this.finalBatch(statements, end),
     );
+    // D1: the finish released backlog slices (future runAt) and the run queued analyses: the engine lane re-reads its
+    // queue summary on this wake, so its next sleep ends at the earliest new job, not at its old target.
+    if (backlog || this.totals.analysisQueued > 0) ctx.wakeEngine?.();
     const provider = slugOf(this.source);
     const trigger = this.trigger.toLowerCase();
     importMetric(ctx, "import.games", Math.max(0, this.totals.imported - this.startImported), { provider, trigger });

@@ -57,6 +57,8 @@ export interface RunnerDeps {
   stopSignal: AbortSignal;
   isWatched(gameRef: string): boolean;
   takeFault(gameRef: string): Fault | null;
+  /** JobContext.wakeEngine (D1). */
+  wakeEngine?(): void;
   heartbeatEveryMs?: number;
 }
 
@@ -135,6 +137,7 @@ export async function runJob(job: ClaimedJob, deps: RunnerDeps): Promise<RunResu
     signal: controller.signal,
     isWatched: deps.isWatched,
     takeFault: deps.takeFault,
+    ...(deps.wakeEngine ? { wakeEngine: deps.wakeEngine } : {}),
   };
 
   heartbeat.start();

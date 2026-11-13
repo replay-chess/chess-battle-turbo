@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { EntitlementSummary } from "./entitlement-rules";
-import { fanoutPlan, isPaidPeriod, onEntitlementApplied, onPaymentEffects, type FanoutDeps, type FanoutStep, type FanoutUser } from "./fanout";
+import { backlogKickBody, fanoutPlan, isPaidPeriod, onEntitlementApplied, onPaymentEffects, type FanoutDeps, type FanoutStep, type FanoutUser } from "./fanout";
 
 const NOW = new Date("2026-11-12T10:00:00.000Z");
 const TRIAL_END = "2026-11-19T10:00:00.000Z";
@@ -218,5 +218,21 @@ describe("onPaymentEffects", () => {
     const out = await onPaymentEffects({ userId: 7n, userRef: "cref", paymentFailed: true, releaseBacklog: true }, deps);
     assert.deepEqual(out, { ran: ["backlog"], failed: ["emit"] });
     assert.deepEqual(calls.backlog, [[7n]]);
+  });
+});
+
+describe("backlog release kick (D1)", () => {
+  it("regression: import-analysis-wake: a release that queued slices kicks the analysis lane for the earliest slice", () => {
+    const a = new Date("2026-11-14T21:35:00.000Z");
+    const b = new Date("2026-11-13T21:35:00.000Z");
+    assert.deepEqual(backlogKickBody({ queued: 52, slots: [{ runAt: a }, { runAt: b }] }), {
+      v: 1,
+      reason: "import",
+      kinds: ["ANALYZE_GAME"],
+      runAt: b.toISOString(),
+    });
+  });
+  it("nothing queued: no kick", () => {
+    assert.equal(backlogKickBody({ queued: 0, slots: [] }), null);
   });
 });
