@@ -7,6 +7,7 @@ import {
   g1Sql,
   inlineStatement,
   P3_HOT_QUERIES,
+  P4_ARCHIVE_HOT_QUERIES,
   planIssues,
   p3Queries,
   reaperSql,
@@ -65,6 +66,18 @@ describe("explain-hot plan checks", () => {
     for (const n of ["worker claim (", "adopt or claim", "worker reaper (", "reaper retry form", "drain-end summary"]) {
       assert.ok(names.some((x) => x.includes(n)), n);
     }
+  });
+
+  // regression: D6 — the /games counts joined games for every finished game of the member.
+  it("gates the web's P4 archive statements: the counts read game_players alone, within a buffer budget", () => {
+    const counts = P4_ARCHIVE_HOT_QUERIES.find((q) => q.name.startsWith("P4 G1 counts"))!;
+    assert.ok(counts, "the counts row");
+    assert.doesNotMatch(counts.sql, /JOIN games/);
+    assert.match(counts.sql, /FROM game_players gp/);
+    assert.equal(counts.maxSharedBuffers, 400);
+    const tab = P4_ARCHIVE_HOT_QUERIES.find((q) => q.name.includes("Chess.com tab"))!;
+    assert.match(tab.sql, /gp\.source = 'CHESSCOM'::"GameSource"/);
+    for (const q of P4_ARCHIVE_HOT_QUERIES) assert.ok(!/\$\d/.test(q.sql), `${q.name}: literals only`);
   });
 
   it("inlines bound values as SQL literals ($10 before $1)", () => {

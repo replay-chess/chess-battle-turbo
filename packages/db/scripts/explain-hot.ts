@@ -29,6 +29,8 @@ import { checkTripwire, isEntryPoint, parseFlags, reportFailure, resolveWriteTar
 import { adoptOrClaimStatement, claimStatement } from "../../../apps/analysis-worker/src/queue/claim";
 import { reapStatement } from "../../../apps/analysis-worker/src/queue/outcome";
 import { queueSummaryStatement } from "../../../apps/analysis-worker/src/queue/summary";
+// P4 (phase-04 plan §4.11, §9.3; D6): the web's own archive statements with the source tabs, not copies.
+import { archiveCountsSql, archivePageSql } from "../../../apps/web/lib/services/analysis/archive-sql";
 
 export interface HotQuery {
   name: string;
@@ -232,6 +234,33 @@ export function p3Queries(p: QueryParams): HotQuery[] {
   return q;
 }
 
+/**
+ * P4 G1 (phase-04 plan §4.11, §9.3): the /games first paint's two statements as the web sends them, with the source
+ * tabs. The counts read game_players alone (no search): regression D6, the counts joined games for every finished game
+ * (≈ 3,700 shared buffers for a 2,000-game member, ≈ 900 of them read cold and dirtied on the first /games after an
+ * import), so their budget is the member's game_players rows, far below that.
+ */
+export function p4ArchiveQueries(p: Pick<QueryParams, "viewerId">): HotQuery[] {
+  const userId = BigInt(p.viewerId);
+  return [
+    {
+      name: "P4 G1 counts with the source tabs (game_players only, D6)",
+      sql: inlineStatement(archiveCountsSql(userId, {})),
+      noSeqScan: ["games", "jobs"],
+      noSort: ["game_players"],
+      maxSharedBuffers: 400,
+      targetMs: 3,
+    },
+    {
+      name: "P4 G1 Chess.com tab page 1 (game_players_userId_endedAt_gameId_idx)",
+      sql: inlineStatement(archivePageSql(userId, { source: "chesscom" }, null, 50)),
+      noSeqScan: [...HOT, "legend_comparisons"],
+      noSort: ["game_players"],
+      targetMs: 3,
+    },
+  ];
+}
+
 /** Placeholder literals for the CI shape gate (an empty database: only the plan shape matters). */
 export const P3_HOT_QUERIES: HotQuery[] = p3Queries({
   viewerId: "1",
@@ -240,6 +269,9 @@ export const P3_HOT_QUERIES: HotQuery[] = p3Queries({
   page3: { endedAt: "2026-11-01 00:00:00", gameId: "9223372036854775807" },
   epds: ["rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -"],
 });
+
+/** P4's archive statements with a placeholder member, for the same shape gate. */
+export const P4_ARCHIVE_HOT_QUERIES: HotQuery[] = p4ArchiveQueries({ viewerId: "1" });
 
 // ── Plan inspection ────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -445,7 +477,7 @@ async function main(): Promise<number> {
     console.log(`tripwire users = ${await checkTripwire(db)} (limit ${MAX_TARGET_USERS})`);
     const email = values.get("--email") ?? PERF_USER.email;
     const params = await perfParams(db, email);
-    const reports = await runExplain(db, p3Queries(params), { measure: true });
+    const reports = await runExplain(db, [...p3Queries(params), ...p4ArchiveQueries(params)], { measure: true });
     const ok = printReports(reports);
     const report = values.get("--report");
     if (report) {

@@ -41,6 +41,12 @@ describe("statements", () => {
     for (const s of ["REPLAY", "CHESSCOM", "LICHESS"]) assert.ok(sql.includes(`gp.source = '${s}'::"GameSource"`), s);
     assert.equal((sql.match(/FROM game_players gp/g) ?? []).length, 1);
   });
+  it("regression: D6 — the counts read game_players alone; games is joined only for a search", () => {
+    for (const filter of [{}, { source: "chesscom" as const }, { result: ["win" as const], tc: ["blitz" as const], moments: true }]) {
+      assert.doesNotMatch(textOf(archiveCountsSql(7n, filter)), /JOIN games/, JSON.stringify(filter));
+    }
+    assert.match(textOf(archiveCountsSql(7n, { q: "sicilian" })), /JOIN games g ON g\.id = gp\."gameId"/);
+  });
 });
 
 describe("meta.counts", () => {

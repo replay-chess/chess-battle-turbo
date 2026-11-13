@@ -90,19 +90,27 @@ SELECT gp."gameId", g."referenceId" AS ref, gp.color, gp.result::text AS result,
 /**
  * `filteredTotal` (the filter, source tab included), `all` (every finished game) and the per-source tab counts
  * (P4) in one pass over the user's index prefix.
+ *
+ * `games` is joined only for a search (`q` reads the opening name and the position title); every other count is a
+ * `game_players` column. regression: D6 — the join was unconditional, so the first /games of a member with 2,000
+ * freshly imported games probed games_pkey and fetched the games heap (the widest table: PGN, moves, clocks) for every
+ * one of them, ≈ 3,700 shared buffers of which ≈ 900 were read cold and dirtied by their first read (hint bits; on
+ * Neon each also a full-page WAL image), against ≈ 120 for the game_players rows alone. The explain gate holds it
+ * (packages/db/scripts/explain-hot.ts "P4 G1 counts").
  */
 export function archiveCountsSql(userId: bigint, filter: ArchiveFilter): Prisma.Sql {
   const conditions = filterConditions(filter);
   const filtered = conditions.length
     ? Prisma.sql`count(*) FILTER (WHERE ${Prisma.join(conditions, " AND ")})`
     : Prisma.sql`count(*)`;
+  const games = filter.q ? Prisma.sql`JOIN games g ON g.id = gp."gameId"` : Prisma.empty;
   return Prisma.sql`
 SELECT (${filtered})::int AS "filteredTotal", count(*)::int AS "all",
        (count(*) FILTER (WHERE gp.source = 'REPLAY'::"GameSource"))::int AS replay,
        (count(*) FILTER (WHERE gp.source = 'CHESSCOM'::"GameSource"))::int AS chesscom,
        (count(*) FILTER (WHERE gp.source = 'LICHESS'::"GameSource"))::int AS lichess
   FROM game_players gp
-  JOIN games g ON g.id = gp."gameId"
+  ${games}
  WHERE gp."userId" = ${userId} AND ${FINISHED}`;
 }
 

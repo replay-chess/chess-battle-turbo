@@ -27,7 +27,7 @@ import { Prisma } from "@repo/db";
 import { createPrismaClient } from "../packages/db/src/client";
 import { restoreCandidatesSql } from "../packages/db/src/live/loadLiveGame";
 import { RESTORE_WINDOW_MS } from "../packages/db/src/live/restoreList";
-import { P3_HOT_QUERIES } from "../packages/db/scripts/explain-hot";
+import { P3_HOT_QUERIES, P4_ARCHIVE_HOT_QUERIES } from "../packages/db/scripts/explain-hot";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "postgres"]);
@@ -161,7 +161,7 @@ async function main(): Promise<number> {
     if (missing.length) failed = true;
     else console.log(`indexes: ${doc.indexes.length} listed, all present`);
 
-    for (const q of [...HOT_QUERIES, ...P3_HOT_QUERIES]) {
+    for (const q of [...HOT_QUERIES, ...P3_HOT_QUERIES, ...P4_ARCHIVE_HOT_QUERIES]) {
       const plan = await db.$transaction(async (tx) => {
         await tx.$executeRawUnsafe("SET LOCAL enable_seqscan = off");
         await tx.$executeRawUnsafe("SET LOCAL enable_sort = off");
