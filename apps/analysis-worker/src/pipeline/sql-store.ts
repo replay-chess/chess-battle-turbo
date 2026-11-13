@@ -462,10 +462,18 @@ export class SqlAnalysisStore implements AnalysisStore, LegendCompareStore {
       gameDoneStatement(w.gameId, w.opening),
       reviewsStatement(w.gameId, w.members),
       playersStatement(w.gameId, w.members),
-      bumpMembersStatement(w.gameId),
       ...(w.comparisons.length ? [comparisonsStatement(w.gameId, w.chessPositionId, w.comparisons)] : []),
     ];
-    const out = await finalBatch(this.db, w.jobId, w.me, [...head, ...w.extensions, doneStatement(w.jobId, w.me, w.result)]);
+    // The members' gamesVersion goes last, after the extensions: the P4 one counts the import run (import_runs), and
+    // the import's batch writer locks import_runs before users. Bumping users first deadlocked against a chunk of the
+    // same member's import (e2e stress, Postgres log: "UPDATE import_runs … analysed + 1" vs the batch writer's CTE
+    // "while updating tuple in relation users"). Lock order: game_analyses, games, game_players, import_runs, users.
+    const out = await finalBatch(this.db, w.jobId, w.me, [
+      ...head,
+      ...w.extensions,
+      bumpMembersStatement(w.gameId),
+      doneStatement(w.jobId, w.me, w.result),
+    ]);
     return out ? out.slice(head.length, head.length + w.extensions.length) : null;
   }
 
