@@ -61,6 +61,12 @@ services:
     cpus: "0.75"
     mem_limit: 1g
     restart: unless-stopped
+    # Docker's init (tini) is PID 1 and node its child: tini forwards SIGTERM (the drain below) and reaps zombies, and a
+    # crash is injectable for owner test T11. With node as PID 1 the kernel ignored `kill -9 1` from inside the
+    # container (a PID-namespace init), so the worker could not be crashed at all (dev pass D5). T11:
+    # `docker compose exec analysis-worker sh -c 'kill -9 -1'` (every process but init: node dies, tini exits 137,
+    # the restart policy restarts it; `docker kill` would be a manual stop, R14).
+    init: true
     # SIGTERM: stop claiming, checkpoint the running analysis, release it without counting the attempt, exit.
     stop_grace_period: 30s
     volumes:

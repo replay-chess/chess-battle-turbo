@@ -82,6 +82,12 @@ One grammar (`src/config/faults.ts`, `KickFault` in `@repo/contracts/internal/ki
 
 Locally: `WORKER_FAULT=stall_at_ply:20 pnpm dev` (with `.env.local-dev`), finish a game, watch the review.
 
+A real process crash (owner test T11) needs no hook: on the dev box,
+`docker compose exec analysis-worker sh -c 'kill -9 -1'` kills node (the service runs with `init: true`, so tini is
+PID 1 and node its child; `kill -9 1` would hit the init, which the kernel protects). tini exits 137, the restart policy
+starts a new container, and its boot reaps the orphaned job (`worker_stalled`, retryable). `docker kill` is a manual
+stop and does not restart it (plan R14).
+
 ## Tests
 
 ```sh
