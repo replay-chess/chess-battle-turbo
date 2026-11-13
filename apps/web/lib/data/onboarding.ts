@@ -170,6 +170,7 @@ export function toOnbViewer(
     hasActiveLink: active.length > 0,
     lichessLinked: active.some((a) => a.provider === "LICHESS"),
     pendingCheckoutAt: state.pendingCheckoutAt ? state.pendingCheckoutAt.getTime() : null,
+    checkoutReported: viewer.entitlement.status === "pending" || viewer.entitlement.status === "on_hold",
     next,
   };
 }

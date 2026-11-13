@@ -133,7 +133,8 @@ export function ActivationCard(props: ActivationCardProps) {
     title = "This is taking longer than usual.";
     body = checkout
       ? `Your card was saved, but the confirmation hasn't reached us yet.${isTrial && props.chargeDateLabel ? ` Nothing is charged before ${props.chargeDateLabel}.` : ""} Check again in a moment, or tell us and we'll activate it by hand.`
-      : `Your card was saved and nothing has been charged. Check again, or carry on: your ${isTrial ? "trial" : "membership"} starts by itself once it's confirmed.`;
+      : // Not a return from the payment page (D4): nothing says a card was entered, so the copy does not claim it.
+        `We haven't heard back from the payment page yet. If you left it before paying, nothing was charged. Check again, or carry on: your ${isTrial ? "trial" : "membership"} starts by itself once it's confirmed.`;
     const checkAgain = (
       <Button
         key="again"

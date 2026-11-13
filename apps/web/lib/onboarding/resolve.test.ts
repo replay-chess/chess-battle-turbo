@@ -32,6 +32,8 @@ function viewer(step: OnbStep, m: Membership, link: Link, pending: Pending, extr
     lichessLinked: link === "lichess",
     pendingCheckoutAt:
       pending === "fresh" ? NOW - 5 * 60_000 : pending === "stale" ? NOW - PENDING_CHECKOUT_TTL_MS - 1 : null,
+    // A fresh checkout here is one Dodo reported (paid, activation on its way); D4's unpaid case says so explicitly.
+    checkoutReported: pending === "fresh",
     next: null,
     ...extra,
   };
@@ -85,7 +87,7 @@ describe("resolveOnboardingRoute: details", () => {
   });
 
   it("the 30-minute edge: 29:59 is activating, 30:00 is abandoned", () => {
-    const at = (ms: number) => viewer("ACTIVATING", "not", "none", "none", { pendingCheckoutAt: NOW - ms });
+    const at = (ms: number) => viewer("ACTIVATING", "not", "none", "none", { pendingCheckoutAt: NOW - ms, checkoutReported: true });
     assert.equal(resolveOnboardingRoute(at(PENDING_CHECKOUT_TTL_MS - 1), NOW), "/onboarding/activating");
     assert.equal(resolveOnboardingRoute(at(PENDING_CHECKOUT_TTL_MS), NOW), ABANDONED_CHECKOUT_PATH);
   });
@@ -154,6 +156,17 @@ describe("guardStep: confirm", () => {
   it("no or an unknown provider → link", () => {
     assert.equal(guardStep("confirm", v("lichess"), NOW, {}), "/onboarding/link");
     assert.equal(guardStep("confirm", v("lichess"), NOW, { provider: "fide", u: "knightowl_88" }), "/onboarding/link");
+  });
+});
+
+describe("D4: a checkout opened and left without paying", () => {
+  it("regression: D4 (abandoned-checkout-activating): /onboarding goes back to the plan with the banner, not to Activating", () => {
+    const left = viewer("ACTIVATING", "not", "none", "fresh", { checkoutReported: false });
+    assert.equal(resolveOnboardingRoute(left, NOW), ABANDONED_CHECKOUT_PATH);
+    assert.equal(guardStep("activating", left, NOW), null, "the page itself stays reachable (it drops Dodo's return query)");
+    assert.equal(guardStep("activating", left, NOW, { checkout: "success" }), null, "Dodo's return URL still lands on Activating");
+    const paid = viewer("ACTIVATING", "not", "none", "fresh", { checkoutReported: true });
+    assert.equal(resolveOnboardingRoute(paid, NOW), "/onboarding/activating");
   });
 });
 

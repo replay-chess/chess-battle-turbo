@@ -30,6 +30,12 @@ export type OnbViewer = {
   lichessLinked: boolean;
   /** users."pendingCheckoutAt" in epoch ms, or null. */
   pendingCheckoutAt: number | null;
+  /**
+   * Dodo reported a subscription for the open checkout that is not active yet (users."subscriptionStatus" pending or
+   * on_hold): the member paid and the activation is on its way. A checkout opened and left without paying has none
+   * (D4: such a member was sent to "Activating your membership…", which stalled with "Your card was saved").
+   */
+  checkoutReported: boolean;
   /** The safe destination after onboarding (`rc_onb_next` or `?redirect_url=`), or null. */
   next: string | null;
 };
@@ -37,6 +43,11 @@ export type OnbViewer = {
 /** Members, admins and everyone while the paywall is off skip the plan (§8.1). */
 export function entitledLike(v: Pick<OnbViewer, "entitled" | "isAdmin" | "paywallOn">): boolean {
   return v.entitled || v.isAdmin || !v.paywallOn;
+}
+
+/** Activating is the honest screen: a fresh checkout Dodo has reported a subscription for (D4). */
+export function activationPending(v: Pick<OnbViewer, "pendingCheckoutAt" | "checkoutReported">, now: number): boolean {
+  return v.checkoutReported && pendingCheckoutFresh(v, now);
 }
 
 /** A checkout was started less than 30 minutes ago. */
@@ -66,7 +77,10 @@ export function resolveOnboardingRoute(v: OnbViewer, now: number): string {
     case "PLAN":
       return stepPath("plan");
     case "ACTIVATING":
-      return pendingCheckoutFresh(v, now) ? stepPath("activating") : ABANDONED_CHECKOUT_PATH;
+      // Opened and left without paying (no subscription reported): back to the plan with the "Checkout wasn't
+      // finished" banner, not a stalled Activating (D4). A paid return comes in through Dodo's return URL
+      // (`checkout=success`, which the guard admits) and the webhook, so it never needs this route.
+      return activationPending(v, now) ? stepPath("activating") : ABANDONED_CHECKOUT_PATH;
     case "DONE":
       return member ? stepPath("done") : stepPath("plan");
   }
@@ -97,6 +111,8 @@ export function guardStep(page: OnbPage, v: OnbViewer, now: number, query: StepQ
 
   switch (page) {
     case "activating":
+      // The page itself stays reachable with a fresh checkout: Activating drops Dodo's return query from the URL, and
+      // until the webhook lands nothing else says the member paid. Its copy says what is known (ActivationCard).
       if (pendingCheckoutFresh(v, now) || query.checkout === "success" || member) return null;
       return v.step === "ACTIVATING" || v.pendingCheckoutAt !== null ? ABANDONED_CHECKOUT_PATH : stepPath("plan");
     case "done":
