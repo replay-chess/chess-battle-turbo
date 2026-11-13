@@ -14,9 +14,19 @@ import {
   getReview as readReview,
   getReviewComplete as readReviewComplete,
   getReviewStatus as readReviewStatus,
+  probeReview,
 } from "@/lib/services/analysis/read";
 
 export { DataError, isNotFound } from "./errors";
+
+/**
+ * Whether the viewer may see the game's review (a player, or an admin): the one-statement probe. The /review/[ref]
+ * layout calls it before anything streams, so a missing game and another member's game answer HTTP 404 (the page's
+ * own notFound() runs after loading.tsx has sent a 200).
+ */
+export const reviewVisible = cache(
+  async (viewer: Viewer, ref: string): Promise<boolean> => (await probeReview(rawDb(prisma), viewer, ref)) !== null,
+);
 
 /** ReviewDTO for `qk.review.detail(ref)`; throws DataError not_found for an unknown game or a non-player. */
 export const getReview = cache(async (viewer: Viewer, ref: string): Promise<ReviewDTO> => {

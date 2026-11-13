@@ -12,15 +12,13 @@ test.describe("review privacy", { tag: ["@p3"] }, () => {
   test("member B: the 404 page and a 404 from A1", async ({ member, page, seeded }) => {
     test.setTimeout(180_000);
     await member("B");
-    // The page streams (loading.tsx), so notFound() renders the not-found UI after the 200 status line went out; the
-    // existence of A's game is hidden either way: the same UI as a ref that does not exist, and noindex.
-    await gotoOk(page, `/review/${seeded.GAME}`);
-    await expect(page.getByTestId("review-not-found")).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByTestId("review-screen")).toHaveCount(0);
-    const missing = await page.request.get("/review/cnotarealgameref00000000aa");
-    expect(missing.status()).toBe(200);
-    await gotoOk(page, "/review/cnotarealgameref00000000aa");
-    await expect(page.getByTestId("review-not-found")).toBeVisible({ timeout: 60_000 });
+    // HTTP 404 for A's game and for a ref that does not exist alike (the layout checks before loading.tsx streams; the
+    // page's notFound() used to answer 200), with the same not-found UI: existence stays hidden (regression: review-404-status).
+    for (const path of [`/review/${seeded.GAME}`, "/review/cnotarealgameref00000000aa", `/review/${seeded.GAME}/share`]) {
+      await gotoOk(page, path, { status: 404 });
+      await expect(page.getByTestId("review-not-found"), path).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByTestId("review-screen")).toHaveCount(0);
+    }
     for (const path of [`/api/review/${seeded.GAME}`, `/api/review/${seeded.GAME}/status`, `/api/review/${seeded.GAME}/pgn`]) {
       const res = await page.request.get(path);
       expect(res.status(), path).toBe(404);

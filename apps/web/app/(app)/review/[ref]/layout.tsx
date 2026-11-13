@@ -6,10 +6,12 @@
 // With `review-v3` off the legacy `/analysis/<ref>` page still serves reviews (reviewHref(), H3 switches it to a
 // redirect the other way), so this route sends the viewer there instead of rendering.
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { reviewGate } from "@/features/review/gate.server";
 import { serverBuildId } from "@/lib/api/context";
 import { getViewer } from "@/lib/auth/viewer";
+import { reviewVisible } from "@/lib/data/review";
 import { logger } from "@/lib/logger";
 import { RealtimeBoot } from "@/lib/realtime/RealtimeBoot";
 import type { SocketToken } from "@/lib/realtime/connection";
@@ -46,7 +48,11 @@ export default async function ReviewLayout({
   children: React.ReactNode;
   params: Promise<{ ref: string }>;
 }) {
-  await reviewGate((await params).ref);
+  const { ref } = await params;
+  const { viewer } = await reviewGate(ref);
+  // Before anything streams: a missing game and a game the viewer did not play are the same HTTP 404 (existence stays
+  // hidden; review/not-found.tsx renders the same UI). In the page, notFound() came after loading.tsx's 200.
+  if (!(await reviewVisible(viewer, ref))) notFound();
   const token = await mintToken();
   return (
     <>
