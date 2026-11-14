@@ -121,6 +121,42 @@ describe("P5 R1 today, R4 themes, R8 badges (Postgres)", { skip: url ? false : "
     assert.equal(await count(w.db, Prisma.sql`SELECT count(*) AS n FROM training_days WHERE "userId" = ${m.id} AND day = '2026-11-13' AND plan IS NOT NULL`), 1);
   });
 
+  it("regression hub-pinned-day-words: a day opened in another zone keeps its key past the new zone's 04:00, and the hub's batch line counts from that day", async () => {
+    // Browser pass (staging 8bc24d3, 04:07 IST Sunday 2026-11-15): the header said SATURDAY (R1 dayKey 2026-11-14) while
+    // the batch line said "today at 08:00" (Sunday 08:00). Saturday's row was opened under the member's previous zone,
+    // so the day stays Saturday until it ends where it began (plan §8.10, FIX-1 tz-pin: designed); the words counted
+    // days from the device's natural day (Sunday) instead of the header's.
+    const m = await w.member("pinned", { timeZone: "UTC" });
+    const saturday = new Date("2026-11-14T10:00:00.000Z");
+    await w.persona(m, "bank-member", saturday);
+    m.timeZone = "UTC";
+    await w.db.$executeRaw(Prisma.sql`UPDATE users SET "timeZone" = 'UTC' WHERE id = ${m.id}`);
+    const opened = ok(TrainToday).parse(await (await w.call("today", "GET", "/api/train/today", m, { now: saturday })).json()).data;
+    assert.equal(opened.dayKey, "2026-11-14");
+    const zone = await w.call("prefs", "PATCH", "/api/train/prefs", m, { body: { timeZone: "Asia/Calcutta", dayStartHour: 4 }, now: saturday });
+    assert.equal(zone.res.status, 200, await zone.res.clone().text());
+    m.timeZone = "Asia/Calcutta";
+    // A card for the next release (08:00 IST Sunday = 02:30Z), so the hub has a batch line.
+    await w.db.$executeRaw(Prisma.sql`UPDATE training_cards SET due = '2026-11-15 02:30:00' WHERE id = (
+      SELECT id FROM training_cards WHERE "userId" = ${m.id} AND deck = 'BANK' AND due > '2026-11-14 22:37:00' ORDER BY due, id LIMIT 1)`);
+
+    const at0407 = new Date("2026-11-14T22:37:00.000Z"); // 04:07 Sunday in Asia/Calcutta
+    const t = ok(TrainToday).parse(await (await w.call("today", "GET", "/api/train/today", m, { now: at0407 })).json()).data;
+    assert.equal(t.prefs.timeZone, "Asia/Calcutta");
+    assert.equal(t.prefs.dayStartHour, 4);
+    assert.equal(t.dayKey, "2026-11-14", "designed: Saturday's day, opened in UTC, runs until 04:00 UTC (09:30 IST)");
+    assert.equal(t.weekdayLabel, "Saturday");
+    assert.ok(t.nextBatch, "a batch at the next release");
+    assert.equal(t.nextBatch!.at, "2026-11-15T02:30:00.000Z");
+    // The hub's line (TrainHubScreen): counted from the header's day, Sunday 08:00 is "tomorrow", not "today".
+    const { dayWord } = await import("@/components/train/hub/when");
+    assert.equal(dayWord(t.nextBatch!.at, at0407.getTime(), t.prefs.timeZone, t.prefs.dayStartHour, t.dayKey), "tomorrow");
+    // Once Saturday's pinned day has ended (04:00 UTC = 09:30 IST), the header is Sunday and the 08:00 batch is gone.
+    const after = ok(TrainToday).parse(await (await w.call("today", "GET", "/api/train/today", m, { now: new Date("2026-11-15T04:01:00.000Z") })).json()).data;
+    assert.equal(after.dayKey, "2026-11-15");
+    assert.equal(after.weekdayLabel, "Sunday");
+  });
+
   it("a new member: an empty bank plans 'Import games' (or the last game's review) and the puzzle step; seeded profile", async () => {
     const m = await w.member("newbie");
     await w.persona(m, "home-new");

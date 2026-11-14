@@ -42,6 +42,19 @@ describe("dayLabel", () => {
     assert.equal(dayLabel(at("2026-11-13T08:00:00Z"), at("2026-11-13T01:00:00Z"), "UTC"), "Today", "without it, the calendar day");
   });
 
+  it("regression hub-pinned-day-words: with `todayKey` the words count from the day the header names", () => {
+    // 04:07 Sunday 2026-11-15 in Kolkata; Saturday's day, opened in UTC, is still running (pinned until 09:30 IST).
+    const at0407 = at("2026-11-14T22:37:00Z");
+    const batch = at("2026-11-15T02:30:00Z"); // 08:00 Sunday
+    const o = { dayStartHour: 4 };
+    assert.equal(dayLabel(batch, at0407, "Asia/Kolkata", o), "Today", "the device's day (Sunday)");
+    assert.equal(dayLabel(batch, at0407, "Asia/Kolkata", { ...o, todayKey: "2026-11-14" }), "Tomorrow", "next to SATURDAY");
+    assert.equal(releaseLabel(batch, at0407, "Asia/Kolkata", { ...o, todayKey: "2026-11-14" }), "tomorrow at 08:00");
+    assert.equal(dayLabel(at("2026-11-16T02:30:00Z"), at0407, "Asia/Kolkata", { ...o, long: true, todayKey: "2026-11-14" }), "Monday");
+    // A key that is the natural day changes nothing.
+    assert.equal(dayLabel(batch, at0407, "Asia/Kolkata", { ...o, todayKey: "2026-11-15" }), "Today");
+  });
+
   it("in America/New_York (14:00 on Thursday)", () => {
     assert.equal(dayLabel(at("2026-11-13T03:00:00Z"), NOW, "America/New_York"), "Today", "22:00 Thursday local");
     assert.equal(dayLabel(at("2026-11-13T13:00:00Z"), NOW, "America/New_York"), "Tomorrow");

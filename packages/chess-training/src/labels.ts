@@ -34,8 +34,12 @@ export function intervalLabel(days: number): string {
   return `${Math.round(d / 30)} months`;
 }
 
-/** Day-word options: `long` weekdays; `dayStartHour`, the member's training-day start (0 = the calendar day). */
-export type DayWordOptions = { long?: boolean; dayStartHour?: number };
+/**
+ * Day-word options: `long` weekdays; `dayStartHour`, the member's training-day start (0 = the calendar day); `todayKey`,
+ * the training day `now` belongs to when the caller holds it (R1's `dayKey`: a day opened under the member's previous
+ * zone or day start keeps its key until it ends, `trainingDayAt`), else the day of `now` in `timeZone`.
+ */
+export type DayWordOptions = { long?: boolean; dayStartHour?: number; todayKey?: string };
 
 /**
  * When a card is due, from the member's side (§8.14): same day (or overdue) "Today", next day "Tomorrow", within 6
@@ -44,11 +48,15 @@ export type DayWordOptions = { long?: boolean; dayStartHour?: number };
  * "Day" is the member's training day when `dayStartHour` is given (browser pass D4, P5-FZ-4): the Train hub's header,
  * the plan, the cap and the streak all live on the training day (a 01:00 Sunday visit is still Saturday's), so a batch
  * released at 08:00 Sunday is "tomorrow" there, not "today". Without it (0) the calendar day, as before.
+ *
+ * With `todayKey` the words count from that day, so they agree with a header that names it: at 04:07 Sunday after a
+ * zone change the hub's day is still Saturday (pinned), and its 08:00 Sunday batch is "tomorrow" next to "SATURDAY"
+ * (regression: hub-pinned-day-words; it read "today").
  */
 export function dayLabel(due: Date, now: Date, timeZone: string, opts: DayWordOptions = {}): string {
   const start = opts.dayStartHour ?? 0;
   const target = parseYmd(dayKey(due, timeZone, start));
-  const diff = calendarDaysBetween(parseYmd(dayKey(now, timeZone, start)), target);
+  const diff = calendarDaysBetween(parseYmd(opts.todayKey ?? dayKey(now, timeZone, start)), target);
   if (diff <= 0) return "Today";
   if (diff === 1) return "Tomorrow";
   if (diff <= 6) return (opts.long ? WEEKDAYS_LONG : WEEKDAYS_SHORT)[weekdayOf(target)]!;
@@ -82,7 +90,7 @@ export function atLabel(at: Date, timeZone: string): string {
  * When the next batch arrives, for a sentence: "today at 08:00", "tomorrow at 08:00", "Sat at 08:00", "Nov 6 at 08:00"
  * (the day word as `dayLabel`, on the training day when `dayStartHour` is given).
  */
-export function releaseLabel(at: Date, now: Date, timeZone: string, opts: { dayStartHour?: number } = {}): string {
+export function releaseLabel(at: Date, now: Date, timeZone: string, opts: Pick<DayWordOptions, "dayStartHour" | "todayKey"> = {}): string {
   const day = dayLabel(at, now, timeZone, opts);
   const lead = day === "Today" || day === "Tomorrow" ? day.toLowerCase() : day;
   return `${lead} at ${atLabel(at, timeZone)}`;

@@ -26,12 +26,14 @@ export function safeTimeZone(timeZone: string | null | undefined): string {
  * "today" | "tomorrow" | "Saturday" | "Nov 25" for an ISO instant, mid-sentence ("arrive tomorrow at 08:00", "Next
  * batch Saturday 08:00"). Null when the instant does not parse. Days are the member's training days (`dayStartHour`,
  * P5-FZ-4), the days the hub's header, plan, cap and streak count: at 01:00 Sunday (Saturday's training day) a batch
- * at 08:00 Sunday arrives "tomorrow".
+ * at 08:00 Sunday arrives "tomorrow". `todayKey` is the day the header names (R1's `dayKey`) when the caller shows one:
+ * a day pinned by a zone or day-start change outlasts the new zone's rollover, and the words must count from it
+ * (regression: hub-pinned-day-words, "SATURDAY" over "arrive today at 08:00" at 04:07 Sunday).
  */
-export function dayWord(atIso: string, nowMs: number, timeZone: string, dayStartHour: number): string | null {
+export function dayWord(atIso: string, nowMs: number, timeZone: string, dayStartHour: number, todayKey?: string): string | null {
   const atMs = Date.parse(atIso);
   if (!Number.isFinite(atMs)) return null;
-  const label = dayLabel(new Date(atMs), new Date(nowMs), safeTimeZone(timeZone), { long: true, dayStartHour });
+  const label = dayLabel(new Date(atMs), new Date(nowMs), safeTimeZone(timeZone), { long: true, dayStartHour, ...(todayKey ? { todayKey } : {}) });
   return label === "Today" || label === "Tomorrow" ? label.toLowerCase() : label;
 }
 
