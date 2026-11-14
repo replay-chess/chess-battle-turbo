@@ -525,6 +525,8 @@ jobs:
       NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:3002
       DODO_PAYMENTS_API_KEY: ci-dummy-dodo-key
       DODO_PAYMENTS_ENVIRONMENT: test_mode
+      # Honoured only with the test hooks on (as devices-review and devices-p5; .env.test sets it for local runs).
+      ALLOW_TEST_HOOKS: "1"
       FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on,review-v3:on,review-share:on,onboarding-v3:on,import-v3:on
     steps:
       - uses: actions/checkout@v5
@@ -580,6 +582,10 @@ jobs:
       DODO_PAYMENTS_API_KEY: ci-dummy-dodo-key
       DODO_PAYMENTS_ENVIRONMENT: test_mode
       BILLING_PAYWALL: "on"
+      # FLAGS_OVERRIDE is honoured only with the test hooks on (lib/env-server.ts testHooksEnabled: APP_ENV test + this).
+      # Without it `train` and `home` kept their off defaults: /train answered 404 and /home sent the member to /play
+      # (CI 43599091643; regression: devices-p5-flags-ignored). Locally .env.test sets it, which is why they passed there.
+      ALLOW_TEST_HOOKS: "1"
       FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on,review-v3:on,review-share:on,onboarding-v3:on,import-v3:on,train:on,home:on,bank-remove:on
     steps:
       - uses: actions/checkout@v5
