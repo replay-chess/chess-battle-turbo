@@ -1,6 +1,7 @@
 // Home `loading` (phase-05 plan §4.1; DR/V3HomeLoading): the same grid as HomeView with skeleton blocks, so the
-// seeded screen replaces it without a shift. A server component (no client JavaScript); `loading.tsx` renders it
-// during navigation, the demo route under `?state=loading`.
+// seeded screen replaces it without a shift. HomeScreen renders it while qk.home() has no data, the demo route under
+// `?state=loading`. /home has no route loading.tsx: the screen is in the document's shell (home.spec.ts "home
+// document"; a streamed segment left a second, hidden copy of the screen when React client-rendered its boundary).
 import { Skeleton, SkeletonBoard, SkeletonRegion } from "@/components/ui/skeleton";
 import "./home.css";
 

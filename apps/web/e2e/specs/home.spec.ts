@@ -171,3 +171,43 @@ for (const device of ["desktop-1440", "iphone"] as const) {
     });
   });
 }
+
+/** The document's HTML before the first streamed segment, and each segment's own HTML (review-document.spec). */
+async function documentParts(page: Page, path: string): Promise<{ status: number; shell: string; segments: { id: string; html: string }[] }> {
+  const res = await page.request.get(path, { headers: { accept: "text/html" } });
+  const html = await res.text();
+  const marker = '<div hidden id="S:';
+  const first = html.indexOf(marker);
+  const segments = first < 0 ? [] : html.slice(first + marker.length).split(marker).map((part) => ({ id: `S:${part.slice(0, part.indexOf('"'))}`, html: part.split("<script")[0]! }));
+  return { status: res.status(), shell: first < 0 ? html : html.slice(0, first), segments };
+}
+
+// Home is part of the document's shell, never a streamed Suspense segment (the game, review and trainer documents:
+// game-document, review-document, train-document specs).
+//
+// regression: home-streamed-duplicate (CI 43608761478, chromium home T9 import_running): /home had a route loading.tsx
+// (HomeSkeleton), so the screen streamed as a hidden `<div id="S:n">` that React's `$RV` reveals on a later frame. An
+// update during hydration (Clerk loading) makes React client-render that pending boundary instead; until the reveal
+// runs, the document holds two copies of the screen, both hidden: `getByTestId('home-import')` resolved to two
+// `role="status"` rows (one in app-shell, one in the segment) and failed strict mode. The leased `dev-trial` has the
+// running import, so the document has the import row.
+test.describe("home document", { tag: ["@p5", "@smoke"] }, () => {
+  test("/home renders the screen in the shell, with nothing streamed after it, and one import row after a reload", { tag: stateTags("import_running") }, async ({ persona, page }) => {
+    test.setTimeout(300_000);
+    await persona("dev-trial");
+    const doc = await documentParts(page, "/home");
+    expect(doc.status).toBe(200);
+    const ids = [...new Set((doc.shell.match(/data-testid="[^"]+"/g) ?? []).map((m) => m.slice(13, -1)))];
+    expect((doc.shell.match(/data-testid="home"/g) ?? []).length, `the screen is in the shell, once (shell test ids: ${ids.join(", ")})`).toBe(1);
+    expect((doc.shell.match(/data-testid="home-import"/g) ?? []).length, "one import row (role=status) in the shell").toBe(1);
+    const streamed = doc.segments.filter((s) => s.html.includes("data-testid=")).map((s) => s.id);
+    expect(streamed, "no part of the screen streams as a hidden segment").toEqual([]);
+
+    await gotoOk(page, "/home");
+    await expect(page.getByTestId("home-import")).toBeVisible({ timeout: 120_000 });
+    await page.reload();
+    await expect(page.getByTestId("home-import")).toBeVisible({ timeout: 120_000 });
+    await expect(page.locator('[data-testid="home-import"]'), "one import row after the reload").toHaveCount(1);
+    expect(await page.locator('div[hidden][id^="S:"] [data-testid]').count(), "no hidden segment holds a test id").toBe(0);
+  });
+});

@@ -18,6 +18,7 @@
 //
 // Projects (plan §12.4): desktop-1440 and iphone on every PR (`@smoke`), ipad-portrait in the full run.
 import type { Page, Request } from "@playwright/test";
+import { pendingViewerReads } from "../../fixtures/auth";
 import { sendDodoWebhook, trialSubscription } from "../../fixtures/dodo-webhook";
 import {
   DEVICES,
@@ -283,10 +284,18 @@ for (const family of ["desktop", "iphone", "ipad"] as const) {
         // the final state (lib/realtime/handlers/import.ts; regression: p04-request-budget-2).
         expect(calls.count(/^api GET \/api\/import\/status$/), "import status GETs with the socket up").toBeLessThanOrEqual(1);
         expect(calls.count(/^(render|prefetch|api) /), `invocations: ${calls.seen.join(", ")}`).toBeLessThanOrEqual(21);
+        // Home's own reads: the import's and the eager reviews' events (import:finished, analysis:done / batch) refetch
+        // qk.home() (lib/realtime/handlers/home.ts). Home renders in the document's shell now (no route loading.tsx), so
+        // it is mounted when the URL turns to /home; going on at once cut such a GET and WebKit reported it as
+        // "…/api/home due to access control checks." (regression: webkit-home-read-cut, a local smoke run). The member
+        // loses nothing; the spec lets the read finish, as the sign-in fixture does for /api/me.
+        const homeReads = pendingViewerReads(page, { paths: ["/api/home"], swRegistration: false });
         await clickReady(page, "onb-go-home");
 
         // ── Go to Home lands on /home (P5, phase-05 plan §4.8), then /games: the Chess.com tab ──
         await expect(page).toHaveURL(/\/home(\?|$)/, { timeout: 60_000 });
+        await expect(tid(page, "home")).toBeVisible({ timeout: 60_000 });
+        await homeReads.settled();
         await page.goto("/games", { waitUntil: "domcontentloaded" });
         await expect(page).toHaveURL(/\/games(\?|$)/, { timeout: 60_000 });
         await expect(tid(page, "games-source-chesscom")).toContainText(String(FIXTURE_IMPORTABLE));

@@ -1,7 +1,8 @@
 // /home layout: noindex metadata, the gate (sign-in, membership, the `home` flag) and the realtime boot.
 //
-// The redirects run HERE, outside the segment's loading.tsx Suspense boundary (P2 FIX-A): a redirect() thrown by a page
-// after its skeleton streamed crashes the dev router. RealtimeBoot gets a socket token minted in this render
+// The redirects run HERE, before anything renders (P2 FIX-A: a redirect() thrown by a page after a loading.tsx skeleton
+// had streamed crashed the dev router). The segment has no loading.tsx: Home is in the document's shell, never a
+// streamed Suspense segment (home.spec.ts "home document": a client-rendered boundary left a second, hidden copy). RealtimeBoot gets a socket token minted in this render
 // (client-data-layer 5.1), so Home's live rows (import progress, analysis, bank counts) need no GET /api/socket-token.
 import type { Metadata } from "next";
 import { auth } from "@clerk/nextjs/server";

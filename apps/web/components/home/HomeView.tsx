@@ -3,7 +3,7 @@
 // Home (phase-05 plan §4.1; boards V3Home `populated | new_user | import_running | payment_failed | trial`,
 // V3HomeNewUser). The presentational screen: every state renders from HomeData props, so the live route
 // (HomeScreen: TanStack Query + the user room) and the /dev/ui/home demo (fixtures) share it. `payment_failed` and
-// `trial` are the shell's (its payment banner and the trial tag); `loading` is HomeSkeleton (loading.tsx).
+// `trial` are the shell's (its payment banner and the trial tag); `loading` is HomeSkeleton (HomeScreen with no data yet).
 //
 // Links: Start Review is fully prefetched (the likely next click; /review has no write side effects). The bank
 // thumbnails and Review 4 · About 3 min open session-creating URLs, so they are never prefetched (plan §5.1). Rows use
