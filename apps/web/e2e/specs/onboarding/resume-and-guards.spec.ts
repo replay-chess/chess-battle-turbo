@@ -2,9 +2,11 @@
 //
 // - Stop at Goals: a reload and `/onboarding` both land on Goals; Alt+← goes to Level with the chosen band kept.
 // - A deep link to /onboarding/done while not entitled → Plan.
-// - An abandoned checkout (pending for more than 30 minutes) → Plan with the info banner. The resolver is a server
-//   page, which reads the server's own clock (P1's `x-rc-now` reaches route() handlers only), so the spec backdates
-//   `pendingCheckoutAt` by 31 minutes instead of moving the clock (testing X5's intent: no real wait).
+// - A checkout opened and left at Dodo without paying → /onboarding is Plan with the info banner at once (D4,
+//   f7a3f81: Activating only for a subscription Dodo reported, users."subscriptionStatus" pending / on_hold); once Dodo
+//   reports one, Activating; 30 minutes after the checkout opened, abandoned again → Plan with the banner. The
+//   resolver is a server page, which reads the server's own clock (P1's `x-rc-now` reaches route() handlers only), so
+//   the spec backdates `pendingCheckoutAt` by 31 minutes instead of moving the clock (testing X5's intent: no real wait).
 // - Member A on /onboarding → /games; a fresh persona on /games → /onboarding (Welcome); middleware's own redirect
 //   (`?redirect_url=/games` and `rc_onb_next`) needs the claims in the session token.
 // - regression: confirm-level-prefetch — That's Me reaches Level in a production build (Confirm used to prefetch
@@ -86,7 +88,7 @@ for (const variant of [
     );
 
     test(
-      `deep links: Done before the trial → Plan; yearly; an abandoned checkout → Plan with the banner (${variant.name})`,
+      `deep links: Done before the trial → Plan; yearly; an unpaid or abandoned checkout → Plan with the banner (${variant.name})`,
       { tag: ["@p4", "@local-only", `@state:${variant.boards}OnbPlan.yearly`] },
       async ({ page, leasePersona, p4db, upstream }) => {
       test.setTimeout(180_000);
@@ -106,10 +108,17 @@ for (const variant of [
       await expect(page).toHaveURL(/\/dodo\/pay\//, { timeout: 60_000 });
       const pending = await userRow(p4db, me.email);
       expect(pending.pendingCheckoutAt, "the checkout is pending").not.toBeNull();
-      // Fresh (< 30 min): Activating is where the member belongs.
+      // Fresh (< 30 min) but never paid (Dodo reported no subscription): back to the plan with the banner, never a
+      // stalled Activating (D4, f7a3f81; regression: abandoned-checkout-activating).
+      await gotoStep(page, "");
+      await expect(page).toHaveURL(/\/onboarding\/plan\?(.*&)?resume=abandoned/, { timeout: 60_000 });
+      await expect(tid(page, "onb-plan-abandoned")).toBeVisible();
+      // Dodo reports the subscription, not active yet (paid, the activation on its way): Activating is where the
+      // member belongs. (The mock's no-webhook customer never reports one, so the report is written as the webhook does.)
+      await p4db.$executeRaw`UPDATE users SET "subscriptionStatus" = 'pending' WHERE email = ${me.email}`;
       await gotoStep(page, "");
       await expectStep(page, "activating");
-      // 31 minutes later: abandoned.
+      // 31 minutes after the checkout opened: abandoned.
       await p4db.$executeRaw`UPDATE users SET "pendingCheckoutAt" = now() - interval '31 minutes' WHERE email = ${me.email}`;
       await gotoStep(page, "");
       await expect(page).toHaveURL(/\/onboarding\/plan\?(.*&)?resume=abandoned/, { timeout: 60_000 });
