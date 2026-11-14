@@ -92,6 +92,35 @@ describe("P5 R2 bank (Postgres)", { skip: url ? false : "TEST_DATABASE_URL not s
     assert.deepEqual(caught.upcoming.map((u) => u.n), [6, 3, 5, 9]);
   });
 
+  it("regression bank-empty-ctas: removing the last card on the page shows the same empty-bank links as the server's empty bank", async () => {
+    // Browser pass (staging 8bc24d3): after Remove From Bank took the last card, the empty bank showed only "Play a Game
+    // to Fill Your Bank"; a reload added "Review Your Last Game" and "Import Games From Chess.com or Lichess". The page
+    // the client emptied had no `emptyCtas` (sent only with an empty bank).
+    const m = await w.member("bankctas");
+    await w.persona(m, "bank-member");
+    // Keep one card.
+    await w.db.$executeRaw(Prisma.sql`DELETE FROM training_cards WHERE "userId" = ${m.id} AND deck = 'BANK'
+      AND id <> (SELECT min(id) FROM training_cards WHERE "userId" = ${m.id} AND deck = 'BANK')`);
+    const one = ok(BankPage).parse(await (await w.call("bank", "GET", "/api/train/bank", m, { query: { view: "all" } })).json()).data;
+    assert.equal(one.counts.all, 1);
+    // The client removes it: the head the page shows (model.pageAfterRemovals, D6).
+    const { pageAfterRemovals } = await import("@/components/train/bank/model");
+    const shown = pageAfterRemovals(one, one.rows, new Set([one.rows[0]!.cardRef]));
+    assert.equal(shown.state, "empty");
+    // The server's empty bank after the DELETE (a reload).
+    await w.db.$executeRaw(Prisma.sql`DELETE FROM training_cards WHERE "userId" = ${m.id} AND deck = 'BANK'`);
+    const reloaded = ok(BankPage).parse(await (await w.call("bank", "GET", "/api/train/bank", m, { query: { view: "all" } })).json()).data;
+    assert.equal(reloaded.state, "empty");
+    assert.ok(reloaded.emptyCtas?.lastGame, "the member has an analysed game to review");
+    assert.deepEqual(shown.emptyCtas, reloaded.emptyCtas, "client and server empty states show the same links");
+    // A large bank skips the read (R2's statement budget).
+    const big = await w.member("bankctasbig");
+    await w.persona(big, "bank-member");
+    const r = await w.call("bank", "GET", "/api/train/bank", big, { query: { view: "all" } });
+    const bigPage = ok(BankPage).parse(await r.json()).data;
+    assert.equal(bigPage.emptyCtas, null);
+  });
+
   it("> 300 cards: pages of 50 with a stable cursor; a cursor request is BankNextPage in one statement; SQL facets", async () => {
     const m = await w.member("big");
     await w.persona(m, "bank-member");

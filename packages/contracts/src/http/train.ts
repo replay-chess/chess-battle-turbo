@@ -277,6 +277,10 @@ export const BankPage = z.object({
   upcoming: z.array(z.object({ label: z.string().max(16), n: z.number().int().min(0) })).max(4),
   nextBatch: NextBatch.nullable(),
   focusTheme: ThemeRef,
+  /**
+   * The empty bank's links. Sent with an empty bank, and with a bank of at most BANK_EMPTY_CTAS_ROWS cards: Remove From
+   * Bank can empty that page on the client (the head follows removals at once) before the server's next read.
+   */
   emptyCtas: z
     .object({
       lastGame: z.object({ gameRef: Ref, opponent: z.string().max(40), reviewed: z.boolean() }).nullable(),

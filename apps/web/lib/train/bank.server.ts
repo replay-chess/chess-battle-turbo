@@ -308,7 +308,11 @@ export async function listBank(
   ]);
   const { due, profile, clock, counters: day } = state;
   const head = pageHead(due, profile, day, themes, clock);
-  const emptyCtas = head.state === "empty" ? await emptyCtasOf(deps, viewer) : null;
+  // An empty bank, or one Remove From Bank can empty on the page: the client shows the empty state as soon as the last
+  // row goes (model.pageAfterRemovals, D6), before the DELETE commits after the Undo window and the bank refetches, so
+  // it needs the same links the server's empty bank shows (regression: bank-empty-ctas, only "Play a Game" until a
+  // reload). A larger bank never reaches empty in one page without a refetch in between, so it skips the read.
+  const emptyCtas = head.state === "empty" || head.counts.all <= BANK_EMPTY_CTAS_ROWS ? await emptyCtasOf(deps, viewer) : null;
 
   if (all.length <= BANK_COMPLETE_MAX_ROWS) {
     const rows = rowsOf(all, now, tz, clock.dayStartHour);
@@ -342,6 +346,9 @@ export async function listBank(
     meta: { nextCursor: rows.length > BANK_PAGE_ROWS && last ? bankCursor({ due: asDate(last.due)!, cardId: last.cardId }, filter) : null, complete: false },
   };
 }
+
+/** A bank of at most this many cards carries `emptyCtas` (see listBank). */
+export const BANK_EMPTY_CTAS_ROWS = 3;
 
 async function emptyCtasOf(deps: TrainDeps, viewer: Viewer): Promise<BankPage["emptyCtas"]> {
   const rows = await deps.db.$queryRaw<LastGameRow[]>(lastGameSql(viewer.id));
