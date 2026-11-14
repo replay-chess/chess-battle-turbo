@@ -133,17 +133,20 @@ function bankStep(cards: readonly PlanBankCard[], now: Date, timeZone: string): 
   };
 }
 
+/** "Review your last game" for an unreviewed analysed game. */
+function reviewStepFor(lastGame: NonNullable<PlanInputs["lastGame"]>): DailyPlanStep {
+  const found = lastGame.moments > 0 ? `the coach found ${plural(lastGame.moments, "moment")}` : "a clean game";
+  return {
+    kind: "review",
+    title: "Review your last game",
+    subtitle: `vs ${lastGame.opponent} · ${found} · ${minutesLabel(1)}`,
+    estMin: 1,
+    href: `/review/${lastGame.ref}`,
+  };
+}
+
 function emptyBankStep(lastGame: PlanInputs["lastGame"]): DailyPlanStep {
-  if (lastGame && !lastGame.reviewed) {
-    const found = lastGame.moments > 0 ? `the coach found ${plural(lastGame.moments, "moment")}` : "a clean game";
-    return {
-      kind: "review",
-      title: "Review your last game",
-      subtitle: `vs ${lastGame.opponent} · ${found} · ${minutesLabel(1)}`,
-      estMin: 1,
-      href: `/review/${lastGame.ref}`,
-    };
-  }
+  if (lastGame && !lastGame.reviewed) return reviewStepFor(lastGame);
   return {
     kind: "import",
     title: "Import games",
@@ -265,6 +268,48 @@ export interface PlanProgress {
   reviewDone?: boolean;
   /** An import is connected (the import step). */
   importDone?: boolean;
+}
+
+/** The game ref of a frozen "Review your last game" step (its href), else null. */
+export function reviewStepRef(step: Pick<DailyPlanStep, "kind" | "href">): string | null {
+  if (step.kind !== "review") return null;
+  const m = /^\/review\/([^/?#]+)/.exec(step.href);
+  return m ? decodeURIComponent(m[1]!) : null;
+}
+
+/** What the empty-bank steps read live on every hub read. */
+export interface EmptyStepsLive {
+  /** The frozen review step's game side has been reviewed (player_reviews."completedAt"). */
+  frozenReviewed: boolean;
+  /** The newest analysed game now (the same pick as when the plan was built). */
+  lastGame: PlanInputs["lastGame"];
+  /** The member has a linked Chess.com or Lichess account. */
+  importConnected: boolean;
+}
+
+/**
+ * The empty-bank steps at read time (browser pass D3). The plan stays frozen (same steps, same order, same bits), but
+ * "Review your last game" means the member's last game: it is done once the frozen game or the newest analysed game
+ * has been reviewed, and while open it links the newest analysed game (the one Home's Continue card opens) when a newer
+ * one arrived after the plan was built. "Import games" is done once an account is linked. Other steps are unchanged.
+ */
+export function liveEmptySteps(plan: Pick<DailyPlan, "steps">, live: EmptyStepsLive): { steps: DailyPlanStep[]; bits: number } {
+  let bits = 0;
+  const steps = plan.steps.map((s, i) => {
+    if (s.kind === "review") {
+      const frozenRef = reviewStepRef(s);
+      const last = live.lastGame;
+      const done = live.frozenReviewed || (last !== null && last.reviewed);
+      if (done) {
+        bits |= 1 << i;
+        return s;
+      }
+      return last && last.ref !== frozenRef ? { ...reviewStepFor(last), estMin: s.estMin } : s;
+    }
+    if (s.kind === "import" && live.importConnected) bits |= 1 << i;
+    return s;
+  });
+  return { steps, bits };
 }
 
 /**

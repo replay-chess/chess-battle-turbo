@@ -16,7 +16,9 @@ import {
   buildDailyPlan,
   keepGoingLabel,
   planCta,
+  liveEmptySteps,
   planDoneBits,
+  reviewStepRef,
   planDoneCount,
   planFootnote,
   planMinutes,
@@ -157,6 +159,37 @@ async function freezePlan(
   return { plan: parseDailyPlan(written?.plan) ?? plan, planDone: num(written?.planDone ?? bits) };
 }
 
+// ── The empty-bank steps, live (browser pass D3) ───────────────────────────────────────────────────────────────
+/**
+ * One statement, read only when the frozen plan has a "Review your last game" or "Import games" step: the frozen
+ * game's review state, the newest analysed game (lastGameSql's pick) and whether an account is linked.
+ */
+export function emptyStepsLiveSql(userId: bigint, frozenRef: string | null): Prisma.Sql {
+  return Prisma.sql`SELECT
+      EXISTS (SELECT 1 FROM games g JOIN game_players gp ON gp."gameId" = g.id AND gp."userId" = ${userId}
+                JOIN player_reviews pr ON pr."gameId" = g.id AND pr.color = gp.color
+               WHERE g."referenceId" = ${frozenRef ?? ""} AND pr."completedAt" IS NOT NULL) AS "frozenReviewed",
+      (SELECT row_to_json(l) FROM (${lastGameSql(userId)}) l) AS "lastGame",
+      EXISTS (SELECT 1 FROM linked_accounts la WHERE la."userId" = ${userId}) AS "importConnected"`;
+}
+
+type EmptyStepsRow = { frozenReviewed: boolean; lastGame: unknown; importConnected: boolean };
+
+/** Today's plan with its empty-bank steps read live: the review step's target and done bit, the import step's bit. */
+async function withLiveEmptySteps(
+  db: TrainDeps["db"],
+  userId: bigint,
+  frozen: { plan: DailyPlanV1; planDone: number },
+): Promise<{ plan: DailyPlanV1; planDone: number }> {
+  if (!frozen.plan.steps.some((s) => s.kind === "review" || s.kind === "import")) return frozen;
+  const frozenRef = frozen.plan.steps.map(reviewStepRef).find((r) => r !== null) ?? null;
+  const row = (await db.$queryRaw<EmptyStepsRow[]>(emptyStepsLiveSql(userId, frozenRef)))[0];
+  const raw = (typeof row?.lastGame === "string" ? JSON.parse(row.lastGame) : row?.lastGame) as LastGameRow | null | undefined;
+  const lastGame = raw ? { ref: raw.ref, opponent: (raw.opponent ?? "").slice(0, 40), reviewed: Boolean(raw.reviewed), moments: num(raw.moments) } : null;
+  const live = liveEmptySteps(frozen.plan, { frozenReviewed: Boolean(row?.frozenReviewed), lastGame, importConnected: Boolean(row?.importConnected) });
+  return { plan: { ...frozen.plan, steps: live.steps }, planDone: frozen.planDone | live.bits };
+}
+
 // ── R1 ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 /** The picker themes the member has trained, in picker order (≤ 3: the hub's "Puzzles by theme" row). */
 function trainedPickerThemes(themes: readonly ThemeMasteryRow[]): TrainToday["allTraining"]["puzzles"]["themes"] {
@@ -189,7 +222,8 @@ export async function getTrainToday(viewer: Viewer, now: Date, deps: TrainDeps =
   ]);
   const { clock, profile, due } = state;
   const stored = parseDailyPlan(state.today?.plan);
-  const { plan, planDone } = stored ? { plan: stored, planDone: state.counters.planDone } : await freezePlan(deps, viewer, state, themes);
+  const frozen = stored ? { plan: stored, planDone: state.counters.planDone } : await freezePlan(deps, viewer, state, themes);
+  const { plan, planDone } = await withLiveEmptySteps(db, viewer.id, frozen);
 
   const cap = capOf(due, profile, state.counters);
   const statuses = planStepStatuses(plan.steps.length, planDone);

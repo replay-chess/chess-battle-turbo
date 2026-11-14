@@ -10,6 +10,7 @@ import {
   buildDailyPlan,
   focusTheme,
   keepGoingLabel,
+  liveEmptySteps,
   planCta,
   planDoneBits,
   planDoneCount,
@@ -18,6 +19,7 @@ import {
   planMinutes,
   planStepStatuses,
   puzzlesHref,
+  reviewStepRef,
   type PlanBankCard,
   type PlanInputs,
 } from "./plan";
@@ -197,6 +199,24 @@ describe("the frozen plan", () => {
     assert.equal(planDoneBits(review, { gradedKeys: new Set(), puzzlesByTheme: new Map(), reviewDone: true }), 0b01);
     const imp = buildDailyPlan({ ...base, bankTotal: 0, dueShown: 0, bankQueue: [], lastGame: null });
     assert.equal(planDoneBits(imp, { gradedKeys: new Set(), puzzlesByTheme: new Map(), importDone: true }), 0b01);
+  });
+
+  it("live empty-bank steps (browser pass D3): the review step is done once the frozen or the newest game is reviewed, else links the newest", () => {
+    const frozen = buildDailyPlan({ ...base, bankTotal: 0, dueShown: 0, bankQueue: [], lastGame: { ref: "cold", opponent: "a", moments: 2, reviewed: false } });
+    assert.equal(reviewStepRef(frozen.steps[0]!), "cold");
+    const newer = { ref: "warm", opponent: "b", moments: 3, reviewed: false };
+    const open = liveEmptySteps(frozen, { frozenReviewed: false, lastGame: newer, importConnected: false });
+    assert.equal(open.bits, 0);
+    assert.equal(open.steps[0]!.href, "/review/warm");
+    assert.equal(open.steps[0]!.subtitle, "vs b · the coach found 3 moments · ~1 min");
+    assert.equal(open.steps[1], frozen.steps[1], "other steps unchanged");
+    assert.equal(liveEmptySteps(frozen, { frozenReviewed: true, lastGame: newer, importConnected: false }).bits, 0b01);
+    assert.equal(liveEmptySteps(frozen, { frozenReviewed: false, lastGame: { ...newer, reviewed: true }, importConnected: false }).bits, 0b01);
+    const same = liveEmptySteps(frozen, { frozenReviewed: false, lastGame: { ref: "cold", opponent: "a", moments: 2, reviewed: false }, importConnected: false });
+    assert.equal(same.steps[0], frozen.steps[0]);
+    const imp = buildDailyPlan({ ...base, bankTotal: 0, dueShown: 0, bankQueue: [], lastGame: null });
+    assert.equal(liveEmptySteps(imp, { frozenReviewed: false, lastGame: null, importConnected: true }).bits, 0b01);
+    assert.equal(liveEmptySteps(imp, { frozenReviewed: false, lastGame: null, importConnected: false }).bits, 0);
   });
 
   it("words the CTA and the footnote", () => {

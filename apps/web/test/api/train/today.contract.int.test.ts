@@ -137,6 +137,51 @@ describe("P5 R1 today, R4 themes, R8 badges (Postgres)", { skip: url ? false : "
     assert.equal(await count(w.db, Prisma.sql`SELECT count(*) AS n FROM training_profiles WHERE "userId" = ${m.id} AND "ratingSeeded"`), 1);
   });
 
+  it("browser pass D3: 'Review your last game' is done once that game is reviewed, and links the newest analysed game (Home's)", async () => {
+    const m = await w.member("reviewstep");
+    const rep = await w.persona(m, "bank-empty");
+    const game = rep.gameRefs.GAME!;
+    const today = async (now = WORLD_NOW) => {
+      const r = await w.call("today", "GET", "/api/train/today", m, { now });
+      assert.equal(r.res.status, 200, await r.res.clone().text());
+      return ok(TrainToday).parse(await r.json()).data;
+    };
+    const t0 = await today();
+    assert.equal(t0.plan.steps[0]!.kind, "review");
+    assert.equal(t0.plan.steps[0]!.href, `/review/${game}`);
+    assert.notEqual(t0.plan.steps[0]!.status, "done");
+    assert.equal(t0.plan.done, 0);
+
+    // The frozen plan names an older game (built before this one was analysed): the open step links the newest one.
+    await w.db.$executeRaw(Prisma.sql`UPDATE training_days SET plan = jsonb_set(plan, '{steps,0,href}', '"/review/cm0000000000000000000older"')
+      WHERE "userId" = ${m.id} AND plan IS NOT NULL`);
+    const t1 = await today(new Date(WORLD_NOW.getTime() + 60_000));
+    assert.equal(t1.plan.steps[0]!.href, `/review/${game}`, "the step opens the game Home's Continue card opens");
+    assert.equal(t1.plan.done, 0);
+
+    // The member finishes that review (A7 sets completedAt): the step is done on the next read.
+    await w.db.$executeRaw(Prisma.sql`UPDATE player_reviews pr SET "completedAt" = (now() AT TIME ZONE 'UTC')
+      FROM games g JOIN game_players gp ON gp."gameId" = g.id AND gp."userId" = ${m.id}
+      WHERE g."referenceId" = ${game} AND pr."gameId" = g.id AND pr.color = gp.color`);
+    const t2 = await today(new Date(WORLD_NOW.getTime() + 120_000));
+    assert.equal(t2.plan.steps[0]!.status, "done");
+    assert.equal(t2.plan.done, 1, "was 0 of N: nothing passed reviewDone to planDoneBits");
+    assert.notEqual(t2.plan.cta.label, t0.plan.cta.label, "the CTA moves past the review step");
+  });
+
+  it("browser pass D3: 'Import games' is done once an account is linked", async () => {
+    const m = await w.member("importstep");
+    await w.persona(m, "home-new");
+    const t0 = ok(TrainToday).parse(await (await w.call("today", "GET", "/api/train/today", m)).json()).data;
+    assert.equal(t0.plan.steps[0]!.kind, "import");
+    assert.equal(t0.plan.done, 0);
+    await w.db.$executeRaw(Prisma.sql`INSERT INTO linked_accounts ("userId", provider, "externalId", username, "usernameLower", "updatedAt")
+      VALUES (${m.id}, 'LICHESS', ${`fz${m.id}`}, ${`fz${m.id}`}, ${`fz${m.id}`}, now())`);
+    const t1 = ok(TrainToday).parse(await (await w.call("today", "GET", "/api/train/today", m, { now: new Date(WORLD_NOW.getTime() + 60_000) })).json()).data;
+    assert.equal(t1.plan.steps[0]!.status, "done");
+    assert.equal(t1.plan.done, 1);
+  });
+
   it("caught up: the cap is used, the state is nothingdue with the waiting line, the next batch is labelled", async () => {
     const m = await w.member("caught");
     await w.persona(m, "bank-caughtup");

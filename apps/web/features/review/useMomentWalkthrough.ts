@@ -223,7 +223,9 @@ export function useMomentWalkthrough(): MomentWalkthrough {
         settle: () => settleReviewProgress(refId),
         complete: () => completeReviewRequest(refId, { keepalive: true }),
         navigate: () => {
-          void qc.invalidateQueries({ queryKey: qk.games.all(), refetchType: "none" });
+          // The archive rows, today's plan ("Review your last game" is done now, browser pass D3) and Home's Continue
+          // card are stale: each refetches where it is next shown.
+          for (const key of [qk.games.all(), qk.train.today(), qk.home()]) void qc.invalidateQueries({ queryKey: key, refetchType: "none" });
           router.push(reviewCompletePath(refId));
         },
       });
