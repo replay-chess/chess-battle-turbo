@@ -23,6 +23,10 @@ test.describe("bot game", { tag: p2("@smoke", "@local-only") }, () => {
         if (u.pathname.startsWith("/workers/") || u.pathname.startsWith("/api/games") || u.hostname !== "localhost") requests.push(`${r.method()} ${u.host}${u.pathname}`);
       });
 
+      // The sign-in landed on `/`, which sends a member to /home (P5), and Home holds the user room (live counts and
+      // import rows): that page's socket is not the game's. Count from here on (regression: bot-game-home-socket, CI
+      // 43599091643: "no socket connection while the bot game is played", received 1 on both projects).
+      const connectionsBefore = me.link.connections;
       await page.goto("/play", { timeout: 180_000 });
       // "Play the Machine" is the default mode; Start creates the game (POST /api/games).
       await page.getByTestId("start-game-button").click();
@@ -70,7 +74,7 @@ test.describe("bot game", { tag: p2("@smoke", "@local-only") }, () => {
 
       const completes = () => requests.filter((r) => r.startsWith("POST") && r.endsWith("/complete")).length;
       // The game itself never touches the socket server (it runs in the browser).
-      expect(me.link.connections, "no socket connection while the bot game is played").toBe(0);
+      expect(me.link.connections - connectionsBefore, "no socket connection while the bot game is played").toBe(0);
       await me.board.resign();
       await expect(page.getByTestId("game-result")).toBeVisible({ timeout: 30_000 });
       await expect.poll(completes, { timeout: 30_000 }).toBe(1);

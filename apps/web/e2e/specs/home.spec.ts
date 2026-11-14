@@ -38,19 +38,27 @@ for (const device of ["desktop-1440", "iphone"] as const) {
     test("T1: a signed-in member opening / lands on /home; logo and G H come back to it", { tag: ["@state:V3Nav.home"] }, async ({ member, page, telemetry }) => {
       test.setTimeout(240_000);
       await member("K");
+      // `home_viewed` is once per mount. The sign-in itself lands on `/`, which is /home for a member now, so that mount
+      // sent one already: wait for it, then expect exactly one more for this test's own visit (regression:
+      // home-t1-viewed-per-mount, local run after the Clerk `md` claim: 2 events, the sign-in's mount and this one).
+      const signInMounts = new URL(page.url()).pathname === "/home" ? 1 : 0;
+      if (signInMounts) await telemetry.expect("home_viewed", {}, { count: 1, source: "client" });
       await gotoOk(page, "/");
       await expect(page).toHaveURL(/\/home$/, { timeout: 120_000 });
       await expect(page.getByTestId("home")).toBeVisible({ timeout: 120_000 });
       await noDocumentScroll(page);
 
-      const home = page.locator('[data-rc-nav] a[href="/home"]:visible, [data-rc-tabbar] a[href="/home"]:visible').first();
+      // The Home nav item (sidebar) or tab, by its own test id: the shell's logo is also a link to /home inside the nav
+      // region (regression: home-t1-logo-match, CI 43599091643: `a[href="/home"]` matched the logo, which carries no
+      // aria-current, once the session's claims made the landing /home).
+      const home = page.locator('[data-testid="nav-item-home"]:visible, [data-testid="tab-item-home"]:visible').first();
       await expect(home).toHaveAttribute("aria-current", "page");
       if (isPhone(device)) {
         // Six tabs: Home, Play, Train, Learn, Review, Profile.
         await expect(page.locator("[data-rc-tabbar] a:visible")).toHaveCount(6);
         await expect(page.locator("[data-rc-tabbar]")).toContainText("Train");
       }
-      await telemetry.expect("home_viewed", {}, { count: 1, source: "client" });
+      await telemetry.expect("home_viewed", {}, { count: signInMounts + 1, source: "client" });
 
       // The logo (sidebar on desktop, the top bar on phones) goes to /home.
       await gotoOk(page, "/play");
