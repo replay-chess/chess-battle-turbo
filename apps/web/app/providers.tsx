@@ -11,7 +11,8 @@ import { getQueryClient } from "@/lib/api/query-client";
 import { NavigationBridge } from "@/lib/navigation/bridge";
 import { installChunkRetry } from "@/lib/pwa/chunk-retry";
 
-// Before any lazy chunk loads: a chunk that fails to load is retried (lib/pwa/chunk-retry.ts). A no-op on the server.
+// A chunk that fails to load is retried (lib/pwa/chunk-retry.ts). instrumentation-client.ts installs it before
+// hydration; this call is the fallback (idempotent). A no-op on the server.
 installChunkRetry();
 
 // Dev only: `process.env.NODE_ENV` is a literal at build time, so production bundles never reference the package.

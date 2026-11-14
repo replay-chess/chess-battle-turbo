@@ -7,11 +7,21 @@ import { posthogRedactShareCodes, replayShareRedaction, sentryShareRedaction } f
 import { loadSentry, loadedSentry, sentryEnabled } from "./lib/sentry/lazy";
 import type { NavigationType } from "./lib/shell/nav-history";
 import "./lib/shell/nav-history";
+import { installChunkRetry } from "./lib/pwa/chunk-retry";
 import { installStylesheetRejectionGuard } from "./lib/shell/stylesheet-rejections";
 
 // First, before the Sentry listeners below: a runtime stylesheet whose load failed (WebKit: cut by a navigation) is not an
 // unhandled rejection (lib/shell/stylesheet-rejections.ts).
 installStylesheetRejectionGuard();
+
+// Before the App Router reads the first paint's RSC payload: a chunk that fails to load is retried (lib/pwa/chunk-retry.ts).
+// The chunks that payload names (the route groups' layouts and pages) are asked for while the router hydrates, before
+// any app module has run, so the root layout's providers (which also call it; idempotent) were too late for them: a
+// load WebKit cut mid-hydration (the page reloaded or left) was reported at once as "ChunkLoadError: Loading chunk N
+// failed" (regression: webkit-route-chunk-abort, CI 43637337703 review-walkthrough ?m=2 reload, chunk 2563 =
+// app/(app)/layout). With the wrapper in place first, that load is retried, and on a page being left the retry
+// outlives the document, so nothing is reported.
+installChunkRetry();
 
 // Sentry loads after start-up (lib/sentry/lazy.ts, FIX-2): the SDK left the shared First Load JS of every route. Errors
 // thrown before it has loaded are kept here (at most EARLY_MAX) and reported once init has run.
