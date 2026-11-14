@@ -22,7 +22,7 @@ import {
   MomentBankResponse as MomentBankSchema,
   RetryResponse as RetrySchema,
 } from "@repo/contracts/http/review";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type MutationOptions, type QueryClient } from "@tanstack/react-query";
 import { api } from "../client";
 import { endpoints } from "../endpoints";
 import { qk } from "../keys";
@@ -102,11 +102,46 @@ export function useComputeLegend(ref: string) {
   });
 }
 
-/** A6 behind P5's `train` flag (CDL §3.6.1): set semantics, the review payload refetches after. */
-export function useToggleMomentInBank(ref: string) {
+export type MomentBankToggleInput = { ply: number; inBank: boolean; undo?: boolean };
+
+export type MomentBankToggleHandlers = {
+  onSuccess?: (res: MomentBankResponse, input: MomentBankToggleInput) => void;
+  onError?: (error: unknown, input: MomentBankToggleInput) => void;
+  /** Receives each A6 request as it starts (settles when it has; never rejects): Finish Review waits for it. */
+  track?: (settled: Promise<void>) => void;
+};
+
+/**
+ * A6 behind P5's `train` flag (CDL §3.6.1): set semantics, the review payload refetches after.
+ *
+ * The caller's success / error handling is the MUTATION's (hook options), not `mutate(vars, {onSuccess})`: TanStack runs
+ * a mutate() callback only while the calling component is still mounted and only for the latest mutate() call, so a slow
+ * switch answered after the member moved to the next moment or pressed Finish Review (regression:
+ * first-add-finish-race) lost its toast and its rollback, and the review kept a ticked box for a card that was never
+ * made. The switch shows its own error toast, so the global reaction's generic "Failed to save changes" stays off
+ * (`errorUi: "inline"`; 401 / 402 still react globally).
+ */
+export function useToggleMomentInBank(ref: string, handlers: MomentBankToggleHandlers = {}) {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: { ply: number; inBank: boolean }) => setMomentBankRequest(ref, input.ply, input.inBank),
+  return useMutation(momentBankMutationOptions(qc, ref, handlers));
+}
+
+/** useToggleMomentInBank's mutation options (plain, so a test can run them through a MutationObserver). */
+export function momentBankMutationOptions(qc: QueryClient, ref: string, handlers: MomentBankToggleHandlers = {}) {
+  return {
+    meta: { errorUi: "inline" as const },
+    mutationFn: (input: MomentBankToggleInput) => {
+      const request = setMomentBankRequest(ref, input.ply, input.inBank);
+      handlers.track?.(
+        request.then(
+          () => undefined,
+          () => undefined,
+        ),
+      );
+      return request;
+    },
+    onSuccess: (res, input) => handlers.onSuccess?.(res, input),
+    onError: (error, input) => handlers.onError?.(error, input),
     onSettled: () => qc.invalidateQueries({ queryKey: qk.review.detail(ref), exact: true }),
-  });
+  } satisfies MutationOptions<MomentBankResponse, unknown, MomentBankToggleInput>;
 }

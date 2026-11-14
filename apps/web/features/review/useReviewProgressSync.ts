@@ -41,10 +41,19 @@ export function retryable(events: readonly ProgressEvent[], seen: { has(e: Progr
   return again;
 }
 
-/** A5 requests still on the wire, per review: Finish Review waits for them before A7 (see settleReviewProgress). */
+/**
+ * Review writes still on the wire, per review: the A5 batches and the A6 Mistake Bank switches. Finish Review waits for
+ * them before A7 (see settleReviewProgress).
+ */
 const inflight = new Map<string, Set<Promise<void>>>();
 
-function track(ref: string, p: Promise<void>): void {
+/**
+ * Registers a write of this review that Finish Review must wait for (`p` settles when the write has; it never rejects).
+ * A6 registers its switch here (MomentBankToggle): A7 counts the bank cards it reports ("N added to your Mistake
+ * Bank"), so an A6 still on the wire when Finish is pressed has to land first (regression: first-add-finish-race, a
+ * slow first "Add this position" then Finish read "nothing added" while the card was still being written).
+ */
+export function trackReviewWrite(ref: string, p: Promise<void>): void {
   let set = inflight.get(ref);
   if (!set) inflight.set(ref, (set = new Set()));
   set.add(p);
@@ -55,8 +64,9 @@ function track(ref: string, p: Promise<void>): void {
 }
 
 /**
- * Resolves when every A5 request of this review sent so far has settled (answered or failed). Finish Review awaits
- * it before A7, so the complete page never reads a walkthrough whose last results are still on the wire.
+ * Resolves when every A5 request and A6 switch of this review sent so far has settled (answered or failed). Finish
+ * Review awaits it before A7, so the complete page never reads a walkthrough whose last results, or a bank card, are
+ * still on the wire.
  */
 export async function settleReviewProgress(ref: string): Promise<void> {
   const pending = [...(inflight.get(ref) ?? [])];
@@ -89,7 +99,7 @@ export function flushReviewProgress(
         }
       },
     );
-    track(ref, sent);
+    trackReviewWrite(ref, sent);
   }
   return events.length;
 }

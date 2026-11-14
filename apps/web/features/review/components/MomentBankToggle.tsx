@@ -7,7 +7,10 @@
 //                then writes `bankOptOut` and creates or deletes the BANK card in one transaction; the A1 refetch
 //                after it settles brings the card. Toasts: "Added to Mistake Bank · next review tomorrow" /
 //                "Removed from Mistake Bank" with Undo. A failure rolls the checkbox back with an error toast (409
-//                `not_bankable`: "This position can't be added to your Mistake Bank").
+//                `not_bankable`: "This position can't be added to your Mistake Bank"). The answer is handled by the
+//                mutation itself, so a slow switch still toasts and rolls back after the member moved to another
+//                moment or left the review; Finish Review waits for a switch still on the wire before A7
+//                (trackReviewWrite; regression: first-add-finish-race).
 //   stale        every bank list, today's plan, Home and the badge (refetched where they are next shown).
 // The /dev/ui demo flips the cached payload only (no request). B is registered in the `?` list while mounted.
 import { useEffect, useRef } from "react";
@@ -16,7 +19,7 @@ import type { ReviewDTO } from "@repo/contracts/http/review";
 import { CheckboxRow } from "@/components/ui/checkbox";
 import { notify } from "@/components/ui/toast";
 import { qk } from "@/lib/api/keys";
-import { useToggleMomentInBank } from "@/lib/api/mutations/review";
+import { useToggleMomentInBank, type MomentBankToggleInput } from "@/lib/api/mutations/review";
 import { COARSE_MQ } from "@/lib/layout/media-queries";
 import { isEditableTarget, MODAL_OPEN_SELECTOR } from "@/lib/shell/key-target";
 import { singleKeyEnabledNow } from "@/lib/shell/prefs";
@@ -25,6 +28,7 @@ import { BANK_TOGGLE_COPY, BANK_TOGGLE_STALE_KEYS, bankToggleErrorCopy, momentCa
 import { useReview } from "../context";
 import { CONTROL_SELECTOR, REVIEW_ARROW_WIDGET_SELECTOR, reviewHotkeyFor } from "../keys/hotkeys";
 import { useReviewShortcuts } from "../keys/useReviewShortcuts";
+import { trackReviewWrite } from "../useReviewProgressSync";
 
 const BANK_SHORTCUTS: Omit<ShortcutSection, "scope"> & { scope: "review:bank" } = {
   title: BANK_TOGGLE_COPY.shortcutTitle,
@@ -39,41 +43,51 @@ function closest(target: EventTarget | null, selector: string): boolean {
 export function MomentBankToggle({ ply, inBank }: { ply: number; inBank: boolean }) {
   const { refId, demo } = useReview();
   const qc = useQueryClient();
-  const toggle = useToggleMomentInBank(refId);
   const key = qk.review.detail(refId);
+  const toggle = useToggleMomentInBank(refId, {
+    track: (settled) => trackReviewWrite(refId, settled),
+    onSuccess: (res, input) => {
+      const current = qc.getQueryData<ReviewDTO>(key);
+      if (current) qc.setQueryData<ReviewDTO>(key, withMomentBank(current, input.ply, res.inBank, momentCardOf(res)));
+      markStale();
+      if (input.undo) return;
+      if (res.inBank) notify.success(BANK_TOGGLE_COPY.added(res.card?.dueLabel ?? null));
+      else notify.undo(BANK_TOGGLE_COPY.removed, { onUndo: () => send({ ply: input.ply, inBank: true, undo: true }) });
+    },
+    onError: (error, input) => {
+      const current = qc.getQueryData<ReviewDTO>(key);
+      if (current) qc.setQueryData<ReviewDTO>(key, withMomentBank(current, input.ply, !input.inBank, null));
+      notify.error(bankToggleErrorCopy(error));
+    },
+  });
   useReviewShortcuts("bank", BANK_SHORTCUTS);
 
-  const markStale = () => {
+  function markStale() {
     for (const k of BANK_TOGGLE_STALE_KEYS) void qc.invalidateQueries({ queryKey: k, refetchType: "none" });
-  };
+  }
 
-  const set = (next: boolean, opts: { undo?: boolean } = {}) => {
+  /** The optimistic flip, then A6 (the mutation's own handlers answer it, mounted or not). */
+  function send(input: MomentBankToggleInput) {
     const before = qc.getQueryData<ReviewDTO>(key);
-    if (before) qc.setQueryData<ReviewDTO>(key, withMomentBank(before, ply, next, null));
+    if (before) qc.setQueryData<ReviewDTO>(key, withMomentBank(before, input.ply, input.inBank, null));
+    toggle.mutate(input);
+  }
+
+  const set = (next: boolean) => {
     if (demo) {
-      if (opts.undo) return;
+      const before = qc.getQueryData<ReviewDTO>(key);
+      if (before) qc.setQueryData<ReviewDTO>(key, withMomentBank(before, ply, next, null));
       if (next) notify.success(BANK_TOGGLE_COPY.added("tomorrow"));
-      else notify.undo(BANK_TOGGLE_COPY.removed, { onUndo: () => set(true, { undo: true }) });
+      else
+        notify.undo(BANK_TOGGLE_COPY.removed, {
+          onUndo: () => {
+            const current = qc.getQueryData<ReviewDTO>(key);
+            if (current) qc.setQueryData<ReviewDTO>(key, withMomentBank(current, ply, true, null));
+          },
+        });
       return;
     }
-    toggle.mutate(
-      { ply, inBank: next },
-      {
-        onSuccess: (res) => {
-          const current = qc.getQueryData<ReviewDTO>(key);
-          if (current) qc.setQueryData<ReviewDTO>(key, withMomentBank(current, ply, res.inBank, momentCardOf(res)));
-          markStale();
-          if (opts.undo) return;
-          if (res.inBank) notify.success(BANK_TOGGLE_COPY.added(res.card?.dueLabel ?? null));
-          else notify.undo(BANK_TOGGLE_COPY.removed, { onUndo: () => set(true, { undo: true }) });
-        },
-        onError: (error) => {
-          const current = qc.getQueryData<ReviewDTO>(key);
-          if (current) qc.setQueryData<ReviewDTO>(key, withMomentBank(current, ply, !next, null));
-          notify.error(bankToggleErrorCopy(error));
-        },
-      },
-    );
+    send({ ply, inBank: next });
   };
 
   // B toggles while this answered moment is on screen (the review's own listener leaves B to us).
