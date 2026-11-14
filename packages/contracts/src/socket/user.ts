@@ -86,12 +86,56 @@ export const EntitlementChangedEvent = z.object({
 });
 export type EntitlementChangedEvent = z.infer<typeof EntitlementChangedEvent>;
 
+// ── P5 (phase-05 plan §7.1, §7.4, §5.5): the Mistake Bank events ───────────────────────────────────────────────
+// Changes that come from an analysis are folded into `analysis:done` / `analysis:batch` (`bankAdded`, `bankDue`,
+// ./analysis.ts); these two are emitted only off the analysis path. The worker (kid `wk`) emits `mistakes:added`
+// from the EXTRACT_MISTAKES backfill (coalesced ≤ 1 per user per 60 s, dedupeKey mistakesAddedDedupeKey());
+// the web (kid `web`) emits `bank:due_changed` after a member's own grading, skip, removal or A6 toggle.
+
+/** `mistakes:added` is coalesced per user to at most one per this interval (WK/src/extract/coalesce.ts). */
+export const MISTAKES_ADDED_MIN_GAP_MS = 60_000;
+
+/** `mistakes:<userRef>:<minute>`: one coalesced frame per user and minute (minute = floor(epoch ms / 60 000)). */
+export function mistakesAddedDedupeKey(userRef: string, epochMs: number): string {
+  return `mistakes:${userRef}:${Math.floor(epochMs / 60_000)}`;
+}
+
+export { BankAdded } from "./analysis";
+
+/** The member's due counts after a change made elsewhere (another device graded, skipped or removed a card). */
+export const BankDueChangedEvent = z.object({
+  v: z.literal(1),
+  /** The capped count the nav and Home show. */
+  bankDue: Count,
+  /** Due before the daily cap. */
+  dueRaw: Count,
+  /** BANK cards in the bank. */
+  total: Count,
+  /** The next release with due cards, or null. */
+  nextAt: z.iso.datetime().nullable(),
+});
+export type BankDueChangedEvent = z.infer<typeof BankDueChangedEvent>;
+
+/** Backfill / re-extraction only (`cardsAdded > 0`). `games` = games extracted since the last frame. */
+export const MistakesAddedEvent = z.object({
+  v: z.literal(1),
+  games: Count,
+  /** Mistake rows inserted or seen again. */
+  added: Count,
+  cardsAdded: Count,
+  total: Count,
+  bankDue: Count,
+});
+export type MistakesAddedEvent = z.infer<typeof MistakesAddedEvent>;
+
 // ── Registry input (registry.ts spreads these into EMIT_EVENTS with `to: ["user"]`, `seq: false`) ──────────────
 export const USER_EVENTS = {
   "import:progress": ImportProgressEvent,
   "import:finished": ImportFinishedEvent,
   "import:failed": ImportFailedEvent,
   "entitlement:changed": EntitlementChangedEvent,
+  "bank:due_changed": BankDueChangedEvent,
+  "mistakes:added": MistakesAddedEvent,
 } as const;
 export type UserEventName = keyof typeof USER_EVENTS;
 export type UserEventPayload<N extends UserEventName> = z.output<(typeof USER_EVENTS)[N]>;
@@ -101,10 +145,14 @@ export const USER_EVENT_NAMES = Object.keys(USER_EVENTS) as UserEventName[];
  * Serialised `data` budgets in bytes, measured with the worst-case fixtures in ./fixtures/user.ts (25-character
  * refs, 7-digit counters, the longest provider and error code, a full entitlement DTO with a payment issue) and
  * asserted by test/user.p4.test.ts (worst cases today: 153 / 231 / 160 / 547 B). §7.6's "≈ 125 B" is the typical progress frame.
+ * P5 (phase-05 §9.4 "≤ 120 B each", asserted by test/user.p5.test.ts with 5-digit counters and an ISO instant):
+ * bank:due_changed 88 B, mistakes:added 84 B.
  */
 export const USER_EVENT_BUDGETS = {
   "import:progress": 192,
   "import:finished": 256,
   "import:failed": 192,
   "entitlement:changed": 640,
+  "bank:due_changed": 120,
+  "mistakes:added": 120,
 } as const satisfies Record<UserEventName, number>;

@@ -174,7 +174,7 @@ describe("registry", () => {
     for (const name of [...SERVER_EVENT_NAMES, ...COMMAND_NAMES]) assert.match(name, /^[a-z]+:[a-z_]+$/, name);
   });
 
-  it("the emit registry: P2's test:echo (refused in production), P3's analysis events and P4's user events", () => {
+  it("the emit registry: P2's test:echo (refused in production), P3's analysis events, P4's and P5's user events", () => {
     assert.deepEqual(Object.keys(EMIT_EVENTS), [
       "test:echo",
       "analysis:queued",
@@ -189,6 +189,8 @@ describe("registry", () => {
       "import:finished",
       "import:failed",
       "entitlement:changed",
+      "bank:due_changed",
+      "mistakes:added",
     ]);
     const dev = emitEventFor("test:echo", "dev");
     assert.ok(dev.ok);

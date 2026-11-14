@@ -9,6 +9,7 @@ import {
   FORBIDDEN_REASONS,
   ILLEGAL_MOVES_REASONS,
   isErrorCode,
+  RATE_LIMIT_REASONS,
   statusFor,
   SUBSCRIPTION_REASONS,
   VALIDATION_REASONS,
@@ -75,13 +76,14 @@ describe("codes", () => {
     assert.equal(statusFor("gone"), 410);
     assert.equal(isErrorCode("gone"), true);
     assert.equal(codeForStatus(410), "gone");
-    assert.deepEqual([...CONFLICT_REASONS], [
+    // Append-only: P2's, P3's and P4's reasons keep their positions (P5 appends after them, see below).
+    assert.deepEqual([...CONFLICT_REASONS].slice(0, 15), [
       "already_started", "already_completed", "not_bot_game", "not_finished", "rev_gap",
       "skipped", "already_running", "not_failed", "analysis_not_done", "already_ready",
       "linked_elsewhere", "already_linked", "sync_running", "plan_required", "profile_closed",
     ]);
     // PR1: a FEN that parses but is not a legal position is a 400 validation_failed reason (not the P2 422 code).
-    assert.deepEqual([...VALIDATION_REASONS], ["mode_not_available", "illegal_position"]);
+    assert.deepEqual([...VALIDATION_REASONS].slice(0, 2), ["mode_not_available", "illegal_position"]);
   });
 
   it("has the P4 rows of phase-04 §0.2 D4-05: the six conflict reasons (P3's not_failed reused), no new codes", () => {
@@ -93,6 +95,15 @@ describe("codes", () => {
     assert.equal(statusFor("upstream_unavailable"), 502);
     assert.equal(statusFor("rate_limited"), 429);
     assert.equal(ERROR_CODES.length, 21, "P4 adds no error code");
+  });
+
+  it("has the P5 rows of phase-05 §0, §5.6, §7.2: session_ended, two validation reasons, the durable 429 reasons, no new code", () => {
+    assert.deepEqual([...CONFLICT_REASONS].slice(15), ["session_ended"]);
+    assert.deepEqual([...VALIDATION_REASONS].slice(2), ["cursor_filter_mismatch", "new_per_day_above_cap"]);
+    assert.deepEqual([...RATE_LIMIT_REASONS], ["daily_puzzle_limit", "session_limit", "report_limit"]);
+    assert.equal(new Set(RATE_LIMIT_REASONS).size, RATE_LIMIT_REASONS.length);
+    assert.equal(ERROR_CODES.length, 21, "P5 adds no error code");
+    assert.equal(isErrorCode("session_ended"), false, "a conflict reason, not a code");
   });
 
   it("never infers a P2 code from a bare status", () => {

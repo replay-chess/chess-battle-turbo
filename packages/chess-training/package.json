@@ -1,0 +1,33 @@
+{
+  "name": "@repo/chess-training",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./puzzles/*": "./puzzles/*",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "test": "TZ=UTC tsx --test \"src/**/*.test.ts\" && TZ=Asia/Kolkata tsx --test \"src/**/*.test.ts\"",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src --no-error-on-unmatched-pattern --max-warnings 0"
+  },
+  "dependencies": {
+    "@repo/contracts": "workspace:*",
+    "@repo/game-core": "workspace:*",
+    "chess.js": "1.4.0",
+    "sqids": "0.3.0",
+    "ts-fsrs": "5.4.2"
+  },
+  "devDependencies": {
+    "@repo/chess-fixtures": "workspace:*",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "22.15.3",
+    "eslint": "^9.34.0",
+    "tsx": "4.20.6",
+    "typescript": "5.9.2"
+  }
+}

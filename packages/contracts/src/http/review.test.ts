@@ -156,7 +156,7 @@ describe("ReviewStatusDTO (A2) and the A3/A4/A5/A6/A7 bodies", () => {
     });
   }
 
-  it("bank stays null in P3", () => {
+  it("bank refuses the draft P3 shape {added, plies, due} (P5 widened it to {count, plies} | null)", () => {
     assert.equal(ReviewStatusDTO.safeParse({ ...reviewStatusFixture("done"), bank: { added: 1, plies: [32], due: 0 } }).success, false);
   });
 

@@ -127,6 +127,31 @@ describe("console guard: Clerk's timer worker refused on a page being left (WebK
   });
 });
 
+describe("console guard: RSC fetches refused on a page being left (regression: webkit-rsc-prefetch-abort)", () => {
+  it("excuses the page's own `?_rsc=` loads, as WebKit and Playwright word them", () => {
+    for (const t of [
+      "/localhost:3800/games?_rsc=z6fkr due to access control checks.",
+      "/localhost:3800/profile/cmwfr85oc0000sleli0d093lg?_rsc=z6fkr due to access control checks.",
+      "Cannot load http://127.0.0.1:3000/train/bank?view=all&_rsc=1a2b3 due to access control checks.",
+    ]) {
+      assert.ok(NEXT_RSC_ABORT.test(t), t);
+      assert.equal(classifyConsole("error", t, []), null);
+    }
+  });
+  it("still reports API, service-worker, document and other-origin loads", () => {
+    for (const t of [
+      "/localhost:3800/api/me due to access control checks.",
+      "/localhost:3800/sw.js due to access control checks.",
+      "/localhost:3800/games due to access control checks.",
+      "/localhost:3800/games?view=rsc due to access control checks.",
+      "/evil.example/games?_rsc=z6fkr due to access control checks.",
+    ]) {
+      assert.equal(NEXT_RSC_ABORT.test(t), false, t);
+      assert.ok(classifyConsole("error", t, []), t);
+    }
+  });
+});
+
 describe("console guard: clerk-js loads aborted by a navigation (regression: p04-webkit-clerk-abort)", () => {
   const cdn = "https://loving-martin-7959.clerk.accounts.dev/npm/@clerk/clerk-js@5.128.0/dist/clerk.browser.js";
   it("excuses WebKit's cancelled FAPI fetch and token-poller blob when clerk-js is the first frame", () => {

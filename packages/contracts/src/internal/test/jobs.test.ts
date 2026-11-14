@@ -52,7 +52,9 @@ describe("job priorities and bands", () => {
   });
 
   it("kinds: the M3 enum, of which P3 runs three, each with its attempt cap", () => {
-    assert.equal(JOB_KINDS.length, 10);
+    // M3 created ten kinds; P5's m5a appends EXTRACT_MISTAKES (jobs.p5.test.ts).
+    assert.equal(JOB_KINDS.length, 11);
+    assert.equal(JOB_KINDS[10], "EXTRACT_MISTAKES");
     assert.equal(new Set(JOB_KINDS).size, JOB_KINDS.length);
     assert.equal((JOB_KINDS as readonly string[]).includes("HOURLY_TICK"), false, "P3-D22: no hourly tick");
     for (const kind of P3_JOB_KINDS) assert.ok((JOB_KINDS as readonly string[]).includes(kind), kind);

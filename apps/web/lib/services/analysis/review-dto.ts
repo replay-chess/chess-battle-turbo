@@ -35,6 +35,7 @@ import { initialsOf } from "@repo/game-core/rules/describe";
 import { timeLabel, wireTimeClass } from "@repo/game-core/rules/timeClass";
 import { Chess } from "chess.js";
 import { LRUCache } from "lru-cache";
+import { bankCardsOf, completeBankOf, momentBankOf, reviewBankOf, type BankCard, type BankContext } from "@/lib/train/reviewBank.server";
 import { analysisStateOf, etaSecFor, type AnalysisState } from "./state";
 import type { GameColumns, PlayerColumns, ProbeRow, ReviewRow, StatusRow } from "./review-sql";
 import { historicalFullName, historicalShortName } from "./legend-facts";
@@ -259,7 +260,10 @@ const RESULT_WIRE = { FOUND: "found", FOUND_RETRY: "found_retry", REVEALED: "rev
 
 const UCI_LINE = /^[a-h][1-8][a-h][1-8][qrbn]?$/;
 
-export function momentOf(m: ReviewMomentV1, progress: ReviewProgressV1, replay: Replayed, startPly: number): MomentDTO | null {
+/** P5 (`train` flag on): the moment cards and how to label them; undefined → P3's `inBank` from `bankOptOut`. */
+export type MomentBankInput = { cards: readonly BankCard[]; ctx: BankContext };
+
+export function momentOf(m: ReviewMomentV1, progress: ReviewProgressV1, replay: Replayed, startPly: number, bank?: MomentBankInput): MomentDTO | null {
   const fen = replay.fens[m.ply];
   const judgement = judgementKey(m.judgement) as JKey | null;
   if (fen === undefined || !judgement) return null;
@@ -287,7 +291,7 @@ export function momentOf(m: ReviewMomentV1, progress: ReviewProgressV1, replay: 
     ask: m.ask,
     why: m.why.length ? m.why : [{ t: `${bestSan} was the engine’s move here.`, v: false }],
     plan: m.plan,
-    inBank: !progress.bankOptOut.includes(m.ply),
+    ...(bank ? momentBankOf(bank.cards, m.ply, bank.ctx) : { inBank: !progress.bankOptOut.includes(m.ply) }),
     result: result ? RESULT_WIRE[result] : null,
     attempts: Math.min(50, progress.attempts[String(m.ply)] ?? 0),
   };
@@ -296,12 +300,13 @@ export function momentOf(m: ReviewMomentV1, progress: ReviewProgressV1, replay: 
 export function reviewContentOf(
   row: Pick<ReviewRow, "content" | "progress" | "textStatus" | "reviewStartedAt" | "reviewCompletedAt" | "startPly">,
   replay: Replayed,
+  bank?: MomentBankInput,
 ): ReviewContentDTO | null {
   const content: ReviewContentV1 | null = parseReviewContent(row.content);
   if (!content) return null;
   const progress = parseReviewProgress(row.progress) ?? parseReviewProgress(null)!;
   const moments = content.moments
-    .map((m) => momentOf(m, progress, replay, row.startPly))
+    .map((m) => momentOf(m, progress, replay, row.startPly, bank))
     .filter((m): m is MomentDTO => m !== null)
     .slice(0, MAX_MOMENTS);
   return {
@@ -332,7 +337,18 @@ export function legendNameOf(row: ReviewRow): string | null {
 }
 
 // ── ReviewDTO (A1) ───────────────────────────────────────────────────────────────────────────────────────────────
-export type BuildOptions = { nowMs: number; siteOrigin: string };
+export type BuildOptions = {
+  nowMs: number;
+  siteOrigin: string;
+  /** P5 (`train` flag on, the row read with `bank: true`): label the moment cards in this zone. */
+  bank?: BankContext;
+};
+
+/** The moment cards of a row read with `bank: true`, or undefined (P3's fields). */
+export function bankInputOf(row: Pick<ReviewRow, "bankCards">, ctx: BankContext | undefined): MomentBankInput | undefined {
+  if (!ctx || row.bankCards === undefined) return undefined;
+  return { cards: bankCardsOf(row.bankCards), ctx };
+}
 
 export function buildReviewDTO(row: ReviewRow, opts: BuildOptions): ReviewDTO {
   const state = analysisStateOf(row, opts.nowMs);
@@ -344,7 +360,7 @@ export function buildReviewDTO(row: ReviewRow, opts: BuildOptions): ReviewDTO {
     row.ecoCode && /^[A-E]\d{2}$/.test(row.ecoCode) && row.openingName
       ? { eco: row.ecoCode, name: row.openingName.slice(0, 120) }
       : null;
-  const review = state.status === "done" ? reviewContentOf(row, replay) : null;
+  const review = state.status === "done" ? reviewContentOf(row, replay, bankInputOf(row, opts.bank)) : null;
   const clocks = (row.moveClocksMs ?? []).slice(0, replay.uci.length).map((c) => Math.max(0, Math.round(c)));
   return {
     v: 1,
@@ -394,7 +410,8 @@ export function reviewEtag(row: ProbeRow, nowMs: number): string {
   const state = analysisStateOf(row, nowMs);
   const updated = Math.max(epoch(row.reviewUpdatedAt), epoch(row.analysisUpdatedAt));
   const share = row.shareCode ? `${row.shareCode}${row.shareShowUsername ? "u" : "n"}` : "0";
-  return `r1-${row.version ?? 0}-${row.gradedPlies ?? 0}-${statusToken(state)}-${updated}-${share}-${row.color}${row.isPlayer ? "p" : "a"}`;
+  const bank = row.bankToken ? `-b${row.bankToken}` : "";
+  return `r1-${row.version ?? 0}-${row.gradedPlies ?? 0}-${statusToken(state)}-${updated}-${share}-${row.color}${row.isPlayer ? "p" : "a"}${bank}`;
 }
 
 /** A2: the probe values plus the comparison state. */
@@ -402,7 +419,8 @@ export function statusEtag(row: ProbeRow, nowMs: number): string {
   const state = analysisStateOf(row, nowMs);
   const updated = Math.max(epoch(row.reviewUpdatedAt), epoch(row.analysisUpdatedAt));
   const comparison = row.comparisonStatus ? `${row.comparisonStatus}.${epoch(row.comparisonUpdatedAt)}` : "x";
-  return `s1-${statusToken(state)}-${row.gradedPlies ?? 0}-${row.totalPlies ?? 0}-${row.version ?? 0}-${updated}-${comparison}-${row.color}`;
+  const bank = row.bankToken ? `-b${row.bankToken}` : "";
+  return `s1-${statusToken(state)}-${row.gradedPlies ?? 0}-${row.totalPlies ?? 0}-${row.version ?? 0}-${updated}-${comparison}-${row.color}${bank}`;
 }
 
 // ── ReviewStatusDTO (A2) ─────────────────────────────────────────────────────────────────────────────────────────
@@ -430,7 +448,7 @@ export function legendSummaryOf(
 
 export function buildStatusDTO(
   row: StatusRow,
-  opts: { nowMs: number; comparison: { status: keyof typeof COMPARISON_WIRE; facts: unknown } | null },
+  opts: { nowMs: number; comparison: { status: keyof typeof COMPARISON_WIRE; facts: unknown } | null; bank?: boolean },
 ): ReviewStatusDTO {
   const state = analysisStateOf(row, opts.nowMs);
   const total = Math.max(0, row.totalPlies ?? row.plyCount);
@@ -461,7 +479,8 @@ export function buildStatusDTO(
     },
     comparison:
       opts.comparison && facts ? legendSummaryOf(row.ref, row.startingFen, opts.comparison.status, facts, row.outcome) : null,
-    bank: null,
+    // P5: the cards that exist now for the side's moments (null with the flag off, or before extraction).
+    bank: opts.bank && row.bankCards !== undefined ? reviewBankOf(bankCardsOf(row.bankCards), row.bankVersion) : null,
   };
 }
 
@@ -545,7 +564,7 @@ function standoutsOf(dto: ReviewDTO, replay: Replayed): CompleteStandout[] {
 
 export function buildCompleteView(
   dto: ReviewDTO,
-  opts: { bestThisMonth: boolean; shareEnabled: boolean },
+  opts: { bestThisMonth: boolean; shareEnabled: boolean; bank?: MomentBankInput },
 ): ReviewCompleteView {
   const replay = replayMoves(dto.game.startFen, dto.moves);
   const review = dto.review;
@@ -561,6 +580,7 @@ export function buildCompleteView(
     judgement: m.judgement,
     why0: m.why[0]?.t ?? null,
     result: m.result,
+    ...(opts.bank ? { inBank: opts.bank.cards.some((c) => c.ply === m.ply) } : {}),
   }));
   const found = moments.filter((m) => m.result === "found" || m.result === "found_retry").length;
   const reviewed = moments.filter((m) => m.result !== null).length;
@@ -587,5 +607,9 @@ export function buildCompleteView(
     bestThisMonth: opts.bestThisMonth,
     partial: review?.progress.completedAt == null,
     shareEnabled: opts.shareEnabled && you.isYou,
+    // P5 (`train` flag on): "3 added to your Mistake Bank. The first one comes back tomorrow." + the Drill CTA.
+    ...(opts.bank
+      ? completeBankOf(opts.bank.cards.filter((c) => moments.some((m) => m.ply === c.ply)), dto.ref, opts.bank.ctx)
+      : {}),
   };
 }

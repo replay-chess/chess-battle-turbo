@@ -1,0 +1,71 @@
+/*
+ * Session summary (phase-05 plan §4.7; boards V3SessionSummary `default`, V3SessionPerfect `perfect`). One viewport:
+ * desktop and iPad landscape show two columns (minmax(0,1.1fr) minmax(0,1fr), gap 48, max 1180, centred); iPad portrait
+ * and phones stack the same content in one column inside a scroll region (the document never scrolls).
+ */
+@layer components {
+  .ts { box-sizing: border-box; height: 100%; min-height: 0; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); padding: 28px 32px; overflow: hidden; }
+  /* position: relative: the scroll box contains its `.ts-vh` labels (see .rc-scroll in components/layout/board-stage.css). */
+  .ts__scroll { position: relative; min-height: 0; display: grid; align-items: safe center; }
+  .ts__grid { box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 48px; align-items: center; width: 100%; max-width: 1180px; margin: 0 auto; }
+  .ts__left { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+  .ts-lbl { font: 500 0.6875rem/1.3 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); margin: 0; }
+  .ts-h1 { margin: 0; font-family: var(--font-instrument-serif, "Instrument Serif"), Georgia, serif; font-weight: 400; font-size: clamp(2rem, 4.9vh, 3rem); line-height: 1.05; letter-spacing: -0.01em; outline: none; }
+  .ts-lead { margin: 0; font-size: 1.0625rem; line-height: 1.45; color: var(--cb-text-secondary, var(--cb-text-soft)); }
+  .ts-mono { font-family: var(--font-geist-mono, ui-monospace), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .ts-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .ts-stats { display: flex; gap: 32px; flex-wrap: wrap; margin: 0; }
+  .ts-stat { display: flex; flex-direction: column-reverse; gap: 2px; }
+  .ts-stat dd { margin: 0; font-size: 2rem; line-height: 1; }
+  .ts-tag { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border: 1px solid color-mix(in srgb, var(--cb-good) 45%, transparent); color: var(--cb-good); background: var(--cb-surface); font: 500 0.625rem/1.4 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
+  .ts-tag[data-tone="neutral"] { color: var(--cb-text-secondary, var(--cb-text-soft)); border-color: var(--cb-border-strong); }
+
+  .ts-next { display: flex; flex-direction: column; max-width: 520px; }
+  .ts-row { box-sizing: border-box; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 14px; border-bottom: 1px solid var(--cb-border); color: var(--cb-text); text-decoration: none; }
+  .ts-row__go { margin-left: auto; }
+  .ts-row:hover { background: var(--cb-fill); }
+  .ts-row > svg { flex: none; width: 18px; height: 18px; }
+  .ts-row__text { flex: 1 1 auto; min-width: 0; }
+  .ts-row__sub { display: block; font-size: 0.8125rem; color: var(--cb-text-soft); }
+  .ts-btn-p { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 20px; border: 0; background: var(--cb-accent); color: var(--cb-accent-fg, #fff); font: 500 0.9375rem var(--font-geist-sans, system-ui), system-ui, sans-serif; text-decoration: none; white-space: normal; text-align: center; }
+  .ts-btn-p:hover { background: var(--cb-accent-hover, var(--cb-text)); color: var(--cb-accent-fg, #fff); }
+
+  .ts-card { box-sizing: border-box; background: var(--cb-surface); border: 1px solid var(--cb-border); padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .ts-table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }
+  .ts-table td, .ts-table th { padding: 0; height: 48px; vertical-align: middle; }
+  .ts-table th[scope="row"] { width: 70px; text-align: left; font-weight: 400; }
+  .ts-table td.ts-table__bar { padding: 0 10px; }
+  .ts-table td.ts-table__n { width: 24px; text-align: right; }
+  .ts-table td.ts-table__when { width: 80px; padding-left: 10px; font-size: 0.75rem; color: var(--cb-text-soft); white-space: nowrap; }
+  .ts-bar { display: block; height: 8px; background: color-mix(in srgb, var(--cb-text) 6%, transparent); }
+  .ts-bar > span { display: block; height: 8px; background: var(--cb-accent); }
+  .ts-note { margin: 0; font-size: 0.875rem; color: var(--cb-text-secondary, var(--cb-text-soft)); }
+  .ts-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ts-saving { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 0.875rem; color: var(--cb-text-soft); }
+
+  @media (max-width: 1100px) { .ts { padding: 20px; } .ts__grid { gap: 32px; } }
+  @media (max-height: 640px) {
+    .ts { padding: 14px 24px; }
+    .ts-tall { display: none !important; }
+    .ts-stat dd { font-size: 1.75rem; }
+    .ts-table td, .ts-table th { height: 36px; }
+    /* short two-column screens (iPad landscape at 150 %, long names): the column scrolls in the page and the next
+       steps stay in view at its bottom (FIX-1) */
+    .ts__scroll { overflow-y: auto; overscroll-behavior: contain; }
+    .ts-next { position: sticky; bottom: 0; z-index: 1; background: var(--cb-bg, var(--cb-surface)); }
+  }
+  /* One column: iPad portrait and phones (the shell's tab-bar mode); the column scrolls inside the page. */
+  @media (max-width: 600px), (max-width: 900px) and (orientation: portrait) {
+    .ts { padding: 0; }
+    .ts__scroll { overflow-y: auto; overscroll-behavior: contain; align-items: start; padding: 16px 16px 24px; }
+    .ts__grid { grid-template-columns: minmax(0, 1fr); gap: 20px; max-width: 720px; }
+    .ts-h1 { font-size: 2rem; }
+    .ts-lead { font-size: 0.9375rem; }
+    .ts-stats { gap: 24px; }
+    .ts-next { max-width: none; }
+    /* the next steps stay in view at the bottom of the scroll box when the column is taller than the screen (a phone
+       at 150 %: Back to Train was below the fold; FIX-1), as Review complete pins its primary */
+    .ts-next { position: sticky; bottom: 0; z-index: 1; background: var(--cb-bg, var(--cb-surface)); border-top: 1px solid var(--cb-border); }
+  }
+}

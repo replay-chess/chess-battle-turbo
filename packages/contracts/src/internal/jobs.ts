@@ -52,6 +52,9 @@ export const JOB_KINDS = [
   "ACCOUNT_PURGE",
   "DODO_CUSTOMER_SYNC",
   "HOUSEKEEPING",
+  // P5 (phase-05 plan §6.6 m5a): the Mistake Bank backfill / re-extraction. Its own migration file (an enum value
+  // cannot be used in the transaction that adds it), and two releases: N knows the value, N+1 writes it.
+  "EXTRACT_MISTAKES",
 ] as const;
 export type JobKind = (typeof JOB_KINDS)[number];
 export const JobKindSchema = z.enum(JOB_KINDS);
@@ -67,16 +70,25 @@ export type P3JobKind = (typeof P3_JOB_KINDS)[number];
 export const P4_JOB_KINDS = ["IMPORT_SYNC", "IMPORT_PURGE"] as const satisfies readonly JobKind[];
 export type P4JobKind = (typeof P4_JOB_KINDS)[number];
 
-/** Every kind a worker of this build runs (the engine lane's P3 kinds plus the I/O lane's P4 kinds). */
-export const RUN_JOB_KINDS = [...P3_JOB_KINDS, ...P4_JOB_KINDS] as const;
-export type RunJobKind = P3JobKind | P4JobKind;
+/**
+ * The kind P5 adds (phase-05 plan §7.6): EXTRACT_MISTAKES runs on the engine lane (line-extension searches) at
+ * JOB_PRIORITY.BACKLOG, so live and opened games always go first. The worker's handler map is optional per kind, so
+ * a build without the handler leaves the rows queued for the build that has one.
+ */
+export const P5_JOB_KINDS = ["EXTRACT_MISTAKES"] as const satisfies readonly JobKind[];
+export type P5JobKind = (typeof P5_JOB_KINDS)[number];
+
+/** Every kind a worker of this build runs (the engine lane's P3 and P5 kinds plus the I/O lane's P4 kinds). */
+export const RUN_JOB_KINDS = [...P3_JOB_KINDS, ...P4_JOB_KINDS, ...P5_JOB_KINDS] as const;
+export type RunJobKind = P3JobKind | P4JobKind | P5JobKind;
 
 export const JOB_STATUSES = ["QUEUED", "RUNNING", "DONE", "FAILED", "CANCELLED"] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
 /**
  * `jobs."maxAttempts"` written at insert (§7.7): ANALYZE_GAME 4, LEGEND_COMPARE 3, HOUSEKEEPING 2; P4 (phase-04
- * §7.7.1) IMPORT_SYNC 5, IMPORT_PURGE 5.
+ * §7.7.1) IMPORT_SYNC 5, IMPORT_PURGE 5; P5 EXTRACT_MISTAKES 3 (a deterministic re-run of stored analysis: a third
+ * failure is a bug to look at, not a transient).
  */
 export const JOB_MAX_ATTEMPTS = {
   ANALYZE_GAME: 4,
@@ -84,6 +96,7 @@ export const JOB_MAX_ATTEMPTS = {
   HOUSEKEEPING: 2,
   IMPORT_SYNC: 5,
   IMPORT_PURGE: 5,
+  EXTRACT_MISTAKES: 3,
 } as const satisfies Record<RunJobKind, number>;
 
 /**
@@ -129,6 +142,28 @@ export function importDedupeKey(linkedAccountId: Id): string {
 /** `importpurge:<userId>:<provider>`: one IMPORT_PURGE row per member and provider (`chesscom` | `lichess`). */
 export function importPurgeDedupeKey(userId: Id, provider: "CHESSCOM" | "LICHESS"): string {
   return `importpurge:${String(userId)}:${provider.toLowerCase()}`;
+}
+
+/**
+ * The extraction rules' version (phase-05 plan §6.4, §7.6). `game_players."bankVersion"` holds the version a game side
+ * was extracted with (0 = never); raising this re-extracts every analysed game through the backfill.
+ */
+export const EXTRACT_VERSION = 1;
+
+/** `extract:<gameId>:<userId>:v<version>`: one EXTRACT_MISTAKES row per member side and extraction version. */
+export function extractMistakesDedupeKey(gameId: Id, userId: Id, version: number = EXTRACT_VERSION): string {
+  if (!Number.isInteger(version) || version < 1) throw new Error(`extractMistakesDedupeKey: bad version ${version}`);
+  return `extract:${String(gameId)}:${String(userId)}:v${version}`;
+}
+
+/**
+ * `extract:<gameId>:<userId>:v<version>:a<analysisVersion>`: the re-extraction an engine-free regrade queues (its key
+ * moments may change, FIX-1), one per member side, extraction version and analysis version (a second regrade to the
+ * same analysis version queues nothing more).
+ */
+export function regradeExtractDedupeKey(gameId: Id, userId: Id, analysisVersion: number, version: number = EXTRACT_VERSION): string {
+  if (!Number.isInteger(analysisVersion) || analysisVersion < 1) throw new Error(`regradeExtractDedupeKey: bad analysis version ${analysisVersion}`);
+  return `${extractMistakesDedupeKey(gameId, userId, version)}:a${analysisVersion}`;
 }
 
 /** `housekeeping:<yyyy-mm-dd>`: one HOUSEKEEPING row per UTC day, planned by DAILY_PLAN. */
@@ -217,13 +252,26 @@ export const ImportPurgePayloadV1 = z.object({
 });
 export type ImportPurgePayloadV1 = z.infer<typeof ImportPurgePayloadV1>;
 
-/** The payload schema of each kind a worker of this build runs (P3 engine lane, P4 I/O lane). */
+/**
+ * EXTRACT_MISTAKES (phase-05 plan §7.6, feasibility §9 rule 2): one member side of an already-analysed game. Ids are
+ * decimal strings like every payload here, so the backfill's `jsonb_build_object` must cast them (`gp."gameId"::text`).
+ * A reader skips an unknown `v` (readJobPayload → `newer`).
+ */
+export const ExtractMistakesPayloadV1 = z.object({
+  v: z.literal(1),
+  gameId: BigIntString,
+  userId: BigIntString,
+});
+export type ExtractMistakesPayloadV1 = z.infer<typeof ExtractMistakesPayloadV1>;
+
+/** The payload schema of each kind a worker of this build runs (P3/P5 engine lane, P4 I/O lane). */
 export const JOB_PAYLOADS = {
   ANALYZE_GAME: AnalyzeGamePayloadV1,
   LEGEND_COMPARE: LegendComparePayloadV1,
   HOUSEKEEPING: HousekeepingPayloadV1,
   IMPORT_SYNC: ImportSyncPayloadV1,
   IMPORT_PURGE: ImportPurgePayloadV1,
+  EXTRACT_MISTAKES: ExtractMistakesPayloadV1,
 } as const satisfies Record<RunJobKind, z.ZodType>;
 export type JobPayload<K extends RunJobKind> = z.infer<(typeof JOB_PAYLOADS)[K]>;
 

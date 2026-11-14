@@ -20,7 +20,10 @@ import {
 
 describe("P4 emit registry entries", () => {
   it("registers the four user events with their CT schema, user rooms only, no seq, the measured budget", () => {
-    assert.deepEqual([...USER_EVENT_NAMES].sort(), ["entitlement:changed", "import:failed", "import:finished", "import:progress"]);
+    // P5 appended bank:due_changed and mistakes:added (test/user.p5.test.ts); P4's four stay registered.
+    for (const name of ["entitlement:changed", "import:failed", "import:finished", "import:progress"]) {
+      assert.ok((USER_EVENT_NAMES as string[]).includes(name), name);
+    }
     for (const name of USER_EVENT_NAMES) {
       const spec = EMIT_EVENTS[name];
       assert.equal(spec.schema, USER_EVENTS[name], name);
@@ -51,7 +54,7 @@ describe("P4 emit registry entries", () => {
     assert.ok(JSON.stringify(typical["import:progress"]).length <= 160);
   });
 
-  it("the worker emits import:* and games:changed but never entitlement:changed; the web emits all four", () => {
+  it("the worker emits import:* and games:changed but never entitlement:changed; the web emits all user events", () => {
     for (const name of ["import:progress", "import:finished", "import:failed", "games:changed"]) {
       assert.equal(kidMayEmit("wk", name), true, `wk → ${name}`);
     }

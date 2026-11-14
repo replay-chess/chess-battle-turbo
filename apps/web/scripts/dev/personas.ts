@@ -29,6 +29,12 @@
  * billing columns, links, runs, cursors, imported fixture games). The ledger hashes come from
  * lib/billing/trial-ledger.ts, so HASH_PEPPER must be set (`.env.test` / `.env.development.local`). Finally the
  * user's Clerk claims are re-synced (development Clerk key only), so middleware sees `onboarded` / `entitled` at once.
+ *
+ * Phase 5 (e2e/personas/p05.ts, phase-05 plan 6.7): every reset then removes the user's P5 rows (@repo/db/seed/p05-personas
+ * `clearP05State`: bank, cards, attempts, sessions, days, mastery, profile, their reports); a P5 persona writes its own
+ * (`writeP05Persona`: its analysed games, the bank built from their key moments, schedules relative to `now`, the
+ * profile and streak). The domain functions come from their owners (./p05-deps.ts). `dev-trial` writes P4's
+ * `import-trial` state first. The dev seed of the plan's names (`member`, `caughtup`, …) is e2e/scripts/seed-training.ts.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -37,6 +43,7 @@ import { parse as parseEnv } from "dotenv";
 import { P01_PERSONAS, type BillingColumns, type Persona } from "../../e2e/personas/p01";
 import { P03_PERSONAS, isP03Persona } from "../../e2e/personas/p03";
 import { P04_PERSONAS, isP04Persona } from "../../e2e/personas/p04";
+import { P05_PERSONAS, isP05Persona } from "../../e2e/personas/p05";
 import { PERSONA_LETTER, letterEmail, poolEmail, POOL_SIZE, roleOfEmail } from "../../e2e/fixtures/users";
 import { computeClaims, type ClaimsRecord } from "../../lib/auth/claims";
 import {
@@ -49,7 +56,7 @@ import {
   resolveEnvVar,
 } from "@repo/db/seed-guards";
 
-export const PERSONAS: Record<string, Persona> = { ...P01_PERSONAS, ...P03_PERSONAS, ...P04_PERSONAS };
+export const PERSONAS: Record<string, Persona> = { ...P01_PERSONAS, ...P03_PERSONAS, ...P04_PERSONAS, ...P05_PERSONAS };
 
 /** Plan §4 personas row: the user-count tripwire comes from prisma/seed-guards.ts (SPEC 11.2 guard 5, <= 60). */
 export const PERSONA_USER_TRIPWIRE = MAX_TARGET_USERS;
@@ -153,6 +160,10 @@ export async function resetPersona(target: string, personaName: string, opts: Re
     return { email, persona: persona.name, row, applied: false, refs: {} as Record<string, string> };
   }
 
+  // A P5 persona's domain functions are loaded and probed before the first write, so a missing module (or a changed
+  // signature) fails the reset with nothing written instead of after the user row, games and P4 state are replaced.
+  const p05Deps = isP05Persona(persona) ? await (await import("./p05-deps")).loadTrainingDeps() : undefined;
+
   const { PrismaClient } = await import("@repo/db");
   const db = new PrismaClient({ datasourceUrl: url });
   try {
@@ -206,8 +217,17 @@ export async function resetPersona(target: string, personaName: string, opts: Re
       emailHash: (e: string) => trialLedgerEmailHash(e),
       handleHash: (p: "chesscom" | "lichess", u: string, v: boolean) => handleHash(p, u, v),
     };
-    if (isP04Persona(persona)) await writeP04Persona(db, email, persona.p04, { now, ledger, log });
+    const p04Name = isP04Persona(persona) ? persona.p04 : isP05Persona(persona) ? persona.p04 : undefined;
+    if (p04Name) await writeP04Persona(db, email, p04Name, { now, ledger, log });
     else await clearP04State(db, email, { now, ledger, log });
+    // Phase 5: clear the user's bank and training rows (every reset), then write the P5 persona's.
+    const { clearP05State, writeP05Persona } = await import("@repo/db/seed/p05-personas");
+    if (isP05Persona(persona) && p05Deps) {
+      const p5 = await writeP05Persona(db, email, persona.p05, { now, deps: p05Deps, log });
+      refs = { ...refs, ...p5.gameRefs };
+    } else {
+      await clearP05State(db, email, { log });
+    }
     await syncPersonaClaims(db, email, env.clerkKey, now, log);
     log(`[personas] applied ${persona.name} to ${email}`);
     return { email, persona: persona.name, row, applied: true, refs };

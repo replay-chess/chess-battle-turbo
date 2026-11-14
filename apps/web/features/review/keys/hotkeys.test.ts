@@ -60,3 +60,14 @@ test("modifier chords are never review keys (⌘K, Ctrl+F, Alt+T stay with the b
   assert.equal(reviewHotkeyFor(key("F", "KeyF", { shiftKey: true }), ctx), null);
   assert.equal(reviewHotkeyFor(key("f", "KeyF", { defaultPrevented: true }), ctx), null);
 });
+
+// P5 (phase-05 plan §4.8): B toggles the answered key moment's Mistake Bank checkbox, with the single-key gates.
+test("B is the bank toggle, gated like every letter", () => {
+  assert.equal(reviewHotkeyFor(key("b", "KeyB"), ctx), "bank");
+  assert.equal(reviewHotkeyFor(key("B", "KeyB", { shiftKey: true }), ctx), null);
+  assert.equal(reviewHotkeyFor(key("b", "KeyB"), { ...ctx, coarse: true }), null);
+  assert.equal(reviewHotkeyFor(key("b", "KeyB"), { ...ctx, singleKeyEnabled: false }), null);
+  assert.equal(reviewHotkeyFor(key("b", "KeyB"), { ...ctx, editable: true }), null);
+  assert.equal(reviewHotkeyFor(key("b", "KeyB"), { ...ctx, modalOpen: true }), null);
+  assert.equal(reviewHotkeyFor(key("b", "KeyB", { metaKey: true }), ctx), null);
+});

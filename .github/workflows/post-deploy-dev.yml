@@ -16,6 +16,9 @@
 #
 # [V] The environment name Vercel reports ("Production – replay-chess-dev" or
 # "Preview – replay-chess-dev"): adjust the job's `if:` if it differs.
+#
+# P5 (phase-05 plan §12.4): step "Puzzle shard smoke (R2)" checks the published puzzle shards (repo variable
+# PUZZLE_SHARD_BASE_URL = the public R2 base + "/puzzles").
 name: Post-deploy (dev)
 
 on:
@@ -96,6 +99,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium
       - run: pnpm --filter @repo/db generate
+      # P5 (phase-05 plan §12.4, WP-D): the real R2 puzzle shards: manifest = the committed one, `immutable` headers,
+      # 20 random puzzles from 3 shards replay legally and map to the theme registry. The base URL is public (a repo
+      # variable, not a secret); PR CI never runs this step, so no CI job reaches R2.
+      - name: Puzzle shard smoke (R2)
+        env:
+          PUZZLE_SHARD_BASE_URL: ${{ vars.PUZZLE_SHARD_BASE_URL }}
+          PUZZLES_VERSION: v1
+        run: pnpm --filter web exec tsx scripts/qa/smoke-puzzle-shards.ts
       - name: "@smoke against the dev URL"
         env:
           CI: "1"

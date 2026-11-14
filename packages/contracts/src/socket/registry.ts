@@ -91,6 +91,9 @@ export const EMIT_EVENTS = {
   "import:finished": userSpec("import:finished"),
   "import:failed": userSpec("import:failed"),
   "entitlement:changed": userSpec("entitlement:changed"),
+  // P5 (phase-05 plan §7.4): the Mistake Bank events off the analysis path.
+  "bank:due_changed": userSpec("bank:due_changed"),
+  "mistakes:added": userSpec("mistakes:added"),
 } as const satisfies Record<string, EmitEventSpec>;
 
 export type EmitEventName = keyof typeof EMIT_EVENTS;

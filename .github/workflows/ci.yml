@@ -90,6 +90,7 @@ jobs:
           pnpm --filter @repo/chess-fixtures check-types
           pnpm --filter @repo/chess-analysis check-types
           pnpm --filter @repo/chess-import check-types
+          pnpm --filter @repo/chess-training check-types
           pnpm --filter analysis-worker check-types
 
       - name: Orphan-test guard
@@ -106,12 +107,14 @@ jobs:
           pnpm --filter web-socket test
           pnpm --filter @repo/chess-analysis test
           pnpm --filter @repo/chess-import test
+          pnpm --filter @repo/chess-training test
           pnpm --filter analysis-worker test
 
-      - name: Lint the P3 and P4 packages (--max-warnings 0)
+      - name: Lint the P3, P4 and P5 packages (--max-warnings 0)
         run: |
           pnpm --filter @repo/chess-analysis lint
           pnpm --filter @repo/chess-import lint
+          pnpm --filter @repo/chess-training lint
           pnpm --filter analysis-worker lint
 
       - name: Licence gate for the grading library and the worker (deep, no AGPL/GPL; phase-03 A7)
@@ -231,6 +234,8 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v wk_password="$WK_PW" -f packages/db/scripts/roles/replay_worker.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_app.p4.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p4.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_app.p5.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p5.sql
           pnpm --filter @repo/db exec tsx scripts/check-p4-preconditions.ts --url "$DATABASE_URL" --expect-m4
           echo "TEST_APP_DATABASE_URL=postgresql://replay_app:$APP_PW@localhost:5432/replay" >> "$GITHUB_ENV"
           echo "TEST_WORKER_DATABASE_URL=postgresql://replay_worker:$WK_PW@localhost:5432/replay" >> "$GITHUB_ENV"
@@ -238,6 +243,11 @@ jobs:
         # docs/indexes.json names must exist; the P2 hot queries must not Seq Scan games/game_players or Sort
         # game_players (planned with seqscan/sort off, so a tiny CI database still proves the index path).
         run: pnpm tsx scripts/explain-hot-queries.ts
+      - name: P5 hot-query gate (P5 indexes + EXPLAIN of the Train/Home/review-bank statements, phase-05 plan 9.1)
+        # The services' own Prisma.Sql builders (apps/web, which resolves the web's @/ imports). Seq Scan on a P5 table
+        # or game_players, or a Sort over the hot ones, fails; the (due, id) keyset tie break is the only allowed
+        # Incremental Sort. `--check-indexes` alone is the fast index-existence half.
+        run: pnpm --filter web exec tsx scripts/explain-hot-queries.ts
       - name: Integration tests (every *.int.test.ts in every package)
         run: pnpm -r test:int
       - name: Postgres part of the webhook claim test
@@ -259,7 +269,8 @@ jobs:
   e2e-smoke:
     needs: verify
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 45
+    # 45 + the P5 step (≈ 25 min on 4 workers: three bot/analysis games, the puzzle sessions, the day rollover).
+    timeout-minutes: 75
     services:
       db:
         image: postgres:17-alpine
@@ -394,6 +405,7 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/socket.p3.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v wk_password="$WK_PW" -f packages/db/scripts/roles/replay_worker.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p4.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p5.sql
           echo "E2E_SOCKET_DATABASE_URL=postgresql://replay_realtime:$RT_PW@localhost:5432/replay" >> "$GITHUB_ENV"
           echo "E2E_WORKER_DATABASE_URL=postgresql://replay_worker:$WK_PW@localhost:5432/replay" >> "$GITHUB_ENV"
       - name: Build (test app env, hooks on, sinks on)
@@ -424,6 +436,15 @@ jobs:
         env:
           E2E_SMOKE: "1"
         run: pnpm --filter web exec playwright test --project=chromium --project=webkit-iphone --project=game-serial
+      - name: P5 Train, Mistake Bank, puzzles and Home specs (@p5, chromium; the shard server and leased personas)
+        # phase-05 plan §12.4 PR tier: every @p5 spec (e2e/specs/train/**, home, request-budget, a11y/train) on the same
+        # build and servers; the puzzle specs read the committed shard subset from the CI shard server on :4012
+        # (playwright.config.ts starts it), never R2. Runs after the smoke step even when that failed, so a P5 change
+        # always reports its own specs.
+        if: success() || failure()
+        env:
+          E2E_PHASES: "5"
+        run: pnpm --filter web exec playwright test --project=chromium
       - if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -519,6 +540,72 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: devices-p4-report
+          path: apps/web/playwright-report-devices/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  devices-p5:
+    # phase-05 plan §12.4: the Train screens and Home in every demo state (+ stress=1 at 150 %) on the PR tier
+    # (desktop-1440@100, desktop-1280@125, iphone@100, ipad-portrait@100; nightly devices-full runs all 40), the runner CLS
+    # ≤ 0.02 lab gate, move → verdict with a 4× CPU throttle on desktop-1440@100, and the real routes as a leased
+    # `bank-member` on desktop-1440@100 and iphone@100. The real routes need the Docker database and the CI shard server
+    # (playwright.devices.config.ts starts it with the build; never R2).
+    needs: verify
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 45
+    services:
+      db:
+        image: postgres:17-alpine
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: replay }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      CI: "1"
+      DEVICES_TIER: pr
+      NEXT_PUBLIC_APP_ENV: test
+      NEXT_PUBLIC_POSTHOG_KEY: ""
+      NEXT_PUBLIC_SENTRY_DSN: ""
+      SENTRY_DSN: ""
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/replay
+      # The Clerk development instance (as devices-review): the middleware handshake needs a resolvable Frontend API, and
+      # the real-route test signs a pool user in with a Clerk testing token.
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:3002
+      DODO_PAYMENTS_API_KEY: ci-dummy-dodo-key
+      DODO_PAYMENTS_ENVIRONMENT: test_mode
+      BILLING_PAYWALL: "on"
+      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on,review-v3:on,review-share:on,onboarding-v3:on,import-v3:on,train:on,home:on,bank-remove:on
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium webkit
+      - name: Random keys for this run (the persona tool's ledger pepper and the signed cookies)
+        run: |
+          cookie="$(openssl rand -base64 32)"
+          pepper="$(openssl rand -hex 32)"
+          echo "::add-mask::$cookie"
+          echo "::add-mask::$pepper"
+          echo "SIGNED_COOKIE_SECRET=$cookie" >> "$GITHUB_ENV"
+          echo "HASH_PEPPER=$pepper" >> "$GITHUB_ENV"
+      - name: Migrate and seed the Docker database
+        run: |
+          pnpm --filter @repo/db generate
+          pnpm --filter @repo/db migrate:deploy
+          pnpm --filter @repo/db seed
+          pnpm --filter @repo/db seed:openings
+      - name: Train and Home one viewport, the runner lab gates, the real routes (builds .next-devices, serves :3100)
+        run: pnpm --filter web exec playwright test -c playwright.devices.config.ts layout/train.spec.ts layout/home.spec.ts
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: devices-p5-report
           path: apps/web/playwright-report-devices/
           retention-days: 14
           if-no-files-found: ignore

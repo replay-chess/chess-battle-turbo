@@ -7,12 +7,22 @@
 // packages/db/generated/prisma from dist/, which exists both in the repo and in the image (as in the socket build).
 import { build } from "esbuild";
 import { dirname, relative, resolve } from "node:path";
+import { argv } from "node:process";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
-const outdir = resolve(root, "dist");
+// `--outdir <dir inside this package>`: scripts/build.test.ts builds there and boots the bundle.
+const outArg = argv.indexOf("--outdir");
+const outdir = resolve(root, outArg >= 0 && argv[outArg + 1] ? argv[outArg + 1] : "dist");
 const generated = resolve(root, "../../packages/db/generated/prisma/index.js");
+
+/**
+ * npm packages bundled instead of left external. sqids 0.3.0 (P5, through @repo/chess-training/items) ships a CommonJS
+ * build that sets `exports.default` without the ES-module marker, so a CJS bundle's `import Sqids from "sqids"` would
+ * receive the module object and crash at boot ("default is not a constructor"); bundled, esbuild reads its ESM build.
+ */
+const BUNDLED = new Set(["sqids"]);
 
 /** @type {import("esbuild").Plugin} */
 const externals = {
@@ -23,7 +33,7 @@ const externals = {
       external: true,
     }));
     b.onResolve({ filter: /^[^./#]/ }, (args) => {
-      if (args.path.startsWith("@repo/")) return undefined;
+      if (args.path.startsWith("@repo/") || BUNDLED.has(args.path)) return undefined;
       return { path: args.path, external: true };
     });
   },

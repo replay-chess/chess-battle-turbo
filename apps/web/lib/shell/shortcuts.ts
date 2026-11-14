@@ -3,13 +3,14 @@
 // register a section load these tables; the dialog itself loads on first open (components/shell/AppShellView.tsx).
 
 /** A flag a row or a section depends on (it shows only while the flag is on). */
-export type ShortcutFlag = "review-v3" | "review-share";
+export type ShortcutFlag = "review-v3" | "review-share" | "home" | "train";
 /** Page scopes registered at runtime (`registerReviewShortcuts`) are `review:<area>`, e.g. `review:compare`. */
-export type ShortcutScope = "global" | "board" | "review" | `review:${string}`;
+/** P5 adds the trainer (bank drill and puzzles) and the Mistake Bank list, registered while those pages are mounted. */
+export type ShortcutScope = "global" | "board" | "review" | `review:${string}` | "trainer" | "bank";
 /** "Mod" renders as ⌘ on Apple platforms and Ctrl elsewhere. `flag`: shown only while that flag is on. */
 export type ShortcutRow = { id: string; label: string; keys: string[][]; flag?: ShortcutFlag };
 export type ShortcutSection = { title: string; scope: ShortcutScope; rows: ShortcutRow[]; flag?: ShortcutFlag };
-export type ShortcutFlags = { reviewV3?: boolean; reviewShare?: boolean };
+export type ShortcutFlags = { reviewV3?: boolean; reviewShare?: boolean; home?: boolean; train?: boolean };
 
 /**
  * The shortcut registry. Section titles are Title Case; row labels are sentence
@@ -26,8 +27,11 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
       { id: "palette", label: "Command palette and search", keys: [["Mod", "K"], ["/"]] },
       { id: "help", label: "This list", keys: [["?"]] },
       { id: "go-play", label: "Go to Play", keys: [["G", "P"]] },
+      // P5 (WP-H's chords, lib/nav/destinations.ts): G H → Home, G M → Mistake Bank (V3Shortcuts).
+      { id: "go-home", label: "Go to Home", keys: [["G", "H"]], flag: "home" },
       { id: "go-legends", label: "Go to Legends", keys: [["G", "L"]] },
       { id: "go-review", label: "Go to Review", keys: [["G", "R"]], flag: "review-v3" },
+      { id: "go-bank", label: "Go to Mistake Bank", keys: [["G", "M"]], flag: "train" },
       { id: "notifications", label: "Jump to notifications", keys: [["Alt", "T"]] },
       { id: "close", label: "Close a menu or sheet", keys: [["Esc"]] },
     ],
@@ -75,6 +79,8 @@ let registryVersion = 0;
 
 function flagOn(flag: ShortcutFlag | undefined, flags: ShortcutFlags): boolean {
   if (flag === undefined) return true;
+  if (flag === "home") return flags.home === true;
+  if (flag === "train") return flags.train === true;
   return flag === "review-v3" ? flags.reviewV3 === true : flags.reviewShare === true;
 }
 
@@ -93,6 +99,52 @@ export function registerReviewShortcuts(id: string, section: Omit<ShortcutSectio
   registryListeners.forEach((fn) => fn());
   return () => {
     if (registered.get(id) !== candidate) return;
+    registered.delete(id);
+    registryVersion++;
+    registryListeners.forEach((fn) => fn());
+  };
+}
+
+/**
+ * P5 (phase-05 plan §4.4, §4.3; V3Shortcuts "Puzzles and lessons"): the runner's and the bank list's keys. Each page
+ * registers its section while mounted (`registerPageShortcuts`), so the `?` list shows them only where they work, and
+ * no flag plumbing reaches the dialog. Esc (close a menu or dialog) is the Everywhere row.
+ */
+export const TRAINER_SHORTCUTS: ShortcutSection & { scope: "trainer" } = {
+  title: "Puzzles and Lessons",
+  scope: "trainer",
+  rows: [
+    { id: "trainer-hint", label: "Hint, twice for the arrow", keys: [["H"]] },
+    { id: "trainer-retry", label: "Try again", keys: [["R"]] },
+    { id: "trainer-solution", label: "Show solution", keys: [["S"]] },
+    { id: "trainer-grade", label: "Grade Again, Hard, Good or Easy", keys: [["1"], ["2"], ["3"], ["4"]] },
+    { id: "trainer-primary", label: "Suggested grade, or the summary when done", keys: [["Enter"]] },
+    { id: "trainer-themes", label: "Choose a puzzle theme", keys: [["T"]] },
+  ],
+};
+
+export const BANK_SHORTCUTS: ShortcutSection & { scope: "bank" } = {
+  title: "In the Mistake Bank",
+  scope: "bank",
+  rows: [
+    { id: "bank-select", label: "Previous or next position", keys: [["↑"], ["↓"]] },
+    { id: "bank-solve", label: "Solve the selected position", keys: [["Enter"]] },
+    { id: "bank-filter", label: "Filter positions", keys: [["F"]] },
+  ],
+};
+
+/**
+ * A page's own section (scope `trainer` or `bank`) in the `?` list while it is mounted. Same rules as
+ * registerReviewShortcuts: a collision inside the section or with an Everywhere key throws. Returns the unregister.
+ */
+export function registerPageShortcuts(id: string, section: ShortcutSection & { scope: "trainer" | "bank" }): () => void {
+  const collisions = findCollisions([...SHORTCUT_SECTIONS.filter((s) => s.scope === "global"), section]);
+  if (collisions.length) throw new Error(`registerPageShortcuts(${id}): ${collisions.map((c) => `${c.binding} → ${c.ids.join(", ")}`).join("; ")}`);
+  registered.set(id, section);
+  registryVersion++;
+  registryListeners.forEach((fn) => fn());
+  return () => {
+    if (registered.get(id) !== section) return;
     registered.delete(id);
     registryVersion++;
     registryListeners.forEach((fn) => fn());

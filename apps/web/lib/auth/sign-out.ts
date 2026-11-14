@@ -22,6 +22,7 @@ import { endpoints } from "@/lib/api/endpoints";
 import { purgeRuntimeCaches } from "@/lib/shell/pwa";
 import { loadedSentry } from "@/lib/sentry/lazy";
 import { postAuthMessage, setSignOutIntent } from "@/components/system/session-guard";
+import { outboxUser } from "@/lib/offline/active-user";
 
 /** `/api/session/clear` budget (plan §8.9). */
 export const SESSION_CLEAR_TIMEOUT_MS = 1500;
@@ -39,6 +40,16 @@ export type SignOutDeps = {
   resetAnalytics: () => Promise<void> | void;
   resetSentryUser: () => Promise<void> | void;
   broadcast: () => void;
+  /** P5 (phase-05 plan §5.4 step 7): flush the user's graded attempts (≤ 3 s), then clear rc-outbox and rc-offline. */
+  flushAndClearOutbox: (userRef: string) => Promise<void>;
+  /**
+   * P5 (§11 Privacy): clear rc-outbox and rc-offline without a flush (the session is already gone). `null`: the tab
+   * does not know whose stores it holds (a public page opened directly: the (app) layout never mounted), so every
+   * member's keys go (FIX-2).
+   */
+  clearOfflineStores: (userRef: string | null) => Promise<void>;
+  /** Whose offline stores the tab holds now (lib/offline/active-user.ts; set by the (app) layout). */
+  currentUserRef: () => string | null | undefined;
   /** The navigation after Clerk's sign-out: a full document load (see signOutEverywhere). */
   navigate: (url: string) => void;
 };
@@ -61,6 +72,32 @@ const defaultDeps: SignOutDeps = {
     loadedSentry()?.setUser(null);
   },
   broadcast: () => postAuthMessage("signed_out"),
+  flushAndClearOutbox: async (userRef) => {
+    const [{ getAttemptsScheduler }, { clearOutbox }, { clearSessionSnapshots }] = await Promise.all([
+      import("@/lib/offline/attempts-sync"),
+      import("@/lib/offline/outbox"),
+      import("@/lib/offline/snapshots"),
+    ]);
+    await Promise.race([getAttemptsScheduler(userRef).flush(), new Promise((r) => setTimeout(r, 3000))]);
+    await clearOutbox(userRef);
+    await clearSessionSnapshots(userRef);
+  },
+  clearOfflineStores: async (userRef) => {
+    if (typeof indexedDB === "undefined") return;
+    const [{ disposeAttemptsScheduler }, { clearOutbox, clearAllOutboxes }, { clearSessionSnapshots, clearAllSnapshots }] = await Promise.all([
+      import("@/lib/offline/attempts-sync"),
+      import("@/lib/offline/outbox"),
+      import("@/lib/offline/snapshots"),
+    ]);
+    if (userRef === null) {
+      await Promise.allSettled([clearAllOutboxes(), clearAllSnapshots()]);
+      return;
+    }
+    disposeAttemptsScheduler(userRef);
+    await clearOutbox(userRef);
+    await clearSessionSnapshots(userRef);
+  },
+  currentUserRef: outboxUser,
   navigate: (url) => window.location.assign(url),
 };
 
@@ -87,6 +124,13 @@ export async function clearLocalSession(
   deps: Partial<SignOutDeps> = {},
 ): Promise<void> {
   const d = { ...defaultDeps, ...deps };
+  // The member's offline stores go with the session (§11: the outbox and rc-offline are cleared at sign-out). Nothing
+  // can be flushed any more (the session is gone); on a shared device the next person must not find the previous
+  // member's solutions, opponents and unsent grades (docs/decisions.md, FIX-1).
+  // A tab that never mounted the (app) layout (a public page opened directly) does not know whose stores it holds: then
+  // every member's keys go (FIX-2).
+  const userRef = d.currentUserRef() ?? null;
+  await attempt(() => d.clearOfflineStores(userRef));
   await attempt(() => clearQueries(queryClient));
   await attempt(d.clearUserStore);
   await attempt(d.purgeCaches);
@@ -111,6 +155,8 @@ export async function clearAfterExternalSignOut(
 
 export type SignOutOptions = {
   queryClient?: QueryClient;
+  /** The signing-out user's ref: their outbox is flushed and cleared before the session goes (P5). */
+  userRef?: string;
   /** Where Clerk sends the browser afterwards. Default "/". */
   redirectUrl?: string;
   deps?: Partial<SignOutDeps>;
@@ -123,6 +169,10 @@ export async function signOutEverywhere(clerk: SignOutClerk, options: SignOutOpt
   await attempt(() => clearQueries(options.queryClient));
   await attempt(d.clearUserStore);
   await attempt(d.purgeCaches);
+  // The signing-out member: given by the caller, else the one whose stores this tab holds (every path, FIX-1).
+  const userRef = options.userRef ?? d.currentUserRef() ?? undefined;
+  if (userRef) await attempt(() => d.flushAndClearOutbox(userRef));
+  else await attempt(() => d.clearOfflineStores(null));
   await attempt(d.clearServerCache);
   await attempt(d.resetAnalytics);
   await attempt(d.resetSentryUser);

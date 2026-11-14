@@ -36,6 +36,17 @@ describe("trial copy", () => {
     assert.equal(trialTermsLine("year", charge), "Then $50/year. Cancel before 8 Nov and you won't be charged.");
   });
 
+  it("the trial terms are hydration-safe: the server snapshot is date-free, the client's is the viewer's day", async () => {
+    const { trialTermsLine, trialChargeLabelSnapshot } = await import("./copy");
+    // Regression (INTEGRATE-2): the server (IST, past midnight) and the browser (UTC) printed different days.
+    const snap = trialChargeLabelSnapshot(() => new Date("2026-11-13T19:00:00Z"));
+    assert.equal(snap.server(), null);
+    assert.equal(trialTermsLine("year", snap.server()), "Then $50/year. Cancel before your trial ends and you won't be charged.");
+    assert.match(trialTermsLine("year", snap.client()), /^Then \$50\/year\. Cancel before (20|21) Nov and you won't be charged\.$/);
+    // Stable by value between calls (useSyncExternalStore compares snapshots).
+    assert.equal(snap.client(), snap.client());
+  });
+
   it("says there is a trial and no free version", () => {
     const qs = SALES_FAQS.map((f) => f.question + " " + f.answer).join("\n");
     assert.match(qs, /7 days are free/);

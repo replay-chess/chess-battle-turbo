@@ -3,7 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { EVENTS, FORBIDDEN_PROPERTY_NAMES, declaredProperties, findPii, isEventName, parseEvent } from "./index";
+import { EVENTS, FORBIDDEN_PROPERTY_NAMES, declaredProperties, findPii, homeClientEvents, isEventName, parseEvent, trainClientEvents } from "./index";
 
 const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../apps/web");
 const SCAN_DIRS = ["app", "lib", "components", "features"];
@@ -14,9 +14,9 @@ const SKIP_DIRS = new Set(["node_modules", "generated", ".next"]);
  *   trackSystem("rate_limited_shown", { ... })        positional
  *   trackShell({ name: "shell_nav_click", ... })      object with `name` (SPEC §3.10 helper)
  */
-const CALL = /\b(trackShell|trackSystem|trackGame|trackEngineEvent|track)\(\s*(?:(["'`])([^"'`]+)\2|\{\s*name:\s*(["'`])([^"'`]+)\4)/g;
+const CALL = /\b(trackShell|trackSystem|trackGame|trackEngineEvent|trackTrain|track)\(\s*(?:(["'`])([^"'`]+)\2|\{\s*name:\s*(["'`])([^"'`]+)\4)/g;
 /** The same helpers called with neither form (a variable or computed name). */
-const DYNAMIC_CALL = /\b(trackShell|trackSystem|trackGame|trackEngineEvent|track)\(\s*(?!["'`)]|\{\s*name:\s*["'`])/g;
+const DYNAMIC_CALL = /\b(trackShell|trackSystem|trackGame|trackEngineEvent|trackTrain|track)\(\s*(?!["'`)]|\{\s*name:\s*["'`])/g;
 /** `track` is checked only where it is the registry-typed helper, imported from an analytics module. */
 const IMPORTS_TRACK = /import\s*\{[^}]*\btrack\b[^}]*\}\s*from\s*["'][^"']*analytics[^"']*["']/;
 
@@ -92,7 +92,8 @@ describe("event registry", () => {
     const wrongHelper = calls.filter(
       (c) =>
         (c.helper === "trackShell" && !c.event.startsWith("shell_")) ||
-        (c.helper === "trackSystem" && c.event.startsWith("shell_")),
+        (c.helper === "trackSystem" && c.event.startsWith("shell_")) ||
+        (c.helper === "trackTrain" && !(c.event in trainClientEvents || c.event in homeClientEvents)),
     );
     assert.deepEqual(wrongHelper, [], `events sent through the wrong helper: ${JSON.stringify(wrongHelper)}`);
     // A non-literal event name cannot be checked here; the helper's parameter type

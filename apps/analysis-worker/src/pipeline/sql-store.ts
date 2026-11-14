@@ -1,10 +1,13 @@
 // The pipeline's statements (phase-03 plan §8.12, §6.3 grants, §9.8). Each method is one round trip over Neon HTTP:
 //
 //   load        1 statement   the game + members + stored analysis + legend source + comparisons + the job's last
-//                             error, and games."analysisStatus" → RUNNING (a data-modifying CTE of the same statement)
+//                             error, and games."analysisStatus" → RUNNING (a data-modifying CTE of the same statement);
+//                             P5: each member's zone, training prefs (LEFT JOIN training_profiles), end time and
+//                             opponent name, the game's time class and meta.colorUnknown (J1's inputs, no round trip)
 //   checkpoint  1 batch       lock guard → game_analyses upsert (partial arrays) → [first: legend facts insert]
 //                             → heartbeat RETURNING priority
-//   finish      1 batch       lock guard → game_analyses → games (DONE, opening) → player_reviews → game_players
+//   finish      1 batch       lock guard → game_analyses → games (DONE, opening) → linked accounts (KEY SHARE)
+//                             → player_reviews → game_players
 //                             → users."gamesVersion" → [legend_comparisons] → [final-batch/ extensions] → jobs DONE
 //   skip        1 batch       lock guard → games SKIPPED + the members' gamesVersion → jobs DONE
 //
@@ -21,6 +24,14 @@
 //
 // `"updatedAt"` is written explicitly on every row (Prisma's @updatedAt is client-side, and the review ETags read it).
 import type { Color } from "@repo/chess-analysis/codec";
+import {
+  DEFAULT_BANK_DAILY_CAP,
+  DEFAULT_DAY_START_HOUR,
+  DEFAULT_NEW_PER_DAY,
+  DEFAULT_RELEASE_HOUR,
+  DEFAULT_TIME_ZONE,
+} from "@repo/chess-training/constants";
+import type { DayAnchor } from "@repo/chess-training/day";
 import { idStr, num, numOrNull, stmt, wasRetried, type Db, type Row, type Statement } from "../db/client";
 import { NOW } from "../queue/claim";
 import { doneByMeStatement, doneStatement, heartbeatStatement, isLockLost, lockGuardStatement } from "../queue/outcome";
@@ -34,6 +45,7 @@ import type {
   LegendCompareLoad,
   LegendSource,
   LoadedGame,
+  MemberTraining,
   OpeningRow,
   SkipWrite,
   StoredAnalysis,
@@ -41,7 +53,26 @@ import type {
 } from "./types";
 
 // ── load ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-export function loadStatement(gameId: string, jobId: string): Statement {
+/**
+ * `training`: read the P5 inputs (users."timeZone", training_profiles, the end time and opponent name). Off with
+ * BANK_EXTRACT_ENABLED=off, so the kill switch also works on a database where replay_worker.p5.sql has not run yet.
+ */
+export function loadStatement(gameId: string, jobId: string, opts: { training?: boolean } = {}): Statement {
+  const training = opts.training !== false;
+  const memberTraining = training
+    ? `,
+                                                   'timeZone', u."timeZone", 'dayStartHour', tp."dayStartHour",
+                                                   'releaseHour', tp."releaseHour", 'bankDailyCap', tp."bankDailyCap",
+                                                   'newPerDay', tp."newPerDay",
+                                                   'endedAtMs', (extract(epoch FROM gp."endedAt") * 1000)::float8,
+                                                   'opponentName', gp."opponentName",
+                                                   'dayAnchor', (SELECT json_build_object('day', to_char(td.day, 'YYYY-MM-DD'), 'timeZone', td."timeZone",
+                                                                                          'dayStartHour', td."dayStartHour")
+                                                                   FROM training_days td WHERE td."userId" = gp."userId" AND td."timeZone" IS NOT NULL
+                                                                  ORDER BY td.day DESC LIMIT 1)`
+    : "";
+  const profileJoin = training ? `
+                   LEFT JOIN training_profiles tp ON tp."userId" = gp."userId"` : "";
   return stmt(
     `WITH st AS (
   UPDATE games SET "analysisStatus" = 'RUNNING', "updatedAt" = ${NOW}
@@ -53,10 +84,11 @@ SELECT g.id::text AS id, g."referenceId" AS ref, g.status::text AS status, g.mod
        (extract(epoch FROM g."completedAt") * 1000)::float8 AS "completedAtMs",
        g."ecoCode", g."openingName",
        COALESCE((SELECT json_agg(json_build_object('color', gp.color, 'userId', gp."userId"::text,
-                                                   'userRef', u."referenceId", 'result', gp.result::text)
+                                                   'userRef', u."referenceId", 'result', gp.result::text${memberTraining})
                                  ORDER BY gp.color DESC)
-                   FROM game_players gp JOIN users u ON u.id = gp."userId"
+                   FROM game_players gp JOIN users u ON u.id = gp."userId"${profileJoin}
                   WHERE gp."gameId" = g.id), '[]'::json) AS members,
+       g."timeClass"::text AS "timeClass", COALESCE(g.meta ? 'colorUnknown', false) AS "colorUnknown",
        (SELECT json_build_object('version', a.version, 'engine', a.engine, 'nodesPass1', a."nodesPass1",
                                  'nodesPass2', a."nodesPass2", 'totalPlies', a."totalPlies",
                                  'gradedPlies', a."gradedPlies", 'evals', a.evals, 'second', a.second,
@@ -85,7 +117,7 @@ SELECT g.id::text AS id, g."referenceId" AS ref, g.status::text AS status, g.mod
 const numbers = (v: unknown): number[] => (Array.isArray(v) ? v.map((x) => num(x)) : []);
 const strOrNull = (v: unknown): string | null => (typeof v === "string" ? v : null);
 
-function toMember(v: unknown): GameMember {
+export function toMember(v: unknown): GameMember {
   const m = v as Record<string, unknown>;
   const color = m.color === "w" || m.color === "b" ? m.color : null;
   if (!color) throw new TypeError("game_players.color must be w or b");
@@ -95,7 +127,32 @@ function toMember(v: unknown): GameMember {
     userId: idStr(m.userId),
     userRef: String(m.userRef),
     result: result === "WIN" || result === "LOSS" || result === "DRAW" || result === "ABORTED" ? result : null,
+    ...("timeZone" in m ? { training: memberTraining(m) } : {}),
   };
+}
+
+/** The P5 training inputs of a member row (the profile's defaults when it has no training_profiles row yet). */
+export function memberTraining(m: Record<string, unknown>): MemberTraining {
+  const intOr = (v: unknown, fallback: number) => (v === null || v === undefined ? fallback : num(v));
+  return {
+    timeZone: typeof m.timeZone === "string" && m.timeZone !== "" ? m.timeZone : DEFAULT_TIME_ZONE,
+    dayStartHour: intOr(m.dayStartHour, DEFAULT_DAY_START_HOUR),
+    releaseHour: intOr(m.releaseHour, DEFAULT_RELEASE_HOUR),
+    bankDailyCap: intOr(m.bankDailyCap, DEFAULT_BANK_DAILY_CAP),
+    newPerDay: intOr(m.newPerDay, DEFAULT_NEW_PER_DAY),
+    endedAtMs: numOrNull(m.endedAtMs),
+    opponentName: strOrNull(m.opponentName),
+    dayAnchor: dayAnchorOfJson(m.dayAnchor),
+  };
+}
+
+/** The member's newest training day that records its zone (`training_days."timeZone"`, m5b), for the pinned day. */
+function dayAnchorOfJson(v: unknown): DayAnchor | null {
+  const o = typeof v === "string" ? (JSON.parse(v) as unknown) : v;
+  if (!o || typeof o !== "object") return null;
+  const a = o as Record<string, unknown>;
+  if (typeof a.day !== "string" || typeof a.timeZone !== "string" || a.dayStartHour === null || a.dayStartHour === undefined) return null;
+  return { day: a.day, timeZone: a.timeZone, dayStartHour: num(a.dayStartHour) };
 }
 
 function toAnalysis(v: unknown): StoredAnalysis | null {
@@ -163,6 +220,8 @@ export function toLoadedGame(row: Row): LoadedGame {
     legend: toLegend(row.legend),
     comparisons: (Array.isArray(row.comparisons) ? row.comparisons : []).map(toComparison),
     jobLastError: strOrNull(row.jobLastError),
+    timeClass: strOrNull(row.timeClass),
+    colorUnknown: row.colorUnknown === true,
   };
 }
 
@@ -289,6 +348,25 @@ SELECT $1::bigint, r.color, r.content, 'TEMPLATE', ${NOW}, ${NOW}
 ON CONFLICT ("gameId", color) DO UPDATE
    SET content = EXCLUDED.content, "textStatus" = 'TEMPLATE', "updatedAt" = ${NOW}`,
     [gameId, JSON.stringify(members.map((m) => ({ color: m.color, content: m.content })))],
+  );
+}
+
+/**
+ * The game's linked accounts (P4's game_players."linkedAccountId"), FOR KEY SHARE, before the batch writes any
+ * game_players row. An unlink deletes the link row and then, through ON DELETE SET NULL, updates its game_players rows;
+ * this batch updates the member's game_players row twice (the analysis columns here, P5's bankVersion in its
+ * extension), and the second update re-runs the linked_accounts FK check because the row version is this
+ * transaction's own. Without this lock each waited for the other (40P01: the unlink's DELETE answered 500; regression:
+ * unlink-bankversion-deadlock). With it, an unlink that started first makes the batch wait here, and one that starts
+ * later waits for the batch to commit.
+ */
+export function linkedAccountsLockStatement(gameId: string): Statement {
+  return stmt(
+    `SELECT count(*)::int AS locked FROM (
+  SELECT 1 FROM linked_accounts la
+   WHERE la.id IN (SELECT gp."linkedAccountId" FROM game_players gp WHERE gp."gameId" = $1::bigint AND gp."linkedAccountId" IS NOT NULL)
+   ORDER BY la.id FOR KEY SHARE OF la) l`,
+    [gameId],
   );
 }
 
@@ -437,10 +515,14 @@ export async function finalBatch(db: Db, jobId: string, me: string, ss: readonly
 }
 
 export class SqlAnalysisStore implements AnalysisStore, LegendCompareStore {
-  constructor(private readonly db: Db) {}
+  /** `training`: the P5 load inputs (BANK_EXTRACT_ENABLED; default on). */
+  constructor(
+    private readonly db: Db,
+    private readonly opts: { training?: boolean } = {},
+  ) {}
 
   async load(gameId: string, jobId: string): Promise<LoadedGame | null> {
-    const rows = await this.db.query(loadStatement(gameId, jobId));
+    const rows = await this.db.query(loadStatement(gameId, jobId, this.opts));
     return rows[0] ? toLoadedGame(rows[0]) : null;
   }
 
@@ -460,6 +542,7 @@ export class SqlAnalysisStore implements AnalysisStore, LegendCompareStore {
       lockGuardStatement(w.jobId, w.me),
       finalAnalysisStatement(w),
       gameDoneStatement(w.gameId, w.opening),
+      linkedAccountsLockStatement(w.gameId),
       reviewsStatement(w.gameId, w.members),
       playersStatement(w.gameId, w.members),
       ...(w.comparisons.length ? [comparisonsStatement(w.gameId, w.chessPositionId, w.comparisons)] : []),

@@ -8,13 +8,17 @@ import {
   monthlyEquivalentCents,
   type PlanKey,
 } from "@/lib/billing/plans";
+import { useSyncExternalStore } from "react";
 import {
   MONEY_BACK_COPY,
   PLAN_FEATURES,
   TRIAL_DAYS_COPY,
-  trialChargeDate,
+  trialChargeLabelSnapshot,
   trialTermsLine,
 } from "@/lib/billing/copy";
+
+const CHARGE_LABEL = trialChargeLabelSnapshot();
+const noSubscription = () => () => undefined;
 
 const YEARLY_PRICE = formatPrice(BILLING_PLANS.yearly.priceCents);
 const YEARLY_PER_MONTH = formatPrice(monthlyEquivalentCents(BILLING_PLANS.yearly));
@@ -51,8 +55,10 @@ export function PricingCard({
       : isSignedIn
         ? "Start Coaching"
         : "Sign in to start Coaching");
+  // The viewer's own date after hydration; the server render and hydration share the date-free line.
+  const chargeLabel = useSyncExternalStore(noSubscription, CHARGE_LABEL.client, CHARGE_LABEL.server);
   const termsLine = trialEligible
-    ? trialTermsLine(selected.interval, trialChargeDate())
+    ? trialTermsLine(selected.interval, chargeLabel)
     : "Your free trial has been used. Billing starts today.";
   const billingNote =
     plan === "yearly"

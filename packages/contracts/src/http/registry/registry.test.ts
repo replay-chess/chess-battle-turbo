@@ -73,20 +73,22 @@ describe("endpoint registry", () => {
     for (const f of areaFiles) assert.match(index, new RegExp(`from "\\./${f}"`), f);
   });
 
-  it("declares the P1 endpoints of plan §7.3/§7.4, the P2 games endpoints (phase-02 §7.1), the P3 review, share, archive and practice endpoints (phase-03 §7.2) and the P4 accounts, import, onboarding and activation endpoints (phase-04 §7.0)", () => {
+  it("declares the P1 endpoints of plan §7.3/§7.4, the P2 games endpoints (phase-02 §7.1), the P3 review, share, archive and practice endpoints (phase-03 §7.2), the P4 accounts, import, onboarding and activation endpoints (phase-04 §7.0) and the P5 train, home and reports endpoints (phase-05 §7.2)", () => {
     assert.deepEqual(HTTP_ENDPOINTS.map((e) => e.id).sort(), [
       "accounts.chesscom.link", "accounts.chesscom.lookup", "accounts.lichess.callback", "accounts.lichess.start",
       "accounts.list", "accounts.sync", "accounts.unlink", "accounts.update",
       "billing.activation", "billing.checkout",
       "billing.refresh", "catalog.openings.index", "cron.daily",
       "games.checkpoint", "games.complete", "games.create", "games.detail", "games.pgn",
-      "health.get", "healthcheck.get",
+      "health.get", "healthcheck.get", "home.get",
       "import.retry", "import.status",
-      "me.games", "me.get", "me.onboarding",
-      "practice.context",
+      "me.badges", "me.games", "me.get", "me.onboarding",
+      "practice.context", "reports.create",
       "review.analyse", "review.complete", "review.get", "review.legend", "review.legend.compute", "review.moment",
       "review.pgn", "review.progress", "review.retry", "review.status",
       "session.clear", "share.create", "share.revoke", "share.update", "socket-token.get", "subscription.get",
+      "train.attempts", "train.bank", "train.cards.remove", "train.cards.skip", "train.prefs", "train.sessions.create",
+      "train.sessions.end", "train.sessions.extend", "train.sessions.get", "train.themes", "train.today",
       "webhook.clerk", "webhook.dodo",
     ]);
     const me = getEndpoint("me.get");

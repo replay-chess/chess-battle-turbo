@@ -218,10 +218,10 @@ describe("internal auth: per-kid allow-lists", () => {
   });
 
   it("wk may emit only its analysis-side domains", () => {
-    for (const ok of ["analysis:progress", "import:finished", "weakness:ready", "bank:due_changed", "compare:ready", "review:text_ready", "games:changed", "export:ready"]) {
+    for (const ok of ["analysis:progress", "import:finished", "weakness:ready", "bank:due_changed", "mistakes:added", "compare:ready", "review:text_ready", "games:changed", "export:ready"]) {
       assert.equal(kidMayEmit("wk", ok), true, ok);
     }
-    for (const no of ["entitlement:changed", "session:revoked", "notify:new", "games:changedx", "analysisx:progress", "move:applied"]) {
+    for (const no of ["entitlement:changed", "session:revoked", "notify:new", "games:changedx", "analysisx:progress", "move:applied", "mistakesx:added"]) {
       assert.equal(kidMayEmit("wk", no), false, no);
     }
   });

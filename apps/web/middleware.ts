@@ -32,6 +32,7 @@ import {
   returnPathOf,
   tooManyRequestsPath,
 } from "@/lib/auth/route-classes/rules";
+import { isLandingPath, landingTarget } from "@/lib/home/landing";
 import { cookieSecureFor } from "@/lib/onboarding/claim-cookie";
 import { onboardingGate } from "@/lib/onboarding/guard";
 
@@ -58,6 +59,17 @@ const pass = (p: Prepared) => NextResponse.next({ request: { headers: p.forward 
 
 const withClerk = clerkMiddleware(async (auth, req) => {
   const p = prepared.get(req) ?? prepare(req);
+
+  // ── P5 landing rule (phase-05 plan §4.8; owner WP-H). The only P5 block in this file: a signed-in member who opens
+  // `/` lands on /home. Claims only (the session cookie, read locally): no database, no flags (/home enforces `home`
+  // itself, off → /play). Rules and tests: lib/home/landing.ts.
+  if (isLandingPath(req.nextUrl.pathname)) {
+    const { sessionClaims } = await auth();
+    const target = landingTarget(sessionClaims?.md, process.env);
+    if (target) return NextResponse.redirect(new URL(target, req.url), 302);
+  }
+  // ── end P5 landing rule ──
+
   // API routes: middleware never redirects; handlers answer 401/402/403.
   if (p.cls === "api" || p.cls === "public") return pass(p);
 

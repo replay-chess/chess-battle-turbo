@@ -247,7 +247,7 @@ The P1 classifier is deliberately narrow: it only knows today's URLs. Each row b
 | Phase | Route(s) | P1 returns | Must become | Why it matters |
 |---|---|---|---|---|
 | P3 | `/how-we-grade`, `/r/[code]` | signed-in (default) | public | public, linked from marketing; `/r/` snapshots are shared links |
-| P3, P5, P6, P7 | `/review/*`, `/games`, `/practice`, `/home`, `/train/*`, `/coach` | signed-in (default) | member | otherwise a non-member reaches the page shell and only the page gate stops them |
+| P3, P5, P6, P7 | `/review/*`, `/games`, `/practice`, `/home`, `/train/*`, `/coach` | signed-in (default) | member | otherwise a non-member reaches the page shell and only the page gate stops them. **Done for P3 and P5 as `signedInPages`** (`p03.ts`, `p05.ts`: `/home(.*)`, `/train(.*)`): the class stays signed-in and every page runs `requireMemberPage()`, so a later lapsed-read rule (B26, D-19) needs no edge change |
 | P8 | `/learn/lessons/*` | **public** (P1 `/learn(.*)`) | member | the P1 public pattern is broader than the target; P8 must add a member pattern that wins over `/learn(.*)` |
 | P9 | `/join/[code]` | **member** | public | the accept page has a signed-out state (`V3ChallengeAcceptGuest`) and an OG preview |
 | P9 | `/s/[code]` | signed-in (default) | public | shared positions open signed out |

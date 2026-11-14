@@ -3,7 +3,8 @@
 // core sends: the claim, the reaper, the queue summary, the plan inserts, the lock guard, done, fail, release and the
 // heartbeat, and HOUSEKEEPING's set-based slice statements (the jobs prune runs on the fake rows; the shares and
 // rate-limit prunes delete nothing here; the regrade search returns `outdated`; P4's import backstop requeues nothing
-// and its parked-import release releases nothing: the fake has no linked accounts or import runs). Anything else throws, so a new
+// and its parked-import release releases nothing: the fake has no linked accounts or import runs; P5's training
+// hygiene changes nothing: the fake has no training tables). Anything else throws, so a new
 // statement cannot slip past the tests unnoticed.
 import type { Driver, Row, Statement } from "../db/client";
 
@@ -291,6 +292,19 @@ export class FakeQueue implements Driver {
       // FIX-1's parked-import release (recurring/import-backstop.ts): there are no import runs in the fake.
       this.log.push("import-release");
       return [{ released: 0, accounts: 0, queued: 0 }];
+    }
+    // P5's training hygiene (recurring/training-hygiene.ts): the fake has no training tables.
+    if (t.includes("UPDATE training_sessions SET status = 'ABANDONED'")) {
+      this.log.push("training-abandon");
+      return [{ abandoned: 0 }];
+    }
+    if (t.includes("UPDATE training_days SET plan = NULL")) {
+      this.log.push("training-plans");
+      return [{ cleared: 0 }];
+    }
+    if (t.includes("DELETE FROM training_sessions")) {
+      this.log.push("training-prune");
+      return [{ deleted: 0 }];
     }
     throw new Error(`FakeQueue: unexpected statement: ${t.slice(0, 80)}`);
   }

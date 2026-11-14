@@ -8,15 +8,27 @@
 // phones = one column: the lead, a 3-up stat row, the link rows, the moments card (the only scroller) and the primary
 // pinned at the bottom. The document never scrolls (lock mode).
 //
-// Not rendered in P3 (later phases light them up): the Mistake Bank line, the To Drill stat, Drill These 3 Mistakes,
-// the Added tags (P5); Ask the Coach about This Game (P7).
+// P5 (phase-05 plan §4.8; owner WP-H) lights up, when the view carries the bank fields (`train` on): the Mistake Bank
+// line in the lead, the To Drill stat, the Drill These 3 Mistakes primary (Enter; never prefetched: it creates a
+// session) or Back to Home when every moment was opted out, and the Added / Not added tags. Not rendered yet: Ask the
+// Coach about This Game (P7).
 
 import Link from "next/link";
-import { ArrowRight, ChevronLeft, Play, RotateCcw, Share } from "lucide-react";
+import { ArrowRight, ChevronLeft, Crosshair, House, Play, RotateCcw, Share } from "lucide-react";
 import type { ReviewCompleteView } from "@repo/contracts/http/review";
 import { ScrollRegion } from "@/components/layout/ScrollRegion";
-import { bestMonthLine, COMPLETE_COPY, completeLead, completeStateOf, completeTitle, firstOpenMomentNumber, statTiles } from "./copy";
+import {
+  bestMonthLine,
+  COMPLETE_COPY,
+  completeLead,
+  completePrimary,
+  completeStateOf,
+  completeTitle,
+  firstOpenMomentNumber,
+  statTiles,
+} from "./copy";
 import { CompleteKeys } from "./CompleteKeys";
+import { DrillLink } from "./DrillLink";
 import { CompleteMoments } from "./CompleteMoments";
 import "./complete.css";
 
@@ -29,6 +41,8 @@ export interface CompleteLinks {
   review: string;
   /** `/review/<ref>?m=N` (1-based). */
   moment(n: number): string;
+  /** P5: Back to Home (every moment opted out of the Mistake Bank). Default `/home`. */
+  home?: string;
 }
 
 /**
@@ -68,10 +82,12 @@ export function CompleteView({ view, links }: { view: ReviewCompleteView; links:
   const openCount = view.moments.filter((m) => m.result === null).length;
   const clean = state === "nothing";
   const monthLine = clean && view.bestThisMonth ? bestMonthLine(view.accuracy) : null;
+  const primary = completePrimary(view, state, { playAgain: links.playAgain, home: links.home ?? "/home" });
+  const PrimaryIcon = primary.kind === "drill" ? Crosshair : primary.kind === "home" ? House : Play;
 
   return (
     <div className="rvc" data-rc-lock="" data-testid="review-complete" data-state={state}>
-      <CompleteKeys primaryHref={links.playAgain} backHref={links.review} />
+      <CompleteKeys primaryHref={primary.href} backHref={links.review} drillMistakes={primary.kind === "drill" ? (view.added ?? 1) : null} />
       <div className="rvc__grid">
         <div className="rvc__left">
           <header className="rvc__lead">
@@ -106,10 +122,17 @@ export function CompleteView({ view, links }: { view: ReviewCompleteView; links:
 
           <div className="rvc__actions">
           <div className="rvc__primary">
-            <Link className="rvc-btn-p" href={links.playAgain} data-testid="complete-primary">
-              <Play aria-hidden="true" size={16} />
-              {COMPLETE_COPY.playAgain}
-            </Link>
+            {primary.kind === "drill" ? (
+              <DrillLink className="rvc-btn-p" href={primary.href} mistakes={view.added ?? 1}>
+                <PrimaryIcon aria-hidden="true" size={16} />
+                {primary.label}
+              </DrillLink>
+            ) : (
+              <Link className="rvc-btn-p" href={primary.href} data-testid="complete-primary" data-kind={primary.kind}>
+                <PrimaryIcon aria-hidden="true" size={16} />
+                {primary.label}
+              </Link>
+            )}
           </div>
 
           <nav className="rvc__rows" aria-label="Next steps">

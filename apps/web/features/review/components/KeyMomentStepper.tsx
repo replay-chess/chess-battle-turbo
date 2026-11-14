@@ -7,9 +7,11 @@
 //            the five plan chips (aria-pressed; keys 1–5) and the picked chip's precomputed feedback
 //   answered "You found it: …" (found), the chip feedback, the result rows (You played 17.b3 · Inaccuracy / Best was
 //            Qc1 · green arrow), Show Line (key L) and the best line's SAN list (aria-live)
-// The primary (Reveal the Answer / Next Moment / Finish Review) lives in the footers (useReviewPrimary). Slots that
-// later phases light up are not rendered: the bank checkbox (P5, P3-D19), Ask about This Move (P7, P3-D20).
+// The primary (Reveal the Answer / Next Moment / Finish Review) lives in the footers (useReviewPrimary). P5 lights up the
+// bank checkbox in the answered section (MomentBankToggle, key B; P3-D19) while `train` is on (A1 then carries
+// `card`). Not rendered yet: Ask about This Move (P7, P3-D20).
 
+import { useFlag } from "@/lib/flags/client";
 import { useReview, useView } from "../context";
 import {
   bestRow,
@@ -27,6 +29,7 @@ import {
 import { moveNumber } from "../model";
 import { useMomentWalkthrough } from "../useMomentWalkthrough";
 import { CoachLine } from "./CoachLine";
+import { MomentBankToggle } from "./MomentBankToggle";
 import { QualityBadge } from "./QualityBadge";
 
 function CheckIcon() {
@@ -55,6 +58,7 @@ export function KeyMomentStepper() {
   const acceptedAs = useView((v) => v.acceptedAs);
   const planChip = useView((v) => v.planChip);
   const lineN = useView((v) => v.lineN);
+  const train = useFlag("train");
   const moments = dto.review?.moments ?? [];
   const m = moments[Math.min(index, moments.length - 1)];
   if (!m) return null;
@@ -152,6 +156,7 @@ export function KeyMomentStepper() {
               ))}
             </p>
           ) : null}
+          {train || m.card !== undefined ? <MomentBankToggle key={m.ply} ply={m.ply} inBank={m.inBank} /> : null}
         </div>
       ) : null}
     </div>

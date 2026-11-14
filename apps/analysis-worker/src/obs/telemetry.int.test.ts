@@ -179,10 +179,13 @@ describe("worker telemetry (Postgres + PostHog/Sentry sink)", { skip: skipInt },
       const parsed = parseEvent(e.event, e.properties);
       assert.ok(parsed.ok, parsed.ok ? "" : parsed.error);
       assert.equal(e.properties.app_env, "test");
-      assert.equal(e.distinct_id, white.ref, "the member's ref, never an id or a name");
+      // P3's analysis events go to the first member; P5's `mistakes_extracted` is one per extracted member side.
+      if (e.event === "mistakes_extracted") assert.ok([white.ref, black.ref].includes(e.distinct_id), "a member's ref");
+      else assert.equal(e.distinct_id, white.ref, "the member's ref, never an id or a name");
       const own = Object.fromEntries(Object.entries(e.properties).filter(([key]) => !key.startsWith("$")));
       assert.deepEqual(findPii(own, ["tw_", "tb_"]), [], "no PII-shaped value and no player name");
     }
+    assert.equal(names.filter((n) => n === "mistakes_extracted").length, 2, "P5: one per member side of the analysed game");
     const ready = captured.posthog.find((e) => e.event === "analysis_ready")!.properties;
     assert.equal(ready.plies, GAME_UCI.length);
     assert.equal(ready.regrade, false);
@@ -208,6 +211,7 @@ describe("worker telemetry (Postgres + PostHog/Sentry sink)", { skip: skipInt },
     assert.ok(analyze, `a job.analyze transaction (saw ${tx.map((t) => t.transaction).join(", ")})`);
     assert.deepEqual([...new Set(analyze.spans.map((s) => s.description))].sort(), [
       "classify",
+      "extract", // P5 J1 (BANK_EXTRACT_ENABLED defaults on)
       "load",
       "pass1",
       "pass2",

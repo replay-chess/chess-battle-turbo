@@ -101,6 +101,18 @@ describe("Phase 3 return paths", () => {
   });
 });
 
+describe("Phase 5 return paths", () => {
+  it("accepts Home and every Train page (phase-05 plan §3.1, inv-pub G7); activation only at a segment boundary", () => {
+    for (const ok of ["/home", "/train", "/train/bank?view=all", "/train/bank/session?s=abc", "/train/puzzles?theme=fork", "/train/session/abc/summary"]) {
+      assert.equal(isAllowedReturnPath(ok), true, ok);
+      assert.equal(safeActivationPath(ok), ok, ok);
+    }
+    for (const bad of ["/homes", "/trainer", "/home-x"]) assert.equal(safeActivationPath(bad), null, bad);
+    assert.equal(buildReturnUrl("/train/bank?view=due", ORIGIN), `${ORIGIN}/train/bank?view=due&checkout=success`);
+    assert.equal(buildReturnUrl("/home", ORIGIN), `${ORIGIN}/home?checkout=success`);
+  });
+});
+
 // ── Phase 4 (plan 7.5.1 step 6, 12.1 "buildActivationReturnUrl per source; open-redirect cases") ────────────────
 describe("buildActivationReturnUrl", () => {
   const v3 = { onboardingV3: true, plan: "monthly" as const };
@@ -168,11 +180,13 @@ describe("safeActivationPath", () => {
 });
 
 describe("activationDestination", () => {
-  it("the checked redirect_url, never /checkout/*, /onboarding until set up, else /games", () => {
+  it("the checked redirect_url, never /checkout/*, /onboarding until set up, else /home (P5)", () => {
     assert.equal(activationDestination("/review/cabc", true), "/review/cabc");
-    assert.equal(activationDestination("/checkout/activating?redirect_url=%2Fplay", true), "/games");
-    assert.equal(activationDestination("//evil.com", true), "/games");
-    assert.equal(activationDestination(undefined, true), "/games");
+    assert.equal(activationDestination("/checkout/activating?redirect_url=%2Fplay", true), "/home");
+    assert.equal(activationDestination("//evil.com", true), "/home");
+    assert.equal(activationDestination(undefined, true), "/home");
+    assert.equal(activationDestination("/home", true), "/home");
+    assert.equal(activationDestination("/train/bank?view=all", true), "/train/bank?view=all");
     assert.equal(activationDestination("/review/cabc", false), "/onboarding");
   });
 });

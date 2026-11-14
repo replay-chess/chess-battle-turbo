@@ -17,6 +17,10 @@
  */
 @layer components {
   .rc-scroll {
+    /* The containing block of its absolutely positioned content (sr-only labels and the like): without it an
+       sr-only span far down a scrolled list was placed against [data-rc-main] and grew main's scroll height, so a
+       one-viewport page needed main's safety scroll on phones at 150 % (regression: scroll-region-containing-block). */
+    position: relative;
     min-width: 0; min-height: 0;
     overflow-y: auto; overflow-x: hidden;
     overscroll-behavior: contain;       /* never chains into the root */
@@ -54,6 +58,10 @@
   }
   .rc-stage__in[data-aside]         { --rc-aside-room: calc(var(--rc-aside-min) + var(--rc-gap)); }
   .rc-stage__in[data-aside-w="hub"] { --rc-aside-max: 400px; }
+  /* P5 trainer (V3BankSession / V3Puzzle*: the panel is 380 px, 360 px when the stage is short of room) */
+  .rc-stage__in[data-aside-w="trainer"] { --rc-aside-min: 360px; --rc-aside-max: 380px; }
+  /* label bars: 2 × (42 + 6) = 96 px, the design's --bars (side mode; the density step and stack mode below) */
+  .rc-stage__in[data-bars="labels"] { --rc-bar-h: 42px; }
 
   .rc-stage__col   { flex: none; width: var(--rc-board); display: flex; flex-direction: column; gap: var(--rc-bar-gap); }
   .rc-stage__bar   { flex: none; height: var(--rc-bar-h); min-width: 0; display: flex; align-items: center; }
@@ -68,6 +76,7 @@
   /* density step: the design's max-height:620px, measured on the stage so a banner also triggers it */
   @container rc-stage (height <= 620px) {
     .rc-stage__in { --rc-px: 16px; --rc-py: 8px; --rc-bar-h: 40px; --rc-bar-gap: 4px; }
+    .rc-stage__in[data-bars="labels"] { --rc-bar-h: 34px; }   /* the design's .pbar at max-height 620 */
   }
 
   /* stack mode: phones, iPad portrait, or too narrow for 220 board + 300 aside */
@@ -83,6 +92,7 @@
       flex-direction: column; align-items: stretch; justify-content: flex-start;
     }
     .rc-stage__in:not([data-aside]) { --rc-strip-min: 0px; }
+    .rc-stage__in[data-bars="labels"] { --rc-bar-h: 44px; }
     .rc-stage__in[data-footer]      { --rc-foot: calc(56px + var(--safe-bottom)); }
     .rc-stage__col   { width: 100%; }
     .rc-stage__board { margin-inline: auto; }

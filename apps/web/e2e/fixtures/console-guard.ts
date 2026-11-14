@@ -108,7 +108,9 @@ export function isClerkJsAbort(message: string, stack: string | undefined): bool
  * access control checks." page error (CI 43430795552, webkit-iphone onboarding/lichess deny: Welcome's prefetch of
  * Link still in flight when "Connect Lichess" left for Lichess). The page that asked is gone, so nothing reads the
  * answer; Next never shows it. Only a same-origin path with an `_rsc` query is excused: /api/…, /sw.js and every other
- * origin still fail the test (regression: webkit-rsc-abort).
+ * origin still fail the test (regression: webkit-rsc-abort). The same cut on a page being left for an in-app
+ * navigation: a nav-link prefetch (regression: webkit-rsc-prefetch-abort, REGRESSION-5: webkit-iphone review-walkthrough
+ * `?m=2`, "…/games?_rsc=z6fkr due to access control checks.").
  */
 export const NEXT_RSC_ABORT =
   /(?:^|\/)(?:localhost|127\.0\.0\.1)(?::\d+)?\/(?!api\/)[^\s?]*\?(?:[^\s]*&)?_rsc=[\w-]+(?:&[^\s]*)? due to access control checks\.?$/;

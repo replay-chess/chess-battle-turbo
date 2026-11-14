@@ -78,6 +78,23 @@ describe("analysis events: schemas", () => {
     assert.equal(ANALYSIS_EVENTS["analysis:failed"].safeParse({ ...failed, code: "crashed" }).success, false);
   });
 
+  it("P5: analysis:done keeps bank null and carries bankAdded {count, plies ≤ 4} and bankDue, both optional", () => {
+    const done = analysisEventFixtures()["analysis:done"];
+    const schema = ANALYSIS_EVENTS["analysis:done"];
+    assert.equal(schema.safeParse(done).success, true);
+    const { bankAdded: _a, bankDue: _d, ...p3Frame } = done;
+    assert.equal(schema.safeParse(p3Frame).success, true, "a P3 worker's frame (no bank fields) still parses");
+    assert.equal(schema.safeParse({ ...done, bankAdded: null, bankDue: null }).success, true, "lost batch response → null");
+    assert.equal(schema.safeParse({ ...done, bankAdded: { count: 1, plies: [1, 2, 3, 4, 5] } }).success, false);
+    assert.equal(schema.safeParse({ ...done, bankAdded: { count: -1, plies: [] } }).success, false);
+    assert.equal(schema.safeParse({ ...done, bankDue: -1 }).success, false);
+    const batch = analysisEventFixtures()["analysis:batch"];
+    assert.equal(ANALYSIS_EVENTS["analysis:batch"].safeParse(batch).success, true);
+    const { bankAdded: _b, bankDue: _e, ...p3Batch } = batch;
+    assert.equal(ANALYSIS_EVENTS["analysis:batch"].safeParse(p3Batch).success, true);
+    assert.equal(ANALYSIS_EVENTS["analysis:batch"].safeParse({ ...batch, bankAdded: 1.5 }).success, false);
+  });
+
   it("analysis:batch carries at most 20 refs, and only refs", () => {
     const batch = worstAnalysisEventFixtures()["analysis:batch"];
     assert.equal(batch.refs.length, ANALYSIS_BATCH_MAX_REFS);
@@ -135,14 +152,14 @@ describe("analysis events: budgets and the emit path", () => {
 
   it("the budgets are the plan's, except the four measured clarifications (done, failed, batch, compare:ready)", () => {
     assert.deepEqual(ANALYSIS_EVENT_BUDGETS, {
-      "analysis:queued": 80, "analysis:progress": 400, "analysis:writing": 60, "analysis:done": 400,
-      "analysis:failed": 192, "analysis:batch": 640, "compare:ready": 64, "games:changed": 60,
+      "analysis:queued": 80, "analysis:progress": 400, "analysis:writing": 60, "analysis:done": 480,
+      "analysis:failed": 192, "analysis:batch": 672, "compare:ready": 64, "games:changed": 60,
     });
     // The clarifications are real: the plan's figure cannot hold the worst case.
     const worst = worstAnalysisEventFixtures();
-    assert.ok(bytes(worst["analysis:done"]) > 360);
+    assert.ok(bytes(worst["analysis:done"]) > 440, "P5: the bank fields are in the worst case");
     assert.ok(bytes(worst["analysis:failed"]) > 160);
-    assert.ok(bytes(worst["analysis:batch"]) > 600);
+    assert.ok(bytes(worst["analysis:batch"]) > 640, "P5: the bank fields are in the worst case");
     assert.ok(bytes(worst["compare:ready"]) > 60);
   });
 

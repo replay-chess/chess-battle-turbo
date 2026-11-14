@@ -7,20 +7,24 @@ import { archiveEndpoints } from "./archive";
 import { billingEndpoints } from "./billing";
 import { catalogEndpoints } from "./catalog";
 import { gamesEndpoints } from "./games";
+import { homeEndpoints } from "./home";
 import { importEndpoints } from "./import";
 import { meEndpoints } from "./me";
 import { onboardingEndpoints } from "./onboarding";
 import { practiceEndpoints } from "./practice";
 import { realtimeEndpoints } from "./realtime";
+import { reportsEndpoints } from "./reports";
 import { reviewEndpoints } from "./review";
 import { shareEndpoints } from "./share";
 import { systemEndpoints } from "./system";
+import { trainEndpoints } from "./train";
 import { webhookEndpoints } from "./webhooks";
 
 export { billingEndpoints, catalogEndpoints, gamesEndpoints, meEndpoints, realtimeEndpoints, systemEndpoints, webhookEndpoints };
 export { reviewEndpoints };
 export { archiveEndpoints, practiceEndpoints, shareEndpoints };
 export { accountsEndpoints, activationEndpoints, importEndpoints, onboardingEndpoints };
+export { homeEndpoints, reportsEndpoints, trainEndpoints };
 
 /** Areas by name, as the OpenAPI generator tags them. Keys match the file names in this directory. */
 export const REGISTRY_AREAS = {
@@ -30,14 +34,17 @@ export const REGISTRY_AREAS = {
   billing: billingEndpoints,
   catalog: catalogEndpoints,
   games: gamesEndpoints,
+  home: homeEndpoints,
   import: importEndpoints,
   me: meEndpoints,
   onboarding: onboardingEndpoints,
   practice: practiceEndpoints,
   realtime: realtimeEndpoints,
+  reports: reportsEndpoints,
   review: reviewEndpoints,
   share: shareEndpoints,
   system: systemEndpoints,
+  train: trainEndpoints,
   webhooks: webhookEndpoints,
 } as const;
 

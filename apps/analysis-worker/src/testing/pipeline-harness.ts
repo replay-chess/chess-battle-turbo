@@ -17,7 +17,7 @@ import { silentLogger } from "../obs/log";
 import { Metrics } from "../obs/metrics";
 import { RecordingProductEvents } from "../obs/posthog";
 import { RecordingTelemetry } from "../obs/telemetry";
-import { analyzeGameHandler } from "../pipeline/analyze-game";
+import { analyzeGameHandler, type BankExtractSettings } from "../pipeline/analyze-game";
 import { BatchAccumulator } from "../pipeline/batch-events";
 import type { FinalBatchExtension } from "../pipeline/final-batch";
 import { OpeningBook } from "../pipeline/openings";
@@ -58,6 +58,8 @@ export interface HarnessOptions {
   wrapStore?: (s: MemoryAnalysisStore, db: CountingDb) => AnalysisStore & LegendCompareStore;
   /** A driver under CountingDb instead of the FakeQueue (its job statements must still reach the queue). */
   driver?: (queue: FakeQueue) => Driver;
+  /** P5 J1 (off when absent, as before P5). */
+  bank?: BankExtractSettings;
 }
 
 export async function harness(o: HarnessOptions = {}) {
@@ -101,6 +103,7 @@ export async function harness(o: HarnessOptions = {}) {
       batch,
       events,
       ...(o.extensions ? { extensions: o.extensions } : {}),
+      ...(o.bank ? { bank: o.bank } : {}),
     }),
     LEGEND_COMPARE: legendCompareHandler({ store }),
   };

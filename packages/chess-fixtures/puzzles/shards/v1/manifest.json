@@ -1,0 +1,28 @@
+{
+  "version": "v1",
+  "format": 1,
+  "built": "2026-11-13",
+  "source": "2026-11-01",
+  "license": "CC0 1.0 (Lichess puzzle database, https://database.lichess.org/#puzzles)",
+  "k": 250,
+  "filter": {
+    "popularityMin": 80,
+    "nbPlaysMin": 300,
+    "ratingDeviationMax": 90,
+    "ratingMin": 600,
+    "ratingMax": 2599,
+    "movesMax": 15
+  },
+  "themes": {
+    "fork": {"12": 60, "13": 60, "14": 60, "15": 60, "16": 60, "17": 60, "18": 60},
+    "pin": {"12": 60, "13": 60, "14": 60, "15": 60, "16": 60, "17": 60, "18": 60},
+    "hangingPiece": {"12": 60, "13": 60, "14": 60, "15": 60, "16": 60, "17": 60, "18": 60},
+    "backRankMate": {"12": 60, "13": 60, "14": 60, "15": 60, "16": 60, "17": 60, "18": 60},
+    "mateIn2": {"12": 60, "13": 60, "14": 60, "15": 60, "16": 60, "17": 60, "18": 60},
+    "mix": {"12": 60, "13": 60, "14": 60, "15": 60, "16": 60, "17": 60, "18": 60}
+  },
+  "bits": {"fork": 0, "pin": 1, "skewer": 2, "discoveredAttack": 3, "doubleCheck": 4, "hangingPiece": 5, "trappedPiece": 6, "capturingDefender": 7, "sacrifice": 8, "deflection": 9, "attraction": 10, "clearance": 11, "interference": 12, "intermezzo": 13, "xRayAttack": 14, "quietMove": 15, "defensiveMove": 16, "zugzwang": 17, "exposedKing": 18, "kingsideAttack": 19, "queensideAttack": 20, "attackingF2F7": 21, "advancedPawn": 22, "promotion": 23, "underPromotion": 24, "enPassant": 25, "castling": 26, "mate": 27, "mateIn1": 28, "mateIn2": 29, "mateIn3": 30, "mateIn4": 31, "mateIn5": 32, "backRankMate": 33, "smotheredMate": 34, "endgame": 35, "rookEndgame": 36, "pawnEndgame": 37, "bishopEndgame": 38, "knightEndgame": 39, "queenEndgame": 40, "queenRookEndgame": 41, "opening": 42, "middlegame": 43, "advantage": 44, "crushing": 45, "equality": 46, "oneMove": 47, "short": 48, "long": 49, "veryLong": 50},
+  "files": 42,
+  "puzzles": 2520,
+  "unique": 2465
+}

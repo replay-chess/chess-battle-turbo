@@ -46,16 +46,21 @@ export function ShortcutsDialog({
   onOpenChange: (open: boolean) => void;
   demo?: boolean;
   /** The shell's flags, when a page fixes them (the /dev/ui demos pass the real route's values); else the viewer's. */
-  flags?: { "review-v3"?: boolean; "review-share"?: boolean };
+  flags?: { "review-v3"?: boolean; "review-share"?: boolean; home?: boolean; train?: boolean };
 }) {
   const singleKey = useSingleKeyShortcuts();
   const viewerReviewV3 = useFlag("review-v3");
   const viewerReviewShare = useFlag("review-share");
   const reviewV3 = flags?.["review-v3"] ?? viewerReviewV3;
   const reviewShare = flags?.["review-share"] ?? viewerReviewShare;
+  // P5: G H (Home) and G M (Mistake Bank) rows show while their flags are on.
+  const viewerHome = useFlag("home");
+  const viewerTrain = useFlag("train");
+  const home = flags?.home ?? viewerHome;
+  const train = flags?.train ?? viewerTrain;
   // Pages register their own sections while mounted (registerReviewShortcuts); re-render when one comes or goes.
   useSyncExternalStore(subscribeShortcutRegistry, shortcutRegistryVersion, () => 0);
-  const sections = shortcutSections({ reviewV3, reviewShare }).filter((s) => s.rows.length);
+  const sections = shortcutSections({ reviewV3, reviewShare, home, train }).filter((s) => s.rows.length);
   const columns =
     sections.length >= 3 ? "grid-cols-4 narrow:grid-cols-2" : sections.length === 2 ? "grid-cols-2" : "grid-cols-1";
 

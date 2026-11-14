@@ -30,10 +30,25 @@ export const PLAN_FEATURES: string[] = [
 
 export const TRIAL_DAYS_COPY = `${TRIAL_DAYS}-day free trial`;
 
-/** The line under every "Start free trial" button. */
-export function trialTermsLine(interval: "month" | "year", chargeDate: Date): string {
+/**
+ * The line under every "Start free trial" button. `chargeDate` null: the date-free wording, for a render that cannot
+ * know the viewer's zone (the server render and its hydration; the client then shows the viewer's own date).
+ */
+export function trialTermsLine(interval: "month" | "year", chargeDate: Date | string | null): string {
   const price = interval === "year" ? `${YEARLY_PRICE}/year` : `${MONTHLY_PRICE}/month`;
-  return `Then ${price}. Cancel before ${formatShortDate(chargeDate)} and you won't be charged.`;
+  if (chargeDate === null) return `Then ${price}. Cancel before your trial ends and you won't be charged.`;
+  const label = typeof chargeDate === "string" ? chargeDate : formatShortDate(chargeDate);
+  return `Then ${price}. Cancel before ${label} and you won't be charged.`;
+}
+
+/**
+ * The trial's first-charge day in the viewer's zone, for a client component: null on the server and during hydration
+ * (so both render the same date-free line), then the device's date. A string, so the snapshot is stable by value.
+ * Regression (P5 INTEGRATE-2): PricingCard formatted the date in the server's zone on the server and in the browser's
+ * on the client, and around midnight the two days differ ("20 Nov" vs "21 Nov"): a hydration error on `/` and /pricing.
+ */
+export function trialChargeLabelSnapshot(now: () => Date = () => new Date()): { client: () => string; server: () => null } {
+  return { client: () => formatShortDate(trialChargeDate(now())), server: () => null };
 }
 
 /** First-charge date for a trial that starts now: day 8. */

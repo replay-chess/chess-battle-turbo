@@ -16,6 +16,7 @@
 import { accountName } from "@/lib/onboarding/display-name";
 import { cache } from "react";
 import type { Entitlement, MeAccount, MeData, MeImport, MeUser } from "@repo/contracts/http/me";
+import type { Badges } from "@repo/contracts/http/train";
 import {
   providerFromDb,
   toWire,
@@ -30,6 +31,7 @@ import { ApiError } from "../api/api-error";
 import { requestNow } from "../api/now";
 import { exemptWrites } from "../api/timing";
 import type { ShellUserRecord } from "../shell/shell-user";
+import { badgeFactsSql, badgesFrom } from "../train/badges.server";
 import { isPaywallEnabled, membershipOf, type BillingFacts, type MembershipOptions } from "./membership";
 import type { ProvisionFailure } from "./provision-user";
 import { meDataOf, toMeUser } from "./viewer-dto";
@@ -163,6 +165,11 @@ export type ViewerRecord = {
   /** P4: the member's linked accounts (≤ 2, link order) and the active / last-24-h import run (LATERAL joins). */
   linkedAccounts: ViewerLinkedAccount[];
   importRun: ViewerImportRun | null;
+  /**
+   * P5 (phase-05 §7.3 R8, interface check §0.13): the nav badge facts (due BANK cards, the cap inputs, the latest
+   * training_days row) as one json scalar of the same statement. Optional so hand-built records need not carry it.
+   */
+  badgeFacts?: unknown;
 };
 
 /** One linked account of the viewer row (the `MeAccount` source). */
@@ -190,7 +197,7 @@ export type ViewerImportRun = {
 };
 
 /** The non-column fields of a ViewerRecord (joins). */
-type ViewerJoinField = "blitzRating" | "rapidRating" | "linkedAccounts" | "importRun";
+type ViewerJoinField = "blitzRating" | "rapidRating" | "linkedAccounts" | "importRun" | "badgeFacts";
 
 // Compile-time: ViewerRecord has exactly the statement's columns.
 type _RecordMatchesColumns = [Exclude<keyof ViewerRecord, ViewerColumn | ViewerJoinField>, Exclude<ViewerColumn, keyof ViewerRecord>];
@@ -215,14 +222,18 @@ const ACTIVE_RUN_SQL = `('WAITING_FOR_MEMBERSHIP', 'QUEUED', 'RUNNING')`;
  * parameter $1 (the Clerk user id, or the users.id for the provisioning re-read), so $queryRawUnsafe here carries no
  * injection surface. P4 adds two LATERAL joins and stays one round trip: the ≤ 2 linked accounts as one json_agg
  * (linked_accounts_userId_provider_key) and the newest active-or-recent import run with LIMIT 1
- * (import_runs_userId_createdAt_idx).
+ * (import_runs_userId_createdAt_idx). P5 adds the badge facts as one scalar subquery (training_cards_userId_deck_due_idx,
+ * training_profiles_pkey, training_days_pkey; lib/train/badges.server.ts), still one round trip with the one bound
+ * parameter: its due comparison reads the database clock, while the local day the cap counters belong to is taken in
+ * TS from the request clock (`toViewer`'s `now`). `GET /api/me/badges` (R8) runs the same facts at `ctx.now`.
  */
 function viewerSql(where: string): string {
   return (
     `SELECT ${VIEWER_COLUMNS.map((c) => COLUMN_EXPR[c] ?? `u."${c}"`).join(", ")}, c."blitzRating", c."rapidRating", ` +
     `COALESCE(la.accounts, '[]'::json) AS "linkedAccounts", ` +
     `ir."referenceId" AS "importRef", ir.provider::text AS "importProvider", ir.status::text AS "importStatus", ` +
-    `ir.phase AS "importPhase", ir.imported AS "importImported", ir.total AS "importTotal" ` +
+    `ir.phase AS "importPhase", ir.imported AS "importImported", ir.total AS "importTotal", ` +
+    `${badgeFactsSql("u.id", "(now() AT TIME ZONE 'UTC')")} AS "badgeFacts" ` +
     `FROM users u LEFT JOIN chess_com_profiles c ON c."userId" = u.id ` +
     `LEFT JOIN LATERAL (SELECT json_agg(json_build_object('provider', l.provider::text, 'username', l.username, ` +
     `'status', l.status::text, 'importState', l."importState"::text, 'lastSyncAt', ${isoJson(`l."lastSyncAt"`)}, ` +
@@ -340,6 +351,8 @@ export type Viewer = {
    * lib/billing/trial-eligibility.ts so `trial.eligible` can consult the ledger without another linked-accounts read.
    */
   ledgerHandles?: { provider: "chesscom" | "lichess"; usernameLower: string; verified: true }[];
+  /** P5 (phase-05 §7.3 R8): the nav badges at the request clock, from the viewer statement. */
+  badges?: Badges;
 };
 
 /** The onboarding columns as the server reads them (DB spellings; the wire view is `MeData.onboarding`). */
@@ -422,6 +435,7 @@ export function toViewer(record: ViewerSource, options: MembershipOptions): View
     },
     gamesVersion: record.gamesVersion ?? 0,
     ...p4ViewerFields(record, options.now),
+    ...(record.badgeFacts !== undefined ? { badges: badgesFrom(record.badgeFacts, record.timeZone ?? "UTC", options.now) } : {}),
   };
 }
 

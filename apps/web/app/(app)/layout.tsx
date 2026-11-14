@@ -3,6 +3,7 @@ import { AppShellView } from "@/components/shell/AppShellView";
 import { ChromeProvider } from "@/components/shell/chrome-context";
 import { PendingBotCompletes } from "@/features/game/local/pendingCompletes";
 import { serverBuildId } from "@/lib/api/context";
+import { OutboxSync } from "@/lib/offline/useOutboxSync";
 import { qk } from "@/lib/api/keys";
 import { getViewer } from "@/lib/auth/viewer";
 import { meDataOf } from "@/lib/auth/viewer-dto";
@@ -33,6 +34,7 @@ export default async function AppGroupLayout({ children }: { children: React.Rea
     <HydrationBoundary state={dehydrateFor(qc)}>
       <ChromeProvider mode={mode}>
         {viewer ? <PendingBotCompletes /> : null}
+        {viewer ? <OutboxSync userRef={viewer.ref} /> : null}
         {mode === "shell" && session ? <AppShellView user={session.user}>{children}</AppShellView> : children}
       </ChromeProvider>
     </HydrationBoundary>

@@ -26,6 +26,8 @@ export type ResponsiveDialogProps = {
   description?: React.ReactNode;
   /** On the dialog or sheet content. */
   "data-testid"?: string;
+  /** The close button's accessible name (default "Close"). */
+  closeLabel?: string;
 };
 
 export function ResponsiveDialog({
@@ -38,6 +40,7 @@ export function ResponsiveDialog({
   sheetHeight = "auto",
   description,
   "data-testid": testId,
+  closeLabel,
 }: ResponsiveDialogProps) {
   const tabbar = useMediaQuery(TABBAR_MQ);
   // Follows the media query while closed and freezes while open (state adjusted during render).
@@ -48,11 +51,11 @@ export function ResponsiveDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       {asSheet ? (
-        <SheetContent title={title} height={sheetHeight} data-testid={testId} data-surface="sheet">
+        <SheetContent title={title} height={sheetHeight} data-testid={testId} data-surface="sheet" closeLabel={closeLabel}>
           {children}
         </SheetContent>
       ) : (
-        <DialogContent title={title} description={description} size={size} data-testid={testId} data-surface="dialog">
+        <DialogContent title={title} description={description} size={size} data-testid={testId} data-surface="dialog" closeLabel={closeLabel}>
           <DialogBody>{children}</DialogBody>
         </DialogContent>
       )}

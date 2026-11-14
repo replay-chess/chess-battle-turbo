@@ -52,6 +52,7 @@
     "@repo/chess-analysis": "workspace:*",
     "@repo/chess-fixtures": "workspace:*",
     "@repo/chess-import": "workspace:*",
+    "@repo/chess-training": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "22.15.3",
     "prisma": "6.17.1",

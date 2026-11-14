@@ -12,6 +12,7 @@ import type { GameSnapshot } from "@repo/game-core/snapshot";
 import { ViewportStage } from "@/components/layout/ViewportStage";
 import { useChrome } from "@/components/shell/chrome-context";
 import { REVIEW_RESULT_SLOTS } from "@/features/review/game-over/lazy";
+import { withBankSlot } from "@/components/train/slots/GameOverBankSlotLazy";
 import { useFlag } from "@/lib/flags/client";
 import { useLiveGame } from "../live/useLiveGame";
 import type { JoinFailure } from "../live/useGameSocket";
@@ -72,9 +73,10 @@ function LiveGameScreen({ snapshot }: { snapshot: GameState }) {
   const [failure, setFailure] = useState<JoinFailure | null>(null);
   const controller = useLiveGame(snapshot, setFailure);
   const reviewV3 = useFlag("review-v3");
+  const train = useFlag("train"); // P5: the game-over Mistake Bank line (hand-off H-01)
   if (failure === "not_found" || failure === "forbidden") notFound();
   if (failure === "not_member" && typeof window !== "undefined") {
     window.location.assign(`/pricing?reason=expired&redirect_url=${encodeURIComponent(`/game/${snapshot.ref}`)}`);
   }
-  return <GameView controller={controller} resultSlots={reviewV3 ? REVIEW_RESULT_SLOTS : undefined} />;
+  return <GameView controller={controller} resultSlots={reviewV3 ? withBankSlot(REVIEW_RESULT_SLOTS, train) : undefined} />;
 }

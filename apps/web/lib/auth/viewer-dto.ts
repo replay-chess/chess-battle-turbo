@@ -7,6 +7,7 @@
 //
 // Fixed key order everywhere: the private-etag tier hashes the serialised body (lib/api/etag.ts).
 import type { MeAccount, MeData, MeImport, MeUser } from "@repo/contracts/http/me";
+import type { Badges } from "@repo/contracts/http/train";
 import type { OnboardingView } from "@repo/contracts/http/onboarding";
 import type { OnboardingGoalDb, OnboardingStepDb, RatingBandDb } from "@repo/contracts/http/p04-plain";
 import type { EntitlementSummary } from "../billing/entitlement-rules";
@@ -33,6 +34,8 @@ export type MeSource = {
   onboarding?: MeOnboardingSource;
   accounts?: readonly MeAccount[];
   importRun?: MeImport | null;
+  /** P5: the nav badges from the viewer statement (absent on records without the badge facts). */
+  badges?: Badges;
 };
 
 /** The record columns MeData.user reads. */
@@ -123,6 +126,8 @@ export function meDataOf(viewer: MeSource, flags: Record<string, boolean>, build
     ...(viewer.onboarding && !onboardingFinished(viewer.onboarding) ? { onboarding: onboardingViewOf(viewer.onboarding) } : {}),
     ...(viewer.accounts ? { accounts: viewer.accounts.map((a) => ({ ...a })) } : {}),
     ...(viewer.importRun !== undefined ? { import: viewer.importRun ? { ...viewer.importRun } : null } : {}),
+    // P5 (phase-05 §7.3 R8): the nav badges, only while the `train` flag is on (nothing reads them otherwise).
+    ...(viewer.badges && flags.train === true ? { badges: { bankDue: viewer.badges.bankDue, trainDot: viewer.badges.trainDot } } : {}),
   };
 }
 

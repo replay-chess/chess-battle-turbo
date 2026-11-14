@@ -182,6 +182,10 @@ export function pgDriver(url: string, log?: Logger): Driver {
         return [(await pool.query(s.text, [...s.values])).rows as Row[]];
       }
       const client = await pool.connect();
+      // pg-pool drops its idle error listener while a client is checked out: a backend killed mid-batch (a restart, a
+      // test's pg_terminate_backend) would otherwise raise an uncaught 'error' next to the query's own rejection.
+      const onError = (error: unknown) => log?.warn("pg client error during a batch", { error });
+      client.on("error", onError);
       try {
         await client.query("BEGIN");
         const out: Row[][] = [];
@@ -192,6 +196,7 @@ export function pgDriver(url: string, log?: Logger): Driver {
         await client.query("ROLLBACK").catch(() => undefined);
         throw error;
       } finally {
+        client.removeListener("error", onError);
         client.release();
       }
     },

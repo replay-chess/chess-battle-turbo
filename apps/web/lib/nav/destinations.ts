@@ -71,6 +71,8 @@ export const DESTINATIONS: Destination[] = [
     chord: "g h",
     match: (p) => under(p, "/home"),
     enabled: false,
+    // P5 (phase-05 plan §4.8): the member landing, behind `home`.
+    flag: "home",
     showInTabBar: true,
   },
   {
@@ -99,14 +101,49 @@ export const DESTINATIONS: Destination[] = [
     showInTabBar: false,
   },
   {
+    // P5 (phase-05 plan §3.2, §4.8): Train and its sections (Today, Mistake Bank, Puzzles), behind `train`. The P1 table
+    // bound G then M to Train; P5 moves it to the Mistake Bank as V3Shortcuts says ("Go to Mistake Bank G M"). The
+    // Weakness Profile section is P6's and stays out until then.
     key: "train",
     label: "Train",
     href: () => "/train",
     icon: Crosshair,
-    chord: "g m",
-    match: never,
+    match: (p) => under(p, "/train"),
     enabled: false,
+    flag: "train",
     showInTabBar: true,
+  },
+  {
+    key: "train-today",
+    label: "Today",
+    href: () => "/train",
+    parent: "train",
+    // The hub and its session pages (redirect and summary); the bank and puzzles have their own items.
+    match: (p) => normalizePath(p) === "/train" || under(p, "/train/session"),
+    enabled: false,
+    flag: "train",
+    showInTabBar: false,
+  },
+  {
+    key: "bank",
+    label: "Mistake Bank",
+    href: () => "/train/bank",
+    parent: "train",
+    chord: "g m",
+    match: (p) => under(p, "/train/bank"),
+    enabled: false,
+    flag: "train",
+    showInTabBar: false,
+  },
+  {
+    key: "puzzles",
+    label: "Puzzles",
+    href: () => "/train/puzzles",
+    parent: "train",
+    match: (p) => under(p, "/train/puzzles"),
+    enabled: false,
+    flag: "train",
+    showInTabBar: false,
   },
   {
     key: "learn",
@@ -217,12 +254,18 @@ export function currentFromKey(key: DestinationKey | null, flags?: NavFlags): Se
   return out;
 }
 
-export type SubnavGroup = { group: "play" | "learn"; label: string; items: Destination[] };
+export type SubnavGroup = { group: "play" | "learn" | "train"; label: string; items: Destination[] };
+
+/** The Train sections (Today, Mistake Bank, Puzzles). Train is current only while `train` is on, and so are they. */
+function trainSections(): Destination[] {
+  return DESTINATIONS.filter((d) => d.parent === "train");
+}
 
 export function subnavFor(current: Set<DestinationKey>): SubnavGroup | null {
   if (current.has("play"))
     return { group: "play", label: "Play sections", items: [destination("play"), ...childrenOf("play")] };
   if (current.has("learn")) return { group: "learn", label: "Learn sections", items: childrenOf("learn") };
+  if (current.has("train")) return { group: "train", label: "Train sections", items: trainSections() };
   return null;
 }
 
@@ -264,6 +307,8 @@ export function backTarget(pathname: string, me: Me): BackTarget | null {
   // alone does not say where practice came from, so this is My games; the page names its real origin (the review,
   // the comparison, the position) with ShellBackOverride.
   if (under(p, "/practice")) return MY_GAMES_BACK;
+  // P5 (phase-05 plan §3.2): the runners and a session's summary go back to Train (the hub).
+  if (under(p, "/train/bank/session") || under(p, "/train/puzzles") || detailOf(p, "/train/session")) return backFor("train", me);
   return null;
 }
 
@@ -273,18 +318,19 @@ const REVIEW_SUBSCREEN = /^\/review\/([^/]+)\/(?:complete|share|legend)$/;
 const MY_GAMES_BACK: BackTarget = { key: "review", href: "/games", label: "My Games" };
 
 /**
- * Routes that take the whole phone screen: no tab bar while a game (P2 plan 4.1) or a review (P3 plan §4.1, the
- * review's own control bar) is on screen, one viewport.
+ * Routes that take the whole phone screen: no tab bar while a game (P2 plan 4.1), a review (P3 plan §4.1, the
+ * review's own control bar) or a training runner (P5 plan §4: the runner's own control bar; the plan's "immersive"
+ * group) is on screen, one viewport.
  */
 export function hidesTabBar(pathname: string): boolean {
   const p = normalizePath(pathname);
-  return detailOf(p, "/game") || detailOf(p, "/review");
+  return detailOf(p, "/game") || detailOf(p, "/review") || under(p, "/train/bank/session") || under(p, "/train/puzzles");
 }
 
 /**
  * Which enabled destinations a user can activate in one step, given the shell
  * mode and the current set (used by the reachability test).
- * - sidebar: top level + Tournaments always + Learn subs while Learn is current.
+ * - sidebar: top level + Tournaments always + the subs of the current Learn or Train.
  * - rail: top level + SubNav (subs of the current group).
  * - tabbar: tab items + SubNav, except on detail routes (Back shows instead).
  */
@@ -295,10 +341,31 @@ export function visibleKeys(mode: ShellMode, current: Set<DestinationKey>, isDet
   if (mode === "sidebar") {
     for (const d of childrenOf("play", flags)) out.add(d.key);
     if (current.has("learn")) for (const d of childrenOf("learn", flags)) out.add(d.key);
+    if (current.has("train")) for (const d of childrenOf("train", flags)) out.add(d.key);
     return out;
   }
   const sub = subnavFor(current);
   if (sub && !(mode === "tabbar" && isDetail)) for (const d of sub.items) out.add(d.key);
+  return out;
+}
+
+/**
+ * Where the logo goes (P5 plan §4.8): Home once `home` is on for the viewer, else Play (the Phase 1 shell home).
+ */
+export function brandHref(flags?: NavFlags): string {
+  return isEnabled(destination("home"), flags) ? "/home" : "/play";
+}
+
+/**
+ * The G chords of the enabled destinations, as the chord machine takes them (`{ KeyH: "/home" }`): G then P and G then
+ * L always; G then R with `review-v3`; G then H and G then M (Mistake Bank) with `home` / `train` (P5, V3Shortcuts).
+ */
+export function destinationChords(flags?: NavFlags): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const d of enabledDestinations(flags)) {
+    const m = d.chord ? /^g ([a-z])$/.exec(d.chord) : null;
+    if (m) out[`Key${m[1]!.toUpperCase()}`] = d.href({ referenceId: "" });
+  }
   return out;
 }
 

@@ -175,19 +175,75 @@ phases:
       - apps/web/lib/api/keys/account.ts
 
   p05:
+    # phase-05 plan §13.2 (WP-A … WP-I). Active from the P5 stage-A build; done at the P5 sign-off. P5's files in
+    # registry directories (keys/home.ts, flags/registry/p05.ts, route-classes/p05.ts, personas/p05.ts,
+    # realtime/handlers/{train,home}.ts, contracts registry/{train,home,reports}.ts) are add-only rows of shared_add_only.
     name: Mistake Bank, puzzles, Train and Home
-    status: planned
+    status: active
     weeks: 20-25
     globs:
+      - packages/chess-training/**
+      - packages/game-core/src/rating/**
+      - packages/chess-analysis/src/bank/**
+      - packages/chess-analysis/src/puzzle/**
+      - packages/chess-analysis/src/themes/**
+      - packages/chess-analysis/src/epd.ts
+      - packages/chess-analysis/src/epd.test.ts
+      - packages/chess-analysis/scripts/theme-fixtures.ts
+      - packages/chess-fixtures/puzzles/**
+      - packages/chess-fixtures/design/v3-bank-session.json
+      - packages/chess-fixtures/design/v3-mistake-bank.json
+      - packages/contracts/src/http/train.ts
+      - packages/contracts/src/http/home.ts
+      - packages/contracts/src/http/reports.ts
+      - packages/contracts/src/http/fixtures/p05.ts
+      - packages/analytics/src/events/train.ts
+      - packages/analytics/src/events/home.ts
+      - packages/db/src/json/training.ts
+      - packages/db/seed/p05-*.ts
+      - packages/db/scripts/roles/*.p5.sql
+      - packages/db/prisma/migrations/20261114000000_m5a_jobkind_extract_mistakes/**
+      - packages/db/prisma/migrations/20261114000100_m5_training/**
+      - apps/analysis-worker/src/extract/**
+      - apps/analysis-worker/src/jobs/extract-mistakes.ts
+      - apps/analysis-worker/src/pipeline/final-batch/p05-bank.ts
+      - apps/analysis-worker/src/scheduler/recurring/training-hygiene.ts
       - apps/web/features/train/**
       - apps/web/components/train/**
+      - apps/web/components/home/**
       - apps/web/lib/train/**
       - apps/web/lib/home/**
+      - apps/web/lib/offline/**
+      - apps/web/lib/reports/**
+      - apps/web/lib/analytics/train-events.ts
+      - apps/web/lib/api/queries/train.ts
+      - apps/web/lib/api/queries/home.ts
       - apps/web/app/(app)/home/**
       - apps/web/app/(app)/train/**
-      - apps/web/app/(app)/mistakes/**
       - apps/web/app/api/train/**
+      - apps/web/app/api/home/**
+      - apps/web/app/api/reports/**
+      - apps/web/app/api/me/badges/**
+      - apps/web/app/dev/ui/train/**
+      - apps/web/app/dev/ui/home/**
+      - apps/web/app/dev/ui/_fixtures/train.ts
       - apps/web/lib/api/keys/train.ts
+      - apps/web/scripts/puzzles/**
+      - apps/web/scripts/backfill/*mistake*.ts
+      - apps/web/scripts/backfill/p05-*.ts
+      - apps/web/scripts/explain-hot-queries.ts
+      - apps/web/scripts/qa/smoke-puzzle-shards.ts
+      - apps/web/e2e/mocks/puzzle-shards*.ts
+      - apps/web/e2e/scripts/seed-training.ts
+      - apps/web/e2e/specs/train/**
+      - apps/web/e2e/specs/a11y/train.spec.ts
+      - apps/web/e2e/specs/home.spec.ts
+      - apps/web/e2e/specs/request-budget.spec.ts
+      - apps/web/e2e/devices/layout/train.spec.ts
+      - apps/web/e2e/devices/layout/home.spec.ts
+      - apps/web/e2e/devices/layout/p05.visual.spec.ts
+      - perf/k6/src/scenarios/train-session.ts
+      - perf/k6/src/scenarios/api-read-mix.ts
 
   p06:
     name: Weakness Profile

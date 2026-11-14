@@ -4,17 +4,31 @@
 // and at the end of a drain. A member still inside the window at the end of a drain is flushed by one timer when the
 // window ends. `queued` (what is still waiting for the member) is read with one statement per flush, for every
 // member in it; an idle worker therefore still issues no query (nothing pending, no timer).
+//
+// P5 (phase-05 plan §7.4): a done game may carry the member's Mistake Bank values from its own batch (`BankEmit`).
+// The frame then has `bankAdded` = the cards added by its games (null when any of them is unknown: a lost response)
+// and `bankDue` = the due count after its latest game (null when unknown). Frames of games without bank values (J1
+// off, failures, P3-only callers) omit both fields, as before.
 import { ANALYSIS_BATCH_EVERY_MS, ANALYSIS_BATCH_MAX_REFS } from "@repo/contracts/socket/analysis";
 import type { Logger } from "../obs/log";
 import type { Clock, TimerHandle } from "../scheduler/clock";
 import type { EmitSink } from "../socket/emit";
 import { buildEvent } from "../socket/events";
 
+/** One game's bank values for one member (null = unknown). */
+export interface BankEmit {
+  added: number | null;
+  due: number | null;
+}
+
 interface Pending {
   done: number;
   failed: number;
   /** Most recent first, unique. */
   refs: string[];
+  /** P5: undefined until a game with bank values arrives; null once one of them was unknown. */
+  bankAdded?: number | null;
+  bankDue?: number | null;
 }
 
 export interface BatchAccumulatorOptions {
@@ -37,13 +51,26 @@ export class BatchAccumulator {
     this.intervalMs = opts.intervalMs ?? ANALYSIS_BATCH_EVERY_MS;
   }
 
-  /** A background analysis of `gameRef` finished (`done`) or failed for these members. */
-  add(userRefs: readonly string[], gameRef: string, outcome: "done" | "failed"): void {
+  /**
+   * A background analysis of `gameRef` finished (`done`) or failed for these members. `bank` (P5) carries each
+   * member's bank values from that game's batch.
+   */
+  add(
+    userRefs: readonly string[],
+    gameRef: string,
+    outcome: "done" | "failed",
+    bank?: ReadonlyMap<string, BankEmit>,
+  ): void {
     for (const ref of new Set(userRefs)) {
-      const p = this.pending.get(ref) ?? { done: 0, failed: 0, refs: [] };
+      const p: Pending = this.pending.get(ref) ?? { done: 0, failed: 0, refs: [] };
       if (outcome === "done") p.done++;
       else p.failed++;
       p.refs = [gameRef, ...p.refs.filter((r) => r !== gameRef)].slice(0, ANALYSIS_BATCH_MAX_REFS);
+      const b = bank?.get(ref);
+      if (b) {
+        p.bankAdded = b.added === null || p.bankAdded === null ? null : (p.bankAdded ?? 0) + b.added;
+        p.bankDue = b.due;
+      }
       this.pending.set(ref, p);
     }
   }
@@ -113,6 +140,7 @@ export class BatchAccumulator {
           failed: p.failed,
           queued: queued.get(ref) ?? 0,
           refs: p.refs,
+          ...(p.bankAdded !== undefined ? { bankAdded: p.bankAdded, bankDue: p.bankDue ?? null } : {}),
         });
         await this.opts.emitter.emit("analysis:batch", data, [ref]);
       }

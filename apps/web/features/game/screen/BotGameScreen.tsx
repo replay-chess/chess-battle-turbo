@@ -7,6 +7,7 @@
 
 import type { GameSnapshot } from "@repo/game-core/snapshot";
 import { REVIEW_RESULT_SLOTS } from "@/features/review/game-over/lazy";
+import { withBankSlot } from "@/components/train/slots/GameOverBankSlotLazy";
 import { useFlag } from "@/lib/flags/client";
 import { useLocalGame } from "../local/useLocalGame";
 import { GameView } from "./GameView";
@@ -18,5 +19,6 @@ export function BotGameScreen({ snapshot }: { snapshot: GameSnapshot }) {
 function BotGame({ snapshot }: { snapshot: GameSnapshot }) {
   const controller = useLocalGame(snapshot);
   const reviewV3 = useFlag("review-v3");
-  return <GameView controller={controller} resultSlots={reviewV3 ? REVIEW_RESULT_SLOTS : undefined} />;
+  const train = useFlag("train"); // P5: the game-over Mistake Bank line (hand-off H-01)
+  return <GameView controller={controller} resultSlots={reviewV3 ? withBankSlot(REVIEW_RESULT_SLOTS, train) : undefined} />;
 }

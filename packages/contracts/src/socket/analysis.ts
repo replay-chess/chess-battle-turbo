@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { Ref } from "../http/common";
 import { AnalysisFailureCode, BestTokens, bestTokenCount, EvalCode, JString, MAX_MOMENTS } from "../http/review";
+import { ReviewBank } from "../http/train";
 
 // ── Cadence (worker side, P3-D26) ───────────────────────────────────────────────────────────────────────────────
 /** One `analysis:progress` frame every this many plies … */
@@ -28,6 +29,13 @@ export function analysisDoneDedupeKey(gameId: bigint | number | string, version:
 
 // ── Payloads ────────────────────────────────────────────────────────────────────────────────────────────────────
 const Count = z.number().int().min(0);
+
+/**
+ * P5 (phase-05 §7.1, §7.6 step 6): the BANK cards that exist for this game side's moment plies after the analysis
+ * batch committed (`plies` ≤ 4, ascending). The same shape as A2's `ReviewStatusDTO.bank`.
+ */
+export const BankAdded = ReviewBank;
+export type BankAdded = z.infer<typeof BankAdded>;
 
 /** Web A3/A4 (in `after()`), the socket finish (after commit), bot `complete`. ≤ 80 B. */
 export const AnalysisQueuedEvent = z.object({
@@ -88,7 +96,7 @@ export const AnalysisWritingEvent = z
   });
 export type AnalysisWritingEvent = z.infer<typeof AnalysisWritingEvent>;
 
-/** Personalised per recipient (one emit per member side). The client refetches A1 once on it. ≤ 400 B. */
+/** Personalised per recipient (one emit per member side). The client refetches A1 once on it. ≤ 480 B (P5). */
 export const AnalysisDoneEvent = z.object({
   v: z.literal(1),
   gameRef: Ref,
@@ -101,8 +109,16 @@ export const AnalysisDoneEvent = z.object({
   /** The game-over card line (§8.7), ≤ 160 characters. */
   coachLine: z.string().max(160).nullable(),
   isClean: z.boolean(),
-  /** Reserved for P5's `{ added, plies, due }` (COV C-01). Always null in P3. */
+  /**
+   * Reserved by P3 and kept null: the socket parses `data` with this schema, so a newer worker sending a non-null
+   * `bank` to an older socket would be dropped. P5's values travel in the two optional fields below (interface check
+   * §0.4: extra keys are stripped by an older socket, missing ones are fine for a newer client).
+   */
   bank: z.null(),
+  /** P5: the cards this game side has in the bank now; null when the response of the batch was lost or J1 was off. */
+  bankAdded: BankAdded.nullable().optional(),
+  /** P5: the recipient's due count shown in the nav and on Home (the cap formula of §8.5 applied). */
+  bankDue: Count.nullable().optional(),
 });
 export type AnalysisDoneEvent = z.infer<typeof AnalysisDoneEvent>;
 
@@ -121,7 +137,7 @@ export const AnalysisFailedEvent = z.object({
 });
 export type AnalysisFailedEvent = z.infer<typeof AnalysisFailedEvent>;
 
-/** Background jobs (band < 80, not watched), coalesced per user, at most one per 60 s, flushed at drain end. ≤ 640 B. */
+/** Background jobs (band < 80, not watched), coalesced per user, at most one per 60 s, flushed at drain end. ≤ 672 B (P5). */
 export const AnalysisBatchEvent = z.object({
   v: z.literal(1),
   done: Count,
@@ -130,6 +146,10 @@ export const AnalysisBatchEvent = z.object({
   queued: Count,
   /** The games this frame covers (most recent first), at most ANALYSIS_BATCH_MAX_REFS. */
   refs: z.array(Ref).max(ANALYSIS_BATCH_MAX_REFS),
+  /** P5: BANK cards added by the games of this frame (summed since the last frame); optional for skew safety. */
+  bankAdded: Count.nullable().optional(),
+  /** P5: the recipient's due count after the last game of this frame. */
+  bankDue: Count.nullable().optional(),
 });
 export type AnalysisBatchEvent = z.infer<typeof AnalysisBatchEvent>;
 
@@ -167,14 +187,16 @@ export const ANALYSIS_EVENT_NAMES = Object.keys(ANALYSIS_EVENTS) as AnalysisEven
  *     = 176 B, so 192 leaves room for 4-digit plies;
  *   - batch: 20 refs of 25 characters are 560 B of refs alone; 612 B with the counters;
  *   - compare:ready: `{"v":1,"gameRef":…,"status":"failed"}` = 63 B.
+ * P5 (phase-05 §7.1, §9.4; interface check §0.4) re-measured the two events that gained the bank fields: done 469 B
+ * (the 399 B frame + `bankAdded` with four 4-digit plies + a 5-digit `bankDue`) → 480; batch 645 B → 672.
  */
 export const ANALYSIS_EVENT_BUDGETS = {
   "analysis:queued": 80,
   "analysis:progress": 400,
   "analysis:writing": 60,
-  "analysis:done": 400,
+  "analysis:done": 480,
   "analysis:failed": 192,
-  "analysis:batch": 640,
+  "analysis:batch": 672,
   "compare:ready": 64,
   "games:changed": 60,
 } as const satisfies Record<AnalysisEventName, number>;

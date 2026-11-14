@@ -57,12 +57,24 @@ export interface ReviewDemoProps {
   stress?: boolean;
   /** The viewer's colour for the stress game ("both colours", testing X9). */
   side?: "w" | "b";
+  /** P5 (`?bank=1`): A1 with the `train` bank fields (every moment in the bank, a card due tomorrow): the toggle shows. */
+  bank?: boolean;
 }
 
-export function ReviewDemo({ state, live, share, flip, moment = null, phase = "ask", stress = false, side = "w" }: ReviewDemoProps) {
+export function ReviewDemo({ state, live, share, flip, moment = null, phase = "ask", stress = false, side = "w", bank = false }: ReviewDemoProps) {
   const qc = useQueryClient();
   const [seeded] = useState(() => {
-    const dto = reviewDemoFixture(live ? "queued" : state, stress, side);
+    const base = reviewDemoFixture(live ? "queued" : state, stress, side);
+    const dto =
+      bank && base.review
+        ? {
+            ...base,
+            review: {
+              ...base.review,
+              moments: base.review.moments.map((mo, i) => ({ ...mo, inBank: true, card: { ref: `m_Demo${i + 1}`, dueLabel: "tomorrow" } })),
+            },
+          }
+        : base;
     qc.setQueryData(qk.review.detail(dto.ref), dto);
     return dto;
   });

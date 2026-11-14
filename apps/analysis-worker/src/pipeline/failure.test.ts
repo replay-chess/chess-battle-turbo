@@ -218,6 +218,7 @@ class PipelineDriver implements Driver {
       ];
     }
     if (t.includes("FROM openings")) return TEST_OPENINGS.map((o) => ({ ...o }));
+    if (t.includes("FROM linked_accounts la")) return [{ locked: 0 }]; // linkedAccountsLockStatement: a game without a link
     if (
       /^(INSERT INTO (game_analyses|player_reviews|legend_comparisons)|UPDATE (games|game_players|users u))/.test(
         t.trim(),
@@ -244,13 +245,13 @@ describe("failure: Neon fetch errors (SqlAnalysisStore)", () => {
     return { h, driver: driver! };
   }
 
-  it("a dropped request is retried once (idempotent statements) and the job completes; the final batch holds 7 statements", async () => {
+  it("a dropped request is retried once (idempotent statements) and the job completes; the final batch holds 8 statements", async () => {
     const { h, driver } = await sqlHarness(1);
     assert.equal(await h.run(), "done");
     assert.equal(h.db.counters.retries, 1);
     assert.equal(h.queue.jobs[0]!.status, "DONE");
     const final = driver.batches[driver.batches.length - 1]!;
-    assert.equal(final.length, 7, "guard, analyses, games, reviews, players, users, done");
+    assert.equal(final.length, 8, "guard, analyses, games, linked accounts, reviews, players, users, done");
     assert.match(final[0]!, /^SELECT 1 \//);
     assert.match(final[final.length - 1]!, /^UPDATE jobs SET/);
     const checkpoints =

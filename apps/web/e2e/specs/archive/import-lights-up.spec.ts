@@ -28,7 +28,9 @@ const tabCount = async (page: import("@playwright/test").Page, id: string) =>
 
 test(
   "a running import: the banner and the source tabs (seeded)",
-  { tag: ["@p4", "@local-only", "@smoke", "@state:V3GamesArchive.import_running"] },
+  // One state of the archive's three boards (the convention of review/games-archive.spec.ts ARCHIVE_BOARDS): tagging only
+  // V3GamesArchive left V3GamesArchiveEmpty/Filters.import_running missing in `state-coverage --phase 5` (REGRESSION-5).
+  { tag: ["@p4", "@local-only", "@smoke", ...["V3GamesArchive", "V3GamesArchiveEmpty", "V3GamesArchiveFilters"].map((b) => `@state:${b}.import_running`)] },
   async ({ page, leasePersona }, testInfo) => {
     test.skip(testInfo.project.name === "webkit-iphone", "desktop only");
     test.setTimeout(120_000);

@@ -20,6 +20,7 @@ import { useDataStore } from "@/lib/stores";
 import { ApiError } from "@/lib/api/errors";
 import { useCreateBotGame } from "@/lib/api/mutations/games";
 import { engineIntentProps } from "@/features/engine/prefetch";
+import { playModeOf, timeControlOf } from "@/lib/play/play-params";
 
 // Static game mode definitions — never change at runtime
 const gameModes = [
@@ -95,6 +96,16 @@ function PlayContent() {
     fetchLegends();
     fetchOpenings();
   }, [fetchLegends, fetchOpenings]);
+
+  // Pre-select the mode and time control from Home's links (e.g. /play?tab=quick&tc=5%2B3; lib/play/play-params.ts).
+  const tabParam = searchParams.get("tab");
+  const tcParam = searchParams.get("tc");
+  useEffect(() => {
+    const mode = playModeOf(tabParam);
+    if (mode) setSelectedMode(mode);
+    const tc = timeControlOf(tcParam);
+    if (tc) setTimeControl(tc);
+  }, [tabParam, tcParam]);
 
   // Pre-select legend from URL param (e.g. /play?legend=abc123)
   const legendParam = searchParams.get("legend");

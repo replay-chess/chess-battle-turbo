@@ -10,6 +10,7 @@
 //   together with the analysis or not at all;
 // - no I/O while building: `statements()` is pure and synchronous.
 import type { Color } from "@repo/chess-analysis/codec";
+import type { BankPlan } from "../../extract/extractMistakes";
 import type { AnalysisResult } from "@repo/chess-analysis/analysis";
 import type { Row, Statement } from "../../db/client";
 import type { Metrics } from "../../obs/metrics";
@@ -34,6 +35,21 @@ export interface FinalBatchContext {
   importRunId?: string | null;
   /** P4: where the stored evals came from (Lichess evalHint, §8.7); absent = ENGINE, unchanged. */
   evalSource?: "ENGINE" | "LICHESS" | "MIXED";
+  /**
+   * P5 (phase-05 plan §7.6 J1): the Mistake Bank rows of this game, built in TS before the batch (every engine search
+   * of the line extension runs before `planExtensions()`); null/absent when J1 is off (BANK_EXTRACT_ENABLED=false, a
+   * regrade) and no bank statement is added.
+   */
+  bank?: BankPlan | null;
+  /**
+   * P5 (FIX-1): a regrade with J1 on. The regrade runs no engine, so it cannot build the bank rows itself; its batch
+   * marks the member sides for re-extraction (`bankVersion` 0) and queues one EXTRACT_MISTAKES job per side, so the
+   * bank follows the regrade's key moments (a moment it added gets its card; the backfill predicate catches a job
+   * that never ran).
+   */
+  bankReextract?: boolean;
+  /** The analysis version the regrade writes (the re-extraction job's dedupe key). */
+  analysisVersion?: number;
 }
 
 /** Where an extension reports what its committed statements returned (telemetry only; never another write). */
@@ -41,6 +57,8 @@ export interface FinalBatchSink {
   metrics: Metrics;
   telemetry: Telemetry;
   events: ProductEvents;
+  /** The final batch's request time (ms, the one round trip that ran every statement), when the caller timed it. */
+  batchMs?: number;
 }
 
 export interface FinalBatchExtension {

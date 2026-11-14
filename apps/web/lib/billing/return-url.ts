@@ -155,10 +155,10 @@ export function buildActivationReturnUrl(
 
 /**
  * Where /checkout/activating continues after success (plan 4.9): the checked `redirect_url`, never /checkout/* (no
- * loop); /onboarding while setup is not done; else /games (P5 swaps in /home).
+ * loop); /onboarding while setup is not done; else /home (P5 plan §4.8: members land on Home).
  */
 export function activationDestination(redirectUrl: string | null | undefined, onboarded: boolean): string {
   if (!onboarded) return "/onboarding";
   const safe = safeActivationPath(redirectUrl);
-  return safe && !safe.startsWith("/checkout") ? safe : "/games";
+  return safe && !safe.startsWith("/checkout") ? safe : "/home";
 }

@@ -1,0 +1,253 @@
+{
+  "board": "V3BankSession",
+  "$comment": "The three V3BankSession drill positions (Mistake Bank mode, the member plays White, no setup move) with the design's line, the move played in the game, the theme label and the coach texts, verbatim from the board. `lines`/`states` use P2's design-fixture shape (test/design.test.ts replays them). `positions[*]` carries the bank expectations (phase-05 plan §12.3): the stored solution of a review position is the best move alone (§8.1 step 5) while the drill plays the design line; `isPuzzle` is false where the board says the best move keeps the game level (below +200 cp, §8.1 step 2), and null where only the engine's MultiPV-2 gap can decide it (Rxf5, +2.7 on the board).",
+  "lines": {
+    "P0": {
+      "startFen": "r2r2k1/p1q2pp1/2pb1n1p/5b2/2n5/2NNB2P/PPP1BPP1/R2Q1RK1 w - - 0 17",
+      "startMoveNo": 17,
+      "gameStartsAtPly": 0,
+      "san": [
+        "Qc1",
+        "Nxe3",
+        "Qxe3"
+      ],
+      "uci": [
+        "d1c1",
+        "c4e3",
+        "c1e3"
+      ],
+      "designFens": [
+        "r2r2k1/p1q2pp1/2pb1n1p/5b2/2n5/2NNB2P/PPP1BPP1/R1Q2RK1 b",
+        "r2r2k1/p1q2pp1/2pb1n1p/5b2/8/2NNn2P/PPP1BPP1/R1Q2RK1 w",
+        "r2r2k1/p1q2pp1/2pb1n1p/5b2/8/2NNQ2P/PPP1BPP1/R4RK1 b"
+      ]
+    },
+    "P0_PLAYED": {
+      "startFen": "r2r2k1/p1q2pp1/2pb1n1p/5b2/2n5/2NNB2P/PPP1BPP1/R2Q1RK1 w - - 0 17",
+      "startMoveNo": 17,
+      "gameStartsAtPly": 0,
+      "san": [
+        "b3"
+      ],
+      "uci": [
+        "b2b3"
+      ],
+      "designFens": [
+        "r2r2k1/p1q2pp1/2pb1n1p/5b2/2n5/1PNNB2P/P1P1BPP1/R2Q1RK1 b"
+      ]
+    },
+    "P1": {
+      "startFen": "r2r2k1/p1q2pp1/2p2n1p/5b2/8/1PNNP1bP/P1P1B1P1/R2Q1RK1 w - - 0 19",
+      "startMoveNo": 19,
+      "gameStartsAtPly": 0,
+      "san": [
+        "Rxf5",
+        "Bh2+",
+        "Kh1"
+      ],
+      "uci": [
+        "f1f5",
+        "g3h2",
+        "g1h1"
+      ],
+      "designFens": [
+        "r2r2k1/p1q2pp1/2p2n1p/5R2/8/1PNNP1bP/P1P1B1P1/R2Q2K1 b",
+        "r2r2k1/p1q2pp1/2p2n1p/5R2/8/1PNNP2P/P1P1B1Pb/R2Q2K1 w",
+        "r2r2k1/p1q2pp1/2p2n1p/5R2/8/1PNNP2P/P1P1B1Pb/R2Q3K b"
+      ]
+    },
+    "P1_PLAYED": {
+      "startFen": "r2r2k1/p1q2pp1/2p2n1p/5b2/8/1PNNP1bP/P1P1B1P1/R2Q1RK1 w - - 0 19",
+      "startMoveNo": 19,
+      "gameStartsAtPly": 0,
+      "san": [
+        "Qd2"
+      ],
+      "uci": [
+        "d1d2"
+      ],
+      "designFens": [
+        "r2r2k1/p1q2pp1/2p2n1p/5b2/8/1PNNP1bP/P1PQB1P1/R4RK1 b"
+      ]
+    },
+    "P2": {
+      "startFen": "r3r1k1/p1q2ppb/2p2n1p/8/8/1PNNPBbP/P1PQ2P1/R4RK1 w - - 0 21",
+      "startMoveNo": 21,
+      "gameStartsAtPly": 0,
+      "san": [
+        "Ne2",
+        "Bh2+",
+        "Kh1"
+      ],
+      "uci": [
+        "c3e2",
+        "g3h2",
+        "g1h1"
+      ],
+      "designFens": [
+        "r3r1k1/p1q2ppb/2p2n1p/8/8/1P1NPBbP/P1PQN1P1/R4RK1 b",
+        "r3r1k1/p1q2ppb/2p2n1p/8/8/1P1NPB1P/P1PQN1Pb/R4RK1 w",
+        "r3r1k1/p1q2ppb/2p2n1p/8/8/1P1NPB1P/P1PQN1Pb/R4R1K b"
+      ]
+    },
+    "P2_PLAYED": {
+      "startFen": "r3r1k1/p1q2ppb/2p2n1p/8/8/1PNNPBbP/P1PQ2P1/R4RK1 w - - 0 21",
+      "startMoveNo": 21,
+      "gameStartsAtPly": 0,
+      "san": [
+        "Bxc6"
+      ],
+      "uci": [
+        "f3c6"
+      ],
+      "designFens": [
+        "r3r1k1/p1q2ppb/2B2n1p/8/8/1PNNP1bP/P1PQ2P1/R4RK1 b"
+      ]
+    }
+  },
+  "states": {
+    "solve": {
+      "line": "P0",
+      "ply": 0,
+      "lastMove": null,
+      "promotion": null,
+      "badges": []
+    },
+    "hint": {
+      "line": "P0",
+      "ply": 0,
+      "lastMove": null,
+      "promotion": null,
+      "badges": []
+    },
+    "themes": {
+      "line": "P0",
+      "ply": 0,
+      "lastMove": null,
+      "promotion": null,
+      "badges": []
+    },
+    "wrong": {
+      "line": "P0_PLAYED",
+      "ply": 1,
+      "lastMove": [
+        "b2",
+        "b3"
+      ],
+      "promotion": null,
+      "badges": []
+    },
+    "correct": {
+      "line": "P0",
+      "ply": 3,
+      "lastMove": [
+        "c1",
+        "e3"
+      ],
+      "promotion": null,
+      "badges": []
+    },
+    "solution": {
+      "line": "P0",
+      "ply": 3,
+      "lastMove": [
+        "c1",
+        "e3"
+      ],
+      "promotion": null,
+      "badges": []
+    }
+  },
+  "positions": [
+    {
+      "line": "P0",
+      "playedLine": "P0_PLAYED",
+      "fen": "r2r2k1/p1q2pp1/2pb1n1p/5b2/2n5/2NNB2P/PPP1BPP1/R2Q1RK1 w - - 0 17",
+      "color": "w",
+      "setupUci": null,
+      "best": "d1c1",
+      "designLine": [
+        "d1c1",
+        "c4e3",
+        "c1e3"
+      ],
+      "played": "b2b3",
+      "playedSan": "b3",
+      "themeLabel": "Recapture first",
+      "source": "vs tal_fan_77 · today · move 17",
+      "texts": {
+        "coach": "Qc1 keeps the queen ready to recapture on e3, so you avoid doubled e-pawns.",
+        "why": "b3 is what you played. After Nxe3 fxe3 your e-pawns are doubled. Keep the queen ready to take back.",
+        "hint1": "Which piece can guard e3 without blocking anything?"
+      },
+      "expected": {
+        "solution": "d1c1",
+        "accept": null,
+        "isPuzzle": false,
+        "primaryTheme": "rc:recapture",
+        "judgementLabel": null
+      },
+      "refuteUci": "c4e3"
+    },
+    {
+      "line": "P1",
+      "playedLine": "P1_PLAYED",
+      "fen": "r2r2k1/p1q2pp1/2p2n1p/5b2/8/1PNNP1bP/P1P1B1P1/R2Q1RK1 w - - 0 19",
+      "color": "w",
+      "setupUci": null,
+      "best": "f1f5",
+      "designLine": [
+        "f1f5",
+        "g3h2",
+        "g1h1"
+      ],
+      "played": "d1d2",
+      "playedSan": "Qd2",
+      "themeLabel": "Loose piece",
+      "source": "vs tal_fan_77 · today · move 19",
+      "texts": {
+        "coach": "Rxf5 wins the bishop. Nothing of Black’s defends f5, and the engine rates the position about +2.7.",
+        "why": "Not the move. Something of Black’s is loose: count the defenders of the bishop on f5.",
+        "hint1": "Look at your rook on f1. What can it see now that the f-pawn is gone?"
+      },
+      "expected": {
+        "solution": "f1f5",
+        "accept": null,
+        "isPuzzle": null,
+        "primaryTheme": "hangingPiece",
+        "judgementLabel": null
+      },
+      "refuteUci": null
+    },
+    {
+      "line": "P2",
+      "playedLine": "P2_PLAYED",
+      "fen": "r3r1k1/p1q2ppb/2p2n1p/8/8/1PNNPBbP/P1PQ2P1/R4RK1 w - - 0 21",
+      "color": "w",
+      "setupUci": null,
+      "best": "c3e2",
+      "designLine": [
+        "c3e2",
+        "g3h2",
+        "g1h1"
+      ],
+      "played": "f3c6",
+      "playedSan": "Bxc6",
+      "themeLabel": "Defended pawn",
+      "source": "vs tal_fan_77 · today · move 21",
+      "texts": {
+        "coach": "Ne2 challenges the bishop on g3 and keeps the game level. c6 is guarded by the queen.",
+        "why": "Bxc6 is what you played: the queen on c7 guards c6, so it gives a bishop for a pawn.",
+        "hint1": "Before taking on c6, count its defenders. Then look at the bishop on g3."
+      },
+      "expected": {
+        "solution": "c3e2",
+        "accept": null,
+        "isPuzzle": false,
+        "primaryTheme": "rc:defendedTarget",
+        "judgementLabel": null
+      },
+      "refuteUci": "c7c6"
+    }
+  ]
+}

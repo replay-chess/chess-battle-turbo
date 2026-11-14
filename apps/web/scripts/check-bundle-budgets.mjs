@@ -11,7 +11,8 @@
 //   4. a route in ROUTE_BUDGETS is over its First Load JS, or loads engine code it must not (phase-02 plan 12.8 /
 //      DoD: `/game/[ref]` ≤ 600 kB gz, owner-approved 2026-11-06, and no engine chunk on the PvP path; the bot screen
 //      and the engine stay lazy chunks; phase-03 plan §9.6 for the review, archive, practice, share and How we grade
-//      routes; phase-04 plan §9.6 for onboarding, activation and Connected accounts).
+//      routes; phase-04 plan §9.6 for onboarding, activation and Connected accounts; phase-05 plan §9.5 for Home,
+//      Train, the Mistake Bank, the runners and the summary, which also cap the page-specific JS and refuse ts-fsrs).
 //
 // A route's First Load JS (FIX-2, P4 review round 2) is what the route costs on top of what every route already
 // downloads: the files every route loads ("First Load JS shared by all") plus the route's page-entry files, less the
@@ -74,6 +75,27 @@ const P4_ROUTE_BUDGETS = [
   { route: "/checkout/activating/page", label: "/checkout/activating", maxKB: P4_ACTIVATION_KB, noEngine: true },
   { route: "/(app)/settings/connected/page", label: "/settings/connected", maxKB: P4_CONNECTED_KB, noEngine: true },
 ];
+/**
+ * Phase 5 rows (phase-05 plan §9.5). Home, the Train hub, the bank list and the summary: ≤ 100 kB page-specific (the
+ * route's own cost less the files every route loads) and ≤ 260 kB in all; no chess.js need, no engine. The runners
+ * (`/train/bank/session`, `/train/puzzles`): the P2 board + chess.js + the outbox, ≤ 155 kB page-specific and ≤ 300 kB
+ * in all, no Stockfish. Every P5 route is also refused ts-fsrs (previews arrive in the payload; FSRS is server-only).
+ */
+const P5_PAGE_KB = 100;
+const P5_TOTAL_KB = 260;
+const P5_RUNNER_PAGE_KB = 155;
+const P5_RUNNER_TOTAL_KB = 300;
+const P5_ROUTE_BUDGETS = [
+  { route: "/(app)/home/page", label: "/home", maxKB: P5_TOTAL_KB, maxPageKB: P5_PAGE_KB, noEngine: true, noFsrs: true },
+  { route: "/(app)/train/(hub)/page", label: "/train", maxKB: P5_TOTAL_KB, maxPageKB: P5_PAGE_KB, noEngine: true, noFsrs: true },
+  { route: "/(app)/train/bank/(list)/page", label: "/train/bank", maxKB: P5_TOTAL_KB, maxPageKB: P5_PAGE_KB, noEngine: true, noFsrs: true },
+  { route: "/(app)/train/session/[ref]/summary/page", label: "/train/session/[ref]/summary", maxKB: P5_TOTAL_KB, maxPageKB: P5_PAGE_KB, noEngine: true, noFsrs: true },
+  { route: "/(app)/train/session/[ref]/page", label: "/train/session/[ref]", maxKB: P5_TOTAL_KB, maxPageKB: P5_PAGE_KB, noEngine: true, noFsrs: true },
+  { route: "/(app)/train/bank/session/page", label: "/train/bank/session", maxKB: P5_RUNNER_TOTAL_KB, maxPageKB: P5_RUNNER_PAGE_KB, noEngine: true, noFsrs: true },
+  { route: "/(app)/train/puzzles/page", label: "/train/puzzles", maxKB: P5_RUNNER_TOTAL_KB, maxPageKB: P5_RUNNER_PAGE_KB, noEngine: true, noFsrs: true },
+];
+/** ts-fsrs in a chunk: its parameter names survive minification (property keys), and both appear in its defaults. */
+const isFsrs = (text) => text.includes("request_retention") && text.includes("enable_short_term");
 /** Per-route First Load budgets (app-build-manifest page entries). regression: REGRESSION-2 (the P2 row was missing). */
 const ROUTE_BUDGETS = [
   { route: "/(app)/game/[ref]/page", label: "/game/[ref]", maxKB: 600, noEngine: true },
@@ -95,6 +117,8 @@ const ROUTE_BUDGETS = [
   { route: "/how-we-grade/page", label: "/how-we-grade", maxKB: 180, noEngine: true },
   // Phase 4 (phase-04 plan §9.6): the onboarding steps, the two activation screens and Connected accounts.
   ...P4_ROUTE_BUDGETS,
+  // Phase 5 (phase-05 plan §9.5): Home, Train, the Mistake Bank, the runners and the summary.
+  ...P5_ROUTE_BUDGETS,
 ];
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -214,11 +238,18 @@ for (const b of ROUTE_BUDGETS) {
   const printed = files.reduce((n, f) => n + gzipBytes(f), 0);
   const own = routeCost(files);
   const bytes = own.reduce((n, f) => n + gzipBytes(f), 0);
+  // Page-specific: the route's own cost less the files every route loads (P5 rows, phase-05 plan §9.5).
+  const pageBytes = own.filter((f) => !sharedSet.has(f)).reduce((n, f) => n + gzipBytes(f), 0);
   // Engine code is refused anywhere in the page entry, root layout files included.
   const engine = b.noEngine ? files.filter((f) => ENGINE_MARKER.test(readFileSync(path.join(distDir, f), "utf8"))) : [];
-  routeRows.push({ ...b, gzipBytes: bytes, printedGzipBytes: printed, files: own.length, engine });
+  const fsrs = b.noFsrs ? files.filter((f) => isFsrs(readFileSync(path.join(distDir, f), "utf8"))) : [];
+  routeRows.push({ ...b, gzipBytes: bytes, pageGzipBytes: pageBytes, printedGzipBytes: printed, files: own.length, engine, fsrs });
   if (bytes > b.maxKB * 1000) failures.push(`${b.label} First Load JS ${kB(bytes)} kB is over its budget ${b.maxKB} kB`);
+  if (b.maxPageKB !== undefined && pageBytes > b.maxPageKB * 1000) {
+    failures.push(`${b.label} page-specific JS ${kB(pageBytes)} kB is over its budget ${b.maxPageKB} kB`);
+  }
   for (const f of engine) failures.push(`${b.label} loads engine code in ${f} (the engine must stay a lazy chunk)`);
+  for (const f of fsrs) failures.push(`${b.label} loads ts-fsrs in ${f} (FSRS is server-only; previews arrive in the payload)`);
 }
 
 // Report
@@ -236,7 +267,7 @@ const lines = [
   `| Query devtools in client chunks | ${devtoolsHits.length} |`,
   ...routeRows.map(
     (r) =>
-      `| ${r.label} First Load JS | ${kB(r.gzipBytes)} kB (budget ${r.maxKB} kB${r.printedGzipBytes !== undefined ? `; next build prints ${kB(r.printedGzipBytes)} kB` : ""}${r.kind ? `, ${r.kind}` : ""}${r.noEngine ? `, engine chunks ${r.engine.length}` : ""}) |`,
+      `| ${r.label} First Load JS | ${kB(r.gzipBytes)} kB (budget ${r.maxKB} kB${r.maxPageKB !== undefined ? `; page-specific ${kB(r.pageGzipBytes)} kB of ${r.maxPageKB} kB` : ""}${r.printedGzipBytes !== undefined ? `; next build prints ${kB(r.printedGzipBytes)} kB` : ""}${r.kind ? `, ${r.kind}` : ""}${r.noEngine ? `, engine chunks ${r.engine.length}` : ""}${r.noFsrs ? `, ts-fsrs chunks ${r.fsrs.length}` : ""}) |`,
   ),
   "",
   "<details><summary>Shared files</summary>",

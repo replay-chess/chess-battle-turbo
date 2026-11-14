@@ -1,7 +1,9 @@
 // Shell contracts (SPEC 3.4). Changes are additive only.
 
 export type DestinationKey =
-  | "home" | "play" | "tournaments" | "train" | "learn" | "legends" | "openings" | "review" | "profile" | "settings";
+  | "home" | "play" | "tournaments" | "train" | "learn" | "legends" | "openings" | "review" | "profile" | "settings"
+  // P5 (phase-05 plan §3.2): the Train sections.
+  | "train-today" | "bank" | "puzzles";
 
 export type ChromeMode = "shell" | "marketing";
 

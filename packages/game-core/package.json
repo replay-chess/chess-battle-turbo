@@ -6,10 +6,11 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
+    "./rating": "./src/rating/index.ts",
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "test": "tsx --test \"test/**/*.test.ts\"",
+    "test": "tsx --test \"test/**/*.test.ts\" \"src/**/*.test.ts\"",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {

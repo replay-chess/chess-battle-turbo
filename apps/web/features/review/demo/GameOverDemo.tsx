@@ -19,6 +19,7 @@ import { createDemoController } from "@/features/game/demo/controller";
 import { GameView } from "@/features/game/screen/GameView";
 import { LegendBlock } from "@/features/review/game-over/GameOverReview";
 import { REVIEW_RESULT_SLOTS } from "@/features/review/game-over/lazy";
+import { withBankSlot } from "@/components/train/slots/GameOverBankSlotLazy";
 import { qk } from "@/lib/api/keys";
 import { gameOverDemoFixture } from "./game-over-fixture";
 import { MORPHY_OPPONENT_LEFT } from "./game-over-games";
@@ -78,7 +79,14 @@ function demoMe(): MeData {
   };
 }
 
-export function GameOverDemo({ slot, state }: { slot: GameOverDemoSlot; state: DesignState }) {
+/** P5 (`?bank=0|1|2`): A2's `bank` for the game-over Mistake Bank line (V3GameOver `r.bank`); null = `train` off. */
+const BANK_DEMO: Record<number, ReviewStatusDTO["bank"]> = {
+  0: { count: 0, plies: [] },
+  1: { count: 1, plies: [24] },
+  2: { count: 2, plies: [24, 36] },
+};
+
+export function GameOverDemo({ slot, state, bank = null }: { slot: GameOverDemoSlot; state: DesignState; bank?: number | null }) {
   const qc = useQueryClient();
   const [{ controller }] = useState(() => {
     const fixture = gameOverDemoFixture(slot, state);
@@ -91,13 +99,16 @@ export function GameOverDemo({ slot, state }: { slot: GameOverDemoSlot; state: D
       plies,
     );
     qc.setQueryData(qk.me(), demoMe());
-    qc.setQueryData(qk.review.status(ref), status);
+    qc.setQueryData(qk.review.status(ref), bank === null ? status : { ...status, bank: BANK_DEMO[bank] ?? null });
     return { controller: createDemoController(fixture, { freeze: true, toasts: "hold" }) };
   });
   const legend = LEGEND[slot];
   return (
     <div style={{ display: "contents" }} data-testid="game-over-demo" data-slot={slot}>
-      <GameView controller={controller} resultSlots={legend ? { ...REVIEW_RESULT_SLOTS, legend: <LegendBlock c={legend} /> } : REVIEW_RESULT_SLOTS} />
+      <GameView
+        controller={controller}
+        resultSlots={withBankSlot(legend ? { ...REVIEW_RESULT_SLOTS, legend: <LegendBlock c={legend} /> } : REVIEW_RESULT_SLOTS, bank !== null)}
+      />
     </div>
   );
 }

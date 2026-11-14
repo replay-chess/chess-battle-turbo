@@ -42,6 +42,9 @@ importers:
       '@repo/chess-import':
         specifier: workspace:*
         version: link:../../packages/chess-import
+      '@repo/chess-training':
+        specifier: workspace:*
+        version: link:../../packages/chess-training
       '@repo/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -66,6 +69,12 @@ importers:
       posthog-node:
         specifier: 5.56.4
         version: 5.56.4(@opentelemetry/api@1.9.0)
+      sqids:
+        specifier: 0.3.0
+        version: 0.3.0
+      ts-fsrs:
+        specifier: 5.4.2
+        version: 5.4.2
       zod:
         specifier: 4.1.12
         version: 4.1.12
@@ -182,6 +191,9 @@ importers:
       '@repo/chess-import':
         specifier: workspace:*
         version: link:../../packages/chess-import
+      '@repo/chess-training':
+        specifier: workspace:*
+        version: link:../../packages/chess-training
       '@repo/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -230,6 +242,9 @@ importers:
       dodopayments:
         specifier: ^2.49.0
         version: 2.49.0
+      idb-keyval:
+        specifier: 6.3.0
+        version: 6.3.0
       lru-cache:
         specifier: 11.5.3
         version: 11.5.3
@@ -272,6 +287,9 @@ importers:
       sonner:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      sqids:
+        specifier: 0.3.0
+        version: 0.3.0
       standardwebhooks:
         specifier: 1.1.1
         version: 1.1.1
@@ -281,6 +299,9 @@ importers:
       tailwind-merge:
         specifier: ^3.3.1
         version: 3.3.1
+      ts-fsrs:
+        specifier: 5.4.2
+        version: 5.4.2
       zod:
         specifier: ^4.1.12
         version: 4.1.12
@@ -339,6 +360,9 @@ importers:
       eslint:
         specifier: ^9.34.0
         version: 9.34.0(jiti@2.6.1)
+      fake-indexeddb:
+        specifier: 6.2.6
+        version: 6.2.6
       tailwindcss:
         specifier: ^4.1.14
         version: 4.1.14
@@ -505,6 +529,46 @@ importers:
         specifier: 5.9.2
         version: 5.9.2
 
+  packages/chess-training:
+    dependencies:
+      '@repo/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@repo/game-core':
+        specifier: workspace:*
+        version: link:../game-core
+      chess.js:
+        specifier: 1.4.0
+        version: 1.4.0
+      sqids:
+        specifier: 0.3.0
+        version: 0.3.0
+      ts-fsrs:
+        specifier: 5.4.2
+        version: 5.4.2
+    devDependencies:
+      '@repo/chess-fixtures':
+        specifier: workspace:*
+        version: link:../chess-fixtures
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: 22.15.3
+        version: 22.15.3
+      eslint:
+        specifier: ^9.34.0
+        version: 9.34.0(jiti@2.6.1)
+      tsx:
+        specifier: 4.20.6
+        version: 4.20.6
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
   packages/contracts:
     devDependencies:
       '@repo/typescript-config':
@@ -550,6 +614,9 @@ importers:
       '@repo/chess-import':
         specifier: workspace:*
         version: link:../chess-import
+      '@repo/chess-training':
+        specifier: workspace:*
+        version: link:../chess-training
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
@@ -5109,6 +5176,10 @@ packages:
     engines: {node: '>= 10.17.0'}
     hasBin: true
 
+  fake-indexeddb@6.2.6:
+    resolution: {integrity: sha512-ihhmr0KoET51jT8R4YhbUYuLLvr1qqO6INISygtN16i8loR8kAxtAUr4+EKHTSMjL+lggaAn4OC7DRqzrNgnuQ==}
+    engines: {node: '>=18'}
+
   fast-check@3.23.2:
     resolution: {integrity: sha512-h5+1OzzfCC3Ef7VbtKdcv7zsstUQwUDlYpUTvjeUsJAssPgLn7QzbboPtL5ro04Mq0rPOsMzl7q5hIbRs2wD1A==}
     engines: {node: '>=8.0.0'}
@@ -5399,6 +5470,9 @@ packages:
     engines: {node: ^10 || ^12 || >= 14}
     peerDependencies:
       postcss: ^8.1.0
+
+  idb-keyval@6.3.0:
+    resolution: {integrity: sha512-um+2dgAWmYsu615EXpWVwSmapJhON0G43t3Ka/EVaohzPQXSMqKEqeDK/oIW3Ow+BXaF2PvSc+oBTFp793A5Ow==}
 
   idb@7.1.1:
     resolution: {integrity: sha512-gchesWBzyvGHRO9W8tzUWFDycow5gwjvFKfyV9FF32Y7F50yZMp7mP+T2mJIWFx49zicqyC4uefHM17o6xKIVQ==}
@@ -7189,6 +7263,9 @@ packages:
     resolution: {integrity: sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==}
     engines: {node: '>= 10.x'}
 
+  sqids@0.3.0:
+    resolution: {integrity: sha512-lOQK1ucVg+W6n3FhRwwSeUijxe93b51Bfz5PMRMihVf1iVkl82ePQG7V5vwrhzB11v0NtsR25PSZRGiSomJaJw==}
+
   stacktrace-parser@0.1.11:
     resolution: {integrity: sha512-WjlahMgHmCJpqzU8bIBy4qtsZdU9lRlcZE3Lvyej6t4tuOuv1vk57OW3MBrj6hXBFx/nNoC9MPMTcr5YA7NQbg==}
     engines: {node: '>=6'}
@@ -7414,6 +7491,10 @@ packages:
     engines: {node: '>=18.12'}
     peerDependencies:
       typescript: '>=4.8.4'
+
+  ts-fsrs@5.4.2:
+    resolution: {integrity: sha512-z4qop4pzTcyTzuJ566d9EaX/4bZZzhYfeaPImfVr+xcYT65c5oBgFDijUhCE/D+C78eaolHIhKRZ04/RwF+v2g==}
+    engines: {node: '>=20.0.0'}
 
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
@@ -12884,6 +12965,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  fake-indexeddb@6.2.6: {}
+
   fast-check@3.23.2:
     dependencies:
       pure-rand: 6.1.0
@@ -13219,6 +13302,8 @@ snapshots:
   icss-utils@5.1.0(postcss@8.5.6):
     dependencies:
       postcss: 8.5.6
+
+  idb-keyval@6.3.0: {}
 
   idb@7.1.1: {}
 
@@ -15451,6 +15536,8 @@ snapshots:
 
   split2@4.2.0: {}
 
+  sqids@0.3.0: {}
+
   stacktrace-parser@0.1.11:
     dependencies:
       type-fest: 0.7.1
@@ -15720,6 +15807,8 @@ snapshots:
   ts-api-utils@2.1.0(typescript@5.9.2):
     dependencies:
       typescript: 5.9.2
+
+  ts-fsrs@5.4.2: {}
 
   ts-interface-checker@0.1.13: {}
 

@@ -62,6 +62,10 @@ services:
     # the worker refuses to boot with it when APP_ENV=production). CHESSCOM_API_BASE / LICHESS_BASE_URL stay unset
     # here (the real providers; any other value is refused with APP_ENV=production).
     #
+    # P5 Mistake Bank (phase-05 plan §7.8; optional, defaults in parentheses), also from .env.worker:
+    # BANK_EXTRACT_ENABLED (on: the kill switch, off skips the extraction and leaves EXTRACT_MISTAKES rows queued),
+    # BANK_LINE_NODES (500000: the node budget of one puzzle-line search).
+    #
     # CPU isolation (P3-D8): the container's cgroup lives under worker-idle.slice (CPUWeight=idle, so cpu.idle = 1,
     # created by setup-server.sh): under contention the socket container always wins. On top of that a hard cap of
     # 0.75 core and the worker's own lag pause (it waits while the socket's loop-lag p99 > LAG_PAUSE_MS).

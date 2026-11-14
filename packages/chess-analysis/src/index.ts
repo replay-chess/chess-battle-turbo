@@ -33,3 +33,9 @@ export * from "./text/why";
 export * from "./text/headline";
 export * from "./text/clean";
 export * from "./text/coachline";
+// P5 (phase-05 plan §8.1, §8.11): bank candidates, puzzle uniqueness and lines, the theme tagger, the position hash.
+export * from "./epd";
+export * from "./bank/candidates";
+export * from "./puzzle/validAttack";
+export * from "./puzzle/line";
+export * from "./themes/index";

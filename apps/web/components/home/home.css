@@ -1,0 +1,157 @@
+/*
+ * Home (phase-05 plan §4.1; V3Home, V3HomeNewUser, V3HomeLoading; device layouts D-12, derived from the Train hub
+ * device boards). Lock mode: the document never scrolls.
+ *   desktop      header row; grid minmax(0,1fr) 360px: left = Continue (or Start here) over the Mistake Bank / This
+ *                week / Play trio, right = Recent games (the list scrolls inside its card)
+ *   rail         ≤ 1100 wide or a touch-first device (iPad landscape, desktop at 150 %): right column 300 px, `.hm-wide`
+ *                hides, the board takes the rail formula
+ *   ≤ 700 tall   `.hm-tall` lines hide (Continue sub-line, the week sub-line, the Play card)
+ *   iPad P       one column: header; Continue (board left half); Bank (full width); This week + Play side by side;
+ *                Recent games filling the rest (its list scrolls)
+ *   phones       one column inside the page's own scroll region (the region scrolls, not the document); the board,
+ *                its heading and Start Review fit the first viewport
+ * The board sizes are the design's formulas; 100vw/100dvh are the viewport the board measures.
+ */
+@layer components {
+  .hm-root { height: 100%; min-height: 0; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
+  .hm { box-sizing: border-box; height: 100%; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 12px 24px 16px; color: var(--cb-text); }
+  .hm-root > .hm { overflow: hidden; scrollbar-gutter: auto; }
+  .hm-lbl { margin: 0; font: 500 0.6875rem/1.3 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); }
+  .hm-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .hm-soft { color: var(--cb-text-soft); }
+  .hm-card { box-sizing: border-box; min-height: 0; min-width: 0; background: var(--cb-surface); border: 1px solid var(--cb-border); }
+
+  /* Header */
+  .hm-head { flex: none; display: flex; align-items: center; gap: 10px; min-height: 52px; flex-wrap: wrap; }
+  .hm-h1 { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 1.875rem; line-height: 1.1; letter-spacing: -0.01em; min-width: 0; overflow-wrap: anywhere; }
+  .hm-stat { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border: 1px solid var(--cb-border-strong); background: var(--cb-surface); font: 500 0.75rem var(--font-mono); white-space: nowrap; }
+  .hm-head__space { flex: 1 1 auto; }
+
+  /* Import row (V3Home import_running) */
+  .hm-import { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--cb-surface); border: 1px solid var(--cb-border); font-size: 0.8125rem; line-height: 1.4; }
+  .hm-import__label { font: 500 0.75rem var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+  .hm-import__bar { flex: 1 1 auto; min-width: 48px; }
+  .hm-import__sub { font-size: 0.75rem; color: var(--cb-text-soft); white-space: nowrap; }
+
+  /* Grid */
+  .hm-grid { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: minmax(0, 1fr); gap: 16px; }
+  .hm-main { display: flex; flex-direction: column; justify-content: center; gap: 16px; min-height: 0; min-width: 0; }
+
+  /* Continue / Start here */
+  .hm-cont { padding: 20px; display: flex; gap: 24px; align-items: center; }
+  .hm-board { flex: none; width: max(160px, min(calc(100dvh - 330px), calc(100vw - 900px), 520px)); line-height: 0; }
+  .hm-cont__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  .hm-h2 { margin: 0; font-size: 1.25rem; font-weight: 500; line-height: 1.25; }
+  .hm-h2--serif { font-family: var(--font-serif); font-weight: 400; font-size: 2rem; line-height: 1.05; letter-spacing: -0.01em; }
+  .hm-p { margin: 0; color: var(--cb-text-soft); overflow-wrap: anywhere; }
+  .hm-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .hm-actions__note { font-size: 0.75rem; color: var(--cb-text-soft); }
+  .hm-progress { display: flex; flex-direction: column; gap: 6px; }
+
+  /* Trio */
+  .hm-trio { flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .hm-tile { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .hm-tile__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .hm-tile__line { margin: 0; font-size: 0.8125rem; color: var(--cb-text-soft); overflow-wrap: anywhere; }
+  .hm-tile__mono { margin: 0; font: 0.8125rem var(--font-mono); overflow-wrap: anywhere; }
+  .hm-tile__cta { margin-top: auto; white-space: normal; text-align: center; padding-block: 8px; }
+  .hm-tile__head > :last-child { white-space: nowrap; }
+  /* Up to four 56 px thumbnails, never under 44 px (touch targets): a narrow card (rail, 125-150 % zoom) shows fewer. */
+  .hm-bank { container-type: inline-size; }
+  .hm-minis { display: grid; grid-template-columns: repeat(4, minmax(0, 56px)); gap: 6px; }
+  @container (max-width: 193px) { .hm-minis { grid-template-columns: repeat(3, minmax(0, 56px)); } .hm-minis > :nth-child(n + 4) { display: none; } }
+  @container (max-width: 143px) { .hm-minis { grid-template-columns: repeat(2, minmax(0, 56px)); } .hm-minis > :nth-child(n + 3) { display: none; } }
+  .hm-minis > * { min-width: 0; aspect-ratio: 1 / 1; display: block; line-height: 0; }
+  .hm-minis svg { width: 100%; height: 100%; }
+  a.hm-mini:focus-visible { outline: 2px solid var(--cb-text); outline-offset: 2px; }
+  .hm-mini-ph { box-sizing: border-box; border: 1px dashed var(--cb-border-dashed); }
+  .hm-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; max-width: 210px; }
+  .hm-week > span { display: flex; flex-direction: column; align-items: center; gap: 5px; font: 500 0.625rem/1 var(--font-mono); color: var(--cb-text-soft); }
+  .hm-dot { box-sizing: border-box; width: 10px; height: 10px; border-radius: 9999px; border: 1px solid var(--cb-border-strong); }
+  .hm-dot[data-on] { background: var(--cb-accent); border-color: var(--cb-accent); }
+  .hm-link { align-self: flex-start; display: inline-flex; align-items: center; min-height: 44px; margin-top: auto; font-size: 0.8125rem; color: var(--cb-text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 25%, transparent); }
+  .hm-link:hover { text-decoration-color: currentColor; }
+
+  /* Recent games */
+  .hm-recent { display: flex; flex-direction: column; }
+  .hm-recent__head { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 0 14px; min-height: 44px; border-bottom: 1px solid var(--cb-border); }
+  .hm-recent__head .hm-link { margin-top: 0; }
+  .hm-recent__list { flex: 1 1 auto; min-height: 0; }
+  .hm-recent__ul { list-style: none; margin: 0; padding: 0; }
+  .hm-row { box-sizing: border-box; display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; align-items: center; min-height: 56px; padding: 8px 14px; border-bottom: 1px solid var(--cb-border); color: var(--cb-text); text-decoration: none; }
+  .hm-row:hover { background: var(--cb-fill); }
+  .hm-row:focus-visible { outline: 2px solid var(--cb-text); outline-offset: -2px; }
+  .hm-pill { justify-self: start; padding: 2px 6px; border: 1px solid var(--cb-border-strong); font: 500 0.6875rem var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); }
+  .hm-pill[data-result="win"] { color: var(--cb-good); border-color: color-mix(in srgb, var(--cb-good) 45%, transparent); }
+  .hm-pill[data-result="loss"] { color: var(--cb-bad); border-color: color-mix(in srgb, var(--cb-bad) 45%, transparent); }
+  .hm-row__text { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+  .hm-row__opp { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hm-row__sub { font-size: 0.75rem; color: var(--cb-text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hm-recent__empty { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .hm-ghosts { display: flex; flex-direction: column; gap: 6px; opacity: 0.45; }
+  .hm-ghosts > span { display: grid; grid-template-columns: 52px 1fr 30px; gap: 12px; align-items: center; }
+  .hm-ghosts i { display: block; height: 10px; border: 1px dashed var(--cb-border-dashed); }
+  .hm-ghosts i:first-child { height: 18px; }
+
+  /* Skeleton (V3HomeLoading) */
+  .hm-sk { display: block; background: var(--cb-fill); }
+  .hm-sk--sq { width: 100%; aspect-ratio: 1 / 1; }
+
+  /* Rail: ≤ 1100 wide or touch-first (iPad landscape, desktop at 150 % zoom). */
+  @media (max-width: 1100px), (hover: none) and (pointer: coarse) {
+    .hm-grid { grid-template-columns: minmax(0, 1fr) 300px; }
+    .hm-board { width: max(160px, min(calc(100dvh - 380px), calc(100vw - 724px), 460px)); }
+    .hm-wide { display: none !important; }
+  }
+  @media (max-height: 700px) {
+    .hm-tall { display: none !important; }
+    .hm-board { width: max(140px, min(calc(100dvh - 370px), calc(100vw - 940px), 460px)); }
+    .hm { gap: 8px; padding-top: 8px; padding-bottom: 10px; }
+    /* The Play card is a `.hm-tall` section: the other two share the row. */
+    .hm-trio { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hm-head { min-height: 44px; }
+    .hm-cont { padding: 14px; }
+  }
+
+  /* One column: iPad portrait and phones (the shell's tab-bar mode). The page is its own scroll region here (FIX-2:
+     on iPad portrait an import banner, a new member's longer copy or 110–125 % zoom pushed Recent games under the tab
+     bar with nothing to scroll): Recent games fills what is left, and the page scrolls only when even that is too little. */
+  @media (max-width: 600px), (max-width: 900px) and (orientation: portrait) {
+    .hm { padding: 12px 16px 12px; }
+    .hm-root > .hm { overflow-y: auto; overscroll-behavior: contain; }
+    /* min-height auto: the grid shrinks to fill the page (Recent games' list scrolls in its card, as designed) but
+       never below its content with Recent games at 168 px; past that the page scrolls. */
+    .hm-grid { min-height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(168px, 1fr); gap: 12px; }
+    .hm-main { justify-content: flex-start; gap: 12px; }
+    .hm-trio { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .hm-trio > .hm-bank { grid-column: 1 / -1; }
+    .hm-cont { container-type: inline-size; padding: 14px; gap: 16px; }
+    .hm-board { width: min(calc(50cqw - 24px), 40dvh); }
+    /* size-contained: Recent games takes the row the grid gives it (its list scrolls), at least 168 px; it never makes
+       the page taller by itself */
+    .hm-recent { min-height: 168px; contain: size; }
+  }
+
+  /* Phones: the page is a scroll region (the document still never scrolls). */
+  @media (max-width: 600px) {
+    .hm { display: block; padding: 8px 16px 16px; }
+    .hm-root > .hm { overflow-y: auto; overscroll-behavior: contain; }
+    .hm > * + * { margin-top: 12px; }
+    .hm-head { min-height: 0; gap: 8px; }
+    .hm-h1 { font-size: 1.625rem; }
+    .hm-head__actions { display: none; }
+    .hm-head .hm-stat { display: inline-flex !important; }
+    .hm-import { flex-wrap: wrap; }
+    .hm-grid { display: flex; flex-direction: column; }
+    .hm-cont { flex-direction: column; align-items: stretch; container-type: normal; }
+    /* The board, its heading, the line under it and Start Review fit the first viewport (§4.1): the page's region (a
+       size container: what the top bar, the tab bar and any shell banner such as payment-failed leave) less the
+       greeting, the stat row and the card padding above the board and the card body under it (FIX-2: a 100dvh − 330 px
+       formula left Start Review under the tab bar on iPhone Safari, 393 × 659, and under a banner). */
+    .hm-root { container-type: size; }
+    .hm-board { width: max(140px, min(calc(100cqw - 32px), calc(100cqh - 330px))); max-width: 100%; align-self: center; }
+    .hm-trio { grid-template-columns: minmax(0, 1fr); }
+    .hm-recent { min-height: 0; contain: none; }
+    .hm-recent .hm-recent__list { overflow: visible; }
+  }
+}

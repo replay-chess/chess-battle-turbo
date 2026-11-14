@@ -112,6 +112,14 @@ export const TEST_HOOKS: readonly TestHook[] = [
       "/dev/ui/connected",
       // Phase 4 (phase-04 plan §7.7.4): the provider fault table page (also admin + testHooksEnabled() in the page).
       "/dev/import",
+      // Phase 5 (phase-05 plan §2.1 "Dev demo routes", §4): the Train, runner, summary and Home demo routes
+      // (`?state=`, `?stress=1`), fed by app/dev/ui/_fixtures/train.ts (WP-F, WP-G, WP-H build the pages).
+      "/dev/ui/train/hub",
+      "/dev/ui/train/bank",
+      "/dev/ui/train/runner",
+      "/dev/ui/train/puzzles",
+      "/dev/ui/train/summary",
+      "/dev/ui/home",
     ],
   },
   {
@@ -318,6 +326,9 @@ export const KILL_SWITCHES = [
   { env: "MIDDLEWARE_MEMBER_GATE", off: "off", note: "member gate in middleware" },
   { env: "LEGACY_402_MIRROR", off: "off", note: "removed in P2" },
   { env: "EDGE_DOC_LIMIT", off: "off", note: "optional middleware document limiter" },
+  // Phase 5 (phase-05 plan §7.9, §13.4; interface check §0.15: no Edge Config, so the plan's `puzzles_enabled` is env).
+  { env: "PUZZLES_ENABLED", off: "off", note: "puzzle sessions and the plan's puzzle step (off: 'Puzzles are taking a break.')" },
+  { env: "BANK_EXTRACT_ENABLED", off: "false", note: "worker J1 mistake extraction (analysis still completes; the backfill catches up)" },
 ] as const;
 
 /**

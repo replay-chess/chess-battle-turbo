@@ -27,3 +27,6 @@ linked_accounts_verified_key
 linked_accounts_autosync_idx
 import_runs_one_active
 import_runs_waiting_idx
+
+# M5 (P5, phase-05 plan 6.5). The other M5 indexes are Prisma @@unique / @@index rows, so they are not listed.
+training_attempts_puzzle_idx

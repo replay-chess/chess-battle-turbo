@@ -78,7 +78,10 @@ export function AppShellView({
   useEffect(() => markShellMounted(), []);
 
   const reviewV3 = useFlag("review-v3");
-  const navFlags: NavFlags = navFlagsOverride ?? { "review-v3": reviewV3 };
+  // P5: Home and Train (with its sections) are flag-gated destinations too.
+  const home = useFlag("home");
+  const train = useFlag("train");
+  const navFlags: NavFlags = navFlagsOverride ?? { "review-v3": reviewV3, home, train };
   const me = { referenceId: user.referenceId };
   const current = currentKey !== undefined ? currentFromKey(currentKey, navFlags) : currentDestinations(pathname, me, navFlags);
   const backOverride = useBackOverride();
@@ -100,6 +103,7 @@ export function AppShellView({
     navigate: (href) => router.push(href),
     demo,
     reviewV3: navFlags["review-v3"] === true,
+    navFlags,
   });
 
   const track = (surface: "sidebar" | "tabbar" | "subnav" | "back" | null) => (dest: DestinationKey) =>

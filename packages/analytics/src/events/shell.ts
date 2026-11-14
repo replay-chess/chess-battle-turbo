@@ -16,6 +16,10 @@ export const DESTINATION_KEYS = [
   "review",
   "profile",
   "settings",
+  // P5 (phase-05 plan §3.2): the Train sections.
+  "train-today",
+  "bank",
+  "puzzles",
 ] as const;
 
 export const NAV_SURFACES = ["sidebar", "rail", "tabbar", "subnav", "back", "palette", "chord"] as const;

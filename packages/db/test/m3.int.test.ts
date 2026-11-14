@@ -41,7 +41,8 @@ describe("M3 schema (Postgres)", { skip: TEST_URL ? false : "TEST_DATABASE_URL n
        WHERE t.typname IN ('JobKind','JobStatus','AnalysisStatus','EvalSource','Judgement','ComparisonStatus','ShareKind')
        ORDER BY t.typname, e.enumsortorder`);
     const by = (t: string) => rows.filter((r) => r.t === t).map((r) => r.v);
-    assert.equal(by("JobKind").length, 10);
+    // M3 created ten kinds; P5's m5a appends EXTRACT_MISTAKES (m5.int.test.ts).
+    assert.equal(by("JobKind").filter((k) => k !== "EXTRACT_MISTAKES").length, 10);
     assert.ok(!by("JobKind").includes("HOURLY_TICK"));
     assert.deepEqual(by("JobStatus"), ["QUEUED", "RUNNING", "DONE", "FAILED", "CANCELLED"]);
     assert.deepEqual(by("AnalysisStatus"), ["NONE", "QUEUED", "RUNNING", "DONE", "FAILED", "SKIPPED"]);

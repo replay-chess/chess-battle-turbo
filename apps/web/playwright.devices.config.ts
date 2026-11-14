@@ -21,7 +21,13 @@
  * projects; unset runs the whole matrix (nightly).
  *
  * Real-route layer (1Q·2): layout/routes.real.ts runs on desktop-1440@100/150,
- * iphone@100/125 and ipad-portrait@100, signed in as member A.
+ * iphone@100/125 and ipad-portrait@100, signed in as member A. P5 (phase-05 plan §12.4): layout/train.spec.ts and
+ * layout/home.spec.ts (globbed by layout/**) add their real routes on the same projects as a leased `bank-member`;
+ * the puzzle session reads the committed shard subset from the CI shard server (e2e/mocks/puzzle-shards.ts, started
+ * below with the build; a reused DEVICES_BASE_URL server must already point PUZZLE_SHARD_BASE_URL at one).
+ * P5's tier rows: the PR tier runs train/home (and the CLS ≤ 0.02 runner gate) on the 4 PR projects; nightly runs
+ * them on all 40; the move → verdict throttle check runs on desktop-1440@100 only; p05.visual.spec.ts on the plan's
+ * 8 visual projects (full tier, official image).
  *
  * Visual baselines (1Q·2, plan §12.4): ui/visual.spec.ts (@visual) compares
  * screenshots with e2e/__screenshots__/<project>/<spec>/<name>.png. Baselines
@@ -36,6 +42,7 @@ import { config as loadEnv } from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import { BASE_DEVICES, MOTION_PROJECTS, UI_PROJECTS, ZOOMS, baseDevice, projectName, zoomed } from "./e2e/devices/matrix";
+import { PUZZLE_SHARDS_PORT, puzzleShardEnv } from "./e2e/mocks/puzzle-shards-client";
 
 // E2E_ENV_FILE: another env file (outside the repo), as in playwright.config.ts.
 loadEnv({ path: process.env.E2E_ENV_FILE || path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env.test"), override: true });
@@ -95,21 +102,31 @@ export default defineConfig({
   projects: [...layoutProjects, ...uiProjects, ...motionProjects],
   webServer: process.env.DEVICES_BASE_URL
     ? undefined
-    : {
-        command: "pnpm build && pnpm start --port 3100",
-        port: 3100,
-        // next build and next start write to stdout; Playwright drops a webServer's stdout unless asked.
-        stdout: "pipe",
-        timeout: 600_000,
-        reuseExistingServer: !process.env.CI,
-        env: {
-          NEXT_DIST_DIR: ".next-devices",
-          NEXT_PUBLIC_DEV_WIDGETS: "0",
-          NEXT_PUBLIC_APP_ENV: "test",
-          NEXT_PUBLIC_POSTHOG_KEY: "",
-          NEXT_PUBLIC_SENTRY_DSN: "",
-          SENTRY_DSN: "",
-          NEXT_PUBLIC_GA_MEASUREMENT_ID: "",
+    : [
+        {
+          command: "pnpm build && pnpm start --port 3100",
+          port: 3100,
+          // next build and next start write to stdout; Playwright drops a webServer's stdout unless asked.
+          stdout: "pipe",
+          timeout: 600_000,
+          reuseExistingServer: !process.env.CI,
+          env: {
+            NEXT_DIST_DIR: ".next-devices",
+            NEXT_PUBLIC_DEV_WIDGETS: "0",
+            NEXT_PUBLIC_APP_ENV: "test",
+            NEXT_PUBLIC_POSTHOG_KEY: "",
+            NEXT_PUBLIC_SENTRY_DSN: "",
+            SENTRY_DSN: "",
+            NEXT_PUBLIC_GA_MEASUREMENT_ID: "",
+            // P5: the real-route puzzle session reads the committed shard subset, never R2.
+            ...puzzleShardEnv(),
+          },
         },
-      },
+        {
+          command: `npx tsx e2e/mocks/puzzle-shards.ts --port ${PUZZLE_SHARDS_PORT}`,
+          url: `http://127.0.0.1:${PUZZLE_SHARDS_PORT}/__health`,
+          reuseExistingServer: true,
+          timeout: 15_000,
+        },
+      ],
 });

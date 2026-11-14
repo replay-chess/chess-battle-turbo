@@ -7,6 +7,7 @@
 // the concrete paths each class must cover; route-classes.test.ts checks the two agree.
 import * as p01 from "./p01";
 import * as p03 from "./p03";
+import * as p05 from "./p05";
 
 export type RouteClass = "scanner" | "public" | "public_static" | "member" | "signed_in" | "api" | "api_no_clerk";
 
@@ -23,7 +24,7 @@ export interface RouteClassSet {
 }
 
 /** Oldest first; add one line per phase file. */
-const PHASES: readonly RouteClassSet[] = [p01, p03];
+const PHASES: readonly RouteClassSet[] = [p01, p03, p05];
 
 /**
  * Probe paths no real route uses (CA AP-33): answered 404 before Clerk. No route ends in .php/.env/.git/.asp(x)/.bak/

@@ -4,7 +4,10 @@
 //   → pass 1 (cache → engine, MultiPV 2, every position; a checkpoint every 10 plies; progress frames)
 //   → classify → `analysis:writing` → pass 2 (≤ 6 positions at 1M nodes MultiPV 3, ≤ 60 s: the key-moment and
 //   brilliant candidates before and after the ply, and the legend divergence) → grade + moments + texts (CA)
-//   → the final batch (one request) → events (per game for band ≥ 80 or watched, else `analysis:batch`)
+//   → P5 J1: the Mistake Bank rows (candidates, puzzle lines with ≤ 3 engine searches each, themes; extract/)
+//   → the final batch (one request, J1's statements appended through final-batch/p05-bank.ts)
+//   → events (per game for band ≥ 80 or watched, else `analysis:batch`; P5: `bankAdded` / `bankDue` read from the
+//     batch's own rows, null when the response was lost or J1 was off)
 //   → telemetry (`analysis_started` / `analysis_ready`, Sentry spans and metrics).
 //
 // Pass 2 overwrites the arrays at the positions it searched (`evals`, `second`, `best`), so the stored arrays are
@@ -40,7 +43,18 @@ import { JobAborted, JobError, type JobContext, type JobHandler } from "../jobs/
 import type { ProductEvents } from "../obs/posthog";
 import type { FailureHookInput } from "../jobs/types";
 import type { BatchAccumulator } from "./batch-events";
-import { FINAL_BATCH_EXTENSIONS, planExtensions, reportCommitted, type FinalBatchExtension } from "./final-batch";
+import { buildBankPlan, type BankPlan, type ExtractSource } from "../extract/extractMistakes";
+import { lineSearchers } from "../extract/lineBuilder";
+import { bankOutcome, type MemberBankOutcome } from "../extract/outcome";
+import {
+  extensionRowsOf,
+  FINAL_BATCH_EXTENSIONS,
+  planExtensions,
+  reportCommitted,
+  type ExtensionPlan,
+  type FinalBatchExtension,
+} from "./final-batch";
+import type { BankEmit } from "./batch-events";
 import { divergenceOf, evalAtDivergence, legendPosition, memberFacts, type MemberFacts } from "./legend";
 import { openingOf, type OpeningBook, type OpeningIndex } from "./openings";
 import { fromInitialPosition, planPositions, type PositionPlan } from "./positions";
@@ -62,13 +76,24 @@ const MEASURED_REASONS = new Set(["live_end", "bot_end", "opened"]);
 const MAX_MS = 86_400_000;
 const FAILURE_CODES: readonly AnalysisFailureCode[] = ["engine_failed", "worker_stalled", "timeout", "internal"];
 
+/** P5 J1 switches (env BANK_EXTRACT_ENABLED, BANK_LINE_NODES; phase-05 plan §7.8). */
+export interface BankExtractSettings {
+  enabled: boolean;
+  lineNodes: number;
+}
+
 export interface AnalyzeDeps {
   store: AnalysisStore;
   book: OpeningBook;
   batch: BatchAccumulator;
   events: ProductEvents;
   extensions?: readonly FinalBatchExtension[];
+  /** P5 J1; absent = off (the analysis completes, the backfill extracts later). */
+  bank?: BankExtractSettings;
 }
+
+/** The P5 emit values per member ref, from a committed batch; null = unknown (lost response, J1 off). */
+type BankByRef = ReadonlyMap<string, MemberBankOutcome> | null;
 
 type Ctx = JobContext<"ANALYZE_GAME">;
 
@@ -419,6 +444,9 @@ class Run {
       return { userId: f.userId, facts: f.facts, ready: false };
     });
     const members = await this.span("text", async () => this.memberWrites(game, result));
+    const bank = this.deps.bank?.enabled
+      ? await this.span("extract", () => this.extractBank(game, replay!, arrays, result, searcher))
+      : null;
     const plan = planExtensions(this.extensions, {
       gameId: game.id,
       gameRef: game.ref,
@@ -430,9 +458,11 @@ class Run {
       regrade: false,
       importRunId: ctx.payload.importRunId ?? null,
       evalSource: evalSourceOf(hint !== null, searched),
+      bank,
     });
 
     await this.pauseAt("write");
+    const batchMs0 = ctx.clock.now();
     const extensionRows = await this.span("write", () =>
       this.deps.store.finish({
         jobId: ctx.job.id,
@@ -455,7 +485,7 @@ class Run {
         extensions: plan.statements,
       }),
     );
-    reportCommitted(plan, extensionRows, { metrics: ctx.metrics, telemetry: ctx.telemetry, events: this.deps.events });
+    reportCommitted(plan, extensionRows, { metrics: ctx.metrics, telemetry: ctx.telemetry, events: this.deps.events, batchMs: ctx.clock.now() - batchMs0 });
     ctx.heartbeat.noteWrite();
     ctx.evalCache?.flush();
     await this.stream.drain();
@@ -463,6 +493,7 @@ class Run {
       game,
       result,
       comparisons.some((c) => c.ready),
+      this.bankByRef(bank, plan, extensionRows),
     );
     this.ready(game, result, { regrade: false, pass2: searched, pass1Ms, pass2Ms });
     return "done";
@@ -705,6 +736,8 @@ class Run {
           coachLine: null,
           isClean: false,
           bank: null,
+          bankAdded: null,
+          bankDue: null,
         });
         await ctx.emitter.emit("analysis:done", data, [m.userRef], {
           dedupeKey: analysisDoneDedupeKey(game.id, GRADING_VERSION, m.color),
@@ -760,8 +793,11 @@ class Run {
       result,
       memberSides: game.members.map((m) => m.color),
       regrade: true,
+      bankReextract: this.deps.bank?.enabled === true,
+      analysisVersion: result.version,
     });
     await this.pauseAt("write");
+    const batchMs0 = ctx.clock.now();
     const extensionRows = await this.span("write", () =>
       this.deps.store.finish({
         jobId: ctx.job.id,
@@ -795,19 +831,30 @@ class Run {
         extensions: plan.statements,
       }),
     );
-    reportCommitted(plan, extensionRows, { metrics: ctx.metrics, telemetry: ctx.telemetry, events: this.deps.events });
+    reportCommitted(plan, extensionRows, { metrics: ctx.metrics, telemetry: ctx.telemetry, events: this.deps.events, batchMs: ctx.clock.now() - batchMs0 });
     ctx.heartbeat.noteWrite();
-    await this.announce(game, result, false);
+    // A regrade runs no engine, so it does not extract inline (the puzzle lines would lose their extension): its batch
+    // queued one EXTRACT_MISTAKES job per member side (p05-bank, FIX-1), which follows the new key moments. The bank
+    // fields are unknown here and the client reads A2.
+    await this.announce(game, result, false, null);
     this.ready(game, result, { regrade: true, pass2: 0, pass1Ms: 0, pass2Ms: 0 });
     return "done";
   }
 
-  /** The done events: per game for band ≥ 80 or a watched game, else the member's `analysis:batch`. */
-  private async announce(game: LoadedGame, result: AnalysisResult, compareReady: boolean): Promise<void> {
+  /**
+   * The done events: per game for band ≥ 80 or a watched game, else the member's `analysis:batch`. P5: each member's
+   * `bankAdded` / `bankDue` from the batch's own rows (`bank`), null when unknown.
+   */
+  private async announce(game: LoadedGame, result: AnalysisResult, compareReady: boolean, bank: BankByRef): Promise<void> {
     const { ctx } = this;
     const refs = game.members.map((m) => m.userRef);
     if (!this.streams()) {
-      this.deps.batch.add(refs, this.gameRef, "done");
+      const emits = new Map<string, BankEmit>();
+      for (const ref of refs) {
+        const o = bank?.get(ref);
+        emits.set(ref, { added: o ? o.bankAdded.count : null, due: o ? o.bankDue : null });
+      }
+      this.deps.batch.add(refs, this.gameRef, "done", emits);
       await this.deps.batch.flushDue();
       return;
     }
@@ -823,6 +870,8 @@ class Run {
         coachLine: review?.coachLine?.t ?? null,
         isClean: review?.isClean ?? false,
         bank: null,
+        bankAdded: bank?.get(m.userRef)?.bankAdded ?? null,
+        bankDue: bank?.get(m.userRef)?.bankDue ?? null,
       });
       await ctx.emitter.emit("analysis:done", data, [m.userRef], {
         dedupeKey: analysisDoneDedupeKey(game.id, GRADING_VERSION, m.color),
@@ -835,6 +884,62 @@ class Run {
         buildEvent("compare:ready", { gameRef: this.gameRef, status: "ready" }),
         refs,
       );
+  }
+
+  // ── P5 J1 ──────────────────────────────────────────────────────────────────────────────────────────────────
+  /** The Mistake Bank rows of this game (phase-05 plan §7.6 J1), or null when J1 is off. */
+  private async extractBank(
+    game: LoadedGame,
+    replay: Replay,
+    arrays: AnalysisArrays,
+    result: AnalysisResult,
+    searcher: Searcher,
+  ): Promise<BankPlan | null> {
+    const settings = this.deps.bank;
+    if (!settings?.enabled || game.members.length === 0) return null;
+    const { ctx } = this;
+    const lines = lineSearchers(searcher, settings.lineNodes, ctx.signal);
+    const reason = ctx.payload.reason;
+    const source: ExtractSource =
+      ctx.payload.importRunId || reason === "import" ? "import" : reason === "backfill" ? "backfill" : "live";
+    const moments: Partial<Record<Color, number[]>> = {};
+    for (const m of game.members) moments[m.color] = (result.reviews[m.color]?.moments ?? []).map((x) => x.ply);
+    return buildBankPlan(
+      {
+        gameId: game.id,
+        startPly: game.startPly,
+        replay,
+        evals: arrays.evals,
+        second: arrays.second,
+        best: arrays.best,
+        judgements: result.judgements,
+        lines: result.lines,
+        division: result.division,
+        moments,
+        members: game.members,
+        completedAtMs: game.completedAtMs,
+        timeClass: game.timeClass ?? null,
+        ecoCode: game.ecoCode,
+        colorUnknown: game.colorUnknown === true,
+        now: new Date(ctx.clock.now()),
+      },
+      {
+        search: lines.search,
+        reply: lines.reply,
+        onLineError: (error) => {
+          ctx.log.warn("bank line extension failed: the puzzle keeps its first move", { gameRef: this.gameRef, error });
+          ctx.telemetry.metric("count", "worker.extract.line_failed", 1);
+        },
+      },
+      { source, clockMs: () => ctx.clock.now() },
+    );
+  }
+
+  /** The P5 emit values from the batch's rows (null after a lost response or with J1 off). */
+  private bankByRef(bank: BankPlan | null, plan: ExtensionPlan, rows: Awaited<ReturnType<AnalysisStore["finish"]>>): BankByRef {
+    if (!bank || !rows) return null;
+    const mine = extensionRowsOf(plan, "p05-bank", rows);
+    return mine ? bankOutcome(bank, mine) : null;
   }
 
   // ── telemetry ──────────────────────────────────────────────────────────────────────────────────────────────

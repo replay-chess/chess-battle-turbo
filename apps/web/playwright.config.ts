@@ -17,6 +17,7 @@ import {
 } from "./e2e/fixtures/socket-server";
 import { WORKER_PORT, WORKER_SERVER_COMMAND, WORKER_URL, workerFaultsHonoured, workerServerEnv } from "./e2e/fixtures/analysis-worker";
 import { UPSTREAM_PORT, upstreamEnv } from "./e2e/mocks/upstream-client";
+import { PUZZLE_SHARDS_PORT, puzzleShardEnv } from "./e2e/mocks/puzzle-shards-client";
 
 const WEB_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -59,7 +60,9 @@ if (FLAGS_OFF) process.env.E2E_FLAGS_OFF = "1";
 const FLAGS_OFF_PORT = Number(process.env.FLAGS_OFF_PORT ?? 3110 + E2E_PORT_OFFSET);
 /** The open phase's flags, switched off. Every later phase appends its own `<key>:off`. */
 const FLAGS_OFF_OVERRIDE =
-  "shell-v3:off,live-protocol-v2:off,game-v3:off,review-v3:off,review-share:off,onboarding-v3:off,import-v3:off";
+  "shell-v3:off,live-protocol-v2:off,game-v3:off,review-v3:off,review-share:off,onboarding-v3:off,import-v3:off," +
+  // P5 (phase-05 plan 7.9): Train, Home and the bank's Remove are off with the earlier phases' flags.
+  "train:off,home:off,bank-remove:off";
 // Phase 0 has no @smoke tags, so its specs are listed by file. tournament (≈ 10 min) stays in the main run; the
 // bot and friend games cover the game flow here. P2 plan 12.10: with live-protocol-v2 and game-v3 off, the legacy
 // play-with-friend and quick-match specs pass over protocol v1 until the parity gate.
@@ -188,10 +191,13 @@ const blankTelemetry = {
 // web's lookups from the worker's fallback), and the mock posts its signed `subscription.active` webhooks to the web
 // app. The onboarding and import flags are on and the paywall is on in every P4 project; the worker honours the
 // import fault table (`IMPORT_FAULTS_ALLOWED=1`, refused by a production worker).
-/** FLAGS_OVERRIDE with the P4 flags on (unless the env already decides them). */
+/**
+ * FLAGS_OVERRIDE with the P4 flags on (unless the env already decides them). P5 (phase-05 plan 7.9) adds `train`,
+ * `home` and `bank-remove`: on for every e2e member as on dev, off in the flags-off project.
+ */
 function withP4Flags(override: string | undefined): string {
   const entries = (override ?? "").split(",").map((e) => e.trim()).filter(Boolean);
-  for (const flag of ["onboarding-v3", "import-v3"]) {
+  for (const flag of ["onboarding-v3", "import-v3", "train", "home", "bank-remove"]) {
     if (!entries.some((e) => e.startsWith(`${flag}:`))) entries.push(`${flag}:on`);
   }
   return entries.join(",");
@@ -199,6 +205,8 @@ function withP4Flags(override: string | undefined): string {
 
 const p4WebEnv = {
   ...upstreamEnv("web"),
+  // P5 (phase-05 plan §9.3): puzzle shards from the CI shard server, never from R2.
+  ...puzzleShardEnv(),
   FLAGS_OVERRIDE: withP4Flags(process.env.FLAGS_OVERRIDE),
   BILLING_PAYWALL: "on",
   // Checkout returns land on this server (lib/billing/return-url.ts takes the origin of this URL).
@@ -223,6 +231,14 @@ const upstreamServer = {
   command: `npx tsx e2e/mocks/upstream-server.ts --port ${UPSTREAM_PORT} --web http://localhost:${WEB_PORT}`,
   url: `http://127.0.0.1:${UPSTREAM_PORT}/__health`,
   reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
+  timeout: 15_000,
+};
+
+/** P5 (phase-05 plan §9.3): the static puzzle shard server on 4012 (+ offset), the committed fixture subset. */
+const puzzleShardServer = {
+  command: `npx tsx e2e/mocks/puzzle-shards.ts --port ${PUZZLE_SHARDS_PORT}`,
+  url: `http://127.0.0.1:${PUZZLE_SHARDS_PORT}/__health`,
+  reuseExistingServer: true,
   timeout: 15_000,
 };
 
@@ -291,6 +307,7 @@ const localServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
   socketServer("fast", `http://localhost:${WEB_PORT}`),
   workerServer(),
   sinkServer,
+  puzzleShardServer,
 ];
 
 // lapsed-read: the main test build with review-lapsed-read on, on its own port (CI: `pnpm start` of the same build;

@@ -8,7 +8,7 @@
 // (`findPii`) refuses FEN/PGN/SAN shapes. Unset POSTHOG_PROJECT_KEY (local runs, tests) → nothing is sent.
 import { findPii, parseEvent, type ImportServerEventName, type ReviewServerEventName } from "@repo/analytics";
 import type { z } from "zod";
-import type { importServerEvents, reviewServerEvents } from "@repo/analytics";
+import type { importServerEvents, reviewServerEvents, trainServerEvents } from "@repo/analytics";
 import { PostHog } from "posthog-node";
 import type { AppEnvName } from "../config/env";
 import type { Logger } from "./log";
@@ -17,9 +17,13 @@ type WorkerReviewEventName = Extract<
   ReviewServerEventName,
   "analysis_started" | "analysis_ready" | "analysis_failed" | "analysis_retry_succeeded"
 >;
-/** P3's analysis events and P4's import events (phase-04 plan 10.1, `importServerEvents`). */
-export type WorkerEventName = WorkerReviewEventName | ImportServerEventName;
-type WorkerEventSchemas = Pick<typeof reviewServerEvents, WorkerReviewEventName> & typeof importServerEvents;
+/** P5's worker event (phase-05 plan §10.1): `mistakes_extracted`, one per extracted member side. */
+type WorkerTrainEventName = "mistakes_extracted";
+/** P3's analysis events, P4's import events (phase-04 plan 10.1, `importServerEvents`) and P5's extraction event. */
+export type WorkerEventName = WorkerReviewEventName | ImportServerEventName | WorkerTrainEventName;
+type WorkerEventSchemas = Pick<typeof reviewServerEvents, WorkerReviewEventName> &
+  typeof importServerEvents &
+  Pick<typeof trainServerEvents, WorkerTrainEventName>;
 export type WorkerEventProps<N extends WorkerEventName> = z.input<WorkerEventSchemas[N]>;
 
 export interface ProductEvents {

@@ -9,7 +9,7 @@
 import { randomBytes } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { P3_JOB_KINDS, P4_JOB_KINDS, PAYLOAD_V_MAX, type JobKind } from "@repo/contracts/internal/jobs";
+import { P3_JOB_KINDS, P4_JOB_KINDS, P5_JOB_KINDS, PAYLOAD_V_MAX, type JobKind } from "@repo/contracts/internal/jobs";
 import type { WorkerReadyResponse } from "@repo/contracts/internal/kick";
 import { ENGINE_PROFILE } from "@repo/chess-analysis/version";
 import { EvalCache } from "./cache/evalcache";
@@ -28,6 +28,7 @@ import { measuredFetch } from "./providers/measure";
 import { importMetric } from "./import/metrics";
 import { IoLane, routeKick } from "./queue/lanes";
 import { BatchAccumulator } from "./pipeline/batch-events";
+import { MistakesAddedCoalescer } from "./extract/coalesce";
 import { OpeningBook } from "./pipeline/openings";
 import { SqlAnalysisStore } from "./pipeline/sql-store";
 import { createProductEvents, type ProductEvents } from "./obs/posthog";
@@ -177,7 +178,7 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
     createProductEvents(env.posthog, env.appEnv, log.child({ component: "posthog" }), {
       untraced: telemetry.untraced?.bind(telemetry),
     });
-  const store = new SqlAnalysisStore(db);
+  const store = new SqlAnalysisStore(db, { training: env.bank.enabled });
   const batch = new BatchAccumulator({
     emitter,
     clock,
@@ -205,9 +206,21 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
     log: log.child({ component: "provider-lookup" }),
     sink: { metrics, telemetry },
   });
+  // P5: `mistakes:added` frames of the EXTRACT_MISTAKES backfill, coalesced per user (≤ 1 per 60 s).
+  const mistakesAdded = new MistakesAddedCoalescer({ emitter, clock, log: log.child({ component: "mistakes-added" }) });
   const handlers =
-    o.handlers ?? defaultHandlers({ store, book, batch, events, imports: { providers, settings: env.imports } });
-  const kinds: JobKind[] = P3_JOB_KINDS.filter((k) => handlers[k] !== undefined);
+    o.handlers ??
+    defaultHandlers({
+      store,
+      book,
+      batch,
+      events,
+      imports: { providers, settings: env.imports },
+      bank: env.bank,
+      mistakesAdded,
+    });
+  // The engine lane: the analysis kinds and P5's EXTRACT_MISTAKES (its line searches use the engine).
+  const kinds: JobKind[] = [...P3_JOB_KINDS, ...P5_JOB_KINDS].filter((k) => handlers[k] !== undefined);
   // The I/O lane claims the import kinds this build handles; IMPORT_PAUSED leaves it without kinds (claims nothing).
   const ioKinds: JobKind[] = env.imports.paused ? [] : P4_JOB_KINDS.filter((k) => handlers[k] !== undefined);
   const evalCacheMaxBytes = env.evalCache.maxGb * 1024 ** 3;
@@ -322,6 +335,7 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
       await Promise.all([scheduler.stop(STOP_GRACE_MS), lane.stop(STOP_GRACE_MS)]);
       // The pending `analysis:batch` frames go out before the emitter and the database close (FIX-2).
       await batch.flushAll().catch((error: unknown) => log.warn("analysis:batch flush on stop failed", { error }));
+      await mistakesAdded.flushAll().catch((error: unknown) => log.warn("mistakes:added flush on stop failed", { error }));
       await events.shutdown(2_000);
       await engine.stop().catch((error: unknown) => log.warn("engine stop failed", { error }));
       evalCache?.close();

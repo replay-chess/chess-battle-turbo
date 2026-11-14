@@ -97,6 +97,34 @@ The `/api/me` regression stays `me.js` (p95 < 150 ms with the P4 joins).
 |---|---|---|
 | 2026-11-12 | `p04-import-status-local-05b90fb.json`, `p04-accounts-local-05b90fb.json`, `p04-onboarding-patch-local-05b90fb.json`: local smoke (6 / 6 / 2 VUs, 40 s) against the P4 test build (`next start`) on Docker Postgres 17, k6 0.57 in Docker | import status p95 9.9 ms server, 100 % 304; accounts p95 10.4 ms server, 100 % 304; onboarding PATCH p95 11.5 ms server; 0 errors. **Pass** (smoke only: the dev run with 50 VUs is stage B). |
 
+## Phase 5: training sessions and the member read mix (phase-05 plan §9.6, §12.6)
+
+| Scenario | Users | Load | Gates |
+|---|---|---|---|
+| `train-session.js` | members with a bank (pool users reset to `bank-member`) | `TRAIN_VUS` (20) for `TRAIN_DURATION` (5m): W2 (a bank practice session, then a 10-puzzle session) → W1 per item after 3–6 s, 20 % as batches of 5 → the last applied batch replayed → W4 | W1 p95 < 150 ms, W2 BANK p95 < 250 ms, W2 PUZZLES p95 < 400 ms (run on a fresh deployment: cold shard LRU), replays 100 % `duplicate`, 0 errors |
+| `api-read-mix.js` | the same | `MIX_RATE` (30/s) for `MIX_DURATION` (3m): `/api/me` 40 %, `/api/train/today` 15 %, `/api/home` 10 %, `/api/me/badges` 10 %, `/api/train/bank` 10 %, `/api/import/status` 15 % | R1 (`train/today`, `home`) server p95 < 100 ms and end to end < 250 ms; the bank page server < 160 ms, end to end < 400 ms; 0 errors |
+
+VUs share members round-robin, so with fewer members than VUs two VUs can grade the same card: the later grade is a
+`conflict` (counted in `attempt_conflicts`, not an error; the outbox drops it the same way). Never production; before a
+dev run check the `replay-chess-dev` usage page and skip the run above 60 % of any Hobby quota (feasibility F-VER-2).
+
+```sh
+cd apps/web && for n in 1 2 3 4; do npx tsx scripts/dev/personas.ts --reset $n --persona bank-member; done
+cd ../../perf/k6 && pnpm run build
+k6 run -e WEB_APP_URL=https://<dev url> -e TRAIN_USER_EMAILS=<pool logins> dist/train-session.js \
+  -e RESULT_FILE=../results/p05-train-session-$(git rev-parse --short HEAD).json      # CLERK_SECRET_KEY (sk_test_) in the env
+k6 run -e WEB_APP_URL=https://<dev url> -e MIX_USER_EMAILS=<pool logins> dist/api-read-mix.js \
+  -e RESULT_FILE=../results/p05-api-read-mix-$(git rev-parse --short HEAD).json
+cd ../.. && pnpm exec tsx perf/compare.ts --phase 5
+```
+
+**Results**
+
+| Date | Run | Result |
+|---|---|---|
+| 2026-11-14 | `p05-train-session-local-0b44741.json`: local smoke (2 VUs, 60 s, one `bank-member` pool user) against the P5 test build (`next start`) on Docker Postgres 17, puzzle shards from the CI shard server (:4012), k6 0.57 in Docker | W1 p95 55.0 ms, W2 BANK p95 77.7 ms, W2 PUZZLES p95 38.9 ms (warm), replays 100 % duplicate, 0 errors. **Pass** (smoke only: the dev run with 20 VUs on a fresh deployment is stage B). |
+| 2026-11-14 | `p05-api-read-mix-local-0b44741.json`: local smoke (5/s, 40 s, same member and build) | `/api/train/today` p95 27.9 ms client / 12.9 ms server; `/api/home` 42.6 / 27.8 ms; `/api/train/bank` 39.4 / 25.4 ms; `/api/me` 24.7 ms; `/api/me/badges` 27.1 ms; `/api/import/status` 26.5 ms; 0 errors. **Pass** (smoke only: 30/s on dev is stage B). |
+
 ## Infrastructure (legacy perf environment)
 
 | Component | URL / Address |

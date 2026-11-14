@@ -51,7 +51,7 @@ describe("shell events", () => {
     const { readFile } = await import("node:fs/promises");
     const src = await readFile(new URL("../../../../apps/web/lib/shell/types.ts", import.meta.url), "utf8");
     const union = /export type DestinationKey =([^;]+);/.exec(src)?.[1] ?? "";
-    const keys = [...union.matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
+    const keys = [...union.matchAll(/"([a-z-]+)"/g)].map((m) => m[1]);
     assert.deepEqual([...keys].sort(), [...DESTINATION_KEYS].sort());
   });
 });

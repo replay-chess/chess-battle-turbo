@@ -27,7 +27,8 @@ describe("P4 job kinds", () => {
   it("IMPORT_SYNC and IMPORT_PURGE already exist in M3's JobKind; P4 runs them with 5 attempts each", () => {
     assert.deepEqual([...P4_JOB_KINDS], ["IMPORT_SYNC", "IMPORT_PURGE"]);
     for (const k of P4_JOB_KINDS) assert.ok((JOB_KINDS as readonly string[]).includes(k), k);
-    assert.deepEqual([...RUN_JOB_KINDS], [...P3_JOB_KINDS, ...P4_JOB_KINDS]);
+    // P5 appends its engine-lane kind after these (jobs.p5.test.ts).
+    assert.deepEqual([...RUN_JOB_KINDS].slice(0, P3_JOB_KINDS.length + P4_JOB_KINDS.length), [...P3_JOB_KINDS, ...P4_JOB_KINDS]);
     assert.equal(JOB_MAX_ATTEMPTS.IMPORT_SYNC, 5);
     assert.equal(JOB_MAX_ATTEMPTS.IMPORT_PURGE, 5);
     for (const k of RUN_JOB_KINDS) assert.ok(JOB_PAYLOADS[k], k);

@@ -62,3 +62,22 @@ p4Test.describe("onboarding-v3 and import-v3 off @p4", () => {
     expect((await page.request.get("/api/accounts")).status()).toBe(404);
   });
 });
+
+// Phase 5 (plan §7.9, §12.4 "Regression of earlier phases"): with `train`, `home` and `bank-remove` off the Train pages
+// are not served and /home sends a member back to /play (the §13.4 rollback), so the P1–P4 site is what members get.
+// The P5 JSON routes stay up (flags never gate authorisation, lib/flags/registry/p05.ts); only the pages go dark.
+test.describe("train and home off @p5", () => {
+  test("/train/** answers 404, /home goes back to /play, the signed-in / stays on the marketing page", async ({ authedPage: page }) => {
+    test.setTimeout(180_000);
+    for (const path of ["/train", "/train/bank", "/train/bank/session", "/train/puzzles"]) {
+      expect((await page.request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
+    }
+    const home = await page.request.get("/home", { maxRedirects: 0 });
+    expect([307, 308], "/home redirects").toContain(home.status());
+    expect(new URL(home.headers()["location"] ?? "", page.url()).pathname).toBe("/play");
+    await page.goto("/home", { waitUntil: "domcontentloaded", timeout: 120_000 });
+    await expect(page).toHaveURL(/\/play$/, { timeout: 60_000 });
+    await page.goto("/", { waitUntil: "domcontentloaded", timeout: 120_000 });
+    await expect(page).not.toHaveURL(/\/home$/);
+  });
+});

@@ -67,7 +67,10 @@ describe("check-p4-preconditions", () => {
 
   it("every protected M4 index is checked with its predicate after deploy", () => {
     const protectedText = readFileSync(new URL("../prisma/protected-indexes.txt", import.meta.url), "utf8");
-    const m4Names = protectedText.slice(protectedText.indexOf("# M4")).split(/\r?\n/).slice(1).map((l) => l.trim()).filter(Boolean);
+    // The M4 section only: from its header to the next section header (later phases append theirs, e.g. "# M5").
+    const m4Lines = protectedText.slice(protectedText.indexOf("# M4")).split(/\r?\n/).slice(1);
+    const end = m4Lines.findIndex((l) => l.trim().startsWith("#"));
+    const m4Names = (end < 0 ? m4Lines : m4Lines.slice(0, end)).map((l) => l.trim()).filter(Boolean);
     assert.deepEqual(m4Names.sort(), ["game_players_linked_account_idx", "import_runs_one_active", "import_runs_waiting_idx", "linked_accounts_autosync_idx", "linked_accounts_verified_key"]);
     for (const name of m4Names) {
       const check = M4_OBJECTS.find((c) => c.kind === "index" && c.name === name);

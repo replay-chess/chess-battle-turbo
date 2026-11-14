@@ -59,10 +59,14 @@ export async function ensureViewer(page: Page): Promise<{ onboarded: boolean }> 
  * a `session.reload()` racing clerk-js's own refresh logs "@clerk/nextjs: Invalid state" (a console-guard failure).
  */
 export async function refreshSessionClaims(page: Page): Promise<void> {
+  // A fresh token can make the page read the viewer again; a spec that navigates on at once would leave that read in
+  // flight (WebKit page error, see pendingViewerReads).
+  const viewerReads = pendingViewerReads(page);
   await page.evaluate(async () => {
     const clerk = (window as unknown as { Clerk?: { session?: { getToken?: (o: { skipCache: boolean }) => Promise<unknown> } } }).Clerk;
     await clerk?.session?.getToken?.({ skipCache: true });
   });
+  await viewerReads.settled();
 }
 
 /**
@@ -209,33 +213,84 @@ export async function signIn(page: Page, email: string, password: string, opts: 
   await viewerReads.settled();
 }
 
+/** The page surface pendingViewerReads uses (a Playwright Page; a fake in the unit test). */
+export type ViewerReadsPage = Pick<Page, "on" | "off" | "waitForTimeout" | "evaluate" | "waitForLoadState">;
+
+/** How long the page must make no viewer read before it counts as settled (UserSync starts its read in the effect pass after Clerk loads). */
+export const VIEWER_QUIET_MS = 750;
+/** How long a production build's service-worker registration may take to show up (SW_LOAD_FALLBACK_MS 4 s + the register call). */
+export const SW_SETTLE_MS = 8_000;
+
+/** A production build registers /sw.js on every page (`next dev` never does): CI, E2E_WEB_BUILD=1, a deployed site. */
+export function registersServiceWorker(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(env.CI) || env.E2E_WEB_BUILD === "1" || Boolean(env.E2E_BASE_URL);
+}
+
+/** The running project blocks service workers (the devices config): no registration will ever show up. */
+function serviceWorkersBlocked(): boolean {
+  try {
+    return base.info().project.use.serviceWorkers === "block";
+  } catch {
+    return false; // outside a test (global setup, scripts)
+  }
+}
+
 /**
- * Tracks the page's in-flight GET /api/me; `settled()` waits (≤ 15 s) until none is left, then stops tracking.
+ * Tracks the page's GET /api/me reads; `settled()` waits (≤ 15 s) until none is in flight and none started for
+ * VIEWER_QUIET_MS, then (production builds) until the page's service-worker registration exists, then stops tracking.
  *
- * `settled({ quiet: true })` first lets the page go quiet (`networkidle`, ≤ 10 s): after a claims refresh the page's
- * read starts a moment later (UserSync / qk.me, once Clerk has the new token), so an empty set right away did not mean
- * "no read"; the spec's next navigation cut it, which WebKit reports as "…/api/me due to access control checks."
- * (lichess.spec on Linux WebKit, about 1 run in 15; Clerk's own FAPI fetches were cut and reported the same way). The
- * app cannot avoid that report: WebKit cuts the loads before the old document sees `beforeunload` or `pagehide`
- * (aborting the reads from those events was tried and changed nothing, 6 of 30 runs still failed). Only the P4 lease
- * asks for it: signIn's callers continue at once (in-game-auth.spec reads a 3 s chip on another page right after).
+ * WebKit logs a load that a page being left had started, or starts, as a page error ("…/api/me due to access control
+ * checks.", "…/sw.js due to access control checks."), whether or not the app handles it. A sign-in on `/` followed at
+ * once by the spec's next `goto` left both behind now and then: the viewer read UserSync starts once Clerk reports the
+ * session (it can begin after the reads this helper had seen were done), and the registration a production build starts
+ * at `load` (regression: webkit-signin-late-reads; webkit-iphone connected.spec and friend-full on the r5 build).
+ *
+ * `settled(ms, { quiet: true })` first lets the whole page go quiet (`networkidle`, ≤ 10 s): after the P4 lease's
+ * claims refresh the page's read starts a moment later (UserSync / qk.me, once Clerk has the new token) and Clerk's own
+ * FAPI fetches were cut and reported the same way (lichess.spec on Linux WebKit, about 1 run in 15; regression:
+ * webkit-lease-me-cut). The app cannot avoid that report: WebKit cuts the loads before the old document sees
+ * `beforeunload` or `pagehide` (aborting the reads from those events was tried and changed nothing, 6 of 30 runs still
+ * failed). Only the P4 lease asks for it: signIn's callers continue as soon as the viewer reads are quiet
+ * (in-game-auth.spec reads a 3 s chip on another page right after; a networkidle wait there hid it).
  */
-export function pendingViewerReads(page: Page) {
+export function pendingViewerReads(page: ViewerReadsPage, opts: { swRegistration?: boolean } = {}) {
   const pending = new Set<Request>();
+  let lastActivity = Date.now();
   const isMe = (r: Request) => new URL(r.url()).pathname === "/api/me";
-  const onRequest = (r: Request) => void (isMe(r) && pending.add(r));
-  const onDone = (r: Request) => void pending.delete(r);
+  const onRequest = (r: Request) => {
+    if (!isMe(r)) return;
+    pending.add(r);
+    lastActivity = Date.now();
+  };
+  const onDone = (r: Request) => {
+    if (!pending.delete(r)) return;
+    lastActivity = Date.now();
+  };
   page.on("request", onRequest);
   page.on("requestfinished", onDone);
   page.on("requestfailed", onDone);
+  const swRegistration = opts.swRegistration ?? (registersServiceWorker() && !serviceWorkersBlocked());
   return {
     async settled(timeoutMs = 15_000, opts: { quiet?: boolean } = {}) {
       const until = Date.now() + timeoutMs;
-      if (opts.quiet) await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
-      while (pending.size > 0 && Date.now() < until) await page.waitForTimeout(50);
-      page.off("request", onRequest);
-      page.off("requestfinished", onDone);
-      page.off("requestfailed", onDone);
+      try {
+        if (opts.quiet) await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+        while (Date.now() < until && (pending.size > 0 || Date.now() - lastActivity < VIEWER_QUIET_MS)) await page.waitForTimeout(50);
+        if (swRegistration) {
+          const swUntil = Math.min(until, Date.now() + SW_SETTLE_MS);
+          while (Date.now() < swUntil) {
+            const registered = await page
+              .evaluate(async () => ("serviceWorker" in navigator ? Boolean(await navigator.serviceWorker.getRegistration()) : true))
+              .catch(() => true);
+            if (registered) break;
+            await page.waitForTimeout(100);
+          }
+        }
+      } finally {
+        page.off("request", onRequest);
+        page.off("requestfinished", onDone);
+        page.off("requestfailed", onDone);
+      }
     },
   };
 }

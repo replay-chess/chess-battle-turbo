@@ -46,6 +46,10 @@
   .rvc-mrow__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .rvc-mrow__head > span:last-child { min-width: 0; overflow-wrap: anywhere; }
   .rvc-say { margin: 0; font-size: 0.875rem; line-height: 1.45; color: var(--cb-text-soft); }
+  /* P5: the bank tag column (V3RvComplete `.tag good` "Added"). */
+  .rvc-mrow[data-bank] { grid-template-columns: 72px minmax(0, 1fr) auto; }
+  .rvc-tag { align-self: start; display: inline-flex; align-items: center; padding: 2px 6px; border: 1px solid var(--cb-border-strong); font: 500 0.625rem/1.4 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); white-space: nowrap; }
+  .rvc-tag[data-added] { color: var(--cb-good); border-color: color-mix(in srgb, var(--cb-good) 45%, transparent); }
   .rvc-foot { margin: 0; padding: 12px 16px; border-top: 1px solid var(--cb-border); font-size: 0.875rem; color: var(--cb-text-soft); }
 
   @media (max-width: 1100px) { .rvc { padding: 20px; } .rvc__grid { gap: 32px; } }
@@ -78,6 +82,7 @@
     .rvc-row { min-height: 48px; }
     .rvc__card { grid-area: card; min-height: 96px; }
     .rvc-mrow { grid-template-columns: 56px minmax(0, 1fr); gap: 12px; padding: 10px 12px; }
+    .rvc-mrow[data-bank] { grid-template-columns: 56px minmax(0, 1fr) auto; }
     .rvc-mini { width: 56px; height: 56px; }
     .rvc__primary { grid-area: primary; max-width: none; margin: 0 -16px; padding: 8px 16px calc(8px + var(--safe-bottom, 0px)); border-top: 1px solid var(--cb-border); background: var(--cb-bg); }
   }

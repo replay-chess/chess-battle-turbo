@@ -10,6 +10,7 @@
 // Times: Prisma's DateTime columns are timestamp(3) without zone, stored in UTC, so every comparison with the clock
 // uses (now() AT TIME ZONE 'UTC') and nothing depends on the session TimeZone.
 import { Prisma } from "@repo/db";
+import { BANK_CARDS_COLUMN, BANK_TOKEN_COLUMN, NO_BANK_COLUMNS } from "@/lib/train/reviewBank.server";
 import { effectiveAnalysisStatusSql } from "./status-sql";
 
 export type ReadKind = "probe" | "status" | "review" | "legend";
@@ -21,12 +22,17 @@ export type ReadArgs = {
   admin: boolean;
   /** A9 `?include=explanation`: select the ~20 KB explanation JSON. */
   includeExplanation?: boolean;
+  /**
+   * P5 (phase-05 §7.3 "Review bank fields", `train` flag): the bank token on every read (both ETags include it) and
+   * the moment cards on `review` / `status`, as scalar subqueries of the same statement. Off → P3's columns only.
+   */
+  bank?: boolean;
 };
 
 const NOW = Prisma.sql`(now() AT TIME ZONE 'UTC')`;
 
 /** Columns of every read: the ETag parts, the job state (stall rule, kick CAS) and the comparison state. */
-const PROBE_COLUMNS = Prisma.sql`
+const P3_PROBE_COLUMNS = Prisma.sql`
   g.id AS "gameId", g."referenceId" AS ref, ${effectiveAnalysisStatusSql()} AS "analysisStatus", g."chessPositionId",
   gp."userId" AS "memberId", gp.color, gp."isPlayer",
   a.version, a."gradedPlies", a."totalPlies", a."failedAtPly", a."updatedAt" AS "analysisUpdatedAt",
@@ -34,6 +40,13 @@ const PROBE_COLUMNS = Prisma.sql`
   j.status::text AS "jobStatus", j.attempts, j."maxAttempts", j."runAt", j."heartbeatAt", j."lastKickAt", j."lastError",
   s.code AS "shareCode", s."showUsername" AS "shareShowUsername", s."expiresAt" AS "shareExpiresAt",
   lc.status::text AS "comparisonStatus", lc."updatedAt" AS "comparisonUpdatedAt"`;
+
+/** P3's probe columns plus the P5 bank token (null with the `train` flag off). */
+const probeColumns = (args: ReadArgs) =>
+  Prisma.sql`${P3_PROBE_COLUMNS}, gp."bankVersion", ${args.bank ? BANK_TOKEN_COLUMN : NO_BANK_COLUMNS}`;
+
+/** P5: the member side's moment cards (`review`, `status`). */
+const bankCards = (args: ReadArgs) => (args.bank ? Prisma.sql`, ${BANK_CARDS_COLUMN}` : Prisma.empty);
 
 /** Jobs ahead of this one in the claim order (priority DESC, fairSeq, runAt), only while it is QUEUED. */
 const QUEUE_AHEAD = Prisma.sql`
@@ -71,7 +84,7 @@ const BASE_FROM = (args: ReadArgs) => Prisma.sql`
   FROM games g
   JOIN LATERAL (
     SELECT p."gameId", p."userId", p.color, p."opponentUserId", p."opponentName", p."opponentRating", p."ratingBefore",
-           p.accuracy, p."phaseAccuracy", p."momentsCount", (p."userId" = ${args.viewerId}) AS "isPlayer"
+           p.accuracy, p."phaseAccuracy", p."momentsCount", p."bankVersion", (p."userId" = ${args.viewerId}) AS "isPlayer"
       FROM game_players p
      WHERE p."gameId" = g.id AND (p."userId" = ${args.viewerId} OR ${args.admin}::boolean)
      ORDER BY (p."userId" = ${args.viewerId}) DESC, p.color DESC
@@ -109,26 +122,26 @@ export function reviewReadSql(kind: ReadKind, args: ReadArgs): Prisma.Sql {
   const where = Prisma.sql`WHERE g."referenceId" = ${args.ref}`;
   switch (kind) {
     case "probe":
-      return Prisma.sql`SELECT ${PROBE_COLUMNS} ${BASE_FROM(args)} ${where}`;
+      return Prisma.sql`SELECT ${probeColumns(args)} ${BASE_FROM(args)} ${where}`;
     case "review":
-      return Prisma.sql`SELECT ${PROBE_COLUMNS}, ${GAME_COLUMNS}, ${PLAYER_COLUMNS}, ${QUEUE_AHEAD},
+      return Prisma.sql`SELECT ${probeColumns(args)}, ${GAME_COLUMNS}, ${PLAYER_COLUMNS}, ${QUEUE_AHEAD},
         a.engine, a.evals, a.best, a.judgements, a."middlegamePly", a."endgamePly", a."accuracyWhite",
         a."accuracyBlack", a."countsWhite", a."countsBlack", a."depthP50",
         pr.content, pr."textStatus", pr.progress, pr."startedAt" AS "reviewStartedAt",
         pr."completedAt" AS "reviewCompletedAt",
-        lc.facts->>'historicalName' AS "legendName", ${LEGEND_SOURCE_COLUMNS}
+        lc.facts->>'historicalName' AS "legendName", ${LEGEND_SOURCE_COLUMNS} ${bankCards(args)}
         ${BASE_FROM(args)} ${PLAYER_JOINS} ${LEGEND_JOINS} ${where}`;
     case "status":
-      return Prisma.sql`SELECT ${PROBE_COLUMNS}, ${QUEUE_AHEAD},
+      return Prisma.sql`SELECT ${probeColumns(args)}, ${QUEUE_AHEAD},
         g."plyCount", g.status::text AS "gameStatus", g.outcome::text AS outcome, g."startingFen", g."startPly",
         gp.accuracy AS "myAccuracy", gp."momentsCount",
         (pr.content->>'isClean')::boolean AS "isClean", pr.content->'coachLine'->>'t' AS "coachLine",
         lc.facts AS "comparisonFacts",
         CASE WHEN lc."gameId" IS NULL THEN g.moves END AS moves,
-        CASE WHEN lc."gameId" IS NULL THEN cp.pgn END AS "legendPgn", ${LEGEND_SOURCE_COLUMNS}
+        CASE WHEN lc."gameId" IS NULL THEN cp.pgn END AS "legendPgn", ${LEGEND_SOURCE_COLUMNS} ${bankCards(args)}
         ${BASE_FROM(args)} ${LEGEND_JOINS} ${where}`;
     case "legend":
-      return Prisma.sql`SELECT ${PROBE_COLUMNS}, ${GAME_COLUMNS}, ${PLAYER_COLUMNS},
+      return Prisma.sql`SELECT ${probeColumns(args)}, ${GAME_COLUMNS}, ${PLAYER_COLUMNS},
         lc.facts AS "comparisonFacts", lc.attempts AS "comparisonAttempts",
         cp.pgn AS "legendPgn", cp."explanationAudioUrl", (cp.explanation IS NOT NULL) AS "hasExplanation",
         ${args.includeExplanation ? Prisma.sql`cp.explanation` : Prisma.sql`NULL::jsonb`} AS explanation,
@@ -164,6 +177,12 @@ export type ProbeRow = {
   shareExpiresAt: Date | null;
   comparisonStatus: "FACTS_READY" | "NARRATING" | "READY" | "FAILED" | null;
   comparisonUpdatedAt: Date | null;
+  /** P5: the side's Mistake Bank extraction version (0 = not extracted). */
+  bankVersion?: number | null;
+  /** P5: the bank part of the ETags (`train` flag on), else null. */
+  bankToken?: string | null;
+  /** P5 (`review`, `status` with the flag on): the moment cards, `[{ply, key, due}]`. */
+  bankCards?: unknown;
 };
 
 export type GameColumns = {

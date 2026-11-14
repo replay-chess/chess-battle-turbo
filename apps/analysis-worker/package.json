@@ -23,6 +23,7 @@
     "@repo/analytics": "workspace:*",
     "@repo/chess-analysis": "workspace:*",
     "@repo/chess-import": "workspace:*",
+    "@repo/chess-training": "workspace:*",
     "@repo/contracts": "workspace:*",
     "@repo/db": "workspace:*",
     "@sentry/node": "10.38.0",
@@ -31,6 +32,8 @@
     "lru-cache": "11.5.3",
     "pg": "8.23.1",
     "posthog-node": "5.56.4",
+    "sqids": "0.3.0",
+    "ts-fsrs": "5.4.2",
     "zod": "4.1.12"
   },
   "devDependencies": {

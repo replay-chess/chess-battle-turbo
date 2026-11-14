@@ -18,6 +18,8 @@ export type Recorded = {
   tags: Record<string, string>;
   afterTasks: (() => unknown)[];
   sleeps: number[];
+  /** Names of the spans the route opened (`telemetry.startSpan`), in order. */
+  spans: string[];
   /** Users whose Clerk claims a route synced (RouteDeps.syncClaims; runs when the after() task runs). */
   claimsSyncs: bigint[];
   /** Trial-ledger probes (RouteDeps.trialLedgerProbe; a miss unless `options.ledgerHit`). */
@@ -52,6 +54,7 @@ export function installTestDeps(options: TestDepsOptions = {}): { recorded: Reco
     tags: {},
     afterTasks: [],
     sleeps: [],
+    spans: [],
     claimsSyncs: [],
     ledgerProbes: [],
   };
@@ -78,7 +81,10 @@ export function installTestDeps(options: TestDepsOptions = {}): { recorded: Reco
       recorded.afterTasks.push(task);
     },
     telemetry: {
-      startSpan: (_name, _attributes, fn) => fn(),
+      startSpan: (name, _attributes, fn) => {
+        recorded.spans.push(name);
+        return fn();
+      },
       setTag: (key, value) => {
         recorded.tags[key] = value;
       },

@@ -405,6 +405,9 @@ describe("ANALYZE_GAME pipeline: bands (P3-D26)", () => {
       failed: 0,
       queued: 2,
       refs: [REF],
+      // P5: a done game always carries the bank fields; unknown here (J1 is off in this harness).
+      bankAdded: null,
+      bankDue: null,
     });
     assert.equal(h.store.games.get("1")!.final!.readyMs, null, "backfills are not measured");
 
@@ -424,6 +427,8 @@ describe("ANALYZE_GAME pipeline: bands (P3-D26)", () => {
       failed: 0,
       queued: 0,
       refs: ["cgamereference0000000003", "cgamereference0000000002"],
+      bankAdded: null,
+      bankDue: null,
     });
     assert.equal(h.clock.pending, 0);
   });
@@ -487,6 +492,9 @@ describe("ANALYZE_GAME pipeline: skips and legend games", () => {
         coachLine: null,
         isClean: false,
         bank: null,
+        // P5: a skipped game has no bank values (interface check §0.3).
+        bankAdded: null,
+        bankDue: null,
       },
     );
     assert.deepEqual(h.queue.jobs[0]!.result, { skipped: "too_short" });

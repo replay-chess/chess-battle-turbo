@@ -245,6 +245,9 @@ describe("HOUSEKEEPING job", () => {
       "outdated",
       "import-backstop",
       "import-release",
+      "training-abandon",
+      "training-plans",
+      "training-prune",
       "done",
     ]);
     const ids = h.queue.jobs.map((j) => j.id);

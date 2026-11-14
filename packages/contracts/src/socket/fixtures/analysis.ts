@@ -34,6 +34,9 @@ export function analysisEventFixtures(): { [N in AnalysisEventName]: AnalysisEve
       coachLine: "The game turned on move 19, when Qd2 missed Rxf5.",
       isClean: false,
       bank: null,
+      // P5: the design's three moments are all in the bank; 4 due today.
+      bankAdded: { count: 3, plies: [24, 36, 46] },
+      bankDue: 4,
     },
     "analysis:failed": {
       v: 1,
@@ -45,7 +48,15 @@ export function analysisEventFixtures(): { [N in AnalysisEventName]: AnalysisEve
       retryAt: "2026-11-09T18:45:10.000Z",
       code: "engine_failed",
     },
-    "analysis:batch": { v: 1, done: 3, failed: 0, queued: 12, refs: [gameRef, "cm3k9xq7r0009slzpw2e5bn1k", "cm3kb2v4d000bslzp6q1m8r3t"] },
+    "analysis:batch": {
+      v: 1,
+      done: 3,
+      failed: 0,
+      queued: 12,
+      refs: [gameRef, "cm3k9xq7r0009slzpw2e5bn1k", "cm3kb2v4d000bslzp6q1m8r3t"],
+      bankAdded: 5,
+      bankDue: 6,
+    },
     "compare:ready": { v: 1, gameRef: "cm3kb2v4d000bslzp6q1m8r3t", status: "ready" },
     "games:changed": { v: 1, gameRef },
   };
@@ -83,6 +94,9 @@ export function worstAnalysisEventFixtures(): { [N in AnalysisEventName]: Analys
         "The game turned on move 125, when Rxd4 missed Qxe7+, which wins the queen; after that the rook ending was lost and the last chances went with it in that ending.",
       isClean: false,
       bank: null,
+      // P5: the most a frame can carry: four 4-digit plies (ReviewBank's limit) and a 5-digit due count.
+      bankAdded: { count: 4, plies: [1_196, 1_197, 1_198, 1_199] },
+      bankDue: 99_999,
     },
     "analysis:failed": {
       v: 1,
@@ -94,7 +108,7 @@ export function worstAnalysisEventFixtures(): { [N in AnalysisEventName]: Analys
       retryAt: "2026-11-09T18:45:10.000Z",
       code: "worker_stalled",
     },
-    "analysis:batch": { v: 1, done: 20, failed: 20, queued: 9_999, refs },
+    "analysis:batch": { v: 1, done: 20, failed: 20, queued: 9_999, refs, bankAdded: 9_999, bankDue: 99_999 },
     "compare:ready": { v: 1, gameRef, status: "failed" },
     "games:changed": { v: 1, gameRef },
   };

@@ -12,11 +12,13 @@ import { z } from "zod";
 import { accountsClientEvents, accountsEvents, accountsServerEvents } from "./events/accounts";
 import { billingClientEvents, billingEvents, billingServerEvents } from "./events/billing";
 import { gameClientEvents, gameEvents, gameServerEvents, gameSocketEvents } from "./events/game";
+import { homeClientEvents, homeEvents } from "./events/home";
 import { importEvents, importServerEvents } from "./events/import";
 import { onboardingClientEvents, onboardingEvents, onboardingServerEvents } from "./events/onboarding";
 import { reviewClientEvents, reviewEvents, reviewServerEvents } from "./events/review";
 import { shellEvents } from "./events/shell";
 import { systemClientEvents, systemEvents, systemServerEvents } from "./events/system";
+import { trainClientEvents, trainEvents, trainServerEvents } from "./events/train";
 
 export { shellEvents, DESTINATION_KEYS, NAV_SURFACES, ACCOUNT_ACTIONS } from "./events/shell";
 export { systemEvents, systemClientEvents, systemServerEvents } from "./events/system";
@@ -26,6 +28,19 @@ export { billingEvents, billingClientEvents, billingServerEvents, CHECKOUT_EVENT
 export { onboardingEvents, onboardingClientEvents, onboardingServerEvents } from "./events/onboarding";
 export { accountsEvents, accountsClientEvents, accountsServerEvents, CONNECTED_BOARD_STATES } from "./events/accounts";
 export { importEvents, importServerEvents, IMPORT_EVENT_CODES, IMPORT_EVENT_PROVIDERS, IMPORT_EVENT_TRIGGERS } from "./events/import";
+export {
+  trainEvents,
+  trainClientEvents,
+  trainServerEvents,
+  TRAIN_ITEM_KINDS,
+  TRAIN_SESSION_KINDS,
+  TRAIN_SESSION_SOURCES,
+  TRAIN_GRADES,
+  TRAIN_REPORT_REASONS,
+  GAME_OVER_MODES,
+  EXTRACT_SOURCES,
+} from "./events/train";
+export { homeEvents, homeClientEvents, HOME_VIEW_STATES } from "./events/home";
 export { FORBIDDEN_PROPERTY_NAMES, PII_PATTERNS, findPii, type PiiFinding } from "./pii";
 
 export const EVENTS = {
@@ -37,6 +52,8 @@ export const EVENTS = {
   ...onboardingEvents,
   ...accountsEvents,
   ...importEvents,
+  ...trainEvents,
+  ...homeEvents,
 } as const;
 
 export type Events = typeof EVENTS;
@@ -57,6 +74,8 @@ export type OnboardingServerEventName = keyof typeof onboardingServerEvents;
 export type AccountsClientEventName = keyof typeof accountsClientEvents;
 export type AccountsServerEventName = keyof typeof accountsServerEvents;
 export type ImportServerEventName = keyof typeof importServerEvents;
+export type TrainClientEventName = keyof typeof trainClientEvents | keyof typeof homeClientEvents;
+export type TrainServerEventName = keyof typeof trainServerEvents;
 
 /** Super properties PostHog adds to every event (set from NEXT_PUBLIC_APP_ENV). */
 export const COMMON_PROPERTIES = z

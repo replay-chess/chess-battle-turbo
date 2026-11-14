@@ -23,6 +23,8 @@ COPY packages/chess-fixtures/package.json ./packages/chess-fixtures/
 COPY packages/chess-analysis/package.json ./packages/chess-analysis/
 # @repo/db devDepends on @repo/chess-import (P4 personas and seeds) as well
 COPY packages/chess-import/package.json ./packages/chess-import/
+# @repo/db devDepends on @repo/chess-training (P5 training personas and seeds) as well
+COPY packages/chess-training/package.json ./packages/chess-training/
 
 # Install the socket server and its workspace dependencies only
 RUN pnpm install --frozen-lockfile --filter "web-socket..."
@@ -47,6 +49,7 @@ COPY packages/game-core ./packages/game-core
 COPY packages/chess-fixtures ./packages/chess-fixtures
 COPY packages/chess-analysis ./packages/chess-analysis
 COPY packages/chess-import ./packages/chess-import
+COPY packages/chess-training ./packages/chess-training
 COPY apps/web-socket ./apps/web-socket
 COPY pnpm-workspace.yaml package.json ./
 

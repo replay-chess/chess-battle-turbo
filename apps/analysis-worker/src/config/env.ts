@@ -26,6 +26,7 @@ import {
 import { AppEnv } from "@repo/contracts/http/system";
 import { WORKER_PORT } from "@repo/contracts/internal/kick";
 import { ENGINE_PROFILE } from "@repo/chess-analysis/version";
+import { BANK_LINE_NODES } from "@repo/chess-analysis/puzzle/line";
 import { isDevHost } from "@repo/db/seed-guards";
 import { hostname } from "node:os";
 import { parseImportSettings, type ImportSettings } from "../import/settings";
@@ -71,6 +72,12 @@ export interface WorkerEnv {
   imports: ImportSettings;
   /** P4 (§7.7.4): IMPORT_FAULTS_ALLOWED, the provider fault table and `/internal/dev/fault` (never in production). */
   faultsAllowed: boolean;
+  /**
+   * P5 (phase-05 plan §7.6, §7.8): BANK_EXTRACT_ENABLED (default on; off = the kill switch: J1 is skipped, the
+   * analysis still completes, EXTRACT_MISTAKES rows wait) and BANK_LINE_NODES (the node budget of one line search,
+   * default 500000).
+   */
+  bank: { enabled: boolean; lineNodes: number };
 }
 
 export class EnvError extends Error {
@@ -283,8 +290,16 @@ export function loadEnv(raw: RawEnv = process.env): WorkerEnv {
     logLevel,
     imports: parseImportSettings(raw, appEnv),
     faultsAllowed,
+    bank: {
+      enabled: flag(raw, "BANK_EXTRACT_ENABLED", true),
+      lineNodes: int(raw, "BANK_LINE_NODES", BANK_LINE_NODES_MIN, BANK_LINE_NODES_MAX) ?? BANK_LINE_NODES,
+    },
   };
 }
+
+/** The accepted range of BANK_LINE_NODES (a line search under 10k nodes is noise; over 5M blows the §7.6 budget). */
+export const BANK_LINE_NODES_MIN = 10_000;
+export const BANK_LINE_NODES_MAX = 5_000_000;
 
 /** A kick body's `fault` is honoured only in APP_ENV=test (§7.5); elsewhere it is ignored, never an error. */
 export function kickFaultsHonoured(appEnv: AppEnvName): boolean {

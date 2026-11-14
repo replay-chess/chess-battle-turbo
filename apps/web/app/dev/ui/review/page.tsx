@@ -28,6 +28,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
  *   live=1      queued → progress frames (the socket's cache updater) → writing → done, auto-advancing
  *   stress=1    20-character names, a 120-ply game with three-digit move numbers, the longest opening (testing X9)
  *   side=b      the viewer plays Black (stress)   share=1    the review-share menu item   flip=1   board flipped
+ *   bank=1      P5: A1 with the `train` bank fields (the key moment's Mistake Bank checkbox and B)
  *   device=…    accepted for the device suite (the viewport decides the layout)   chrome=none   no app shell
  * The complete and share pages have their own demos: /dev/ui/review/complete, /dev/ui/review/share.
  */
@@ -48,6 +49,7 @@ export default async function ReviewDemoPage({ searchParams }: { searchParams: P
     phase: isMomentDemoPhase(phase) ? phase : ("ask" as const),
     stress: one(p.stress) === "1",
     side: one(p.side) === "b" ? ("b" as const) : ("w" as const),
+    bank: one(p.bank) === "1",
   };
   const demo = <ReviewDemo key={JSON.stringify(props)} {...props} />;
   if (one(p.chrome) === "none") return <ViewportStage>{demo}</ViewportStage>;

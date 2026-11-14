@@ -1,0 +1,262 @@
+/*
+ * The trainer (phase-05 plan §4.4–4.6; boards V3BankSession, V3Puzzle{Solve,Hint,Wrong,Correct,Solution,Themes},
+ * V3{iPhone,Android,iPadL,iPadP}Puzzle). Sizes come from BoardStage (asideWidth="trainer", bars="labels"); this file
+ * sets the trainer's own values on top of it, scoped to [data-rc-trainer]:
+ *   side mode   desktop and iPad landscape: label bars 42 px (2 × 48 = the design's --bars 96), the panel 380 px
+ *               (360 when short of room), height = board + bars; ≤ 620 px tall: 34 px bars, the .tall lines hide.
+ *   stack mode  phones (< 600 px wide): the top bar is the status block (56 px: status + rating, theme · source), the
+ *               board, the sheet (the panel's body, the only scroller) and the 64 px control bar (BoardStage footer).
+ *               iPad portrait: the label bar on top, the 640 px board, then the whole panel with its own header and
+ *               controls (the design's iPad P board has no bottom control bar).
+ * Mode switches are container queries on BoardStage's container, so the first render never depends on JS. Only
+ * opacity, transform and colour animate; prefers-reduced-motion turns them off.
+ */
+@layer components {
+  /* ── the phone tab bar hides on the runner (its control bar replaces it; DS: a control bar or a tab bar) ── */
+  .rc-vs.rc-vs:has([data-rc-trainer]) { --tabbar: 0px; }
+  .rc-vs:has([data-rc-trainer]) > .rc-vs__tab { display: none !important; }
+
+  /* ── BoardStage values for the trainer (0,2,0 beats BoardStage's own rules) ── */
+  [data-rc-trainer] .rc-stage__in {
+    --rc-board-max: 860px;
+    --rc-px: 24px; --rc-gap: 20px;
+  }
+  @container rc-stage (height <= 620px) {
+    [data-rc-trainer] .rc-stage__in { --rc-py: 10px; --rc-gap: 14px; }
+    [data-rc-trainer] .tr-tall { display: none !important; }
+  }
+  /* stack mode (phones and iPad portrait): no side padding, one bar on top (the bottom label bar hides) */
+  @container rc-stage (orientation: portrait) or (width < 590px) {
+    [data-rc-trainer] .rc-stage__in {
+      --rc-px: 0px; --rc-py: 0px; --rc-gap: 0px; --rc-bar-gap: 0px; --rc-aside-room: 0px;
+      --rc-bar-h: 48px;
+      --rc-bars: calc(var(--rc-bar-h) + var(--rc-bar-gap));
+      --rc-board-max: 640px;                            /* V3iPadPPuzzle's 640 px board */
+      --rc-strip-min: 320px;                            /* the panel's header, status, coach and grade bar */
+    }
+    [data-rc-trainer] .rc-stage__in[data-footer] { --rc-foot: 0px; }
+    [data-rc-trainer] .rc-stage__foot { display: none; }
+    [data-rc-trainer] [data-rc-bar="bottom"] { display: none; }
+    /* a bank item keeps a 36 px line under the board: "You play White · See It in Your Game" (FIX-2; plan §4.4 iPhone
+       "label lines above and below the board"); a puzzle has none (V3iPhonePuzzle, V3iPadPPuzzle) */
+    [data-rc-trainer] [data-rc-bar="bottom"]:has(.tr-lbar[data-game]) { display: flex; height: 36px; }
+    [data-rc-trainer] .rc-stage__in:has([data-rc-bar="bottom"] .tr-lbar[data-game]) { --rc-bars: calc(var(--rc-bar-h) + 36px + 2 * var(--rc-bar-gap)); }
+    [data-rc-trainer] .rc-stage__aside { padding: 10px 24px 0; box-sizing: border-box; }
+  }
+  /* phones (< 600 px wide): the status block on top, the sheet under the board, the 64 px control bar */
+  @container rc-stage (width < 600px) {
+    [data-rc-trainer] .rc-stage__in {
+      --rc-bar-h: 56px;                                  /* the phone status block */
+      --rc-strip-min: 200px;                             /* the sheet keeps the coach and the grade bar in view */
+      --rc-board-max: calc(100cqw - 32px);               /* 16 px each side (V3iPhonePuzzle 358 of 393) */
+    }
+    [data-rc-trainer] .rc-stage__in[data-footer] { --rc-foot: calc(64px + var(--safe-bottom)); }
+    [data-rc-trainer] .rc-stage__foot { display: flex; }
+    [data-rc-trainer] .rc-stage__aside { padding: 0; }
+    [data-rc-trainer] .tr-side-only { display: none !important; }
+    /* phones: the line under the board is "You play White · See It in Your Game" (the played move is in the sheet) */
+    [data-rc-trainer] .tr-lbar[data-game] .tr-lbar__played { display: none; }
+  }
+  @container rc-stage (width < 600px) and (height <= 620px) {
+    /* short phones (150 %, Safari's toolbars, the home indicator): the board keeps the README's 220 px floor, so the
+       status block, the sheet and the control bar give up a few px each (FIX-1: 200 px on an iPhone at 150 %) */
+    [data-rc-trainer] .rc-stage__in { --rc-bar-h: 44px; --rc-strip-min: 140px; }
+    [data-rc-trainer] .rc-stage__in[data-footer] { --rc-foot: calc(56px + var(--safe-bottom)); }
+    [data-rc-trainer] .tr-ctl { height: 56px; }
+    /* short phones (150 % zoom): the grade bar comes first in the sheet, so it is in view without scrolling */
+    [data-rc-trainer] .tr-grade { order: -1; }
+    /* and the line under the board gives way to the board's 220 px floor (See It in Your Game stays in the ⋯ menu) */
+    [data-rc-trainer] [data-rc-bar="bottom"]:has(.tr-lbar[data-game]) { display: none; }
+    [data-rc-trainer] .rc-stage__in:has([data-rc-bar="bottom"] .tr-lbar[data-game]) { --rc-bars: calc(var(--rc-bar-h) + var(--rc-bar-gap)); }
+  }
+
+  /* ── shared atoms (DS: .lbl, .mono, .tag, .ver, .note, buttons) ── */
+  .tr-lbl { font: 500 0.6875rem/1.3 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-soft); }
+  .tr-mono { font-family: var(--font-geist-mono, ui-monospace), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .tr-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .tr-h1 { margin: 0; font-family: var(--font-instrument-serif, "Instrument Serif"), Georgia, serif; font-weight: 400; font-size: 1.625rem; line-height: 1.15; letter-spacing: -0.01em; }
+  .tr-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border: 1px solid var(--cb-border-strong); font: 500 0.625rem/1.4 var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cb-text-secondary, var(--cb-text-soft)); white-space: nowrap; background: var(--cb-surface); }
+  .tr-tag[data-tone="good"] { color: var(--cb-good); border-color: color-mix(in srgb, var(--cb-good) 45%, transparent); }
+  .tr-ver { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border: 1px solid color-mix(in srgb, var(--cb-good) 45%, transparent); color: var(--cb-good); background: var(--cb-surface); font: 500 0.625rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; letter-spacing: 0.12em; white-space: nowrap; }
+  .tr-btn-p, .tr-btn-s { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 16px; box-sizing: border-box; font: 0.9375rem var(--font-geist-sans, system-ui), system-ui, sans-serif; cursor: pointer; text-decoration: none; white-space: nowrap; min-width: 0; -webkit-tap-highlight-color: transparent; }
+  .tr-btn-p { border: 0; background: var(--cb-accent); color: var(--cb-accent-fg, #fff); font-weight: 500; padding: 0 20px; }
+  .tr-btn-p:hover { background: var(--cb-accent-hover, var(--cb-text)); color: var(--cb-accent-fg, #fff); }
+  .tr-btn-p:disabled, .tr-btn-p[aria-disabled="true"] { background: color-mix(in srgb, var(--cb-accent) 35%, transparent); cursor: not-allowed; }
+  .tr-btn-s { border: 1px solid var(--cb-border-strong); background: var(--cb-surface); color: var(--cb-text); }
+  .tr-btn-s:hover { background: var(--cb-fill); }
+  .tr-btn-s:disabled { color: var(--cb-text-disabled, var(--cb-text-muted)); cursor: not-allowed; background: var(--cb-surface); }
+  .tr-btn-s > svg, .tr-btn-p > svg { flex: none; }
+  .tr-ib { width: 48px; height: 48px; flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--cb-border-strong); background: var(--cb-surface); color: var(--cb-text); cursor: pointer; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  .tr-ib:hover { background: var(--cb-fill); }
+  .tr-ib[aria-expanded="true"] { background: var(--cb-accent); color: var(--cb-accent-fg, #fff); border-color: var(--cb-accent); }
+  .tr-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border: 1px solid var(--cb-border-strong); background: var(--cb-surface); color: var(--cb-text); font: 0.875rem var(--font-geist-sans, system-ui), system-ui, sans-serif; cursor: pointer; text-decoration: none; white-space: nowrap; box-sizing: border-box; }
+  .tr-chip:hover { background: var(--cb-fill); }
+  .tr-chip[aria-expanded="true"] { background: var(--cb-accent); color: var(--cb-accent-fg, #fff); border-color: var(--cb-accent); }
+  .tr-note { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; background: var(--cb-fill); border: 1px solid var(--cb-border); font-size: 0.875rem; line-height: 1.45; }
+  .tr-note > svg { flex: none; margin-top: 1px; }
+  .tr-note[data-tone="good"] { background: color-mix(in srgb, var(--cb-good) 7%, transparent); border-color: color-mix(in srgb, var(--cb-good) 30%, transparent); }
+  .tr-note[data-tone="good"] > svg { color: var(--cb-good); }
+  .tr-note[data-tone="warn"] { background: color-mix(in srgb, var(--cb-warn) 7%, transparent); border-color: color-mix(in srgb, var(--cb-warn) 30%, transparent); }
+  .tr-fadein { animation: tr-fade 150ms ease-out; }
+  @keyframes tr-fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+  /* ── the phone / iPad portrait top bar title (portalled into the shell's TopBar) ── */
+  .tr-topbar { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
+  .tr-topbar__t { color: var(--cb-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .tr-topbar__ib { width: 44px; height: 44px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: 0; padding: 0; background: transparent; color: var(--cb-text); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .tr-topbar__ib[aria-expanded="true"] { background: var(--cb-accent); color: var(--cb-accent-fg, #fff); }
+
+  /* ── label bars (BoardStage top / bottom) ── */
+  .tr-lbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; height: 100%; min-width: 0; font-size: 0.875rem; }
+  .tr-lbar__who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+  .tr-lbar__theme { color: var(--cb-text); padding: 3px 8px; border: 1px solid var(--cb-border-strong); white-space: nowrap; }
+  .tr-lbar__src { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .tr-lbar__rating { font-size: 0.8125rem; color: var(--cb-text-secondary, var(--cb-text-soft)); white-space: nowrap; flex: none; }
+  .tr-reset { color: var(--cb-bad); }
+  .tr-lbar[data-pos="bottom"] { border-top: 2px solid var(--cb-accent); }
+  /* Only "In the game you played b3 ·" gives way to an ellipsis; the link keeps its whole 44 px hit area (nothing above
+     it clips: FIX-2, it was cut to the 21 px line on touch iPads) and its underline (V3BankSession). */
+  .tr-lbar__ingame { display: inline-flex; align-items: baseline; gap: 0.25em; font-size: 0.875rem; color: var(--cb-text-secondary, var(--cb-text-soft)); white-space: nowrap; min-width: 0; }
+  .tr-lbar__played { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .tr-lbar__ingame a { flex: none; color: var(--cb-text); text-decoration: underline; text-underline-offset: 3px; display: inline-block; padding-block: 12px; margin-block: -12px; }
+  .tr-lbar__phone { display: none; }
+  @container rc-stage (width < 600px) {
+    .tr-lbar__side { display: none !important; }
+    .tr-lbar__phone { display: flex; flex-direction: column; justify-content: center; gap: 2px; width: 100%; height: 100%; padding: 0 16px; box-sizing: border-box; min-width: 0; }
+    .tr-lbar__phone-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-width: 0; }
+    .tr-lbar__status { font-size: 1.25rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; max-width: 65%; }
+    /* the rating line gives way to the status on narrow phones and at 150 % zoom */
+    /* the rating line wraps to a second line rather than losing "streak reset" (FIX-2); two 11 px lines are the status
+       line's height, so the block keeps its 56 px (44 px on a short phone) */
+    .tr-lbar__phone .tr-lbar__rating { font-size: 0.6875rem; line-height: 1.2; flex: 1 1 0; min-width: 0; overflow: hidden; text-align: right; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .tr-lbar__phone .tr-lbl { font-size: 0.625rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* "FORKS · LICHESS PUZZLE · MATCHED TO YOUR RATING" wraps to a second line rather than losing its end (FIX-2) */
+    .tr-lbar__phone .tr-lbar__src2 { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.25; }
+  }
+  @container rc-stage (width < 600px) and (height <= 620px) {
+    /* the 44 px status block of a short phone has room for one line */
+    .tr-lbar__phone .tr-lbar__src2 { -webkit-line-clamp: 1; }
+  }
+  @container rc-stage (width < 330px) {
+    /* 150 % zoom on a phone (a 262 px stage): the status takes a smaller size so "White to move" is whole */
+    .tr-lbar__status { font-size: 1rem; }
+  }
+
+  /* ── board slot: the current board and the next one pre-rendered under it (inert, invisible) ── */
+  .tr-boards { position: relative; width: 100%; height: 100%; }
+  .tr-boards > [data-next] { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
+
+  /* ── the panel (BoardStage aside) ── */
+  .tr-panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; position: relative; background: var(--cb-surface); border: 1px solid var(--cb-border); }
+  .tr-head { flex: none; padding: 12px 14px; border-bottom: 1px solid var(--cb-border); display: flex; flex-direction: column; gap: 8px; }
+  .tr-head__row { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-width: 0; }
+  .tr-head__row > .tr-lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .tr-prog { display: flex; gap: 4px; flex: none; }
+  .tr-prog > span { flex: none; width: 22px; height: 3px; background: var(--cb-border-strong); }
+  .tr-prog > span[data-s="done"] { background: var(--cb-accent); }
+  .tr-prog > span[data-s="now"] { background: color-mix(in srgb, var(--cb-accent) 45%, transparent); }
+  .tr-body { flex: 1 1 auto; min-height: 0; padding: 16px 14px; display: flex; flex-direction: column; gap: 14px; }
+  .tr-body > * { flex: none; }
+  .tr-live { display: flex; flex-direction: column; gap: 14px; }
+  .tr-status { margin: 0; font-size: 1.5rem; line-height: 1.2; font-weight: 500; outline: none; }
+  .tr-status:focus-visible { outline: 2px solid var(--cb-text); outline-offset: 2px; }
+  .tr-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tr-coach { display: flex; gap: 10px; align-items: flex-start; padding: 12px; background: var(--cb-bg); border: 1px solid var(--cb-border); }
+  .tr-coach[data-tone="good"] { background: color-mix(in srgb, var(--cb-good) 8%, transparent); border-color: color-mix(in srgb, var(--cb-good) 35%, transparent); }
+  .tr-coach[data-tone="bad"] { background: color-mix(in srgb, var(--cb-bad) 6%, transparent); border-color: color-mix(in srgb, var(--cb-bad) 30%, transparent); }
+  .tr-coach__av { width: 26px; height: 26px; flex: none; border-radius: 9999px; background: var(--cb-accent); color: var(--cb-accent-fg, #fff); display: inline-flex; align-items: center; justify-content: center; font: 500 0.6875rem var(--font-geist-mono, ui-monospace), ui-monospace, monospace; }
+  .tr-coach__body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .tr-coach__body > p { margin: 0; }
+  .tr-hintnote { font-size: 0.75rem; color: var(--cb-warn); }
+  .tr-grade { display: flex; flex-direction: column; gap: 8px; }
+  .tr-grade__row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .tr-grade__row > button { flex-direction: column; gap: 0; min-height: 56px; padding: 4px 6px; white-space: normal; line-height: 1.2; }
+  .tr-grade__when { font-size: 0.6875rem; opacity: 0.8; }
+  .tr-grade__note { margin: 0; font-size: 0.8125rem; color: var(--cb-text-secondary, var(--cb-text-soft)); }
+  .tr-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; background: var(--cb-bg); border: 1px solid var(--cb-border); }
+  .tr-card__title { font-weight: 500; }
+  .tr-card__line { font-size: 0.875rem; }
+  .tr-card__cost { font-size: 0.8125rem; color: var(--cb-text-secondary, var(--cb-text-soft)); }
+  .tr-kv { display: flex; justify-content: space-between; gap: 12px; font-size: 0.875rem; }
+  .tr-kv > :first-child { color: var(--cb-text-secondary, var(--cb-text-soft)); }
+  .tr-kv > :last-child { text-align: right; min-width: 0; }
+  .tr-credit { margin: 2px 0 0; font-size: 0.75rem; line-height: 1.35; color: var(--cb-text-secondary, var(--cb-text-soft)); }
+  .tr-rule { display: flex; gap: 10px; align-items: flex-start; font-size: 0.8125rem; color: var(--cb-text-secondary, var(--cb-text-soft)); }
+  .tr-rule > svg { flex: none; margin-top: 2px; }
+  .tr-rule[data-on] { color: var(--cb-text); }
+  .tr-queue { margin-top: auto; display: flex; flex-direction: column; }
+  .tr-queue__head { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 6px; }
+  .tr-queue ol { margin: 0; padding: 0; list-style: none; }
+  .tr-qrow { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 36px; padding: 4px 0; border-top: 1px solid var(--cb-border-subtle, var(--cb-border)); font-size: 0.8125rem; }
+  .tr-qrow__dot { width: 10px; height: 10px; border-radius: 9999px; box-sizing: border-box; justify-self: center; border: 1px solid var(--cb-border-strong); }
+  .tr-qrow[data-s="done"] .tr-qrow__dot { background: var(--cb-accent); border-color: var(--cb-accent); }
+  .tr-qrow[data-s="now"] .tr-qrow__dot { background: var(--cb-surface); border-color: var(--cb-accent); }
+  .tr-qrow__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tr-qrow[data-s="now"] .tr-qrow__name { font-weight: 500; }
+  .tr-qrow__state { font-size: 0.6875rem; letter-spacing: 0.08em; color: var(--cb-text); }
+  .tr-qrow[data-s="next"] .tr-qrow__state { color: var(--cb-text-soft); }
+  .tr-sess { margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--cb-border); }
+  .tr-sess__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; column-gap: 8px; row-gap: 2px; min-width: 0; }
+  .tr-sess__head > .tr-lbl { flex: none; white-space: nowrap; }
+  .tr-sess__line { font-size: 0.75rem; margin-left: auto; text-align: right; min-width: 0; }
+  .tr-bar { height: 4px; background: var(--cb-border); position: relative; overflow: hidden; }
+  .tr-bar > span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--cb-accent); transition: width 200ms linear; }
+  .tr-dots { display: flex; gap: 4px; }
+  .tr-dot { width: 18px; height: 18px; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; color: #fff; flex: none; background: var(--cb-bad); }
+  .tr-dot[data-ok] { background: var(--cb-good); }
+  .tr-done { display: flex; flex-direction: column; gap: 10px; }
+  .tr-empty { display: flex; flex-direction: column; gap: 12px; }
+  .tr-empty > p { margin: 0; }
+
+  .tr-foot { flex: none; border-top: 1px solid var(--cb-border); padding: 10px; display: flex; flex-direction: column; gap: 8px; position: relative; }
+  .tr-foot__row { display: flex; gap: 6px; }
+  .tr-foot__row > .tr-btn-s:first-child { flex: 1 1 0; }
+  .tr-foot__row[data-wrong] > .tr-btn-p { flex: 2 1 0; }
+  .tr-foot__row[data-wrong] > .tr-btn-s { flex: 1 1 0; }
+
+  /* the phone control bar (BoardStage footer) */
+  .tr-ctl { width: 100%; height: 64px; display: grid; gap: 8px; padding: 8px 16px 0; box-sizing: border-box; border-top: 1px solid var(--cb-border); background: var(--cb-bg); align-content: start; }
+  .tr-ctl[data-k="solve"] { grid-template-columns: minmax(0, 1fr) 52px; }
+  .tr-ctl[data-k="solve"] > .tr-ib { width: auto; }
+  .tr-ctl[data-k="wrong"] { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+  .tr-ctl[data-k="graded"], .tr-ctl[data-k="done"] { grid-template-columns: minmax(0, 1fr); align-content: center; text-align: center; padding-top: 0; }
+  .tr-ctl__grades { display: none; }
+  /* very short phones (Safari at 150 %): the grades move into the control bar, the sheet's bar hides (FIX-1) */
+  @container rc-stage (width < 600px) and (height <= 440px) {
+    [data-rc-trainer] .tr-ctl__hint { display: none; }
+    [data-rc-trainer] .tr-ctl__grades { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    [data-rc-trainer] .tr-ctl__grades > button { min-height: 44px; padding: 0 4px; font-size: 0.875rem; }
+    [data-rc-trainer] .tr-ctl[data-k="graded"] { padding: 6px 12px 0; align-content: start; }
+    [data-rc-trainer] .tr-body .tr-grade { display: none; }
+    [data-rc-trainer] .rc-stage__in { --rc-bar-h: 40px; --rc-strip-min: 0px; }
+  }
+
+  /* phones: the panel is the sheet (no header, no status: the status block above the board has them) */
+  @container rc-stage (width < 600px) {
+    .tr-panel { border-width: 1px 0 0; }
+    .tr-body { padding: 12px 16px; gap: 10px; }
+    .tr-live { gap: 10px; }
+    .tr-grade__row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    /* the status block above the board shows it; the panel's copy stays for screen readers and focus */
+    .tr-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  }
+
+  /* the theme picker rows (popover on desktop, sheet on phones) */
+  .tr-themes { display: flex; flex-direction: column; }
+  /* More Themes lines up with the rows' text (14 px in), not with the popover's edge (FIX-2). */
+  .tr-themes > details > summary { padding-inline: 14px; }
+  .tr-theme { display: flex; align-items: stretch; width: 100%; min-height: 52px; padding: 6px 14px; border: 0; border-bottom: 1px solid var(--cb-border-subtle, var(--cb-border)); background: transparent; color: var(--cb-text); font: inherit; text-align: left; cursor: pointer; box-sizing: border-box; }
+  .tr-theme:hover { background: var(--cb-fill); }
+  .tr-theme[aria-pressed="true"] { background: color-mix(in srgb, var(--cb-accent) 10%, transparent); }
+  .tr-theme:disabled { color: var(--cb-text-disabled, var(--cb-text-muted)); cursor: not-allowed; background: transparent; }
+  .tr-theme__in { flex: 1 1 auto; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .tr-theme__top { display: flex; justify-content: space-between; gap: 8px; }
+  .tr-theme__bar { height: 3px; background: var(--cb-border); }
+  .tr-theme__bar > span { display: block; height: 3px; background: var(--cb-accent); }
+  .tr-theme__n { font-size: 0.6875rem; color: var(--cb-text-soft); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tr-fadein { animation: none; }
+    .tr-bar > span { transition: none; }
+  }
+}

@@ -9,7 +9,7 @@ import Link from "next/link";
 import type { CompleteMoment, CompleteStandout } from "@repo/contracts/http/review";
 import { MiniBoard } from "@/components/board/MiniBoard";
 import { QualityBadge } from "../components/QualityBadge";
-import { momentPlayedLine, momentResultLine } from "./copy";
+import { momentBankTag, momentPlayedLine, momentResultLine } from "./copy";
 
 export function CompleteMoments({
   moments,
@@ -28,8 +28,10 @@ export function CompleteMoments({
     <>
       {moments.length > 0 ? (
         <ol className="rvc-mlist">
-          {moments.map((m, i) => (
-            <li className="rvc-mrow" key={m.ply} data-testid="complete-moment" data-result={m.result ?? "open"}>
+          {moments.map((m, i) => {
+            const tag = momentBankTag(m);
+            return (
+            <li className="rvc-mrow" key={m.ply} data-testid="complete-moment" data-result={m.result ?? "open"} data-bank={tag ? "" : undefined}>
               <Link href={momentHrefs[i] ?? "#"} prefetch={false} className="rvc-mini" aria-label={`Open moment ${i + 1}: ${m.moveLabel}${m.playedSan}`}>
                 <MiniBoard fen={m.fenAfter} size={72} testId="complete-mini-board" />
               </Link>
@@ -41,8 +43,14 @@ export function CompleteMoments({
                 {m.why0 ? <p className="rvc-say">{m.why0}</p> : null}
                 <span className="rvc-soft">{momentResultLine(m)}</span>
               </div>
+              {tag ? (
+                <span className="rvc-tag" data-added={tag.added ? "" : undefined} data-testid="complete-moment-bank">
+                  {tag.label}
+                </span>
+              ) : null}
             </li>
-          ))}
+            );
+          })}
         </ol>
       ) : (
         <ol className="rvc-mlist">

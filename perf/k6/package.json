@@ -14,7 +14,9 @@
     "test:games-list": "node esbuild.config.mjs && k6 run dist/games-list.js",
     "test:import-status": "node esbuild.config.mjs && k6 run dist/import-status.js",
     "test:accounts": "node esbuild.config.mjs && k6 run dist/accounts.js",
-    "test:onboarding-patch": "node esbuild.config.mjs && k6 run dist/onboarding-patch.js"
+    "test:onboarding-patch": "node esbuild.config.mjs && k6 run dist/onboarding-patch.js",
+    "test:train-session": "node esbuild.config.mjs && k6 run dist/train-session.js",
+    "test:api-read-mix": "node esbuild.config.mjs && k6 run dist/api-read-mix.js"
   },
   "devDependencies": {
     "@types/k6": "2.3.1",

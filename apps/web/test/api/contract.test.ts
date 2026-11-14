@@ -104,6 +104,21 @@ const HAPPY_PATH_ELSEWHERE: Record<string, string> = {
   "import.retry": "test/api/accounts.contract.int.test.ts",
   // P4 onboarding (phase-04 plan §12.3): real SQL on Docker Postgres.
   "me.onboarding": "test/api/onboarding.contract.int.test.ts",
+  // P5 Train, Home and reports (phase-05 plan §12.2): real SQL on Docker Postgres, persona states, the CI shard server.
+  "train.today": "test/api/train/today.contract.int.test.ts",
+  "train.themes": "test/api/train/today.contract.int.test.ts",
+  "me.badges": "test/api/train/today.contract.int.test.ts",
+  "train.bank": "test/api/train/bank.contract.int.test.ts",
+  "train.sessions.create": "test/api/train/sessions.contract.int.test.ts",
+  "train.sessions.get": "test/api/train/sessions.contract.int.test.ts",
+  "train.sessions.extend": "test/api/train/sessions.contract.int.test.ts",
+  "train.sessions.end": "test/api/train/sessions.contract.int.test.ts",
+  "train.attempts": "test/api/train/attempts.contract.int.test.ts",
+  "train.cards.skip": "test/api/train/cards.contract.int.test.ts",
+  "train.cards.remove": "test/api/train/cards.contract.int.test.ts",
+  "train.prefs": "test/api/train/cards.contract.int.test.ts",
+  "reports.create": "test/api/train/cards.contract.int.test.ts",
+  "home.get": "test/api/home.contract.int.test.ts",
 };
 
 /**

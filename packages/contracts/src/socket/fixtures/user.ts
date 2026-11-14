@@ -1,4 +1,4 @@
-// Typed P4 user-room payloads (phase-04 plan §7.6) for the UI packages (the demo routes simulate the socket with them),
+// Typed P4 and P5 user-room payloads (phase-04 plan §7.6, phase-05 plan §7.4) for the UI packages (the demo routes simulate the socket with them),
 // the worker and web tests, and the size tests. `worst` fills every field to its longest realistic value (25-char
 // refs, 7-digit counters, the longest provider and error code, ISO instants, a full entitlement DTO with a payment
 // issue and a scheduled period end), which is what USER_EVENT_BUDGETS are asserted against.
@@ -60,6 +60,10 @@ export function userEventFixtures(): { [N in UserEventName]: UserEventPayload<N>
       },
       subscriptionUpdatedAt: "2026-11-10T09:30:00.000Z",
     },
+    // P5 (phase-05 §7.4): after grading on another device, 4 due of 23; the next batch tomorrow at 08:00 UTC.
+    "bank:due_changed": { v: 1, bankDue: 4, dueRaw: 6, total: 23, nextAt: "2026-11-11T08:00:00.000Z" },
+    // P5: a backfill minute that extracted 3 games and added 5 cards.
+    "mistakes:added": { v: 1, games: 3, added: 7, cardsAdded: 5, total: 28, bankDue: 9 },
   };
 }
 
@@ -118,5 +122,7 @@ export function worstUserEventFixtures(): { [N in UserEventName]: UserEventPaylo
       subscriptionUpdatedAt: "2026-12-10T09:30:00.000Z",
       paymentFailed: true,
     },
+    "bank:due_changed": { v: 1, bankDue: 99_999, dueRaw: 99_999, total: 99_999, nextAt: "2026-12-31T08:00:00.000Z" },
+    "mistakes:added": { v: 1, games: 99_999, added: 99_999, cardsAdded: 99_999, total: 99_999, bankDue: 99_999 },
   };
 }

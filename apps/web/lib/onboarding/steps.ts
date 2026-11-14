@@ -25,8 +25,8 @@ export { PENDING_CHECKOUT_TTL_MS };
 
 export const ONBOARDING_ROOT = "/onboarding";
 
-/** Where a finished member lands when nothing better is known (D4-13; P5 swaps in /home). */
-export const DEFAULT_DESTINATION = "/games";
+/** Where a finished member lands when nothing better is known (D4-13; P5 plan §4.8: Home, "Go to Home"). */
+export const DEFAULT_DESTINATION = "/home";
 
 export function isOnbPage(value: unknown): value is OnbPage {
   return typeof value === "string" && (PAGES as readonly string[]).includes(value);

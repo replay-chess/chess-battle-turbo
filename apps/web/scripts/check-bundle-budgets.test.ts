@@ -27,6 +27,14 @@ const ROUTES = [
   ...["welcome", "link", "confirm", "level", "goals", "plan", "activating", "done"].map((s) => `/onboarding/(flow)/${s}/page`),
   "/checkout/activating/page",
   "/(app)/settings/connected/page",
+  // Phase 5 (§9.5)
+  "/(app)/home/page",
+  "/(app)/train/(hub)/page",
+  "/(app)/train/bank/(list)/page",
+  "/(app)/train/session/[ref]/summary/page",
+  "/(app)/train/session/[ref]/page",
+  "/(app)/train/bank/session/page",
+  "/(app)/train/puzzles/page",
 ];
 
 /**
@@ -102,6 +110,37 @@ describe("check-bundle-budgets", () => {
       assert.ok(out.stdout.includes(`${label} First Load JS`) && out.stdout.includes("is over its budget"), out.stdout);
       assert.doesNotMatch(out.stdout, /not blocking|reported/);
     }
+  });
+
+  it("fails the build for a P5 route over its page-specific budget (Home/Train/bank/summary ≤ 100, runners ≤ 155)", () => {
+    for (const [route, label, kb, limit] of [
+      ["/(app)/home/page", "/home", 110, 100],
+      ["/(app)/train/(hub)/page", "/train", 110, 100],
+      ["/(app)/train/bank/(list)/page", "/train/bank", 110, 100],
+      ["/(app)/train/session/[ref]/summary/page", "/train/session/[ref]/summary", 110, 100],
+      ["/(app)/train/bank/session/page", "/train/bank/session", 165, 155],
+      ["/(app)/train/puzzles/page", "/train/puzzles", 165, 155],
+    ] as const) {
+      const out = run(dist({ [route]: kb }));
+      assert.equal(out.status, 1, `${label}: ${out.stdout}`);
+      assert.ok(out.stdout.includes(`${label} page-specific JS`) && out.stdout.includes(`over its budget ${limit} kB`), out.stdout);
+    }
+    // Under both limits: the runner at 120 kB of its own (≈ 140 kB gzipped as written; 200 kB in all).
+    const ok = run(dist({ "/(app)/train/bank/session/page": 120 }));
+    assert.equal(ok.status, 0, ok.stdout);
+    assert.match(ok.stdout, /\/train\/bank\/session First Load JS \| [\d.]+ kB \(budget 300 kB; page-specific [\d.]+ kB of 155 kB/);
+  });
+
+  it("fails the build when a P5 route loads ts-fsrs (previews arrive in the payload; FSRS is server-only)", () => {
+    const dir = dist({});
+    const name = "fsrs.js";
+    writeFileSync(path.join(dir, "static", "chunks", name), 'var d={request_retention:.9,maximum_interval:36500,enable_short_term:!0,learning_steps:["1m","10m"]};');
+    const manifest = JSON.parse(require("node:fs").readFileSync(path.join(dir, "app-build-manifest.json"), "utf8")) as { pages: Record<string, string[]> };
+    manifest.pages["/(app)/train/puzzles/page"]!.push(`static/chunks/${name}`);
+    writeFileSync(path.join(dir, "app-build-manifest.json"), JSON.stringify(manifest));
+    const out = run(dir);
+    assert.equal(out.status, 1, out.stdout);
+    assert.ok(out.stdout.includes("/train/puzzles loads ts-fsrs in static/chunks/fsrs.js"), out.stdout);
   });
 
   it("/r/[code] as a route handler has no client JS; missing altogether it fails", () => {

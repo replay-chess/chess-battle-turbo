@@ -23,4 +23,9 @@ export const RESYNC_QUERY_KEYS: readonly (readonly unknown[])[] = [
   qk.me(),
   // P4 (WP-D, phase-04 plan 5.5): every activation wait (`qk.billing.activation(*)`) may have missed entitlement:changed.
   ["billing", "activation"],
+  // P5 (phase-05 plan 5.3, interface check 4.2): the hub, the bank lists, Home and the badges may have missed
+  // bank:due_changed / mistakes:added / analysis:batch.
+  qk.train.all(),
+  qk.home(),
+  qk.badges(),
 ];

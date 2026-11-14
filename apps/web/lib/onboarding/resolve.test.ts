@@ -53,7 +53,7 @@ const NON_MEMBER: Record<OnbStep, (link: Link, pending: Pending) => string> = {
 
 function expected(step: OnbStep, m: Membership, link: Link, pending: Pending, done: boolean): string {
   const member = m !== "not";
-  if (done && member) return "/games";
+  if (done && member) return "/home"; // DEFAULT_DESTINATION (P5: Home)
   if (member && ORDER.indexOf(step) >= ORDER.indexOf("PLAN")) return "/onboarding/done";
   return NON_MEMBER[step](link, pending);
 }

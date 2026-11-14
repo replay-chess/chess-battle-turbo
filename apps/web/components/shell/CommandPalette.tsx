@@ -174,7 +174,7 @@ export function CommandPalette({
     }
     if (row.action === "signout" && !demo) {
       setOpen(false);
-      void runSignOut(clerk);
+      void runSignOut(clerk, undefined, user.referenceId);
     }
   }
 

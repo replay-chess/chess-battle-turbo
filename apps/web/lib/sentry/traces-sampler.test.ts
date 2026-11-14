@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ACCOUNTS_TRACE_RATE, DEFAULT_TRACE_RATE, dropNotModifiedPoll, sampleRateForPath, samplingPath, tracesSampler } from "./traces-sampler";
+import { ACCOUNTS_TRACE_RATE, DEFAULT_TRACE_RATE, TRAIN_ATTEMPTS_TRACE_RATE, dropNotModifiedPoll, sampleRateForPath, samplingPath, tracesSampler } from "./traces-sampler";
 import { sentryScrubOptions } from "./scrub";
 
 test("health checks are never traced", () => {
@@ -86,4 +86,14 @@ test("P4: import.status is sampled like any API route, and its 304 polls are dro
   const kept = sentryScrubOptions.beforeSendTransaction(tx(200, { transaction: "GET /api/import/status" }));
   assert.notEqual(kept, null);
   assert.equal(sentryScrubOptions.beforeSendTransaction(tx(304, { transaction: "GET /api/import/status" })), null);
+});
+
+// FIX-2 (phase-05 plan §10.2): the outbox flush is sampled at 0.05 for volume; the other Train routes keep 0.1.
+test("P5: /api/train/attempts at 0.05, other /api/train/* at 0.1", () => {
+  assert.equal(TRAIN_ATTEMPTS_TRACE_RATE, 0.05);
+  assert.equal(sampleRateForPath("/api/train/attempts", "production"), 0.05);
+  assert.equal(tracesSampler({ name: "POST /api/train/attempts" }, "production"), 0.05);
+  for (const path of ["/api/train/today", "/api/train/bank", "/api/train/sessions", "/api/train/sessions/cx/extend", "/api/home"]) {
+    assert.equal(sampleRateForPath(path, "production"), DEFAULT_TRACE_RATE, path);
+  }
 });

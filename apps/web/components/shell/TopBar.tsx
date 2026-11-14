@@ -58,7 +58,7 @@ export function TopBar({
         </Link>
       ) : (
         <Brand
-          href={preview ? "#play" : "/play"}
+          href={preview ? "#play" : undefined}
           className="flex-1 gap-2 tablet-portrait:gap-2.5"
           logoClassName="size-7 tablet-portrait:size-[30px]"
           wordmarkClassName="flex-1"

@@ -73,6 +73,8 @@ export const CONFLICT_REASONS = [
   "sync_running",
   "plan_required",
   "profile_closed",
+  // P5 (phase-05 plan §0, §5.6): W3 extend on a session that is no longer ACTIVE.
+  "session_ended",
 ] as const;
 export type ConflictReason = (typeof CONFLICT_REASONS)[number];
 
@@ -84,8 +86,22 @@ export type ForbiddenReason = (typeof FORBIDDEN_REASONS)[number];
  * details.reason for 400 validation_failed beyond field errors. Append-only (P2: LEGEND_BOT before P8's flag; P3:
  * PR1's `?fen=` that parses but is not a legal position, phase-03 §7.2).
  */
-export const VALIDATION_REASONS = ["mode_not_available", "illegal_position"] as const;
+export const VALIDATION_REASONS = [
+  "mode_not_available",
+  "illegal_position",
+  // P5 (phase-05 plan §7.2): R2 a cursor minted for other filters; W8 `newPerDay` above the stored `bankDailyCap`.
+  "cursor_filter_mismatch",
+  "new_per_day_above_cap",
+] as const;
 export type ValidationReason = (typeof VALIDATION_REASONS)[number];
+
+/**
+ * details.reason for 429 rate_limited when a handler (not the route limiter) counts a durable window from its own
+ * source rows (P5, phase-05 plan §7.2, api-perf AP-11): the daily puzzle fair use (W2/W3), the hourly session limit
+ * (W2 and the page-level create) and the 20-a-day report limit (W7). Append-only.
+ */
+export const RATE_LIMIT_REASONS = ["daily_puzzle_limit", "session_limit", "report_limit"] as const;
+export type RateLimitReason = (typeof RATE_LIMIT_REASONS)[number];
 
 /** details.reason for 422 illegal_moves. Append-only (P2: claimed result not consistent with the board, §8.16). */
 export const ILLEGAL_MOVES_REASONS = ["claim_mismatch"] as const;

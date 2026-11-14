@@ -50,6 +50,21 @@ type EndpointPaths = {
   meOnboarding: PathOf<"me.onboarding">;
   checkout: PathOf<"billing.checkout">;
   billingActivation: PathOf<"billing.activation">;
+  // P5 train, home and reports (`{ref}` filled with fillPath(); a card ref is its itemKey).
+  trainToday: PathOf<"train.today">;
+  trainBank: PathOf<"train.bank">;
+  trainThemes: PathOf<"train.themes">;
+  trainSessionCreate: PathOf<"train.sessions.create">;
+  trainSession: PathOf<"train.sessions.get">;
+  trainSessionExtend: PathOf<"train.sessions.extend">;
+  trainSessionEnd: PathOf<"train.sessions.end">;
+  trainAttempts: PathOf<"train.attempts">;
+  trainCardSkip: PathOf<"train.cards.skip">;
+  trainCard: PathOf<"train.cards.remove">;
+  trainPrefs: PathOf<"train.prefs">;
+  home: PathOf<"home.get">;
+  meBadges: PathOf<"me.badges">;
+  reports: PathOf<"reports.create">;
 };
 
 export const endpoints = {
@@ -91,6 +106,20 @@ export const endpoints = {
   meOnboarding: "/api/me/onboarding",
   checkout: "/api/checkout",
   billingActivation: "/api/billing/activation",
+  trainToday: "/api/train/today",
+  trainBank: "/api/train/bank",
+  trainThemes: "/api/train/themes",
+  trainSessionCreate: "/api/train/sessions",
+  trainSession: "/api/train/sessions/{ref}",
+  trainSessionExtend: "/api/train/sessions/{ref}/extend",
+  trainSessionEnd: "/api/train/sessions/{ref}/end",
+  trainAttempts: "/api/train/attempts",
+  trainCardSkip: "/api/train/cards/{ref}/skip",
+  trainCard: "/api/train/cards/{ref}",
+  trainPrefs: "/api/train/prefs",
+  home: "/api/home",
+  meBadges: "/api/me/badges",
+  reports: "/api/reports",
 } as const satisfies EndpointPaths;
 
 /** The registry id behind each entry (endpoints.test.ts). */
@@ -133,4 +162,18 @@ export const ENDPOINT_IDS = {
   meOnboarding: "me.onboarding",
   checkout: "billing.checkout",
   billingActivation: "billing.activation",
+  trainToday: "train.today",
+  trainBank: "train.bank",
+  trainThemes: "train.themes",
+  trainSessionCreate: "train.sessions.create",
+  trainSession: "train.sessions.get",
+  trainSessionExtend: "train.sessions.extend",
+  trainSessionEnd: "train.sessions.end",
+  trainAttempts: "train.attempts",
+  trainCardSkip: "train.cards.skip",
+  trainCard: "train.cards.remove",
+  trainPrefs: "train.prefs",
+  home: "home.get",
+  meBadges: "me.badges",
+  reports: "reports.create",
 } as const satisfies Record<keyof typeof endpoints, EndpointId>;

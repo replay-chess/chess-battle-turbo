@@ -119,7 +119,7 @@ for (const variant of [
   });
 }
 
-test("member A on /onboarding → /games; a fresh persona on /games → /onboarding", { tag: ["@p4"] }, async ({ page, leasePersona, browser }, testInfo) => {
+test("member A on /onboarding → /home (P5); a fresh persona on /games → /onboarding", { tag: ["@p4"] }, async ({ page, leasePersona, browser }, testInfo) => {
   test.skip(testInfo.project.name === "webkit-iphone", "chromium only");
   test.setTimeout(180_000);
   await leasePersona("onboarding-fresh");
@@ -133,7 +133,8 @@ test("member A on /onboarding → /games; a fresh persona on /games → /onboard
     await hideDevOverlay(memberPage);
     await signIn(memberPage, letterEmail("A"), "");
     await memberPage.goto("/onboarding", { waitUntil: "domcontentloaded" });
-    await expect(memberPage).toHaveURL(/\/games(\?|$)/, { timeout: 60_000 });
+    // DEFAULT_DESTINATION is Home since P5 (phase-05 plan §4.8).
+    await expect(memberPage).toHaveURL(/\/home(\?|$)/, { timeout: 60_000 });
   } finally {
     await member.close();
   }

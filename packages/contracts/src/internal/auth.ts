@@ -249,7 +249,8 @@ export const INTERNAL_POLICY: Readonly<Record<InternalKid, KidPolicy>> = {
   web: { paths: ["/internal/emit", "/internal/tournament-event", "/internal/metrics"], events: "all" },
   wk: {
     paths: ["/internal/emit", "/internal/load"],
-    events: ["analysis:*", "import:*", "weakness:*", "bank:*", "compare:*", "review:*", "games:changed", "export:ready"],
+    // P5 (phase-05 §7.4, §11): `mistakes:*` for the EXTRACT_MISTAKES backfill's coalesced `mistakes:added`.
+    events: ["analysis:*", "import:*", "weakness:*", "bank:*", "mistakes:*", "compare:*", "review:*", "games:changed", "export:ready"],
   },
   ops: { paths: ["/internal/broadcast", "/internal/drain", "/internal/metrics"], events: [] },
   ws: { paths: [], events: [] },

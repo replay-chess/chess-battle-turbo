@@ -304,6 +304,170 @@
       "phase": "P4",
       "query": "the worker's import context and finish",
       "explain": "Index Scan using import_cursors_pkey"
+    },
+    {
+      "name": "mistakes_referenceId_key",
+      "table": "mistakes",
+      "columns": ["referenceId"],
+      "unique": true,
+      "phase": "P5",
+      "query": "report target check (W7), bank detail links, P7 coach subject: WHERE \"referenceId\" = $1 AND \"userId\" = $u",
+      "explain": "Index Scan using mistakes_referenceId_key"
+    },
+    {
+      "name": "mistakes_userId_epdHash_key",
+      "table": "mistakes",
+      "columns": ["userId", "epdHash"],
+      "unique": true,
+      "phase": "P5",
+      "query": "J1 mistakes upsert ON CONFLICT (\"userId\",\"epdHash\"); every later J1 statement joins back on this natural key",
+      "explain": "unique arbiter index; Index Scan using mistakes_userId_epdHash_key"
+    },
+    {
+      "name": "mistakes_userId_createdAt_idx",
+      "table": "mistakes",
+      "columns": ["userId", "createdAt DESC"],
+      "phase": "P5",
+      "query": "NEW-card intake order fallback (W2), user-delete cascade, P6 scope scans",
+      "explain": "Index Scan using mistakes_userId_createdAt_idx"
+    },
+    {
+      "name": "mistake_occurrences_pkey",
+      "table": "mistake_occurrences",
+      "columns": ["gameId", "ply"],
+      "unique": true,
+      "phase": "P5",
+      "query": "J1 idempotent insert; the moment ↔ mistake link WHERE \"gameId\" = $g AND ply = ANY($momentPlies) (A1/A2 bank fields, A6, the game-over count)",
+      "explain": "Index Scan using mistake_occurrences_pkey"
+    },
+    {
+      "name": "mistake_occurrences_mistakeId_idx",
+      "table": "mistake_occurrences",
+      "columns": ["mistakeId"],
+      "phase": "P5",
+      "query": "J1 occurrence recount; \"seen in 3 games\"; cascade from mistakes",
+      "explain": "Index Only Scan using mistake_occurrences_mistakeId_idx"
+    },
+    {
+      "name": "training_cards_userId_itemKey_key",
+      "table": "training_cards",
+      "columns": ["userId", "itemKey"],
+      "unique": true,
+      "phase": "P5",
+      "query": "W1/W5/W6/R3 card lookup by API ref (FOR UPDATE); J1 card insert ON CONFLICT (\"userId\",\"itemKey\") DO NOTHING",
+      "explain": "Index Scan using training_cards_userId_itemKey_key"
+    },
+    {
+      "name": "training_cards_mistakeId_key",
+      "table": "training_cards",
+      "columns": ["mistakeId"],
+      "unique": true,
+      "phase": "P5",
+      "query": "A6 toggle; review bank fields LEFT JOIN training_cards c ON c.\"mistakeId\" = m.id; cascade",
+      "explain": "Index Scan using training_cards_mistakeId_key"
+    },
+    {
+      "name": "training_cards_userId_deck_due_idx",
+      "table": "training_cards",
+      "columns": ["userId", "deck", "due"],
+      "phase": "P5",
+      "query": "R1/R2/R8/W2/HOME-1/getMe(): due counts, due preview ORDER BY due LIMIT 4, session build due <= $now ORDER BY due, id, bank keyset (due, id), upcoming histogram",
+      "explain": "Index Scan using training_cards_userId_deck_due_idx; never a Seq Scan on training_cards"
+    },
+    {
+      "name": "training_attempts_clientAttemptId_key",
+      "table": "training_attempts",
+      "columns": ["clientAttemptId"],
+      "unique": true,
+      "phase": "P5",
+      "query": "W1 duplicate pre-check WHERE \"clientAttemptId\" = ANY($ids) and the INSERT … ON CONFLICT DO NOTHING race guard",
+      "explain": "Index Scan using training_attempts_clientAttemptId_key"
+    },
+    {
+      "name": "training_attempts_userId_reviewedAt_idx",
+      "table": "training_attempts",
+      "columns": ["userId", "reviewedAt DESC"],
+      "phase": "P5",
+      "query": "today's attempts (plan-step completion), session summary, week puzzles count (HOME-1), streak audits",
+      "explain": "Index Scan using training_attempts_userId_reviewedAt_idx"
+    },
+    {
+      "name": "training_attempts_puzzle_idx",
+      "table": "training_attempts",
+      "columns": ["userId", "puzzleId"],
+      "partial": "\"puzzleId\" IS NOT NULL",
+      "protected": true,
+      "phase": "P5",
+      "query": "W2/W3: exclude puzzles seen in the last 90 days (≤ 500 ids)",
+      "explain": "Index Scan (or Bitmap Index Scan) using training_attempts_puzzle_idx"
+    },
+    {
+      "name": "training_sessions_referenceId_key",
+      "table": "training_sessions",
+      "columns": ["referenceId"],
+      "unique": true,
+      "phase": "P5",
+      "query": "runner ?s= resume, summary page, R3/W3/W4",
+      "explain": "Index Scan using training_sessions_referenceId_key"
+    },
+    {
+      "name": "training_sessions_userId_startedAt_idx",
+      "table": "training_sessions",
+      "columns": ["userId", "startedAt DESC"],
+      "phase": "P5",
+      "query": "W2 ACTIVE reuse and the durable train-session count in one statement (startedAt > $now - 2 h)",
+      "explain": "Index Scan using training_sessions_userId_startedAt_idx"
+    },
+    {
+      "name": "training_days_pkey",
+      "table": "training_days",
+      "columns": ["userId", "day"],
+      "unique": true,
+      "phase": "P5",
+      "query": "R1/W1/HOME-1: week strip day >= $monday, today's caps upsert, frozen plan",
+      "explain": "Index Scan using training_days_pkey"
+    },
+    {
+      "name": "theme_mastery_pkey",
+      "table": "theme_mastery",
+      "columns": ["userId", "theme"],
+      "unique": true,
+      "phase": "P5",
+      "query": "R1 mastery bars, R4 picker, W1 attempt upsert, J1 bankCount increments",
+      "explain": "Index Scan using theme_mastery_pkey"
+    },
+    {
+      "name": "training_profiles_pkey",
+      "table": "training_profiles",
+      "columns": ["userId"],
+      "unique": true,
+      "phase": "P5",
+      "query": "rating, streaks, prefs (one PK read in R1/W1/W2; the J1 job-load LEFT JOIN)",
+      "explain": "Index Scan using training_profiles_pkey"
+    },
+    {
+      "name": "reports_status_createdAt_idx",
+      "table": "reports",
+      "columns": ["status", "createdAt"],
+      "phase": "P5",
+      "query": "P12 admin queue",
+      "explain": "Index Scan using reports_status_createdAt_idx"
+    },
+    {
+      "name": "reports_targetType_targetRef_idx",
+      "table": "reports",
+      "columns": ["targetType", "targetRef"],
+      "phase": "P5",
+      "query": "W7 \"already reported in the last 24 h\" check",
+      "explain": "Index Scan using reports_targetType_targetRef_idx"
+    },
+    {
+      "name": "reports_reporterId_createdAt_idx",
+      "table": "reports",
+      "columns": ["reporterId", "createdAt DESC"],
+      "phase": "P5",
+      "query": "W7 durable limit: count(*) WHERE \"reporterId\" = $u AND \"createdAt\" > $now - 1 day (≤ 20 rows; P10's player reports too)",
+      "explain": "Index Only Scan using reports_reporterId_createdAt_idx"
     }
   ]
 }

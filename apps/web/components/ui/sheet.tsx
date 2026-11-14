@@ -22,6 +22,8 @@ export type SheetContentProps = Omit<React.ComponentProps<typeof DialogPrimitive
   height?: "auto" | "60" | "90";
   /** Extra classes for the scrolling body. */
   bodyClassName?: string;
+  /** The close button's accessible name (default "Close"; e.g. "Close filters"). */
+  closeLabel?: string;
 };
 
 export function SheetContent({
@@ -30,6 +32,7 @@ export function SheetContent({
   label,
   height = "auto",
   bodyClassName,
+  closeLabel = "Close",
   className,
   children,
   ...props
@@ -70,7 +73,7 @@ export function SheetContent({
             <span />
           )}
           <DialogPrimitive.Close asChild>
-            <IconButton variant="ghost" size="sm" label="Close" icon={<X />} />
+            <IconButton variant="ghost" size="sm" label={closeLabel} icon={<X />} />
           </DialogPrimitive.Close>
         </div>
         <div className={cn("flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-4 pb-3 pt-2", bodyClassName)}>

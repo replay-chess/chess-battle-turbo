@@ -67,6 +67,22 @@ const REGISTRY_ROWS: [string, AuthMode][] = [
   ["PATCH /api/me/onboarding", "user"],
   ["POST /api/checkout", "user"],
   ["GET /api/billing/activation", "user"],
+  // Phase 5 (§7, §11 of the P5 plan): every train, home and report route is member (402 subscription_required for a
+  // non-member, 404 for another member's session or card ref).
+  ["GET /api/train/today", "member"],
+  ["GET /api/train/bank", "member"],
+  ["GET /api/train/themes", "member"],
+  ["POST /api/train/sessions", "member"],
+  ["GET /api/train/sessions/{ref}", "member"],
+  ["POST /api/train/sessions/{ref}/extend", "member"],
+  ["POST /api/train/sessions/{ref}/end", "member"],
+  ["POST /api/train/attempts", "member"],
+  ["POST /api/train/cards/{ref}/skip", "member"],
+  ["DELETE /api/train/cards/{ref}", "member"],
+  ["PATCH /api/train/prefs", "member"],
+  ["GET /api/home", "member"],
+  ["GET /api/me/badges", "member"],
+  ["POST /api/reports", "member"],
 ];
 
 /** §11.1 rows still served by legacy handlers: file + method → signed out / signed in non-admin. */

@@ -7,6 +7,7 @@ import { pruneJobs } from "./prune-jobs";
 import { pruneRateLimits } from "./prune-rate-limits";
 import { pruneShares } from "./prune-shares";
 import { regradeSweep } from "./regrade-sweep";
+import { trainingHygiene } from "./training-hygiene";
 import type { RecurringSlice } from "./types";
 
 export const RECURRING_SLICES: readonly RecurringSlice[] = [
@@ -16,6 +17,7 @@ export const RECURRING_SLICES: readonly RecurringSlice[] = [
   evalcacheTrim,
   regradeSweep(),
   importBackstop,
+  trainingHygiene,
   housekeepingPlan,
 ];
 

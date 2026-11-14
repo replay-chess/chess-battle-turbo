@@ -26,7 +26,9 @@ export type ReviewHotkey =
   | "plan-5"
   | "show-line"
   | "share"
-  | "done";
+  | "done"
+  // P5 (phase-05 plan §4.8): B adds the answered key moment to the Mistake Bank or takes it out (MomentBankToggle).
+  | "bank";
 
 export interface ReviewKeyContext {
   /** (hover: none) and (pointer: coarse). */
@@ -54,6 +56,7 @@ const LETTERS: Record<string, ReviewHotkey> = {
   KeyL: "show-line",
   KeyS: "share",
   KeyD: "done",
+  KeyB: "bank",
   Digit1: "plan-1",
   Digit2: "plan-2",
   Digit3: "plan-3",

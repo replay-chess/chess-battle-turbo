@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ImportPhaseSchema, ImportRunStatus, LinkViewStatus, ProviderSlug } from "./accounts";
 import { IsoDateTime, Ref } from "./common";
 import { OnboardingView } from "./onboarding";
+import { Badges } from "./train";
 
 /** P10 appends "paused". */
 export const MembershipState = z.enum(["member", "trial", "grace", "cancelling", "lapsed", "none"]);
@@ -87,7 +88,7 @@ export type MeImport = z.infer<typeof MeImport>;
 
 /**
  * GET /api/me (plan §7.3). P4 adds onboarding, accounts and import (optional first: additive, consistency R-03);
- * P5 badges.
+ * P5 badges (`{bankDue, trainDot}`, phase-05 §7.3 R8; present while the `train` flag is on, ≈ 40 B).
  */
 export const MeData = z.object({
   user: MeUser,
@@ -97,5 +98,6 @@ export const MeData = z.object({
   onboarding: OnboardingView.optional(),
   accounts: z.array(MeAccount).max(2).optional(),
   import: MeImport.nullable().optional(),
+  badges: Badges.optional(),
 });
 export type MeData = z.infer<typeof MeData>;

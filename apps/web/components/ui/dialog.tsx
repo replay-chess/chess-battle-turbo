@@ -43,6 +43,8 @@ export type DialogContentProps = Omit<React.ComponentProps<typeof DialogPrimitiv
   /** serif text-heading (default) | sans 600 (in-game confirms). */
   titleVariant?: "serif" | "sans";
   overlayClassName?: string;
+  /** The close button's accessible name (default "Close"). */
+  closeLabel?: string;
 };
 
 export function DialogContent({
@@ -54,6 +56,7 @@ export function DialogContent({
   align = "center",
   titleVariant = "serif",
   overlayClassName,
+  closeLabel = "Close",
   className,
   style,
   children,
@@ -65,7 +68,7 @@ export function DialogContent({
   ) : null;
   const close = hideClose ? null : (
     <DialogPrimitive.Close asChild>
-      <IconButton variant="ghost" size="sm" label="Close" icon={<X />} className="-mr-2 shrink-0" />
+      <IconButton variant="ghost" size="sm" label={closeLabel} icon={<X />} className="-mr-2 shrink-0" />
     </DialogPrimitive.Close>
   );
   const showHeader = !hideTitle || close;

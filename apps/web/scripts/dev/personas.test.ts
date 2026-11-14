@@ -115,3 +115,53 @@ describe("P03 personas (phase-03 plan §12.3): billing and the games they own", 
     assert.ok(lines.some((l) => l.includes('"fixtures":["TERMINAL"]')), lines.join("\n"));
   });
 });
+
+describe("P05 personas (phase-05 plan 6.7)", async () => {
+  const { P05_PERSONAS, isP05Persona } = await import("../../e2e/personas/p05");
+  const { parseSeedArgs, trainingPersonaName } = await import("../../e2e/scripts/seed-training");
+
+  it("registers the nine lease-pool personas and the five dev-seed states, each clearing games first", () => {
+    for (const name of ["bank-member", "bank-empty", "bank-caughtup", "puzzles-fresh", "outbox", "two-tabs", "train-plan", "day-rollover", "home-new"]) {
+      const p = getPersona(name);
+      assert.ok(isP05Persona(p), name);
+      assert.ok(isP03Persona(p), `${name} clears the user's games (the writer puts its own back)`);
+      assert.deepEqual(p.games, { clear: true, fixtures: [] });
+      assert.equal(p.phase, 5);
+    }
+    assert.deepEqual(Object.keys(P05_PERSONAS).filter((n) => n.startsWith("dev-")).sort(), ["dev-caughtup", "dev-member", "dev-new", "dev-perfect", "dev-trial"]);
+  });
+
+  it("every P5 persona is an entitled member; dev-trial builds on P4's running import as a trial", () => {
+    for (const name of Object.keys(P05_PERSONAS)) {
+      const r = row(name);
+      assert.equal(isEntitled({ ...r, subscriptionUpdatedAt: r.subscriptionUpdatedAt }, NOW), true, name);
+    }
+    assert.equal(P05_PERSONAS["dev-trial"].p04, "import-trial");
+    assert.equal(isInTrial(row("dev-trial"), NOW), true);
+    assert.equal("p04" in P05_PERSONAS["bank-member"], false);
+  });
+
+  it("names never clash with P1, P3 or P4 personas", () => {
+    for (const name of Object.keys(P05_PERSONAS)) {
+      assert.equal(name in P01_PERSONAS, false, name);
+    }
+    assert.equal(Object.keys(PERSONAS).length, new Set(Object.keys(PERSONAS)).size);
+  });
+
+  it("seed-training maps the plan's dev names and accepts pool names", () => {
+    assert.equal(trainingPersonaName("member"), "dev-member");
+    assert.equal(trainingPersonaName("perfect"), "dev-perfect");
+    assert.equal(trainingPersonaName("bank-caughtup"), "bank-caughtup");
+    assert.throws(() => trainingPersonaName("payment_banner"), /unknown training persona/);
+    assert.deepEqual(parseSeedArgs(["--reset", "S", "--persona", "member", "--dry-run"]), { reset: "S", persona: "member", dryRun: true, list: false });
+    assert.throws(() => parseSeedArgs(["--apply"]), /unknown argument/);
+  });
+
+  it("a dry run resolves the target and the persona without touching a database", async () => {
+    const lines: string[] = [];
+    const r = await resetPersona("E2E_POOL_04", "bank-member", { dryRun: true, now: NOW, databaseUrl: "postgresql://u:p@localhost:5433/db", log: (l) => lines.push(l) });
+    assert.equal(r.applied, false);
+    assert.equal(r.persona, "bank-member");
+    assert.match(lines[0]!, /target host localhost/);
+  });
+});

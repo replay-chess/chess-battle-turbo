@@ -17,6 +17,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
  * `/dev/ui/game-over` (phase-03 plan §4.10): P2's game-over card with P3's slots (WP-E), no server. Params:
  *   slot=<analysing|queued|done|clean|failed|terminal|skipped|legend|legend_followed|legend_opponent|legend_pending>
  *   state=<an over_* design state>   the P2 card underneath (default: GAME_OVER_DEMO_BASE, the game that fits the slot)
+ *   bank=0|1|2    P5: the Mistake Bank line (A2 `bank` with 0, 1 or 2 cards; absent = `train` off, no bank slot)
  *   chrome=none   no app shell        device=…   accepted for the device suite
  */
 export default async function GameOverDemoPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -26,7 +27,9 @@ export default async function GameOverDemoPage({ searchParams }: { searchParams:
   const requested = one(p.state);
   const fallback = GAME_OVER_DEMO_BASE[slot];
   const state = isDesignState(requested) && requested.startsWith("over_") ? requested : fallback;
-  const demo = <GameOverDemo key={`${slot}:${state}`} slot={slot} state={state} />;
+  const bankParam = one(p.bank);
+  const bank = bankParam === "0" || bankParam === "1" || bankParam === "2" ? Number(bankParam) : null;
+  const demo = <GameOverDemo key={`${slot}:${state}:${bank}`} slot={slot} state={state} bank={bank} />;
   if (one(p.chrome) === "none") return <ViewportStage>{demo}</ViewportStage>;
   return (
     // navFlags: the shell must not read `review-v3` from the demo viewer GameOverDemo seeds while it renders (the

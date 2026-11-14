@@ -2,11 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useFlag } from "@/lib/flags/client";
+import { brandHref } from "@/lib/nav/destinations";
 import { cn } from "@/lib/utils";
 
-/** Logo plus wordmark; links to /play (the shell's home in Phase 1). */
+/**
+ * Logo plus wordmark. Without an `href` it links to the shell's home: /home once the viewer's `home` flag is on (P5
+ * plan §4.8, "logo → /home"), /play before that (Phase 1).
+ */
 export function Brand({
-  href = "/play",
+  href,
   logoClassName,
   wordmarkClassName,
   className,
@@ -19,9 +24,10 @@ export function Brand({
   className?: string;
   onNavigate?: () => void;
 }) {
+  const home = useFlag("home");
   return (
     <Link
-      href={href}
+      href={href ?? brandHref({ home })}
       data-testid="shell-brand"
       onClick={onNavigate}
       className={cn(

@@ -166,6 +166,7 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/socket.p3.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v wk_password="$WK_PW" -f packages/db/scripts/roles/replay_worker.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p4.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p5.sql
           echo "E2E_SOCKET_DATABASE_URL=postgresql://replay_realtime:$RT_PW@localhost:5432/replay" >> "$GITHUB_ENV"
           echo "E2E_WORKER_DATABASE_URL=postgresql://replay_worker:$WK_PW@localhost:5432/replay" >> "$GITHUB_ENV"
       - name: Build (test app env, hooks on, sinks on)
@@ -254,7 +255,7 @@ jobs:
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @repo/db generate
-      - name: toHaveScreenshot specs (@visual, incl. the game baselines of e2e/devices/game and the P3 layout/review.visual.spec.ts)
+      - name: toHaveScreenshot specs (@visual, incl. the game baselines of e2e/devices/game, the P3 layout/review.visual.spec.ts and the P5 layout/p05.visual.spec.ts)
         run: pnpm --filter web test:devices --grep @visual --pass-with-no-tests
 
   neon-suspend:
@@ -321,6 +322,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Design-state coverage (missing states fail)
         run: pnpm exec tsx scripts/qa/state-coverage.ts --markdown "$GITHUB_STEP_SUMMARY"
+      - name: P5 design-state coverage (the 35 Train/Bank/Puzzle/Home boards; missing or unexplained states fail)
+        # docs/qa/phase.txt stays at the last phase whose whole board set is covered (P3/P4's
+        # V3GamesArchive*.import_running is still open); P5's own boards are gated here (phase-05 plan §15).
+        if: success() || failure()
+        run: pnpm exec tsx scripts/qa/state-coverage.ts --only-phase 5 --phase 5 --markdown "$GITHUB_STEP_SUMMARY"
 
   lighthouse:
     # Lighthouse CI (mobile) on the demo game (phase-02 plan 12.8): LCP ≤ 2.5 s, CLS ≤ 0.02, TBT ≤ 200 ms.

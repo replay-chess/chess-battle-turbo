@@ -11,3 +11,6 @@ export * from "./ratings";
 export * from "./import-error";
 export * from "./import-cursor";
 export * from "./jobs";
+// M5 (P5, phase-05 plan 6.3): training_days.plan, training_sessions.items, mistakes.texts (P7) and the EXTRACT_MISTAKES
+// job payload (re-exported from @repo/contracts/internal/jobs).
+export * from "./training";

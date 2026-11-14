@@ -9,6 +9,8 @@
 //   /api/import/status                                     0.1, and 0 for its 304 polls (dropped after the response,
 //                                                          dropNotModifiedPoll: the status is known only then)
 //   /api/me                                                0.1
+//   /api/train/attempts                                    0.05 (volume: every outbox flush; phase-05 plan §10.2)
+//   other /api/train/*                                     0.1 (phase-05 plan §10.2)
 //   other /api/*                                           0.1
 //   pages                                                  1.0 when NEXT_PUBLIC_APP_ENV=dev, else 0.1
 //
@@ -18,6 +20,8 @@
 export const DEFAULT_TRACE_RATE = 0.1;
 /** `/api/accounts/*` apart from the OAuth callback (phase-04 plan §10.2). */
 export const ACCOUNTS_TRACE_RATE = 0.2;
+/** `POST /api/train/attempts`, the outbox flush: the busiest P5 route (phase-05 plan §10.2 "train.attempts 0.05"). */
+export const TRAIN_ATTEMPTS_TRACE_RATE = 0.05;
 /** Polled routes whose 304 answers are never kept (phase-04 plan §10.2: "0 for import.status 304s"). */
 const NOT_MODIFIED_DROPPED = ["/api/import/status"] as const;
 
@@ -72,6 +76,7 @@ export function sampleRateForPath(path: string | null, appEnv: string | undefine
   if (path === "/api/accounts/lichess/callback") return 1;
   if (under(path, "/api/accounts")) return ACCOUNTS_TRACE_RATE;
   if (under(path, "/api/me")) return DEFAULT_TRACE_RATE;
+  if (path === "/api/train/attempts") return TRAIN_ATTEMPTS_TRACE_RATE;
   if (under(path, "/api")) return DEFAULT_TRACE_RATE;
   return appEnv === "dev" ? 1 : DEFAULT_TRACE_RATE;
 }

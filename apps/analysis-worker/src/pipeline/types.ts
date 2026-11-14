@@ -4,6 +4,7 @@
 import type { Color } from "@repo/chess-analysis/codec";
 import type { StoredLine } from "@repo/chess-analysis/analysis";
 import type { ComparisonFactsV1, LinesV1, ReviewContentV1 } from "@repo/db/json";
+import type { DayAnchor } from "@repo/chess-training/day";
 import type { Statement } from "../db/client";
 
 export type PlayerResultDb = "WIN" | "LOSS" | "DRAW" | "ABORTED";
@@ -14,6 +15,31 @@ export interface GameMember {
   userId: string;
   userRef: string;
   result: PlayerResultDb | null;
+  /**
+   * P5 J1 inputs from the same load statement (phase-05 plan §7.6): the member's zone (users."timeZone") and
+   * training prefs (training_profiles, defaults when the row does not exist yet), when the game side ended and the
+   * opponent's display name (game_players). Optional: the in-memory store and older fixtures leave them out.
+   */
+  training?: MemberTraining;
+}
+
+/** A member's training inputs for the Mistake Bank extraction (phase-05 plan §6.2 TrainingProfile, §8.4, §8.5). */
+export interface MemberTraining {
+  timeZone: string;
+  dayStartHour: number;
+  releaseHour: number;
+  bankDailyCap: number;
+  newPerDay: number;
+  /** game_players."endedAt" (epoch ms), else the game's completion time. */
+  endedAtMs: number | null;
+  /** game_players."opponentName" (≤ 40 characters), null when unknown. */
+  opponentName: string | null;
+  /**
+   * The newest training day that records the zone it was opened in (m5b): after a zone change the day in progress
+   * keeps its key (`trainingDayAt`, FIX-1 tz-pin), so the bank-due counts read the same day row as the web (FIX-2).
+   * Absent in older fixtures and the in-memory store (= no pin).
+   */
+  dayAnchor?: DayAnchor | null;
 }
 
 /** The existing `game_analyses` row (resume, regrade). */
@@ -76,6 +102,10 @@ export interface LoadedGame {
   comparisons: StoredComparison[];
   /** The job's `lastError` before this attempt ("<code>: …"), for `analysis_retry_succeeded`. */
   jobLastError: string | null;
+  /** P5: games."timeClass" (Mistake.timeClass). */
+  timeClass?: string | null;
+  /** P5: games.meta.colorUnknown (a legacy game whose sides are unknown: no bank extraction). */
+  colorUnknown?: boolean;
 }
 
 /** The arrays a checkpoint or the final write stores (index = position / ply offset). */

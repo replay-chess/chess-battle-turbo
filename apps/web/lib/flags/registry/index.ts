@@ -5,11 +5,12 @@ import { P01_FLAGS } from "./p01";
 import { P02_FLAGS } from "./p02";
 import { P03_FLAGS } from "./p03";
 import { P04_FLAGS } from "./p04";
+import { P05_FLAGS } from "./p05";
 
 /** Every phase file, in phase order. `flags.test.ts` asserts no key appears in two of them. */
-export const FLAG_REGISTRIES = { p01: P01_FLAGS, p02: P02_FLAGS, p03: P03_FLAGS, p04: P04_FLAGS } as const;
+export const FLAG_REGISTRIES = { p01: P01_FLAGS, p02: P02_FLAGS, p03: P03_FLAGS, p04: P04_FLAGS, p05: P05_FLAGS } as const;
 
-export const FLAGS = { ...P01_FLAGS, ...P02_FLAGS, ...P03_FLAGS, ...P04_FLAGS } as const;
+export const FLAGS = { ...P01_FLAGS, ...P02_FLAGS, ...P03_FLAGS, ...P04_FLAGS, ...P05_FLAGS } as const;
 
 export type FlagKey = keyof typeof FLAGS;
 export type FlagEnv = "dev" | "test" | "production" | "local";

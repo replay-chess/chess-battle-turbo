@@ -91,7 +91,7 @@ export function Sidebar({
     >
       <div className="flex items-center justify-between gap-2 rail:flex-col rail:justify-center">
         <Brand
-          href={preview ? "#play" : "/play"}
+          href={preview ? "#play" : undefined}
           wordmarkClassName="rail:hidden"
           // min-w-0 lets the wordmark truncate in the sidebar; the rail keeps the 44px hit box.
           className="min-w-0 rail:min-w-11 rail:justify-center"
@@ -111,7 +111,8 @@ export function Sidebar({
         {topLevelDestinations(navFlags).map((d) => {
           const Icon = d.icon;
           const isCurrent = current.has(d.key);
-          const showSubs = d.key === "play" || (d.key === "learn" && isCurrent);
+          // Play always lists Tournaments; Learn and Train (P5) list their sections while current (V3Nav).
+          const showSubs = d.key === "play" || isCurrent;
           return (
             <div key={d.key} className="flex flex-col">
               <Tooltip content={d.label} side="right" disabled={!isRail}>

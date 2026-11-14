@@ -100,6 +100,15 @@ model User {
   lastPaymentFailureReason String?          @db.VarChar(120)
   linkedAccounts           LinkedAccount[]
   importRuns               ImportRun[]
+  // ── M5 (Phase 5): back-relations only; timeZone already exists (M4). Every P5 private row cascades from User.
+  mistakes                 Mistake[]
+  trainingCards            TrainingCard[]
+  trainingAttempts         TrainingAttempt[]
+  trainingSessions         TrainingSession[]
+  trainingDays             TrainingDay[]
+  themeMastery             ThemeMastery[]
+  trainingProfile          TrainingProfile?
+  reportsMade              Report[]         @relation("ReportsMade")
 
   @@index([googleId])
   @@index([email])
@@ -209,6 +218,8 @@ model Game {
   analysis          GameAnalysis?
   legendComparisons LegendComparison[]
   shares            Share[]
+  /// M5 (P5): where the member's bank positions happened ("seen in 3 games"); cascades with the game.
+  mistakeOccurrences MistakeOccurrence[]
 
   // P4 import upsert; REPLAY rows have externalId NULL and never collide
   @@unique([source, externalId], map: "games_source_externalId_key")
@@ -556,6 +567,9 @@ model GamePlayer {
   // @ignore: written and read only by raw SQL, and kept out of the Prisma client so a build that deploys before the
   // migration never selects a column the database does not have yet.
   purgeLinkId     BigInt?       @ignore
+  /// M5 (P5): the Mistake Bank extraction version this side was extracted with (0 = never; EXTRACT_VERSION = 1). The
+  /// backfill predicate and a rules re-extraction read it without scanning jobs (phase-05 plan 6.4).
+  bankVersion     Int            @default(0) @db.SmallInt
 
   @@id([gameId, userId])
   @@unique([gameId, color])
@@ -599,6 +613,8 @@ enum JobKind {
   ACCOUNT_PURGE
   DODO_CUSTOMER_SYNC
   HOUSEKEEPING
+  /// M5 (P5, migration m5a, own file): the Mistake Bank backfill. Two releases: N knows it, N+1 writes it.
+  EXTRACT_MISTAKES
 }
 
 enum JobStatus {
@@ -1218,4 +1234,394 @@ model TrialLedger {
   firstTrialAt DateTime @default(now())
 
   @@map("trial_ledger")
+}
+
+// ══ M5 (Phase 5): Mistake Bank, puzzles, Train and Home (phase-05 plan 6.1-6.5) ═════════════════════════════════════
+// Every value of every enum below ships in M5 and is first written by P5's own release (no older client reads these
+// tables, so the two-release rule applies only to JobKind EXTRACT_MISTAKES, which has its own migration m5a).
+// SessionKind WEAKNESS (P6), TrainingDeck OPENING / TrainingItemKind OPENING_LINE (P8) and ReportTarget USER, GAME, …
+// (P10+) are declared now so no later phase needs ADD VALUE. The partial index training_attempts_puzzle_idx, the
+// fillfactor and lz4 settings are raw SQL in the migration (prisma/protected-indexes.txt); role grants live in
+// scripts/roles/*.p5.sql. Business timestamps are written from the request clock `$now` (plan 7 intro); only
+// createdAt / updatedAt keep the database clock. No KeyMoment table: a moment is PlayerReview.content.moments[i],
+// linked to the bank through MistakeOccurrence (gameId, ply).
+
+/// "My blunders" | "Missed punishments" (the bank's Source filter).
+enum MistakeSource {
+  OWN_ERROR
+  MISSED_PUNISH
+}
+
+/// From GameAnalysis phase plies.
+enum GamePhase {
+  OPENING
+  MIDDLEGAME
+  ENDGAME
+}
+
+/// OPENING is written from P8.
+enum TrainingDeck {
+  BANK
+  PUZZLE
+  OPENING
+}
+
+/// OPENING_LINE is written from P8.
+enum TrainingItemKind {
+  MISTAKE
+  REVIEW_POSITION
+  LICHESS_PUZZLE
+  OPENING_LINE
+}
+
+/// ts-fsrs State 0..3.
+enum CardState {
+  NEW
+  LEARNING
+  REVIEW
+  RELEARNING
+}
+
+/// ts-fsrs Rating 1..4.
+enum FsrsGrade {
+  AGAIN
+  HARD
+  GOOD
+  EASY
+}
+
+/// WEAKNESS is written from P6.
+enum SessionKind {
+  DAILY
+  BANK
+  PUZZLES
+  WEAKNESS
+  PRACTICE
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+/// P5 writes MISTAKE and PUZZLE; P10 USER and GAME through the same POST /api/reports handler.
+enum ReportTarget {
+  USER
+  GAME
+  MISTAKE
+  PUZZLE
+  LESSON
+  POSITION
+  COACH_MESSAGE
+}
+
+enum ReportReason {
+  CHEATING
+  ABUSE
+  INAPPROPRIATE_NAME
+  WRONG_SOLUTION
+  BETTER_MOVE
+  ILLEGAL_MOVE
+  TEXT_WRONG
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+}
+
+/// M5. A trainable position from the user's own games, deduped per (user, position). Lichess-CSV shape (res 7.4).
+model Mistake {
+  id               BigInt              @id @default(autoincrement())
+  referenceId      String              @unique @default(cuid())
+  userId           BigInt
+  /// fnv1a-64 of the EPD (placement, side, castling, ep) of the position before the user's move, as signed int64
+  epdHash          BigInt
+  /// the user's colour = board orientation
+  color            String              @db.Char(1)
+  /// position before the opponent's setup move; equals the position before the user's move when setupUci is null
+  fen              String              @db.VarChar(100)
+  /// opponent's previous move (last-move marks in bank mode)
+  setupUci         String?             @db.VarChar(5)
+  /// "best reply best …" after the setup move, odd length, space-separated UCI; REVIEW_POSITION rows hold best only
+  solution         String              @db.VarChar(120)
+  /// other first moves accepted (within 2 Win% of best; other mates)
+  accept           String?             @db.VarChar(60)
+  playedUci        String              @db.VarChar(5)
+  /// P5+ the opponent's best reply to the played move (the "you repeated the game move" coach line)
+  refuteUci        String?             @db.VarChar(5)
+  judgement        Judgement
+  source           MistakeSource
+  isPuzzle         Boolean
+  /// wc(best) − wc(second), so the 0.5 threshold can move without engine work
+  uniquenessGap    Float?              @db.Real
+  themes           String[]            @default([])
+  primaryTheme     String              @db.VarChar(32)
+  phase            GamePhase
+  /// Win% (user POV) before the move = after the best move
+  winBefore        Float               @db.Real
+  winAfterPlayed   Float               @db.Real
+  /// user POV, clamped ±1000 like Win%
+  cpBest           Int?
+  mateBest         Int?                @db.SmallInt
+  timeClass        TimeClass?
+  ecoCode          String?             @db.VarChar(3)
+  moveNumber       Int                 @db.SmallInt
+  occurrences      Int                 @default(1) @db.SmallInt
+  /// most recent occurrence, denormalised so a bank row renders with no join (plain columns, maintained by the worker)
+  lastGameId       BigInt?
+  lastPly          Int?                @db.SmallInt
+  lastPlayedAt     DateTime
+  lastOpponentName String              @db.VarChar(40)
+  /// MistakeTextV1, P7 verified LLM text only
+  texts            Json?
+  textVerifiedAt   DateTime?
+  /// "Remove from bank"
+  hiddenAt         DateTime?
+  createdAt        DateTime            @default(now())
+  /// P5+ (re-analysis updates)
+  updatedAt        DateTime            @updatedAt
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card             TrainingCard?
+  occurrenceRows   MistakeOccurrence[]
+
+  @@unique([userId, epdHash])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("mistakes")
+}
+
+/// M5. Every (game, ply) where a Mistake happened ("seen in 3 games"). Cascades from both sides.
+model MistakeOccurrence {
+  gameId    BigInt
+  ply       Int     @db.SmallInt
+  mistakeId BigInt
+  game      Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  mistake   Mistake @relation(fields: [mistakeId], references: [id], onDelete: Cascade)
+
+  @@id([gameId, ply])
+  @@index([mistakeId])
+  @@map("mistake_occurrences")
+}
+
+/// M5. FSRS state (ts-fsrs Card), one per (user, item). API ref = itemKey: "m_<sqid(epdHash as uint64)>" (known
+/// before the mistake id exists, so the worker's HTTP batch needs no RETURNING), "p_<lichessId>", "o_<sqid(openingId)>".
+model TrainingCard {
+  id             BigInt           @id @default(autoincrement())
+  userId         BigInt
+  deck           TrainingDeck
+  kind           TrainingItemKind
+  itemKey        String           @db.VarChar(40)
+  mistakeId      BigInt?          @unique
+  puzzleId       String?          @db.VarChar(8)
+  /// plain column (P8)
+  openingId      BigInt?
+  /// snapshot for PUZZLE/OPENING cards so they render without the shards: Lichess FEN + full "setup best reply …" line
+  fen            String?          @db.VarChar(100)
+  /// ≤ 15 UCI tokens (shard filter) = ≤ 89 chars
+  solution       String?          @db.VarChar(120)
+  orient         String?          @db.Char(1)
+  puzzleRating   Int?             @db.SmallInt
+  /// primary theme, denormalised (filters, facets, mastery)
+  theme          String           @db.VarChar(32)
+  phase          GamePhase?
+  due            DateTime
+  stability      Float            @default(0) @db.Real
+  difficulty     Float            @default(0) @db.Real
+  elapsedDays    Int              @default(0) @db.SmallInt
+  scheduledDays  Int              @default(0) @db.SmallInt
+  learningSteps  Int              @default(0) @db.SmallInt
+  reps           Int              @default(0) @db.SmallInt
+  lapses         Int              @default(0) @db.SmallInt
+  state          CardState        @default(NEW)
+  lastReview     DateTime?
+  /// 0..5 dots, derived from stability on every write (plan 8.8)
+  mastery        Int              @default(0) @db.SmallInt
+  /// "Skip for today" → next release
+  suspendedUntil DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mistake        Mistake?         @relation(fields: [mistakeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemKey])
+  @@index([userId, deck, due])
+  @@map("training_cards")
+}
+
+/// M5. One row per graded or practice attempt; the FSRS review log. Append-only. History columns are plain (no FK).
+model TrainingAttempt {
+  id              BigInt           @id @default(autoincrement())
+  /// idempotency + offline outbox replay
+  clientAttemptId String           @unique @db.Uuid
+  userId          BigInt
+  /// plain: history outlives cards
+  cardId          BigInt?
+  /// plain: history outlives sessions (pruned at 90 d)
+  sessionId       BigInt?
+  /// P5+ session-local item id ("i3", "i3b" for pass 2): resume + summary
+  itemId          String?          @db.VarChar(8)
+  deck            TrainingDeck
+  kind            TrainingItemKind
+  puzzleId        String?          @db.VarChar(8)
+  puzzleRating    Int?             @db.SmallInt
+  theme           String           @db.VarChar(32)
+  solved          Boolean
+  firstTry        Boolean
+  hintsUsed       Int              @default(0) @db.SmallInt
+  wrongTries      Int              @default(0) @db.SmallInt
+  /// P5+ up to 10 UCI, space-separated (audits, "repeated the game move")
+  wrongMoves      String?          @db.VarChar(60)
+  solutionShown   Boolean          @default(false)
+  timeMs          Int
+  /// null = practice repeat (no FSRS update)
+  grade           FsrsGrade?
+  suggestedGrade  FsrsGrade?
+  /// FSRS state AFTER this review (optimiser + audits)
+  state           CardState?
+  stability       Float?           @db.Real
+  difficulty      Float?           @db.Real
+  elapsedDays     Int?             @db.SmallInt
+  scheduledDays   Int?             @db.SmallInt
+  ratingBefore    Float?           @db.Real
+  ratingAfter     Float?           @db.Real
+  /// client clock, clamped to [now − 7 d, now + 5 min]
+  reviewedAt      DateTime
+  /// P5+ server receipt (offline lag analytics)
+  createdAt       DateTime         @default(now())
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, reviewedAt(sort: Desc)])
+  @@map("training_attempts")
+}
+
+/// M5. A runner session (resume + summary). Pruned after 90 days.
+model TrainingSession {
+  id              BigInt        @id @default(autoincrement())
+  referenceId     String        @unique @default(cuid())
+  userId          BigInt
+  kind            SessionKind
+  status          SessionStatus @default(ACTIVE)
+  source          String        @db.VarChar(24)
+  /// P5+ hash of the normalised SessionCreate (ACTIVE-session reuse)
+  filterKey       String        @db.VarChar(64)
+  theme           String?       @db.VarChar(32)
+  size            Int           @db.SmallInt
+  mix             Boolean       @default(false)
+  countsTowardCap Boolean       @default(true)
+  /// SessionItemsV1 {v:1, items:[{id,key,kind,pass,skipped?,p?:[id,fen,moves,rating,theme]}]} incl. requeued AGAIN items
+  items           Json
+  day             DateTime      @db.Date
+  total           Int           @default(0) @db.SmallInt
+  solved          Int           @default(0) @db.SmallInt
+  firstTry        Int           @default(0) @db.SmallInt
+  withHint        Int           @default(0) @db.SmallInt
+  startedAt       DateTime      @default(now())
+  endedAt         DateTime?
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt(sort: Desc)])
+  @@map("training_sessions")
+}
+
+/// M5. One row per user per LOCAL training day: caps, week strip, frozen daily plan.
+model TrainingDay {
+  userId        BigInt
+  /// local date in User.timeZone; the day starts at TrainingProfile.dayStartHour
+  day           DateTime @db.Date
+  /// cap counter (first FSRS grade of a BANK card today, counting sessions only)
+  bankReviewed  Int      @default(0) @db.SmallInt
+  newIntroduced Int      @default(0) @db.SmallInt
+  puzzlesDone   Int      @default(0) @db.SmallInt
+  /// P8
+  lessonsDone   Int      @default(0) @db.SmallInt
+  activeMs      Int      @default(0)
+  /// DailyPlanV1, frozen on the first hub read of the day; nulled after 7 days
+  plan          Json?
+  /// bitmask of done steps (bit i = step i)
+  planDone      Int      @default(0) @db.SmallInt
+  /// m5b: the zone and day-start hour the day was opened in (the day in progress keeps its key across a change)
+  timeZone      String?  @db.VarChar(64)
+  dayStartHour  Int?     @db.SmallInt
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, day])
+  @@map("training_days")
+}
+
+/// M5. EWMA of first-try success per theme ("Forks 62%").
+model ThemeMastery {
+  userId        BigInt
+  theme         String    @db.VarChar(32)
+  attempts      Int       @default(0)
+  firstTry      Int       @default(0)
+  ewma          Float     @default(0) @db.Real
+  /// live BANK cards with this primary theme
+  bankCount     Int       @default(0) @db.SmallInt
+  milestonePct  Int       @default(0) @db.SmallInt
+  lastAttemptAt DateTime?
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, theme])
+  @@map("theme_mastery")
+}
+
+/// M5. 1:1 with User, created lazily. Counters (dm) + the training prefs (P5+; the only writer is W8).
+model TrainingProfile {
+  userId                  BigInt    @id
+  puzzleRating            Float     @default(1500) @db.Real
+  puzzleRd                Float     @default(350) @db.Real
+  puzzleVol               Float     @default(0.06) @db.Real
+  /// P5+ "provisional" label below 20
+  puzzleAttempts          Int       @default(0)
+  /// P5+ seed applied once (plan 8.7)
+  ratingSeeded            Boolean   @default(false)
+  solveStreak             Int       @default(0) @db.SmallInt
+  solveStreakBest         Int       @default(0) @db.SmallInt
+  dayStreak               Int       @default(0) @db.SmallInt
+  dayStreakBest           Int       @default(0) @db.SmallInt
+  lastActiveDay           DateTime? @db.Date
+  /// P6
+  lastWeaknessSeenVersion Int       @default(0)
+  /// P5+ prefs (W8 PATCH /api/train/prefs is the only writer)
+  dayStartHour            Int       @default(4) @db.SmallInt
+  releaseHour             Int       @default(8) @db.SmallInt
+  /// 5..30
+  bankDailyCap            Int       @default(10) @db.SmallInt
+  /// ≤ bankDailyCap
+  newPerDay               Int       @default(5) @db.SmallInt
+  autoGrade               Boolean   @default(false)
+  updatedAt               DateTime  @updatedAt
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("training_profiles")
+}
+
+/// M5 (content reports). P5 writes MISTAKE and PUZZLE. P10 writes USER and GAME through the same POST /api/reports
+/// handler (targetRef = userRef / gameRef; the 24-hour duplicate check and the durable 20/day limit are shared).
+model Report {
+  id             BigInt       @id @default(autoincrement())
+  referenceId    String       @unique @default(cuid())
+  reporterId     BigInt?
+  targetType     ReportTarget
+  /// mistake referenceId | Lichess puzzle id
+  targetRef      String       @db.VarChar(64)
+  reportedUserId BigInt?
+  fen            String?      @db.VarChar(100)
+  reason         ReportReason
+  note           String?      @db.VarChar(500)
+  status         ReportStatus @default(OPEN)
+  createdAt      DateTime     @default(now())
+  resolvedAt     DateTime?
+  resolvedById   BigInt?
+  reporter       User?        @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([targetType, targetRef])
+  /// durable "20 a day" count (api-perf AP-11)
+  @@index([reporterId, createdAt(sort: Desc)])
+  @@map("reports")
 }

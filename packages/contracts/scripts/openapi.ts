@@ -21,6 +21,7 @@ import {
 import * as envelope from "../src/http/envelope";
 import { ErrorEnvelope, ok } from "../src/http/envelope";
 import * as games from "../src/http/games";
+import * as home from "../src/http/home";
 import * as importStatus from "../src/http/import";
 import * as legend from "../src/http/legend";
 import * as me from "../src/http/me";
@@ -28,10 +29,12 @@ import * as onboarding from "../src/http/onboarding";
 import * as openings from "../src/http/openings";
 import * as practice from "../src/http/practice";
 import { areaOf, HTTP_ENDPOINTS } from "../src/http/registry/index";
+import * as reports from "../src/http/reports";
 import * as review from "../src/http/review";
 import * as share from "../src/http/share";
 import * as socketToken from "../src/http/socket-token";
 import * as system from "../src/http/system";
+import * as train from "../src/http/train";
 import * as webhooks from "../src/http/webhooks";
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
@@ -44,16 +47,19 @@ const SCHEMA_MODULES: Record<string, Record<string, unknown>> = {
   common,
   envelope,
   games,
+  home,
   importStatus,
   legend,
   me,
   onboarding,
   openings,
   practice,
+  reports,
   review,
   share,
   socketToken,
   system,
+  train,
   webhooks,
 };
 

@@ -84,6 +84,9 @@ export const reviewClientEvents = {
   review_completed: z
     .object({ moments, found: moments, found_retry: moments, revealed: moments, duration_ms: ms })
     .strict(),
+  // P5 (phase-05 plan §10.1 day-one funnel: Review complete → Drill → train_session_started{source:review_complete}):
+  // the Drill These {n} Mistakes primary of review complete, with how many mistakes the drill holds.
+  drill_from_review_clicked: z.object({ mistakes: z.number().int().min(1).max(10) }).strict(),
   game_over_review_clicked: z
     .object({ status_at_click: z.enum(ANALYSIS_STATUSES), has_coach_line: z.boolean(), legend: z.boolean() })
     .strict(),

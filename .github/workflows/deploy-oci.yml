@@ -38,6 +38,7 @@ on:
       - "packages/contracts/**"
       - "packages/chess-analysis/**"
       - "packages/chess-import/**"
+      - "packages/chess-training/**"
       - "packages/analytics/**"
       - "deploy/oci/**"
       - ".github/workflows/deploy-oci.yml"

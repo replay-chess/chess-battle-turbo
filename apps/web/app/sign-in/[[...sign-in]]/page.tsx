@@ -8,7 +8,8 @@ import { useTheme } from "next-themes";
 
 export default function Page() {
     const searchParams = useSearchParams();
-    const redirectUrl = searchParams.get('redirect_url') || '/';
+    // P5 (phase-05 plan §3.1): members land on Home after signing in; the Clerk fallback env names say the same.
+    const redirectUrl = searchParams.get('redirect_url') || '/home';
     const { resolvedTheme } = useTheme();
 
     return (

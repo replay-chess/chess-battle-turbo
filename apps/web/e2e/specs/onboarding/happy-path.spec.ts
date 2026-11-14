@@ -285,7 +285,9 @@ for (const family of ["desktop", "iphone", "ipad"] as const) {
         expect(calls.count(/^(render|prefetch|api) /), `invocations: ${calls.seen.join(", ")}`).toBeLessThanOrEqual(21);
         await clickReady(page, "onb-go-home");
 
-        // ── /games: the Chess.com tab ──
+        // ── Go to Home lands on /home (P5, phase-05 plan §4.8), then /games: the Chess.com tab ──
+        await expect(page).toHaveURL(/\/home(\?|$)/, { timeout: 60_000 });
+        await page.goto("/games", { waitUntil: "domcontentloaded" });
         await expect(page).toHaveURL(/\/games(\?|$)/, { timeout: 60_000 });
         await expect(tid(page, "games-source-chesscom")).toContainText(String(FIXTURE_IMPORTABLE));
         await clickReady(page, "games-source-chesscom");

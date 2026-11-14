@@ -1,0 +1,11 @@
+/*
+ * The game-over bank line (phase-05 plan §4.8; V3GameOver `r.bank`): 0.75rem, soft text, directly under the accuracy
+ * line (the board sets it inside the accuracy block, 4 px below; the card's slots are 10 px apart, so the slot pulls
+ * up by 6 px). A 300 ms fade when it appears; none with reduced motion. Hidden on short viewports with the coach line
+ * (`g-short-hide`), so the card's buttons stay on screen.
+ */
+@layer components {
+  .rc-go-bank { margin: -6px 0 0; font-size: 0.75rem; line-height: 1.4; color: var(--cb-text-soft); animation: rc-go-bank-in 300ms ease-out both; }
+  @keyframes rc-go-bank-in { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .rc-go-bank { animation: none; } }
+}

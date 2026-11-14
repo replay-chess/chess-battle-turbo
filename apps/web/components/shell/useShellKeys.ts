@@ -13,9 +13,17 @@ import {
   isEditableTarget,
   type ChordMachine,
 } from "@/lib/shell/keys";
+import { destinationChords, type NavFlags } from "@/lib/nav/destinations";
 import { singleKeyEnabledNow } from "@/lib/shell/prefs";
+import type { DestinationKey } from "@/lib/shell/types";
 
-const CHORD_DEST: Record<string, "play" | "legends" | "review"> = { "/play": "play", "/legends": "legends", "/games": "review" };
+const CHORD_DEST: Record<string, DestinationKey> = {
+  "/play": "play",
+  "/legends": "legends",
+  "/games": "review",
+  "/home": "home",
+  "/train/bank": "bank",
+};
 
 /** A modal that is not one of the shell's own dialogs is open (legacy modals, Clerk, iOS install). */
 function nonShellModalOpen(): boolean {
@@ -38,6 +46,7 @@ export function useShellKeys({
   navigate,
   demo = false,
   reviewV3 = false,
+  navFlags,
 }: {
   paletteOpen: boolean;
   shortcutsOpen: boolean;
@@ -47,12 +56,18 @@ export function useShellKeys({
   demo?: boolean;
   /** `review-v3`: G then R goes to My Games (P3). */
   reviewV3?: boolean;
+  /** The shell's destination flags: G then H (Home) and G then M (Mistake Bank) with `home` / `train` (P5). */
+  navFlags?: NavFlags;
 }) {
-  const chords = useRef<{ reviewV3: boolean; machine: ChordMachine } | null>(null);
+  const chords = useRef<{ id: string; machine: ChordMachine } | null>(null);
+  const home = navFlags?.home === true;
+  const train = navFlags?.train === true;
 
   useEffect(() => {
-    if (chords.current?.reviewV3 !== reviewV3) {
-      chords.current = { reviewV3, machine: createChordMachine({ timeoutMs: CHORD_TIMEOUT_MS, chords: shellChords({ reviewV3 }) }) };
+    const id = `${reviewV3}/${home}/${train}`;
+    if (chords.current?.id !== id) {
+      const table = { ...shellChords({ reviewV3 }), ...destinationChords({ "review-v3": reviewV3, home, train }) };
+      chords.current = { id, machine: createChordMachine({ timeoutMs: CHORD_TIMEOUT_MS, chords: table }) };
     }
     const machine = chords.current.machine;
 
@@ -104,5 +119,5 @@ export function useShellKeys({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [paletteOpen, shortcutsOpen, setPaletteOpen, setShortcutsOpen, navigate, demo, reviewV3]);
+  }, [paletteOpen, shortcutsOpen, setPaletteOpen, setShortcutsOpen, navigate, demo, reviewV3, home, train]);
 }

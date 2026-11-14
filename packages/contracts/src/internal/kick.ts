@@ -4,7 +4,7 @@
 // no-op, and it stays ≤ KICK_BODY_MAX_BYTES (Caddy enforces 4 KB in front of it).
 import { z } from "zod";
 import { Ref } from "../http/common";
-import { JobKindSchema, PRIORITY_BANDS } from "./jobs";
+import { JOB_KINDS, JobKindSchema, PRIORITY_BANDS } from "./jobs";
 
 /** The one wake path for every job kind (P3-D12). */
 export const KICK_PATH = "/internal/analysis/kick";
@@ -54,7 +54,7 @@ export const KickBodyV1 = z.strictObject({
   v: z.literal(1),
   reason: z.enum(KICK_REASONS),
   /** P4+ name their kinds; absent = every kind this worker runs. */
-  kinds: z.array(JobKindSchema).min(1).max(10).optional(),
+  kinds: z.array(JobKindSchema).min(1).max(JOB_KINDS.length).optional(),
   /** The earliest due time the caller just enqueued; keeps the worker's in-memory `nextRunAt` (P3-D22). */
   runAt: z.iso.datetime().optional(),
   /** A gameRef whose progress must stream for WATCH_TTL_MS (P3-D26). */

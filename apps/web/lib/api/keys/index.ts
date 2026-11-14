@@ -11,6 +11,7 @@ import { billingKeys } from "./billing";
 import { catalogKeys } from "./catalog";
 import { coachKeys } from "./coach";
 import { gameKeys } from "./game";
+import { homeKeys } from "./home";
 import { learnKeys } from "./learn";
 import { meKeys } from "./me";
 import { playKeys } from "./play";
@@ -28,6 +29,7 @@ export const KEY_FILES = {
   catalog: catalogKeys,
   coach: coachKeys,
   game: gameKeys,
+  home: homeKeys,
   learn: learnKeys,
   me: meKeys,
   play: playKeys,
@@ -45,6 +47,7 @@ export const qk = {
   ...gameKeys,
   ...reviewKeys,
   ...trainKeys,
+  ...homeKeys,
   ...coachKeys,
   ...learnKeys,
   ...playKeys,

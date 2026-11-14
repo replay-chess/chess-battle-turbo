@@ -1,4 +1,5 @@
-// Phase 3 hot-query plans (phase-03 plan §6.4, §9.2, §9.3, §12.7 "Query plans").
+// Phase 3 hot-query plans (phase-03 plan §6.4, §9.2, §9.3, §12.7 "Query plans"), and P5's J1 bank statements
+// (phase-05 plan §9.1: the extraction appended to the final analysis batch stays on its natural-key indexes).
 //
 //   pnpm --filter @repo/db exec tsx scripts/explain-hot.ts [--email <perf member>] [--report <file.json>]
 //
@@ -31,6 +32,8 @@ import { reapStatement } from "../../../apps/analysis-worker/src/queue/outcome";
 import { queueSummaryStatement } from "../../../apps/analysis-worker/src/queue/summary";
 // P4 (phase-04 plan §4.11, §9.3; D6): the web's own archive statements with the source tabs, not copies.
 import { archiveCountsSql, archivePageSql } from "../../../apps/web/lib/services/analysis/archive-sql";
+// P5 (phase-05 plan §9.1 "J1 extraction"): the Mistake Bank statements the worker appends to the final batch.
+import { bankStatements, type BankRows } from "../../../apps/analysis-worker/src/extract/bankStatements";
 
 export interface HotQuery {
   name: string;
@@ -261,6 +264,96 @@ export function p4ArchiveQueries(p: Pick<QueryParams, "viewerId">): HotQuery[] {
   ];
 }
 
+/**
+ * P5 J1 (phase-05 plan §7.6, §9.1): the nine bank statements (L, 0–7) for one game side with 4 mistakes and 3 cards (the
+ * worst case of the 4-per-game cap), each explained on its own (the measure pass rolls back, so statement 3's join
+ * does not see statement 1's rows: the plan shape is what is checked). Every one must stay on its natural-key index.
+ */
+export function p5BankRows(p: Pick<QueryParams, "viewerId" | "gameId">): BankRows {
+  const mistakes = [0, 1, 2, 3].map((i) => ({
+    referenceId: `cexplain${String(i).padStart(17, "0")}`,
+    userId: p.viewerId,
+    epdHash: String(-6917529027641081856n + BigInt(i)),
+    color: "w" as const,
+    fen: "r2r2k1/p1q2pp1/2pb1n1p/5b2/2n5/2NNB2P/PPP1BPP1/R2Q1RK1 w - - 0 17",
+    setupUci: null,
+    solution: "d1c1",
+    accept: null,
+    playedUci: "b2b3",
+    refuteUci: "c4e3",
+    judgement: "MISTAKE",
+    source: "OWN_ERROR" as const,
+    isPuzzle: false,
+    uniquenessGap: 0,
+    themes: ["fork", "middlegame"],
+    primaryTheme: "fork",
+    phase: "MIDDLEGAME" as const,
+    winBefore: 50,
+    winAfterPlayed: 35,
+    cpBest: 0,
+    mateBest: null,
+    timeClass: "BLITZ",
+    ecoCode: null,
+    moveNumber: 17 + i,
+    lastGameId: p.gameId,
+    lastPly: 32 + 2 * i,
+    lastPlayedAt: "2026-11-12 18:40:00.000",
+    lastOpponentName: "explain",
+    due: "2026-11-13 08:00:00.000",
+  }));
+  return {
+    gameId: p.gameId,
+    mistakes,
+    occurrences: mistakes.map((m) => ({
+      userId: m.userId,
+      epdHash: m.epdHash,
+      gameId: p.gameId,
+      ply: m.lastPly,
+      playedAt: m.lastPlayedAt,
+      due: m.due,
+      moment: m.lastPly < 38,
+    })),
+    cards: mistakes.slice(0, 3).map((m) => ({
+      userId: m.userId,
+      epdHash: m.epdHash,
+      gameId: p.gameId,
+      color: "w" as const,
+      ply: m.lastPly,
+      kind: "REVIEW_POSITION" as const,
+      itemKey: `m_explain${m.lastPly}`,
+      due: m.due,
+    })),
+    days: [{ userId: p.viewerId, day: "2026-11-12" }],
+    userIds: [p.viewerId],
+    momentPlies: [32, 34, 36],
+    version: 1,
+  };
+}
+
+const P5_BANK_TABLES = ["mistakes", "mistake_occurrences", "training_cards", "theme_mastery", "player_reviews", "game_players"];
+const P5_BANK_NAMES = [
+  "L review rows locked (player_reviews_pkey)",
+  "0 changed-best reset (mistakes_userId_epdHash_key, training_cards_mistakeId_key)",
+  "1 mistakes upsert (mistakes_userId_epdHash_key)",
+  "2 occurrences + recurrence (mistake_occurrences_pkey, training_cards_mistakeId_key)",
+  "3 occurrence recount (mistake_occurrences_mistakeId_idx)",
+  "4 cards + bankCount (training_cards_userId_itemKey_key, player_reviews_pkey, theme_mastery_pkey)",
+  "5 bankVersion (game_players_pkey)",
+  "6 due counts (training_cards_userId_deck_due_idx, training_days_pkey)",
+  "7 bankAdded (mistake_occurrences_pkey, training_cards_mistakeId_key)",
+];
+
+/** Every P5 J1 statement for the given parameters. */
+export function p5BankQueries(p: Pick<QueryParams, "viewerId" | "gameId">): HotQuery[] {
+  return bankStatements(p5BankRows(p)).map((s, i) => ({
+    name: `P5 J1 ${P5_BANK_NAMES[i] ?? String(i)}`,
+    sql: inlineStatement(s),
+    noSeqScan: P5_BANK_TABLES,
+    noSort: [],
+    targetMs: 5,
+  }));
+}
+
 /** Placeholder literals for the CI shape gate (an empty database: only the plan shape matters). */
 export const P3_HOT_QUERIES: HotQuery[] = p3Queries({
   viewerId: "1",
@@ -272,6 +365,8 @@ export const P3_HOT_QUERIES: HotQuery[] = p3Queries({
 
 /** P4's archive statements with a placeholder member, for the same shape gate. */
 export const P4_ARCHIVE_HOT_QUERIES: HotQuery[] = p4ArchiveQueries({ viewerId: "1" });
+/** P5's J1 statements with placeholder ids, for the repo's shape gate (scripts/explain-hot-queries.ts). */
+export const P5_BANK_HOT_QUERIES: HotQuery[] = p5BankQueries({ viewerId: "1", gameId: "1" });
 
 // ── Plan inspection ────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -477,7 +572,9 @@ async function main(): Promise<number> {
     console.log(`tripwire users = ${await checkTripwire(db)} (limit ${MAX_TARGET_USERS})`);
     const email = values.get("--email") ?? PERF_USER.email;
     const params = await perfParams(db, email);
-    const reports = await runExplain(db, [...p3Queries(params), ...p4ArchiveQueries(params)], { measure: true });
+    const reports = await runExplain(db, [...p3Queries(params), ...p4ArchiveQueries(params), ...p5BankQueries(params)], {
+      measure: true,
+    });
     const ok = printReports(reports);
     const report = values.get("--report");
     if (report) {

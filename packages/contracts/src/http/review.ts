@@ -11,6 +11,7 @@ import { TimeClassWire } from "../socket/game";
 import { Color, FenLoose, IsoDateTime, Ref, Uci } from "./common";
 import { MAX_MOMENTS, PROGRESS_EVENTS_MAX } from "./plain";
 import { ShareCode } from "./share";
+import { MomentBankCard, MomentCard, ReviewBank } from "./train";
 
 // The zod-free constants and paths of the review (plain.ts; the client imports them from there).
 export {
@@ -153,6 +154,11 @@ export const MomentDTO = z.object({
   plan: z.record(PlanKey, z.string().max(200)),
   /** !bankOptOut. The UI is hidden until P5's `train` flag (P3-D19). */
   inBank: z.boolean(),
+  /**
+   * P5 (phase-05 §7.1 MomentBank): the moment's BANK card when it exists ("Added · next review tomorrow"). Optional
+   * and nullable: absent with the `train` flag off, null while the game is not extracted yet or the moment is out.
+   */
+  card: MomentCard.nullable().optional(),
   result: MomentResult.nullable(),
   attempts: z.number().int().min(0).max(50),
 });
@@ -364,8 +370,12 @@ export const ReviewStatusDTO = z.object({
     coachLine: z.string().max(160).nullable(),
   }),
   comparison: LegendSummaryDTO.nullable(),
-  /** P5: `{ added, plies, due }` (COV C-01). Always null in P3. */
-  bank: z.null(),
+  /**
+   * P5 (phase-05 §7.1 ReviewBank, COV C-01): the BANK cards that exist now for this game side's moment plies, which
+   * the game-over line reads ("+2 positions added … (moves 13, 19)"). Null with the `train` flag off, or before the
+   * game was extracted.
+   */
+  bank: ReviewBank.nullable(),
 });
 export type ReviewStatusDTO = z.infer<typeof ReviewStatusDTO>;
 
@@ -423,8 +433,8 @@ export type MomentParams = z.infer<typeof MomentParams>;
 export const MomentBankBody = z.object({ inBank: z.boolean() });
 export type MomentBankBody = z.infer<typeof MomentBankBody>;
 
-/** `card` is filled from P5. */
-export const MomentBankResponse = z.object({ ply: z.number().int().min(0), inBank: z.boolean(), card: z.null() });
+/** `card` (P5): the BANK card after the write; null while the game is not extracted yet, or with `inBank` false. */
+export const MomentBankResponse = z.object({ ply: z.number().int().min(0), inBank: z.boolean(), card: MomentBankCard.nullable() });
 export type MomentBankResponse = z.infer<typeof MomentBankResponse>;
 
 // ── A7 `POST …/complete` (a replay answers the same body) ───────────────────────────────────────────────────────
@@ -451,6 +461,8 @@ export const CompleteMoment = z.object({
   /** The first `why` sentence. */
   why0: z.string().max(400).nullable(),
   result: MomentResult.nullable(),
+  /** P5: the "Added" / "Not added" tag (a BANK card exists for this moment). Absent with the `train` flag off. */
+  inBank: z.boolean().optional(),
 });
 export type CompleteMoment = z.infer<typeof CompleteMoment>;
 
@@ -489,6 +501,15 @@ export const ReviewCompleteView = z.object({
   /** Finish was pressed before every moment had a result, or the page was opened directly (`completedAt IS NULL`). */
   partial: z.boolean(),
   shareEnabled: z.boolean(),
+  // P5 (phase-05 §4.8, §3.2): the Mistake Bank lines. All absent with the `train` flag off.
+  /** "3 added to your Mistake Bank": the BANK cards that exist for this side's moments. */
+  added: z.number().int().min(0).max(MAX_MOMENTS).optional(),
+  /** The earliest due of those cards ("The first one comes back tomorrow"); null when none was added. */
+  nextDueAt: IsoDateTime.nullable().optional(),
+  /** "tomorrow", "Saturday", "Nov 6" in the viewer's zone; null when none was added. */
+  nextDueLabel: z.string().max(16).nullable().optional(),
+  /** `/train/bank/session?game=<ref>` ("Drill These 3 Mistakes"); null when none was added. */
+  drillHref: z.string().startsWith("/train/bank/session?").max(200).nullable().optional(),
 });
 export type ReviewCompleteView = z.infer<typeof ReviewCompleteView>;
 

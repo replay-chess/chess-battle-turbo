@@ -27,6 +27,8 @@ const DEMO_LINKS: CompleteLinks = {
  *   state=<default|nothing|partial|noMoments>   (default: default)
  *   stress=1      20-character names, the longest captions, three-digit move numbers
  *   share=0       review-share off (no Share Analysis row)
+ *   bank=0|1|2|3  P5 (`train` on): that many moments added to the Mistake Bank (0 = every moment opted out); absent =
+ *                 `train` off, the P3 page
  *   chrome=none   no app shell        device=…   accepted for the device suite
  */
 export default async function CompleteDemoPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -35,7 +37,25 @@ export default async function CompleteDemoPage({ searchParams }: { searchParams:
   const state = isCompleteDemoState(s) ? s : "default";
   const view = one(p.stress) === "1" && (state === "default" || state === "partial") ? stressComplete() : reviewCompleteFixture(state);
   const shareOff = one(p.share) === "0";
-  const demo = <CompleteView view={{ ...view, shareEnabled: !shareOff && view.shareEnabled }} links={{ ...DEMO_LINKS, share: shareOff ? null : DEMO_LINKS.share }} />;
+  const bankParam = one(p.bank);
+  const added = bankParam && /^[0-3]$/.test(bankParam) ? Math.min(Number(bankParam), view.moments.length) : null;
+  const banked =
+    added === null
+      ? view
+      : {
+          ...view,
+          added,
+          nextDueAt: added > 0 ? "2026-11-13T08:00:00.000Z" : null,
+          nextDueLabel: added > 0 ? "tomorrow" : null,
+          drillHref: added > 0 ? "/train/bank/session?game=demo" : null,
+          moments: view.moments.map((m, i) => ({ ...m, inBank: i < added })),
+        };
+  const demo = (
+    <CompleteView
+      view={{ ...banked, shareEnabled: !shareOff && view.shareEnabled }}
+      links={{ ...DEMO_LINKS, share: shareOff ? null : DEMO_LINKS.share, home: "/dev/ui/home?state=populated" }}
+    />
+  );
   if (one(p.chrome) === "none") return <ViewportStage>{demo}</ViewportStage>;
   return (
     <AppShellView

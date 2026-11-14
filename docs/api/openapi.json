@@ -280,6 +280,771 @@
         ],
         "type": "object"
       },
+      "AttemptIn": {
+        "additionalProperties": false,
+        "properties": {
+          "cardRef": {
+            "anyOf": [
+              {
+                "pattern": "^[mpo]_[A-Za-z0-9]{1,24}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cardReps": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clientAttemptId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "firstTry": {
+            "type": "boolean"
+          },
+          "grade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Grade"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hintsUsed": {
+            "maximum": 2,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "maxLength": 8,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ItemKind"
+          },
+          "puzzleId": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9]{5,8}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewedAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "sessionRef": {
+            "anyOf": [
+              {
+                "pattern": "^c[a-z0-9]{20,31}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "solutionShown": {
+            "type": "boolean"
+          },
+          "solved": {
+            "type": "boolean"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "suggestedGrade": {
+            "$ref": "#/components/schemas/Grade"
+          },
+          "timeMs": {
+            "maximum": 3600000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "wrongMovesUci": {
+            "items": {
+              "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+              "type": "string"
+            },
+            "maxItems": 10,
+            "type": "array"
+          }
+        },
+        "required": [
+          "clientAttemptId",
+          "sessionRef",
+          "itemId",
+          "cardRef",
+          "puzzleId",
+          "kind",
+          "solved",
+          "firstTry",
+          "hintsUsed",
+          "wrongMovesUci",
+          "solutionShown",
+          "timeMs",
+          "grade",
+          "suggestedGrade",
+          "cardReps",
+          "reviewedAt"
+        ],
+        "type": "object"
+      },
+      "AttemptOut": {
+        "properties": {
+          "card": {
+            "properties": {
+              "due": {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              "dueLabel": {
+                "maxLength": 16,
+                "type": "string"
+              },
+              "mastery": {
+                "maximum": 5,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "ref": {
+                "pattern": "^[mpo]_[A-Za-z0-9]{1,24}$",
+                "type": "string"
+              },
+              "reps": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "requeued": {
+                "type": "boolean"
+              },
+              "scheduled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref",
+              "due",
+              "dueLabel",
+              "mastery",
+              "reps",
+              "scheduled",
+              "requeued"
+            ],
+            "type": "object"
+          },
+          "clientAttemptId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "dayStreak": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "rating": {
+            "properties": {
+              "delta": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              "provisional": {
+                "type": "boolean"
+              },
+              "value": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "value",
+              "delta",
+              "provisional"
+            ],
+            "type": "object"
+          },
+          "reason": {
+            "enum": [
+              "too_old",
+              "not_found",
+              "bad_item"
+            ],
+            "type": "string"
+          },
+          "solveStreak": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "duplicate",
+              "conflict",
+              "rejected"
+            ],
+            "type": "string"
+          },
+          "theme": {
+            "properties": {
+              "key": {
+                "pattern": "^(rc:)?[A-Za-z0-9]{2,30}$",
+                "type": "string"
+              },
+              "milestone": {
+                "anyOf": [
+                  {
+                    "const": 50,
+                    "type": "number"
+                  },
+                  {
+                    "const": 70,
+                    "type": "number"
+                  },
+                  {
+                    "const": 90,
+                    "type": "number"
+                  }
+                ]
+              },
+              "pct": {
+                "anyOf": [
+                  {
+                    "maximum": 100,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "key",
+              "pct"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "clientAttemptId",
+          "status"
+        ],
+        "type": "object"
+      },
+      "AttemptsBody": {
+        "additionalProperties": false,
+        "properties": {
+          "attempts": {
+            "items": {
+              "$ref": "#/components/schemas/AttemptIn"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "attempts"
+        ],
+        "type": "object"
+      },
+      "AttemptsResult": {
+        "properties": {
+          "bankDue": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "capRemaining": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "planDone": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "rating": {
+            "$ref": "#/components/schemas/PuzzleRatingState"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/AttemptOut"
+            },
+            "maxItems": 50,
+            "type": "array"
+          }
+        },
+        "required": [
+          "results",
+          "capRemaining",
+          "planDone",
+          "bankDue"
+        ],
+        "type": "object"
+      },
+      "Badges": {
+        "properties": {
+          "bankDue": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "trainDot": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "bankDue",
+          "trainDot"
+        ],
+        "type": "object"
+      },
+      "BankFilterIn": {
+        "additionalProperties": false,
+        "properties": {
+          "phase": {
+            "$ref": "#/components/schemas/PhaseW"
+          },
+          "source": {
+            "$ref": "#/components/schemas/BankSourceW"
+          },
+          "theme": {
+            "pattern": "^(rc:)?[A-Za-z0-9]{2,30}$",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "BankNextPage": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BankRow"
+            },
+            "maxItems": 50,
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "type": "object"
+      },
+      "BankPage": {
+        "properties": {
+          "counts": {
+            "properties": {
+              "all": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "cap": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "capRemaining": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "due": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "dueRaw": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "due",
+              "dueRaw",
+              "all",
+              "capRemaining"
+            ],
+            "type": "object"
+          },
+          "emptyCtas": {
+            "anyOf": [
+              {
+                "properties": {
+                  "hasLinkedAccount": {
+                    "type": "boolean"
+                  },
+                  "lastGame": {
+                    "anyOf": [
+                      {
+                        "properties": {
+                          "gameRef": {
+                            "pattern": "^c[a-z0-9]{20,31}$",
+                            "type": "string"
+                          },
+                          "opponent": {
+                            "maxLength": 40,
+                            "type": "string"
+                          },
+                          "reviewed": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "gameRef",
+                          "opponent",
+                          "reviewed"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "lastGame",
+                  "hasLinkedAccount"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "facets": {
+            "properties": {
+              "phase": {
+                "items": {
+                  "$ref": "#/components/schemas/Facet"
+                },
+                "type": "array"
+              },
+              "source": {
+                "items": {
+                  "$ref": "#/components/schemas/Facet"
+                },
+                "type": "array"
+              },
+              "theme": {
+                "items": {
+                  "$ref": "#/components/schemas/Facet"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "theme",
+              "phase",
+              "source"
+            ],
+            "type": "object"
+          },
+          "focusTheme": {
+            "$ref": "#/components/schemas/ThemeRef"
+          },
+          "lesson": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LessonCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nextBatch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NextBatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BankRow"
+            },
+            "maxItems": 300,
+            "type": "array"
+          },
+          "state": {
+            "enum": [
+              "empty",
+              "caughtup",
+              "default"
+            ],
+            "type": "string"
+          },
+          "upcoming": {
+            "items": {
+              "properties": {
+                "label": {
+                  "maxLength": 16,
+                  "type": "string"
+                },
+                "n": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "label",
+                "n"
+              ],
+              "type": "object"
+            },
+            "maxItems": 4,
+            "type": "array"
+          }
+        },
+        "required": [
+          "state",
+          "counts",
+          "rows",
+          "facets",
+          "upcoming",
+          "nextBatch",
+          "focusTheme",
+          "emptyCtas",
+          "lesson"
+        ],
+        "type": "object"
+      },
+      "BankPageMeta": {
+        "properties": {
+          "complete": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "BankQuery": {
+        "properties": {
+          "cursor": {
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "type": "string"
+          },
+          "limit": {
+            "default": 50,
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/PhaseW"
+          },
+          "source": {
+            "$ref": "#/components/schemas/BankSourceW"
+          },
+          "theme": {
+            "pattern": "^(rc:)?[A-Za-z0-9]{2,30}$",
+            "type": "string"
+          },
+          "view": {
+            "default": "all",
+            "enum": [
+              "due",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "BankRow": {
+        "additionalProperties": false,
+        "properties": {
+          "cardRef": {
+            "pattern": "^[mpo]_[A-Za-z0-9]{1,24}$",
+            "type": "string"
+          },
+          "fen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "gamePly": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gameRef": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "isDue": {
+            "type": "boolean"
+          },
+          "judgement": {
+            "$ref": "#/components/schemas/JudgementW"
+          },
+          "lastMove": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "pattern": "^[a-h][1-8]$",
+                    "type": "string"
+                  },
+                  {
+                    "pattern": "^[a-h][1-8]$",
+                    "type": "string"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mastery": {
+            "maximum": 5,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "moveNo": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "nextLabel": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "occurrences": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "opponent": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "orient": {
+            "$ref": "#/components/schemas/Color"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/PhaseW"
+          },
+          "playedAtLabel": {
+            "maxLength": 16,
+            "type": "string"
+          },
+          "playedSan": {
+            "maxLength": 10,
+            "type": "string"
+          },
+          "skippedToday": {
+            "type": "boolean"
+          },
+          "source": {
+            "$ref": "#/components/schemas/BankSourceW"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/ThemeRef"
+          }
+        },
+        "required": [
+          "cardRef",
+          "fen",
+          "orient",
+          "lastMove",
+          "theme",
+          "judgement",
+          "playedSan",
+          "moveNo",
+          "opponent",
+          "playedAtLabel",
+          "phase",
+          "source",
+          "mastery",
+          "isDue",
+          "nextLabel",
+          "skippedToday",
+          "occurrences",
+          "gameRef",
+          "gamePly"
+        ],
+        "type": "object"
+      },
+      "BankSourceW": {
+        "enum": [
+          "own",
+          "missed"
+        ],
+        "type": "string"
+      },
       "BillingRefreshData": {
         "properties": {
           "entitlement": {
@@ -304,6 +1069,18 @@
           "entitlement",
           "refreshed",
           "legacy"
+        ],
+        "type": "object"
+      },
+      "CardRefParams": {
+        "properties": {
+          "ref": {
+            "pattern": "^[mpo]_[A-Za-z0-9]{1,24}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref"
         ],
         "type": "object"
       },
@@ -537,6 +1314,9 @@
             "maxLength": 100,
             "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
             "type": "string"
+          },
+          "inBank": {
+            "type": "boolean"
           },
           "judgement": {
             "$ref": "#/components/schemas/JKey"
@@ -787,6 +1567,87 @@
           "opponent"
         ],
         "type": "string"
+      },
+      "DuePreview": {
+        "properties": {
+          "cardRef": {
+            "pattern": "^[mpo]_[A-Za-z0-9]{1,24}$",
+            "type": "string"
+          },
+          "fen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "lastMove": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "pattern": "^[a-h][1-8]$",
+                    "type": "string"
+                  },
+                  {
+                    "pattern": "^[a-h][1-8]$",
+                    "type": "string"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "moveNo": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "opponent": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "orient": {
+            "$ref": "#/components/schemas/Color"
+          },
+          "themeLabel": {
+            "maxLength": 40,
+            "type": "string"
+          }
+        },
+        "required": [
+          "cardRef",
+          "fen",
+          "orient",
+          "lastMove",
+          "themeLabel",
+          "opponent",
+          "moveNo",
+          "label"
+        ],
+        "type": "object"
+      },
+      "EndBody": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "enum": [
+              "done",
+              "user",
+              "timeout"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
       },
       "EndMethod": {
         "enum": [
@@ -1083,6 +1944,61 @@
         ],
         "type": "object"
       },
+      "ExtendBody": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "maxLength": 8,
+            "type": "string"
+          }
+        },
+        "required": [
+          "after"
+        ],
+        "type": "object"
+      },
+      "ExtendResult": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TrainItem"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
+          "stream": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "stream"
+        ],
+        "type": "object"
+      },
+      "Facet": {
+        "properties": {
+          "key": {
+            "maxLength": 32,
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "n": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "n"
+        ],
+        "type": "object"
+      },
       "FirstReview": {
         "properties": {
           "analysisStatus": {
@@ -1303,6 +2219,14 @@
         "type": "object"
       },
       "GameResultFilter": {
+        "enum": [
+          "win",
+          "loss",
+          "draw"
+        ],
+        "type": "string"
+      },
+      "GameResultW": {
         "enum": [
           "win",
           "loss",
@@ -3069,6 +3993,37 @@
         ],
         "type": "string"
       },
+      "Grade": {
+        "enum": [
+          "again",
+          "hard",
+          "good",
+          "easy"
+        ],
+        "type": "string"
+      },
+      "GradeRow": {
+        "properties": {
+          "grade": {
+            "$ref": "#/components/schemas/Grade"
+          },
+          "intervalLabel": {
+            "maxLength": 12,
+            "type": "string"
+          },
+          "n": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "grade",
+          "n",
+          "intervalLabel"
+        ],
+        "type": "object"
+      },
       "HealthData": {
         "properties": {
           "buildId": {
@@ -3117,6 +4072,522 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "HomeBank": {
+        "properties": {
+          "due": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "estMin": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "nextBatch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NextBatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "thumbs": {
+            "items": {
+              "$ref": "#/components/schemas/HomeBankThumb"
+            },
+            "maxItems": 4,
+            "type": "array"
+          },
+          "topTheme": {
+            "anyOf": [
+              {
+                "properties": {
+                  "label": {
+                    "maxLength": 40,
+                    "type": "string"
+                  },
+                  "n": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "label",
+                  "n"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "due",
+          "total",
+          "estMin",
+          "topTheme",
+          "thumbs",
+          "nextBatch"
+        ],
+        "type": "object"
+      },
+      "HomeBankThumb": {
+        "properties": {
+          "cardRef": {
+            "pattern": "^[mpo]_[A-Za-z0-9]{1,24}$",
+            "type": "string"
+          },
+          "fen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "orient": {
+            "$ref": "#/components/schemas/Color"
+          }
+        },
+        "required": [
+          "cardRef",
+          "fen",
+          "orient",
+          "label"
+        ],
+        "type": "object"
+      },
+      "HomeContinue": {
+        "properties": {
+          "accuracy": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "analysis": {
+            "properties": {
+              "done": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "status": {
+                "enum": [
+                  "queued",
+                  "running",
+                  "done",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "total": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "status",
+              "done",
+              "total"
+            ],
+            "type": "object"
+          },
+          "endMove": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "fen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "gameRef": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "keyMomentCount": {
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "moments",
+              "clean",
+              "analysing"
+            ],
+            "type": "string"
+          },
+          "lastMove": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "pattern": "^[a-h][1-8]$",
+                    "type": "string"
+                  },
+                  {
+                    "pattern": "^[a-h][1-8]$",
+                    "type": "string"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "openingName": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "opponent": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "opponentRating": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orient": {
+            "$ref": "#/components/schemas/Color"
+          },
+          "result": {
+            "$ref": "#/components/schemas/GameResultW"
+          },
+          "whenLabel": {
+            "maxLength": 16,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "gameRef",
+          "fen",
+          "orient",
+          "lastMove",
+          "opponent",
+          "opponentRating",
+          "result",
+          "endMove",
+          "openingName",
+          "whenLabel",
+          "keyMomentCount",
+          "accuracy",
+          "analysis"
+        ],
+        "type": "object"
+      },
+      "HomeData": {
+        "properties": {
+          "bank": {
+            "$ref": "#/components/schemas/HomeBank"
+          },
+          "continue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HomeContinue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "greeting": {
+            "properties": {
+              "name": {
+                "maxLength": 40,
+                "type": "string"
+              },
+              "part": {
+                "enum": [
+                  "morning",
+                  "afternoon",
+                  "evening"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "part",
+              "name"
+            ],
+            "type": "object"
+          },
+          "hasLinkedAccount": {
+            "type": "boolean"
+          },
+          "import": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HomeImport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/HomeRecentGame"
+            },
+            "maxItems": 8,
+            "type": "array"
+          },
+          "startHere": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HomeStartHere"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "populated",
+              "new_user"
+            ],
+            "type": "string"
+          },
+          "stats": {
+            "properties": {
+              "gamesThisWeek": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "gamesThisWeek"
+            ],
+            "type": "object"
+          },
+          "week": {
+            "$ref": "#/components/schemas/HomeWeek"
+          }
+        },
+        "required": [
+          "state",
+          "greeting",
+          "stats",
+          "continue",
+          "startHere",
+          "bank",
+          "week",
+          "recent",
+          "import",
+          "hasLinkedAccount"
+        ],
+        "type": "object"
+      },
+      "HomeImport": {
+        "properties": {
+          "etaSec": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "imported": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "enum": [
+              "chesscom",
+              "lichess"
+            ],
+            "type": "string"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "imported",
+          "total",
+          "etaSec"
+        ],
+        "type": "object"
+      },
+      "HomeRecentGame": {
+        "properties": {
+          "chip": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dateLabel": {
+            "maxLength": 16,
+            "type": "string"
+          },
+          "gameRef": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "opponent": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "opponentRating": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "$ref": "#/components/schemas/GameResultW"
+          }
+        },
+        "required": [
+          "gameRef",
+          "result",
+          "opponent",
+          "opponentRating",
+          "chip",
+          "dateLabel"
+        ],
+        "type": "object"
+      },
+      "HomeStartHere": {
+        "properties": {
+          "ariaLabel": {
+            "maxLength": 160,
+            "type": "string"
+          },
+          "blurb": {
+            "maxLength": 300,
+            "type": "string"
+          },
+          "fen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "href": {
+            "maxLength": 200,
+            "pattern": "^\\/.*",
+            "type": "string"
+          },
+          "orient": {
+            "$ref": "#/components/schemas/Color"
+          },
+          "title": {
+            "maxLength": 80,
+            "type": "string"
+          }
+        },
+        "required": [
+          "href",
+          "fen",
+          "orient",
+          "title",
+          "blurb",
+          "ariaLabel"
+        ],
+        "type": "object"
+      },
+      "HomeWeek": {
+        "properties": {
+          "aria": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "type": "boolean"
+            },
+            "maxItems": 7,
+            "minItems": 7,
+            "type": "array"
+          },
+          "games": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "puzzles": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "days",
+          "games",
+          "puzzles",
+          "aria"
+        ],
         "type": "object"
       },
       "ImportErrorCode": {
@@ -3213,6 +4684,38 @@
         ],
         "type": "string"
       },
+      "IntervalPreview": {
+        "properties": {
+          "days": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "due": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 12,
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "due",
+          "days"
+        ],
+        "type": "object"
+      },
+      "ItemKind": {
+        "enum": [
+          "mistake",
+          "review_position",
+          "puzzle",
+          "opening_line"
+        ],
+        "type": "string"
+      },
       "JKey": {
         "enum": [
           "brilliant",
@@ -3223,6 +4726,15 @@
           "book",
           "forced",
           "interesting",
+          "inaccuracy",
+          "mistake",
+          "miss",
+          "blunder"
+        ],
+        "type": "string"
+      },
+      "JudgementW": {
+        "enum": [
           "inaccuracy",
           "mistake",
           "miss",
@@ -3768,6 +5280,35 @@
         ],
         "type": "object"
       },
+      "LessonCard": {
+        "properties": {
+          "href": {
+            "maxLength": 200,
+            "pattern": "^\\/.*",
+            "type": "string"
+          },
+          "minutes": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "slug": {
+            "maxLength": 80,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 80,
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "minutes",
+          "href"
+        ],
+        "type": "object"
+      },
       "LichessStartQuery": {
         "properties": {
           "returnTo": {
@@ -4235,6 +5776,9 @@
             "maxItems": 2,
             "type": "array"
           },
+          "badges": {
+            "$ref": "#/components/schemas/Badges"
+          },
           "buildId": {
             "type": "string"
           },
@@ -4399,6 +5943,28 @@
         ],
         "type": "string"
       },
+      "MomentBank": {
+        "properties": {
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MomentCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inBank": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "inBank",
+          "card"
+        ],
+        "type": "object"
+      },
       "MomentBankBody": {
         "properties": {
           "inBank": {
@@ -4410,10 +5976,40 @@
         ],
         "type": "object"
       },
+      "MomentBankCard": {
+        "properties": {
+          "dueAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "dueLabel": {
+            "maxLength": 16,
+            "type": "string"
+          },
+          "ref": {
+            "pattern": "^[mpo]_[A-Za-z0-9]{1,24}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref",
+          "dueAt",
+          "dueLabel"
+        ],
+        "type": "object"
+      },
       "MomentBankResponse": {
         "properties": {
           "card": {
-            "type": "null"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MomentBankCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "inBank": {
             "type": "boolean"
@@ -4428,6 +6024,23 @@
           "ply",
           "inBank",
           "card"
+        ],
+        "type": "object"
+      },
+      "MomentCard": {
+        "properties": {
+          "dueLabel": {
+            "maxLength": 16,
+            "type": "string"
+          },
+          "ref": {
+            "pattern": "^[mpo]_[A-Za-z0-9]{1,24}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref",
+          "dueLabel"
         ],
         "type": "object"
       },
@@ -4458,6 +6071,16 @@
           "bestUci": {
             "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
             "type": "string"
+          },
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MomentCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "inBank": {
             "type": "boolean"
@@ -4581,6 +6204,34 @@
           "revealed"
         ],
         "type": "string"
+      },
+      "NextBatch": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "atLabel": {
+            "maxLength": 24,
+            "type": "string"
+          },
+          "count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "whenLabel": {
+            "maxLength": 32,
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "atLabel",
+          "count"
+        ],
+        "type": "object"
       },
       "OkMeta": {
         "properties": {
@@ -4928,6 +6579,14 @@
         ],
         "type": "string"
       },
+      "PhaseW": {
+        "enum": [
+          "opening",
+          "middlegame",
+          "endgame"
+        ],
+        "type": "string"
+      },
       "PlanKey": {
         "enum": [
           "attack",
@@ -4935,6 +6594,58 @@
           "trade",
           "improve",
           "unsure"
+        ],
+        "type": "string"
+      },
+      "PlanStep": {
+        "properties": {
+          "estMin": {
+            "maximum": 60,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "href": {
+            "maxLength": 200,
+            "pattern": "^\\/.*",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PlanStepKind"
+          },
+          "status": {
+            "enum": [
+              "due",
+              "next",
+              "done"
+            ],
+            "type": "string"
+          },
+          "subtitle": {
+            "maxLength": 80,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 80,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "subtitle",
+          "estMin",
+          "status",
+          "href"
+        ],
+        "type": "object"
+      },
+      "PlanStepKind": {
+        "enum": [
+          "bank",
+          "puzzles",
+          "lesson",
+          "review",
+          "import"
         ],
         "type": "string"
       },
@@ -5175,6 +6886,29 @@
         ],
         "type": "string"
       },
+      "PuzzleRatingState": {
+        "properties": {
+          "provisional": {
+            "type": "boolean"
+          },
+          "rd": {
+            "type": "number"
+          },
+          "value": {
+            "type": "number"
+          },
+          "vol": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "rd",
+          "vol",
+          "provisional"
+        ],
+        "type": "object"
+      },
       "QueueInfo": {
         "properties": {
           "etaSec": {
@@ -5255,6 +6989,65 @@
             "$ref": "#/components/schemas/RatingEntry"
           }
         },
+        "type": "object"
+      },
+      "ReportBody": {
+        "additionalProperties": false,
+        "properties": {
+          "fen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "wrong_solution",
+              "better_move",
+              "illegal_move",
+              "text_wrong",
+              "other"
+            ],
+            "type": "string"
+          },
+          "targetRef": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "targetType": {
+            "enum": [
+              "mistake",
+              "puzzle"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "targetType",
+          "targetRef",
+          "reason",
+          "fen"
+        ],
+        "type": "object"
+      },
+      "ReportResult": {
+        "properties": {
+          "duplicate": {
+            "type": "boolean"
+          },
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref",
+          "duplicate"
+        ],
         "type": "object"
       },
       "RetryBody": {
@@ -5502,6 +7295,29 @@
         ],
         "type": "object"
       },
+      "ReviewBank": {
+        "properties": {
+          "count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "plies": {
+            "items": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 4,
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "plies"
+        ],
+        "type": "object"
+      },
       "ReviewCompleteView": {
         "properties": {
           "accuracy": {
@@ -5515,6 +7331,11 @@
                 "type": "null"
               }
             ]
+          },
+          "added": {
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
           },
           "bestDecision": {
             "anyOf": [
@@ -5534,6 +7355,18 @@
             "maximum": 9007199254740991,
             "minimum": 0,
             "type": "integer"
+          },
+          "drillHref": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "pattern": "^\\/train\\/bank\\/session\\?.*",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "found": {
             "maximum": 3,
@@ -5571,6 +7404,29 @@
             },
             "maxItems": 3,
             "type": "array"
+          },
+          "nextDueAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nextDueLabel": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "partial": {
             "type": "boolean"
@@ -6133,7 +7989,14 @@
             "type": "object"
           },
           "bank": {
-            "type": "null"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewBank"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "comparison": {
             "anyOf": [
@@ -6380,6 +8243,468 @@
         ],
         "type": "object"
       },
+      "SessionKindW": {
+        "enum": [
+          "daily",
+          "bank",
+          "puzzles",
+          "weakness",
+          "practice"
+        ],
+        "type": "string"
+      },
+      "SessionPayload": {
+        "properties": {
+          "capRemaining": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "countsTowardCap": {
+            "type": "boolean"
+          },
+          "empty": {
+            "anyOf": [
+              {
+                "enum": [
+                  "caughtup",
+                  "cap_reached",
+                  "nothing_matches"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "header": {
+            "properties": {
+              "rating": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PuzzleRatingState"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "solveStreak": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "title": {
+                "enum": [
+                  "Mistake Bank",
+                  "Puzzles",
+                  "Weakness drill",
+                  "Practice"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "solveStreak",
+              "rating"
+            ],
+            "type": "object"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TrainItem"
+            },
+            "maxItems": 40,
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SessionKindW"
+          },
+          "queueLabels": {
+            "items": {
+              "properties": {
+                "itemId": {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                "label": {
+                  "maxLength": 80,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "itemId",
+                "label"
+              ],
+              "type": "object"
+            },
+            "maxItems": 40,
+            "type": "array"
+          },
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "resumeIndex": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "completed",
+              "abandoned"
+            ],
+            "type": "string"
+          },
+          "stream": {
+            "type": "boolean"
+          },
+          "targetCount": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "theme": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThemeRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "themes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ThemeOption"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "widened": {
+            "anyOf": [
+              {
+                "properties": {
+                  "from": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "to": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ref",
+          "kind",
+          "status",
+          "theme",
+          "items",
+          "resumeIndex",
+          "queueLabels",
+          "header",
+          "capRemaining",
+          "countsTowardCap",
+          "stream",
+          "targetCount",
+          "themes",
+          "widened",
+          "empty"
+        ],
+        "type": "object"
+      },
+      "SessionQuery": {
+        "properties": {
+          "include": {
+            "default": "items",
+            "enum": [
+              "items",
+              "summary"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SessionRefParams": {
+        "properties": {
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref"
+        ],
+        "type": "object"
+      },
+      "SessionSource": {
+        "enum": [
+          "hub",
+          "plan",
+          "bank",
+          "review_complete",
+          "summary",
+          "nav",
+          "solve_one",
+          "home",
+          "picker",
+          "deeplink"
+        ],
+        "type": "string"
+      },
+      "SessionSummary": {
+        "properties": {
+          "eyebrow": {
+            "maxLength": 80,
+            "type": "string"
+          },
+          "graded": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "grades": {
+            "items": {
+              "$ref": "#/components/schemas/GradeRow"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SessionKindW"
+          },
+          "milestone": {
+            "anyOf": [
+              {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "theme",
+                      "perfect",
+                      "streak"
+                    ],
+                    "type": "string"
+                  },
+                  "label": {
+                    "maxLength": 60,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "label"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next": {
+            "properties": {
+              "lesson": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/LessonCard"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "puzzles": {
+                "properties": {
+                  "href": {
+                    "maxLength": 200,
+                    "pattern": "^\\/.*",
+                    "type": "string"
+                  },
+                  "note": {
+                    "maxLength": 120,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "href",
+                  "note"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "puzzles",
+              "lesson"
+            ],
+            "type": "object"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "properties": {
+                  "delta": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "value": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value",
+                  "delta"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ref": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "stats": {
+            "properties": {
+              "firstTry": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "skipped": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "solved": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "total": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "withHint": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "solved",
+              "total",
+              "firstTry",
+              "withHint",
+              "skipped"
+            ],
+            "type": "object"
+          },
+          "subtitle": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "themes": {
+            "items": {
+              "properties": {
+                "key": {
+                  "pattern": "^(rc:)?[A-Za-z0-9]{2,30}$",
+                  "type": "string"
+                },
+                "label": {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                "n": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "n"
+              ],
+              "type": "object"
+            },
+            "maxItems": 8,
+            "type": "array"
+          },
+          "title": {
+            "maxLength": 60,
+            "type": "string"
+          },
+          "variant": {
+            "enum": [
+              "default",
+              "perfect"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref",
+          "variant",
+          "kind",
+          "eyebrow",
+          "title",
+          "subtitle",
+          "stats",
+          "grades",
+          "themes",
+          "milestone",
+          "rating",
+          "next",
+          "graded"
+        ],
+        "type": "object"
+      },
       "ShareCodeParams": {
         "properties": {
           "code": {
@@ -6458,6 +8783,44 @@
         },
         "required": [
           "showUsername"
+        ],
+        "type": "object"
+      },
+      "SkipBody": {
+        "additionalProperties": false,
+        "properties": {
+          "sessionRef": {
+            "anyOf": [
+              {
+                "pattern": "^c[a-z0-9]{20,31}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "sessionRef"
+        ],
+        "type": "object"
+      },
+      "SkipResult": {
+        "properties": {
+          "label": {
+            "maxLength": 16,
+            "type": "string"
+          },
+          "suspendedUntil": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "suspendedUntil",
+          "label"
         ],
         "type": "object"
       },
@@ -6563,6 +8926,102 @@
         ],
         "type": "string"
       },
+      "ThemeOption": {
+        "properties": {
+          "attempts": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "available": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "group": {
+            "enum": [
+              "recommended",
+              "tactics",
+              "material",
+              "mates",
+              "defence",
+              "special",
+              "endgames"
+            ],
+            "type": "string"
+          },
+          "key": {
+            "pattern": "^(rc:)?[A-Za-z0-9]{2,30}$",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recommended": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "group",
+          "pct",
+          "attempts",
+          "available",
+          "recommended"
+        ],
+        "type": "object"
+      },
+      "ThemeRef": {
+        "properties": {
+          "key": {
+            "pattern": "^(rc:)?[A-Za-z0-9]{2,30}$",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 40,
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "type": "object"
+      },
+      "ThemesResult": {
+        "properties": {
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ThemeOption"
+            },
+            "type": "array"
+          },
+          "rating": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "options",
+          "rating"
+        ],
+        "type": "object"
+      },
       "TimeClassSlug": {
         "enum": [
           "bullet",
@@ -6572,6 +9031,754 @@
           "daily"
         ],
         "type": "string"
+      },
+      "TrainItem": {
+        "properties": {
+          "accept": {
+            "items": {
+              "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+              "type": "string"
+            },
+            "maxItems": 6,
+            "type": "array"
+          },
+          "cardRef": {
+            "anyOf": [
+              {
+                "pattern": "^[mpo]_[A-Za-z0-9]{1,24}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cardReps": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrainItemContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fen": {
+            "maxLength": 100,
+            "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+            "type": "string"
+          },
+          "itemId": {
+            "maxLength": 8,
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ItemKind"
+          },
+          "lastMove": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "pattern": "^[a-h][1-8]$",
+                    "type": "string"
+                  },
+                  {
+                    "pattern": "^[a-h][1-8]$",
+                    "type": "string"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mastery": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orient": {
+            "$ref": "#/components/schemas/Color"
+          },
+          "pass": {
+            "anyOf": [
+              {
+                "const": 1,
+                "type": "number"
+              },
+              {
+                "const": 2,
+                "type": "number"
+              }
+            ]
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/IntervalPreview"
+                },
+                "propertyNames": {
+                  "$ref": "#/components/schemas/Grade"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previewAfterAgain": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/IntervalPreview"
+                },
+                "propertyNames": {
+                  "$ref": "#/components/schemas/Grade"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "puzzleId": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9]{5,8}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "setup": {
+            "items": {
+              "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+              "type": "string"
+            },
+            "maxItems": 1,
+            "type": "array"
+          },
+          "solution": {
+            "items": {
+              "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+              "type": "string"
+            },
+            "maxItems": 15,
+            "minItems": 1,
+            "type": "array"
+          },
+          "sourceLabel": {
+            "maxLength": 80,
+            "type": "string"
+          },
+          "text": {
+            "$ref": "#/components/schemas/TrainItemText"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/ThemeRef"
+          }
+        },
+        "required": [
+          "itemId",
+          "kind",
+          "pass",
+          "cardRef",
+          "puzzleId",
+          "fen",
+          "setup",
+          "lastMove",
+          "solution",
+          "accept",
+          "orient",
+          "theme",
+          "rating",
+          "sourceLabel",
+          "context",
+          "text",
+          "preview",
+          "previewAfterAgain",
+          "cardReps",
+          "mastery"
+        ],
+        "type": "object"
+      },
+      "TrainItemContext": {
+        "properties": {
+          "costText": {
+            "maxLength": 300,
+            "type": "string"
+          },
+          "gameLabel": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "gamePly": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gameRef": {
+            "pattern": "^c[a-z0-9]{20,31}$",
+            "type": "string"
+          },
+          "judgement": {
+            "$ref": "#/components/schemas/JudgementW"
+          },
+          "playedSan": {
+            "maxLength": 10,
+            "type": "string"
+          },
+          "playedUci": {
+            "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gameRef",
+          "gamePly",
+          "gameLabel",
+          "playedUci",
+          "playedSan",
+          "judgement",
+          "costText"
+        ],
+        "type": "object"
+      },
+      "TrainItemText": {
+        "properties": {
+          "correct": {
+            "maxLength": 400,
+            "type": "string"
+          },
+          "hint": {
+            "maxLength": 300,
+            "type": "string"
+          },
+          "look": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "wrongGameMove": {
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "hint",
+          "look",
+          "correct",
+          "wrongGameMove",
+          "verified"
+        ],
+        "type": "object"
+      },
+      "TrainPrefs": {
+        "properties": {
+          "autoGrade": {
+            "type": "boolean"
+          },
+          "bankDailyCap": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "dayStartHour": {
+            "maximum": 23,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "newPerDay": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "releaseHour": {
+            "maximum": 23,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timeZone": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [
+          "timeZone",
+          "dayStartHour",
+          "releaseHour",
+          "bankDailyCap",
+          "newPerDay",
+          "autoGrade"
+        ],
+        "type": "object"
+      },
+      "TrainPrefsPatch": {
+        "additionalProperties": false,
+        "properties": {
+          "autoGrade": {
+            "type": "boolean"
+          },
+          "bankDailyCap": {
+            "maximum": 30,
+            "minimum": 5,
+            "type": "integer"
+          },
+          "dayStartHour": {
+            "maximum": 6,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "newPerDay": {
+            "maximum": 30,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "releaseHour": {
+            "maximum": 12,
+            "minimum": 5,
+            "type": "integer"
+          },
+          "timeZone": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TrainToday": {
+        "properties": {
+          "allTraining": {
+            "properties": {
+              "bank": {
+                "properties": {
+                  "due": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "total": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "due",
+                  "total"
+                ],
+                "type": "object"
+              },
+              "puzzles": {
+                "properties": {
+                  "themes": {
+                    "items": {
+                      "properties": {
+                        "key": {
+                          "pattern": "^(rc:)?[A-Za-z0-9]{2,30}$",
+                          "type": "string"
+                        },
+                        "label": {
+                          "maxLength": 40,
+                          "type": "string"
+                        },
+                        "pct": {
+                          "anyOf": [
+                            {
+                              "maximum": 100,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "label",
+                        "pct"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 3,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "themes"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "bank",
+              "puzzles"
+            ],
+            "type": "object"
+          },
+          "dayKey": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$",
+            "type": "string"
+          },
+          "due": {
+            "properties": {
+              "cap": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "capRemaining": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "preview": {
+                "items": {
+                  "$ref": "#/components/schemas/DuePreview"
+                },
+                "maxItems": 4,
+                "type": "array"
+              },
+              "raw": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "shown": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "waitingLine": {
+                "anyOf": [
+                  {
+                    "maxLength": 120,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "shown",
+              "raw",
+              "capRemaining",
+              "cap",
+              "waitingLine",
+              "preview"
+            ],
+            "type": "object"
+          },
+          "keepGoing": {
+            "anyOf": [
+              {
+                "properties": {
+                  "href": {
+                    "maxLength": 200,
+                    "pattern": "^\\/.*",
+                    "type": "string"
+                  },
+                  "label": {
+                    "maxLength": 60,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "href",
+                  "label"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mastery": {
+            "items": {
+              "properties": {
+                "key": {
+                  "pattern": "^(rc:)?[A-Za-z0-9]{2,30}$",
+                  "type": "string"
+                },
+                "label": {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                "pct": {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "pct"
+              ],
+              "type": "object"
+            },
+            "maxItems": 4,
+            "type": "array"
+          },
+          "nextBatch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NextBatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan": {
+            "properties": {
+              "basis": {
+                "enum": [
+                  "bank",
+                  "games20",
+                  "new"
+                ],
+                "type": "string"
+              },
+              "cta": {
+                "properties": {
+                  "href": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "kind": {
+                    "enum": [
+                      "start",
+                      "continue",
+                      "keep_going"
+                    ],
+                    "type": "string"
+                  },
+                  "label": {
+                    "maxLength": 60,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "label",
+                  "href"
+                ],
+                "type": "object"
+              },
+              "done": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "footnote": {
+                "maxLength": 120,
+                "type": "string"
+              },
+              "steps": {
+                "items": {
+                  "$ref": "#/components/schemas/PlanStep"
+                },
+                "maxItems": 3,
+                "type": "array"
+              },
+              "total": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "steps",
+              "done",
+              "total",
+              "basis",
+              "cta",
+              "footnote"
+            ],
+            "type": "object"
+          },
+          "plannedMinutes": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "prefs": {
+            "properties": {
+              "dayStartHour": {
+                "maximum": 23,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "releaseHour": {
+                "maximum": 23,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "timeZone": {
+                "maxLength": 64,
+                "type": "string"
+              }
+            },
+            "required": [
+              "timeZone",
+              "dayStartHour",
+              "releaseHour"
+            ],
+            "type": "object"
+          },
+          "puzzleRating": {
+            "properties": {
+              "provisional": {
+                "type": "boolean"
+              },
+              "value": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "value",
+              "provisional"
+            ],
+            "type": "object"
+          },
+          "state": {
+            "enum": [
+              "default",
+              "nothingdue"
+            ],
+            "type": "string"
+          },
+          "streak": {
+            "properties": {
+              "aria": {
+                "maxLength": 120,
+                "type": "string"
+              },
+              "best": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "current": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "week": {
+                "items": {
+                  "type": "boolean"
+                },
+                "maxItems": 7,
+                "minItems": 7,
+                "type": "array"
+              }
+            },
+            "required": [
+              "current",
+              "best",
+              "week",
+              "aria"
+            ],
+            "type": "object"
+          },
+          "weekdayLabel": {
+            "maxLength": 16,
+            "type": "string"
+          }
+        },
+        "required": [
+          "dayKey",
+          "weekdayLabel",
+          "plannedMinutes",
+          "state",
+          "streak",
+          "plan",
+          "due",
+          "nextBatch",
+          "allTraining",
+          "mastery",
+          "keepGoing",
+          "puzzleRating",
+          "prefs"
+        ],
+        "type": "object"
       },
       "TrialState": {
         "properties": {
@@ -10008,6 +13215,96 @@
         "x-class": "R1"
       }
     },
+    "/api/home": {
+      "get": {
+        "operationId": "home.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/HomeData"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "The viewer's Home: continue, Mistake Bank, this week, recent games",
+        "tags": [
+          "home"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "R1"
+      }
+    },
     "/api/import/status": {
       "get": {
         "operationId": "import.status",
@@ -10407,6 +13704,96 @@
         "x-side-effects": [
           "provision_user"
         ]
+      }
+    },
+    "/api/me/badges": {
+      "get": {
+        "operationId": "me.badges",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Badges"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "The viewer's nav badges (Mistake Bank due count, Train dot)",
+        "tags": [
+          "home"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "R1"
       }
     },
     "/api/me/games": {
@@ -11059,6 +14446,234 @@
         "x-auth": "member",
         "x-cache": "private-etag",
         "x-class": "R1"
+      }
+    },
+    "/api/reports": {
+      "post": {
+        "operationId": "reports.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "fen": {
+                    "maxLength": 100,
+                    "pattern": "^(?:[prnbqkPRNBQK1-8]{1,8}\\/){7}[prnbqkPRNBQK1-8]{1,8} [wb] (?:-|[KQkq]{1,4}) (?:-|[a-h][36])(?: \\d{1,3} \\d{1,4})?$",
+                    "type": "string"
+                  },
+                  "note": {
+                    "maxLength": 500,
+                    "type": "string"
+                  },
+                  "reason": {
+                    "enum": [
+                      "wrong_solution",
+                      "better_move",
+                      "illegal_move",
+                      "text_wrong",
+                      "other"
+                    ],
+                    "type": "string"
+                  },
+                  "targetRef": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "targetType": {
+                    "enum": [
+                      "mistake",
+                      "puzzle"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "targetType",
+                  "targetRef",
+                  "reason",
+                  "fen"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReportResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content: `idempotency_key_reused`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Reports a problem with a Mistake Bank position or a puzzle",
+        "tags": [
+          "reports"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 4096,
+        "x-rate-limit": [
+          {
+            "bucket": "report-burst",
+            "by": "user",
+            "limit": 5,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
       }
     },
     "/api/review/{ref}": {
@@ -13702,6 +17317,2130 @@
         "x-class": "R1"
       }
     },
+    "/api/train/attempts": {
+      "post": {
+        "operationId": "train.attempts",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "attempts": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "cardRef": {
+                          "anyOf": [
+                            {
+                              "pattern": "^[mpo]_[A-Za-z0-9]{1,24}$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cardReps": {
+                          "anyOf": [
+                            {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "clientAttemptId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "firstTry": {
+                          "type": "boolean"
+                        },
+                        "grade": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "again",
+                                "hard",
+                                "good",
+                                "easy"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "hintsUsed": {
+                          "maximum": 2,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "itemId": {
+                          "anyOf": [
+                            {
+                              "maxLength": 8,
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "kind": {
+                          "enum": [
+                            "mistake",
+                            "review_position",
+                            "puzzle",
+                            "opening_line"
+                          ],
+                          "type": "string"
+                        },
+                        "puzzleId": {
+                          "anyOf": [
+                            {
+                              "pattern": "^[A-Za-z0-9]{5,8}$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reviewedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "sessionRef": {
+                          "anyOf": [
+                            {
+                              "pattern": "^c[a-z0-9]{20,31}$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "solutionShown": {
+                          "type": "boolean"
+                        },
+                        "solved": {
+                          "type": "boolean"
+                        },
+                        "stale": {
+                          "type": "boolean"
+                        },
+                        "suggestedGrade": {
+                          "enum": [
+                            "again",
+                            "hard",
+                            "good",
+                            "easy"
+                          ],
+                          "type": "string"
+                        },
+                        "timeMs": {
+                          "maximum": 3600000,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "wrongMovesUci": {
+                          "items": {
+                            "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+                            "type": "string"
+                          },
+                          "maxItems": 10,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "clientAttemptId",
+                        "sessionRef",
+                        "itemId",
+                        "cardRef",
+                        "puzzleId",
+                        "kind",
+                        "solved",
+                        "firstTry",
+                        "hintsUsed",
+                        "wrongMovesUci",
+                        "solutionShown",
+                        "timeMs",
+                        "grade",
+                        "suggestedGrade",
+                        "cardReps",
+                        "reviewedAt"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 50,
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "attempts"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AttemptsResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Records graded attempts (the offline outbox flush)",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 65536,
+        "x-rate-limit": [
+          {
+            "bucket": "train-write",
+            "by": "user",
+            "limit": 120,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/train/bank": {
+      "get": {
+        "operationId": "train.bank",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "due",
+                "all"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "theme",
+            "required": false,
+            "schema": {
+              "pattern": "^(rc:)?[A-Za-z0-9]{2,30}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "phase",
+            "required": false,
+            "schema": {
+              "enum": [
+                "opening",
+                "middlegame",
+                "endgame"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "enum": [
+                "own",
+                "missed"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 256,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/BankPage"
+                        },
+                        {
+                          "$ref": "#/components/schemas/BankNextPage"
+                        }
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "The viewer's Mistake Bank (filters, facets, upcoming), keyset-paged",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "R2"
+      }
+    },
+    "/api/train/cards/{ref}": {
+      "delete": {
+        "operationId": "train.cards.remove",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^[mpo]_[A-Za-z0-9]{1,24}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Removes a position from the Mistake Bank",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-rate-limit": [
+          {
+            "bucket": "train-write",
+            "by": "user",
+            "limit": 120,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/train/cards/{ref}/skip": {
+      "post": {
+        "operationId": "train.cards.skip",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^[mpo]_[A-Za-z0-9]{1,24}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "sessionRef": {
+                    "anyOf": [
+                      {
+                        "pattern": "^c[a-z0-9]{20,31}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "sessionRef"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SkipResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Skips a card for today",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 1024,
+        "x-rate-limit": [
+          {
+            "bucket": "train-write",
+            "by": "user",
+            "limit": 120,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/train/prefs": {
+      "patch": {
+        "operationId": "train.prefs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "autoGrade": {
+                    "type": "boolean"
+                  },
+                  "bankDailyCap": {
+                    "maximum": 30,
+                    "minimum": 5,
+                    "type": "integer"
+                  },
+                  "dayStartHour": {
+                    "maximum": 6,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "newPerDay": {
+                    "maximum": 30,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "releaseHour": {
+                    "maximum": 12,
+                    "minimum": 5,
+                    "type": "integer"
+                  },
+                  "timeZone": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TrainPrefs"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Updates the viewer's training preferences (time zone, day start, release hour, caps)",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 1024,
+        "x-rate-limit": [
+          {
+            "bucket": "train-write",
+            "by": "user",
+            "limit": 120,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/train/sessions": {
+      "post": {
+        "operationId": "train.sessions.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "daily",
+                        "type": "string"
+                      },
+                      "source": {
+                        "default": "plan",
+                        "enum": [
+                          "hub",
+                          "plan",
+                          "bank",
+                          "review_complete",
+                          "summary",
+                          "nav",
+                          "solve_one",
+                          "home",
+                          "picker",
+                          "deeplink"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "cardRefs": {
+                        "items": {
+                          "pattern": "^[mpo]_[A-Za-z0-9]{1,24}$",
+                          "type": "string"
+                        },
+                        "maxItems": 20,
+                        "minItems": 1,
+                        "type": "array"
+                      },
+                      "filter": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "phase": {
+                            "enum": [
+                              "opening",
+                              "middlegame",
+                              "endgame"
+                            ],
+                            "type": "string"
+                          },
+                          "source": {
+                            "enum": [
+                              "own",
+                              "missed"
+                            ],
+                            "type": "string"
+                          },
+                          "theme": {
+                            "pattern": "^(rc:)?[A-Za-z0-9]{2,30}$",
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "gameRef": {
+                        "pattern": "^c[a-z0-9]{20,31}$",
+                        "type": "string"
+                      },
+                      "kind": {
+                        "const": "bank",
+                        "type": "string"
+                      },
+                      "practice": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "source": {
+                        "enum": [
+                          "hub",
+                          "plan",
+                          "bank",
+                          "review_complete",
+                          "summary",
+                          "nav",
+                          "solve_one",
+                          "home",
+                          "picker",
+                          "deeplink"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "source"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "count": {
+                        "maximum": 10,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "kind": {
+                        "const": "puzzles",
+                        "type": "string"
+                      },
+                      "source": {
+                        "enum": [
+                          "hub",
+                          "plan",
+                          "bank",
+                          "review_complete",
+                          "summary",
+                          "nav",
+                          "solve_one",
+                          "home",
+                          "picker",
+                          "deeplink"
+                        ],
+                        "type": "string"
+                      },
+                      "theme": {
+                        "pattern": "^(rc:)?[A-Za-z0-9]{2,30}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "source"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "fromSessionRef": {
+                        "pattern": "^c[a-z0-9]{20,31}$",
+                        "type": "string"
+                      },
+                      "kind": {
+                        "const": "practice",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "fromSessionRef"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SessionPayload"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content: `idempotency_key_reused`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Gateway: `upstream_unavailable`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Creates (or resumes) a training session",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W2",
+        "x-max-body-bytes": 16384,
+        "x-rate-limit": [
+          {
+            "bucket": "train-session-burst",
+            "by": "user",
+            "limit": 20,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/train/sessions/{ref}": {
+      "get": {
+        "operationId": "train.sessions.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "default": "items",
+              "enum": [
+                "items",
+                "summary"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/SessionPayload"
+                        },
+                        {
+                          "$ref": "#/components/schemas/SessionSummary"
+                        }
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "One of the viewer's training sessions (items or summary)",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "R2"
+      }
+    },
+    "/api/train/sessions/{ref}/end": {
+      "post": {
+        "operationId": "train.sessions.end",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "reason": {
+                    "enum": [
+                      "done",
+                      "user",
+                      "timeout"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reason"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SessionSummary"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Ends a training session and returns its summary",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 1024
+      }
+    },
+    "/api/train/sessions/{ref}/extend": {
+      "post": {
+        "operationId": "train.sessions.extend",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "pattern": "^c[a-z0-9]{20,31}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "after": {
+                    "maxLength": 8,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "after"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ExtendResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict: `conflict`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Gateway: `upstream_unavailable`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Appends puzzles to an active puzzle session",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W2",
+        "x-max-body-bytes": 4096,
+        "x-rate-limit": [
+          {
+            "bucket": "train-write",
+            "by": "user",
+            "limit": 120,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/train/themes": {
+      "get": {
+        "operationId": "train.themes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ThemesResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Puzzle themes with the viewer's mastery and the puzzles available near their rating",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "R1"
+      }
+    },
+    "/api/train/today": {
+      "get": {
+        "operationId": "train.today",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TrainToday"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Today's training plan, streak, due counts and theme mastery",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "R1",
+        "x-side-effects": [
+          "daily_plan"
+        ]
+      }
+    },
     "/api/webhook/clerk": {
       "post": {
         "operationId": "webhook.clerk",
@@ -13910,6 +19649,9 @@
       "name": "games"
     },
     {
+      "name": "home"
+    },
+    {
       "name": "import"
     },
     {
@@ -13925,6 +19667,9 @@
       "name": "realtime"
     },
     {
+      "name": "reports"
+    },
+    {
       "name": "review"
     },
     {
@@ -13932,6 +19677,9 @@
     },
     {
       "name": "system"
+    },
+    {
+      "name": "train"
     },
     {
       "name": "webhooks"

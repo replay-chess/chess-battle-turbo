@@ -38,8 +38,28 @@ async function settled(page: Page): Promise<void> {
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 }
 
+/** A 1×1 transparent GIF. */
+const PIXEL = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+
+/**
+ * The marketing pages carry ~100 third-party directory badges (/about: 106 images on 40 hosts), and these tests wait for
+ * `load`, which waits for every one of them: a slow badge host held a WebKit `load` past the 60 s test timeout under a
+ * busy run (REGRESSION-5, webkit-iphone "is retried, then reported"). Third-party images answer a local pixel here, so
+ * the tests measure the registration, not the badge hosts. Scripts and fetches (Clerk) pass through.
+ */
+async function localBadges(context: BrowserContext): Promise<void> {
+  await context.route(
+    (url) => /^https?:$/.test(url.protocol) && !["localhost", "127.0.0.1"].includes(url.hostname),
+    (route) => (route.request().resourceType() === "image" ? route.fulfill({ status: 200, contentType: "image/gif", body: PIXEL }) : route.fallback()),
+  );
+}
+
 // @prod-build: /sw.js exists only in a production build (next-pwa is off under `next dev`; playwright.config.ts).
 test.describe("service worker registration @p1 @smoke @public @prod-build", () => {
+  test.beforeEach(async ({ context }) => {
+    await localBadges(context);
+  });
+
   test("a navigation that cancels the registration is not a page error", async ({ context, page }) => {
     test.setTimeout(180_000);
     const sw = await holdServiceWorker(context);

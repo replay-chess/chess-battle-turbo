@@ -11,8 +11,13 @@ export type BoardStageProps = {
   aside?: React.ReactNode;
   /** Stack-mode control bar (phones, iPad portrait); hidden in side mode. */
   footer?: React.ReactNode;
-  /** 300–360px (V3Game, default) or 300–400px (V3PlayHub). */
-  asideWidth?: "game" | "hub";
+  /** 300–360px (V3Game, default), 300–400px (V3PlayHub) or 360–380px (the P5 trainer, V3BankSession / V3Puzzle*). */
+  asideWidth?: "game" | "hub" | "trainer";
+  /**
+   * The bars' height in side mode: "players" (48px, default: the game's player bars) or "labels" (42px: the
+   * trainer's label lines, so the two bars take the design's `--bars: 96px`).
+   */
+  bars?: "players" | "labels";
   /** aria-label of the board section, e.g. "Board". */
   label: string;
 };
@@ -43,7 +48,7 @@ export type BoardStageProps = {
  * - `--rc-mode` (side | stack) is readable from JS after hydration only. Never
  *   use it to choose the first render.
  */
-export function BoardStage({ board, top, bottom, aside, footer, asideWidth = "game", label }: BoardStageProps) {
+export function BoardStage({ board, top, bottom, aside, footer, asideWidth = "game", bars: barKind = "players", label }: BoardStageProps) {
   const bars = (top ? 1 : 0) + (bottom ? 1 : 0);
   return (
     <div className="rc-stage" data-rc-stage="" data-rc-lock="">
@@ -52,6 +57,7 @@ export function BoardStage({ board, top, bottom, aside, footer, asideWidth = "ga
         data-aside={aside ? "" : undefined}
         data-footer={footer ? "" : undefined}
         data-aside-w={asideWidth}
+        data-bars={barKind === "labels" ? "labels" : undefined}
         style={{ "--rc-nbars": bars } as React.CSSProperties}
       >
         <section className="rc-stage__col" aria-label={label}>

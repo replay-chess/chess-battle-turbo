@@ -55,8 +55,14 @@ export type AccountItem = {
  * query cache, the user store and the SW runtime caches, calls POST /api/session/clear, resets analytics, tells
  * other tabs, then signs out of Clerk. `queryClient` defaults to the tab's singleton, the one <Providers> uses.
  */
-export async function runSignOut(clerk: SignOutClerk, queryClient: QueryClient = getQueryClient()): Promise<void> {
-  await signOutEverywhere(clerk, { queryClient });
+export async function runSignOut(
+  clerk: SignOutClerk,
+  queryClient: QueryClient = getQueryClient(),
+  userRef?: string,
+): Promise<void> {
+  // P5 (phase-05 plan §5.4 step 7): with the user's ref, their graded attempts are flushed (≤ 3 s) and the
+  // offline outbox and session snapshots are cleared before the session goes.
+  await signOutEverywhere(clerk, { queryClient, userRef });
 }
 
 /**
@@ -178,7 +184,7 @@ export function useAccountActions(user: ShellUser, { demo = false }: { demo?: bo
       disabled: demo,
       run: () => {
         track("signout");
-        void runSignOut(clerk, queryClient);
+        void runSignOut(clerk, queryClient, demo ? undefined : user.referenceId);
       },
     },
   );
