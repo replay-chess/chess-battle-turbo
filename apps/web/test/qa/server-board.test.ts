@@ -35,9 +35,18 @@ test("no server component imports the interactive Board (it takes function props
 // The review's route loading state (the first regression's file) is gone: /game/[ref] and the /review/[ref] pages
 // render their screen in the document's shell, with no Suspense boundary around it (a streamed segment left a hidden
 // second copy of the screen when React client-rendered the boundary first: bot-resume-starved-frames.spec.ts,
-// review-document.spec.ts). A loading.tsx in those segments would bring the boundary back.
-test("the game and review screens have no route loading boundary", () => {
-  const segments = ["app/(app)/game/[ref]", "app/(app)/review/[ref]", "app/(app)/review/[ref]/complete", "app/(app)/review/[ref]/legend", "app/(app)/review/[ref]/share"];
+// review-document.spec.ts). A loading.tsx in those segments would bring the boundary back. P5: the two trainer
+// routes render the interactive TrainerBoard the same way (train-document.spec.ts).
+test("the game, review and trainer screens have no route loading boundary", () => {
+  const segments = [
+    "app/(app)/game/[ref]",
+    "app/(app)/review/[ref]",
+    "app/(app)/review/[ref]/complete",
+    "app/(app)/review/[ref]/legend",
+    "app/(app)/review/[ref]/share",
+    "app/(app)/train/puzzles",
+    "app/(app)/train/bank/session",
+  ];
   const found = segments.flatMap((dir) => readdirSync(path.join(WEB, dir)).filter((f) => /^loading\.(tsx|ts|jsx|js)$/.test(f)).map((f) => `${dir}/${f}`));
   assert.deepEqual(found, []);
 });

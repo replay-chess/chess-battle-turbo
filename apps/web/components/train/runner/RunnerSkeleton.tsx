@@ -1,6 +1,7 @@
-// The runner's loading state (`loading.tsx` of /train/bank/session and /train/puzzles, and the page's answer to a
-// router prefetch, which must never create a session, §5.1): the same BoardStage geometry as the runner, so nothing
-// moves when the payload arrives (CLS ≤ 0.02, §9.6). Server component, `aria-busy` with one sr-only "Loading…".
+// The runner's skeleton: the page's answer to a router prefetch, which must never create a session (§5.1). The runner
+// routes have no loading.tsx (the runner is in the document's shell, train-document.spec.ts). The same BoardStage
+// geometry as the runner, so nothing moves when the payload arrives (CLS ≤ 0.02, §9.6). Server component, `aria-busy`
+// with one sr-only "Loading…".
 import { BoardStage } from "@/components/layout/BoardStage";
 import { Skeleton, SkeletonBoard, SkeletonRegion, SkeletonText } from "@/components/ui/skeleton";
 import "./trainer.css";
