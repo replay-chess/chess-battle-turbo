@@ -9,7 +9,8 @@ import { qk } from "@/lib/api/keys";
 export const BANK_TOGGLE_COPY = {
   label: "Add this position to my Mistake Bank",
   /** Toasts: one sentence, no trailing period (P1 notify rule). */
-  added: (dueLabel: string | null) => (dueLabel ? `Added to Mistake Bank · next review ${dueLabel}` : "Added to Mistake Bank"),
+  /** A6's `dueLabel` is a row label ("Today", "Tomorrow", "Sat", "Nov 6"); mid-sentence the day words are lower case. */
+  added: (dueLabel: string | null) => (dueLabel ? `Added to Mistake Bank · next review ${midSentenceDay(dueLabel)}` : "Added to Mistake Bank"),
   removed: "Removed from Mistake Bank",
   failed: "Couldn't update your Mistake Bank",
   /** A6 409 `not_bankable`: the stored analysis cannot make a bank position of this moment (nothing changed). */
@@ -17,6 +18,11 @@ export const BANK_TOGGLE_COPY = {
   shortcutTitle: "In a Key Moment",
   shortcutRow: "Add to or remove from the Mistake Bank",
 } as const;
+
+/** "Today" / "Tomorrow" lower case inside a sentence; weekdays and dates keep their capitals. */
+export function midSentenceDay(label: string): string {
+  return label === "Today" || label === "Tomorrow" ? label.toLowerCase() : label;
+}
 
 /** A1 with one moment's bank fields replaced (the same object when nothing changes or the ply is unknown). */
 export function withMomentBank(dto: ReviewDTO, ply: number, inBank: boolean, card: MomentCard | null): ReviewDTO {

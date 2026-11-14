@@ -30,6 +30,11 @@ test("no change, an unknown ply or no review: the same object", () => {
 test("copy and stale keys", () => {
   assert.equal(BANK_TOGGLE_COPY.added("tomorrow"), "Added to Mistake Bank · next review tomorrow");
   assert.equal(BANK_TOGGLE_COPY.added(null), "Added to Mistake Bank");
+  // Regression (browser pass, staging 8bc24d3): A6's dueLabel is a row label; the toast read "… next review Today".
+  assert.equal(BANK_TOGGLE_COPY.added("Today"), "Added to Mistake Bank · next review today");
+  assert.equal(BANK_TOGGLE_COPY.added("Tomorrow"), "Added to Mistake Bank · next review tomorrow");
+  assert.equal(BANK_TOGGLE_COPY.added("Sat"), "Added to Mistake Bank · next review Sat");
+  assert.equal(BANK_TOGGLE_COPY.added("Nov 6"), "Added to Mistake Bank · next review Nov 6");
   assert.equal(BANK_TOGGLE_COPY.removed, "Removed from Mistake Bank");
   assert.deepEqual(momentCardOf({ card: { ref: "m_Ab12", dueAt: "2026-11-13T08:00:00.000Z", dueLabel: "tomorrow" } }), { ref: "m_Ab12", dueLabel: "tomorrow" });
   assert.equal(momentCardOf({ card: null }), null);
