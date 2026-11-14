@@ -11,7 +11,8 @@
 //            streak becomes 2 (Thu + Fri), no row for the 31st yet.
 //     04:01  /train builds Saturday's plan (a new training_days row), nothing due.
 //     07:59  still nothing due.
-//     08:00  on focus the released card appears (the hub refetches), /api/me/badges says 1 due with the dot; grading it
+//     07:59:50 → 08:00  the hub's release timer fires in the background; on focus the released card appears (the
+//            hub refetches), /api/me/badges says 1 due with the dot; grading it
 //            makes the streak 3, and a second grade the same day leaves it at 3 (+1 exactly once).
 //   DST leg, Sunday 2026-11-01 (EDT → EST at 02:00):
 //     01:30  twice (05:30Z EDT, then 06:30Z EST): both are Saturday's training day.
@@ -132,14 +133,23 @@ test.describe("day rollover · America/New_York", { tag: ["@p5", "@local-only"] 
     await expect(page.getByTestId("train-due-thumb")).toHaveCount(0);
     expect(await getJson<{ bankDue: number; trainDot: boolean }>(page, "/api/me/badges")).toMatchObject({ bankDue: 0 });
 
-    // 08:00: the release, picked up on focus.
+    // 08:00: the release, picked up on focus. The hub's clock is the server's render time kept running by the device
+    // (components/train/hub/when.ts), so a hub opened at 07:59:50 arms its release timer for 10 s later. The tab goes to
+    // the background before that; the timer fires while it is hidden and only marks today's plan stale; the tab comes
+    // back and the focus refetch brings the released card (a real visibilitychange bubbles from document to window,
+    // where the query client's focus manager listens). Should the timer fire after the return instead, it refetches
+    // itself; either way the read carries 08:00:30.
+    // regression: day-rollover-focus-flake (CI 43620776665): the step used to rely on the browser's real date (days
+    // after the server's) making the plan look stale; when the faked focus came before hydration it refetched nothing.
+    await hubAt(page, clock, Z("2026-10-31T11:59:50Z"), "nothingdue");
     clock.set(Z("2026-10-31T12:00:30Z"));
-    // The tab goes to the background and comes back (a real visibilitychange bubbles from document to window, where the
-    // query client's focus manager listens).
     const focusReads = pendingViewerReads(page, { paths: HUB_READS, swRegistration: false });
     await page.evaluate(() => {
       Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
       document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
+    });
+    await page.waitForTimeout(12_000); // the release timer's 10 s, in the background
+    await page.evaluate(() => {
       Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
       document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
       // The native getter again (the pin is an own property of `document`): see HUB_READS.

@@ -113,10 +113,17 @@ for (const device of ["desktop-1440", "iphone"] as const) {
 
         await gotoOk(page, "/train");
         await expect(page.locator('[data-testid="train-hub"][data-state="nothingdue"]')).toBeVisible({ timeout: 120_000 });
-        if (phone) await expect(page.getByText(/^Next 6 reviews arrive tomorrow at 08:00\.$/).filter({ visible: true })).toHaveCount(1);
-        else await expect(page.getByTestId("train-nothing-due")).toBeVisible();
-        await noDocumentScroll(page, "nothingdue hub");
+        // The hydrated hub (train_hub_viewed comes from its mount effects), not the server render: the line is read on
+        // the page's clock, and it must still say "tomorrow" there whatever the device's own date (the browser runs at
+        // the wall clock, days after AT). regression: hub-device-clock (CI 43620776665: "arrive today at 08:00" once
+        // hydrated, when the assertion came after hydration).
         await telemetry.expect("train_hub_viewed", { state: "nothingdue", due_shown: 0 }, { count: 1, source: "client" });
+        if (phone) await expect(page.getByText(/^Next 6 reviews arrive tomorrow at 08:00\.$/).filter({ visible: true })).toHaveCount(1);
+        else {
+          await expect(page.getByTestId("train-nothing-due")).toBeVisible();
+          await expect(page.getByText(/^Nothing is due\. Your next 6 reviews arrive tomorrow at 08:00\.$/).filter({ visible: true })).toHaveCount(1);
+        }
+        await noDocumentScroll(page, "nothingdue hub");
       },
     );
   });

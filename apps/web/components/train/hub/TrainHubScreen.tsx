@@ -5,6 +5,8 @@
 // - day rollover: the local training day (`dayStartHour` in the member's zone) is re-read each minute while visible
 //   and on `visibilitychange`; when it no longer matches the plan's `dayKey` the query is stale at once and refetches,
 //   and the plan card shows its skeleton in place until today's plan arrives;
+// - clock: the server's render time, kept running by the device's elapsed time (when.ts useServerClock), never the
+//   device's own date, for the day words, the day rollover and the release timer;
 // - release timer: one timeout at `nextBatch.at` (≤ 24 h, re-armed by every refetch) marks today's plan and the
 //   badge stale, refetching only while the tab is visible ("Nothing is due" turns into the 08:00 batch, no push);
 // - push: `bank:due_changed`, `mistakes:added`, `analysis:done|batch` patch the counts and invalidate through
@@ -26,7 +28,7 @@ import { HubSkeleton } from "./HubSkeleton";
 import { releaseDelayMs, viewedState } from "./model";
 import { TrainHubView } from "./TrainHubView";
 import { useStartSession } from "./useStartSession";
-import { dayWord, deviceTimeZone, localDayKey, safeTimeZone, useClientNow } from "./when";
+import { dayWord, deviceTimeZone, localDayKey, safeTimeZone, useClientNow, useServerClock } from "./when";
 
 /** The rollover check's period while the tab is visible. */
 export const DAY_TICK_MS = 60_000;
@@ -47,6 +49,8 @@ function shouldSyncTimeZone(stored: string, device: string | null): device is st
 export function TrainHubScreen({ serverNowMs }: { serverNowMs: number }) {
   const qc = useQueryClient();
   const now = useClientNow(serverNowMs, DAY_TICK_MS);
+  // The release timer runs on the same clock as the labels and the day (when.ts): the server's.
+  const clock = useServerClock(serverNowMs);
   const seeded = qc.getQueryData<TrainToday>(qk.train.today());
   const prefs = seeded?.prefs;
   const currentDayKey = prefs ? localDayKey(now, prefs.timeZone, prefs.dayStartHour) : undefined;
@@ -59,7 +63,7 @@ export function TrainHubScreen({ serverNowMs }: { serverNowMs: number }) {
   const nextAt = today?.nextBatch?.at ?? null;
   useEffect(() => {
     if (!nextAt) return;
-    const delay = releaseDelayMs(nextAt, Date.now());
+    const delay = releaseDelayMs(nextAt, clock());
     if (delay === null) return;
     const t = setTimeout(() => {
       const refetchType = document.visibilityState === "visible" ? "active" : "none";
@@ -67,6 +71,8 @@ export function TrainHubScreen({ serverNowMs }: { serverNowMs: number }) {
       void qc.invalidateQueries({ queryKey: qk.badges(), refetchType });
     }, delay);
     return () => clearTimeout(t);
+    // `clock` reads a state that never changes after the first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nextAt, qc]);
 
   // Time zone: one silent PATCH, then today's plan again (its labels and day are zone-bound).
