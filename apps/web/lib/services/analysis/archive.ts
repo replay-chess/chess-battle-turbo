@@ -20,6 +20,7 @@ import {
   type GamesQuery,
 } from "@repo/contracts/http/games";
 import { GAME_SOURCES_WIRE, MAX_MOMENTS, type GameSourceWire } from "@repo/contracts/http/review";
+import { isValidTimeZone } from "@repo/chess-training/tz";
 import { ApiError } from "@/lib/api/api-error";
 import { fnv1a64 } from "@/lib/api/etag";
 import type { Viewer } from "@/lib/auth/viewer";
@@ -85,11 +86,19 @@ export function parseGamesFilter(sp: SearchParams): ArchiveFilter {
 }
 
 /** `g<gamesVersion>-<fnv1a64>` (quoted by route()). The source tab joins the hash only when one is picked. */
-export function archiveEtag(gamesVersion: number, req: ArchiveRequest, nowMs: number): string {
+export function archiveEtag(gamesVersion: number, req: ArchiveRequest, nowMs: number, timeZone = "UTC"): string {
   const cursor = req.cursor ? `${req.cursor.endedAt}|${req.cursor.gameId}` : "";
   const year = new Date(nowMs).getUTCFullYear();
   const source = req.filter.source ? `#source=${req.filter.source}` : "";
-  return `g${gamesVersion}-${fnv1a64(`${gamesFilterToSearch(req.filter)}#${cursor}#${req.limit}#${year}${source}`)}`;
+  // The row dates are in the viewer's zone (D9): a zone change changes the labels.
+  const zone = timeZone === "UTC" ? "" : `#tz=${timeZone}`;
+  return `g${gamesVersion}-${fnv1a64(`${gamesFilterToSearch(req.filter)}#${cursor}#${req.limit}#${year}${source}${zone}`)}`;
+}
+
+/** The zone the archive dates are printed in: the member's (Home's rule, `timeZoneOf`), else UTC. */
+export function archiveTimeZone(viewer: { onboarding?: { timeZone?: string | null } | null; user?: { timeZone?: string | null } | null }): string {
+  const tz = viewer.onboarding?.timeZone ?? viewer.user?.timeZone ?? "UTC";
+  return isValidTimeZone(tz) ? tz : "UTC";
 }
 
 const STATUS_WIRE: Record<ArchiveRow["analysisStatus"], GameRowDTO["analysisStatus"]> = {
@@ -111,7 +120,7 @@ const roundOrNull = (v: number | null): number | null =>
   v === null || !Number.isFinite(v) ? null : Math.min(100, Math.max(0, Math.round(v)));
 
 /** One archive row (GameRowDTO). Only the ref leaves the server. */
-export function gameRowOf(row: ArchiveRow, nowMs: number): GameRowDTO {
+export function gameRowOf(row: ArchiveRow, nowMs: number, timeZone = "UTC"): GameRowDTO {
   const kind = opponentKindOf({ opponentUserId: row.opponentUserId, mode: row.mode, source: row.source, opponentIsLegend: false });
   const name = row.opponentName.trim().slice(0, 120) || (kind === "bot" ? "Engine" : "Opponent");
   const tc = tcOf({ timeClass: row.timeClass, initialTimeSeconds: row.initialTimeSeconds, incrementSeconds: row.incrementSeconds });
@@ -130,7 +139,7 @@ export function gameRowOf(row: ArchiveRow, nowMs: number): GameRowDTO {
     positionTitle: row.positionTitle?.trim() ? row.positionTitle.trim().slice(0, 160) : null,
     tc: { label: tc.label.slice(0, 40), timeClass: tc.timeClass },
     playedAt: endedAt.toISOString(),
-    playedAtLabel: playedAtLabelOf(endedAt, nowMs),
+    playedAtLabel: playedAtLabelOf(endedAt, nowMs, timeZone),
     ratingDelta: row.ratingDelta,
     source: SOURCE_WIRE[row.source],
     finalFen: row.fen,
@@ -165,7 +174,12 @@ export function countsWanted(req: Pick<ArchiveRequest, "cursor" | "limit">): boo
  * G1 / the `/games` first paint: the viewer's own finished games, newest first. One page statement and, on page 1 or
  * with `limit=0`, the counts statement in parallel (only the counts for `limit=0`).
  */
-export async function listMyGames(db: GamesDb, viewer: Pick<Viewer, "id">, req: ArchiveRequest, nowMs: number): Promise<ArchivePage> {
+export async function listMyGames(
+  db: GamesDb,
+  viewer: Pick<Viewer, "id"> & Parameters<typeof archiveTimeZone>[0],
+  req: ArchiveRequest,
+  nowMs: number,
+): Promise<ArchivePage> {
   const withCounts = countsWanted(req);
   const [rows, counts] = await Promise.all([
     req.limit > 0
@@ -181,5 +195,6 @@ export async function listMyGames(db: GamesDb, viewer: Pick<Viewer, "id">, req: 
     meta.filteredTotal = Number(c.filteredTotal);
     meta.counts = countsOf(c);
   }
-  return { rows: page.map((r) => gameRowOf(r, nowMs)), meta };
+  const tz = archiveTimeZone(viewer);
+  return { rows: page.map((r) => gameRowOf(r, nowMs, tz)), meta };
 }

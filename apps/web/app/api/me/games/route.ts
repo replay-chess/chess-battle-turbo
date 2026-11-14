@@ -10,7 +10,7 @@ import { respondWith } from "@/lib/api/respond";
 import { route, type Ctx } from "@/lib/api/route";
 import { rawDb } from "@/lib/games/snapshot.server";
 import { prisma } from "@/lib/prisma";
-import { archiveEtag, archiveRequestOf, listMyGames } from "@/lib/services/analysis/archive";
+import { archiveEtag, archiveRequestOf, archiveTimeZone, listMyGames } from "@/lib/services/analysis/archive";
 import { requireReviewReader } from "@/lib/services/analysis/reader";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export const GET = route(
     ...archiveEndpoints.list,
     etagProbe: async (ctx: Ctx<unknown, GamesQuery>) => {
       const viewer = await requireReviewReader(ctx);
-      return archiveEtag(viewer.gamesVersion, archiveRequestOf(ctx.query), ctx.now.getTime());
+      return archiveEtag(viewer.gamesVersion, archiveRequestOf(ctx.query), ctx.now.getTime(), archiveTimeZone(viewer));
     },
   },
   async (ctx) => {
@@ -31,7 +31,7 @@ export const GET = route(
     const extra =
       page.meta.filteredTotal !== undefined ? { filteredTotal: page.meta.filteredTotal, counts: page.meta.counts } : undefined;
     return respondWith(paged(page.rows, page.meta.nextCursor, undefined, extra), {
-      etag: archiveEtag(viewer.gamesVersion, req, nowMs),
+      etag: archiveEtag(viewer.gamesVersion, req, nowMs, archiveTimeZone(viewer)),
     });
   },
 );

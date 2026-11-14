@@ -16,9 +16,11 @@ import {
   decodeArchiveCursor,
   encodeArchiveCursor,
   gameRowOf,
+  archiveTimeZone,
   listMyGames,
   parseGamesFilter,
 } from "@/lib/services/analysis/archive";
+import { playedAtLabel } from "@repo/chess-training/labels";
 import { archiveCountsSql, archivePageSql, likePattern, type ArchiveRow } from "@/lib/services/analysis/archive-sql";
 
 const NOW = Date.parse("2026-11-11T12:00:00Z");
@@ -227,5 +229,32 @@ describe("statements", () => {
   it("counts: the filter as a FILTER clause over every finished game", () => {
     assert.match(textOf(archiveCountsSql(5n, {})), /SELECT \(count\(\*\)\)::int AS "filteredTotal", count\(\*\)::int AS "all"/);
     assert.match(textOf(archiveCountsSql(5n, { moments: true })), /count\(\*\) FILTER \(WHERE gp\."momentsCount" > 0\)/);
+  });
+});
+
+describe("browser pass D9: the archive's dates are in the member's zone, as Home's", () => {
+  it("a game ended 00:50 IST Nov 15 is Nov 15 in the archive (was the UTC date, Nov 14) and 'today' on Home", () => {
+    const ended = new Date("2026-11-14T19:20:00Z"); // 00:50 Nov 15 in Asia/Calcutta
+    const now = Date.parse("2026-11-14T19:40:00Z");
+    const row = archiveRow(0, { endedAt: ended });
+    assert.equal(gameRowOf(row, now).playedAtLabel, "Nov 14", "UTC without a zone (the old label)");
+    assert.equal(gameRowOf(row, now, "Asia/Calcutta").playedAtLabel, "Nov 15");
+    assert.equal(playedAtLabel(ended, new Date(now), "Asia/Calcutta"), "today", "Home: the same local date");
+    // The year is the zone's too: 23:30 Dec 31 UTC is Jan 1 in Auckland.
+    const newYear = archiveRow(0, { endedAt: new Date("2026-12-31T23:30:00Z") });
+    assert.equal(gameRowOf(newYear, Date.parse("2027-01-01T02:00:00Z"), "Pacific/Auckland").playedAtLabel, "Jan 1");
+  });
+
+  it("the zone comes from the viewer (onboarding, then the users row); unknown → UTC; the ETag moves with it", async () => {
+    assert.equal(archiveTimeZone({ user: { timeZone: "Asia/Calcutta" } }), "Asia/Calcutta");
+    assert.equal(archiveTimeZone({ onboarding: { timeZone: "Europe/Berlin" }, user: { timeZone: "Asia/Calcutta" } }), "Europe/Berlin");
+    assert.equal(archiveTimeZone({ user: { timeZone: "Not/AZone" } }), "UTC");
+    assert.equal(archiveTimeZone({}), "UTC");
+    const base = archiveRequestOf(GamesQuery.parse({}));
+    assert.notEqual(archiveEtag(7, base, NOW, "Asia/Calcutta"), archiveEtag(7, base, NOW));
+    assert.equal(archiveEtag(7, base, NOW, "UTC"), archiveEtag(7, base, NOW), "UTC keeps the old tag");
+    const db = { $queryRaw: async () => [archiveRow(0, { endedAt: new Date("2026-11-14T19:20:00Z") })] } as unknown as GamesDb;
+    const out = await listMyGames(db, { id: 5n, user: { timeZone: "Asia/Calcutta" } } as never, { filter: {}, cursor: { endedAt: "2026-11-15T08:30:00.123Z", gameId: "971" }, limit: 30 }, Date.parse("2026-11-14T19:40:00Z"));
+    assert.equal(out.rows[0]!.playedAtLabel, "Nov 15");
   });
 });

@@ -122,12 +122,34 @@ export function endLabelOf(outcome: Outcome, endMethod: string | null): string {
   return word ? `${result} ${word}` : result;
 }
 
-const MONTH = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-const MONTH_YEAR = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+const DATE_FORMATS = new Map<string, { month: Intl.DateTimeFormat; monthYear: Intl.DateTimeFormat; year: Intl.DateTimeFormat }>();
 
-/** "Nov 9" this year, "Nov 9, 2025" otherwise (viewer.timeZone ?? "UTC"; users have no time zone until P4). */
-export function playedAtLabelOf(at: Date, nowMs: number): string {
-  return at.getUTCFullYear() === new Date(nowMs).getUTCFullYear() ? MONTH.format(at) : MONTH_YEAR.format(at);
+function formatsOf(timeZone: string) {
+  let f = DATE_FORMATS.get(timeZone);
+  if (!f) {
+    f = {
+      month: new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone }),
+      monthYear: new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone }),
+      year: new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone }),
+    };
+    DATE_FORMATS.set(timeZone, f);
+  }
+  return f;
+}
+
+/**
+ * "Nov 9" this year, "Nov 9, 2025" otherwise, on the date in the viewer's zone (browser pass D9: the archive printed
+ * the UTC date, "Nov 14" for a game Home called "today" at 00:50 IST on Nov 15; Home and the archive now share the
+ * member's zone). An unknown zone reads as UTC.
+ */
+export function playedAtLabelOf(at: Date, nowMs: number, timeZone = "UTC"): string {
+  let f;
+  try {
+    f = formatsOf(timeZone);
+  } catch {
+    f = formatsOf("UTC");
+  }
+  return f.year.format(at) === f.year.format(new Date(nowMs)) ? f.month.format(at) : f.monthYear.format(at);
 }
 
 export function tcOf(g: Pick<GameColumns, "timeClass" | "initialTimeSeconds" | "incrementSeconds">): ReviewDTO["game"]["tc"] {
