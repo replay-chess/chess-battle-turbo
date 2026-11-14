@@ -455,11 +455,11 @@ describe("Mistake Bank extraction through the real batch (Postgres)", { skip: sk
     await env.owner.query(`DELETE FROM ${env.schema}.jobs WHERE id = $1`, [id]);
   });
 
-  it("training hygiene runs as replay_worker", async () => {
+  it("training hygiene runs as replay_worker, on this file's private copies (never the web suites' public rows)", async () => {
     const u = await makeUser(env.owner, "th");
     const insert = (status: string, startedAgo: string) =>
       env.owner.query(
-        `INSERT INTO training_sessions ("referenceId", "userId", kind, status, source, "filterKey", size, items, day,
+        `INSERT INTO ${env.schema}.training_sessions ("referenceId", "userId", kind, status, source, "filterKey", size, items, day,
                                         "startedAt")
          VALUES ('cts' || substr(md5(random()::text), 1, 22), $1, 'BANK', $2::"SessionStatus", 'hub', 'k', 1,
                  '{"v":1,"items":[]}', current_date, (now() AT TIME ZONE 'UTC') - $3::interval) RETURNING id::text AS id`,
@@ -469,21 +469,36 @@ describe("Mistake Bank extraction through the real batch (Postgres)", { skip: sk
     const fresh = (await insert("ACTIVE", "1 hour")).rows[0]!.id as string;
     const old = (await insert("COMPLETED", "91 days")).rows[0]!.id as string;
     await env.owner.query(
-      `INSERT INTO training_days ("userId", day, plan, "updatedAt") VALUES ($1, current_date - 10, '{"v":1}', now()),
+      `INSERT INTO ${env.schema}.training_days ("userId", day, plan, "updatedAt") VALUES ($1, current_date - 10, '{"v":1}', now()),
                                                                         ($1, current_date, '{"v":1}', now())`,
       [u.id],
     );
+    // A web suite's session in the public table, "stale" by the database clock (the web suites date sessions by their
+    // fixed clock, 2026-11-12): the hygiene of this file must never reach it (regression:
+    // worker-hygiene-abandons-web-sessions).
+    const web = (
+      await env.owner.query(
+        `INSERT INTO public.training_sessions ("referenceId", "userId", kind, status, source, "filterKey", size, items, day,
+                                               "startedAt")
+         VALUES ('ctw' || substr(md5(random()::text), 1, 22), $1, 'PUZZLES', 'ACTIVE', 'nav', 'k', 0,
+                 '{"v":1,"items":[]}', current_date, (now() AT TIME ZONE 'UTC') - interval '3 days') RETURNING id::text AS id`,
+        [u.id],
+      )
+    ).rows[0]!.id as string;
     const out = await db.batch([abandonStaleSessionsStatement(), dropOldPlansStatement(), pruneOldSessionsStatement()]);
+    const publicRow = (await env.owner.query(`SELECT status::text AS status FROM public.training_sessions WHERE id = $1`, [web])).rows[0];
+    assert.equal(publicRow?.status, "ACTIVE", "the public table is not this file's to sweep");
+    await env.owner.query(`DELETE FROM public.training_sessions WHERE id = $1`, [web]);
     assert.ok(Number(out[0]![0]!.abandoned) >= 1);
     const sessions = await q<{ id: string; status: string; ended: boolean }>(
-      `SELECT id::text AS id, status::text AS status, "endedAt" IS NOT NULL AS ended FROM training_sessions WHERE "userId" = $1`,
+      `SELECT id::text AS id, status::text AS status, "endedAt" IS NOT NULL AS ended FROM ${env.schema}.training_sessions WHERE "userId" = $1`,
       [u.id],
     );
     assert.deepEqual(sessions.find((s) => s.id === stale), { id: stale, status: "ABANDONED", ended: true });
     assert.deepEqual(sessions.find((s) => s.id === fresh), { id: fresh, status: "ACTIVE", ended: false });
     assert.equal(sessions.find((s) => s.id === old), undefined, "deleted after 90 days");
     const days = await q<{ old: boolean; plan: unknown }>(
-      `SELECT day < current_date AS old, plan FROM training_days WHERE "userId" = $1 ORDER BY day`,
+      `SELECT day < current_date AS old, plan FROM ${env.schema}.training_days WHERE "userId" = $1 ORDER BY day`,
       [u.id],
     );
     assert.deepEqual(days, [

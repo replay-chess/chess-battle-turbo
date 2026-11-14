@@ -2,12 +2,18 @@
 // container or a local Docker Postgres). Skipped unless TEST_DATABASE_URL is set; refuses any non-local host.
 //
 // The claim and the reaper take ANY due/stalled row, HOUSEKEEPING prunes ANY expired share or limiter row and its
-// regrade sweep reads ANY outdated analysis, while other suites (packages/db's jobs.int and seeds.int, the other worker
-// files) write those tables at the same time. So each test file gets its own copies of `jobs`, `shares`,
-// `rate_limit_buckets`, `rate_limit_windows` and `game_analyses` in a private schema (`CREATE TABLE … (LIKE public.x
-// INCLUDING ALL)`: same columns, defaults, partial indexes, unique keys; no foreign keys), and the worker connects with
-// `search_path = <that schema>, public`: those five are private, everything else (games, users, game_players,
-// player_reviews, legend_comparisons, the enums) is the real public table.
+// regrade sweep reads ANY outdated analysis, and its P5 training hygiene abandons ANY runner session ACTIVE for over
+// 24 hours, drops ANY plan older than 7 days and deletes ANY session older than 90 days, while other suites
+// (packages/db's jobs.int and seeds.int, the other worker files, and apps/web's int tests: `pnpm -r test:int` runs
+// them at the same time on the same database) write those tables. So each test file gets its own copies of `jobs`,
+// `shares`, `rate_limit_buckets`, `rate_limit_windows`, `game_analyses`, `training_sessions` and `training_days` in a
+// private schema (`CREATE TABLE … (LIKE public.x INCLUDING ALL)`: same columns, defaults, partial indexes, unique keys;
+// no foreign keys), and the worker connects with `search_path = <that schema>, public`: those seven are private,
+// everything else (games, users, game_players, player_reviews, legend_comparisons, the enums) is the real public table.
+//
+// regression: worker-hygiene-abandons-web-sessions (CI 43637337703 integration: the worker's training-hygiene test
+// abandoned the web integrity test's session, dated by the web suites' fixed clock 2026-11-12 19:00 and so "over 24
+// hours old" by the database's clock, between W3's read and its append: 409 session_ended).
 //
 // With TEST_WORKER_DATABASE_URL (role `replay_worker` after packages/db/scripts/roles/replay_worker.sql) the worker's
 // statements run as that role, which proves its grants on every table except the private `jobs` copy (granted here
@@ -36,6 +42,10 @@ export const PRIVATE_TABLES = {
   shares: `SELECT (id, code, kind, "expiresAt", "revokedAt"), DELETE`,
   rate_limit_buckets: "SELECT, DELETE",
   rate_limit_windows: "SELECT, DELETE",
+  // replay_worker.p5.sql: SELECT, DELETE and UPDATE (status, "endedAt") on training_sessions; SELECT and UPDATE
+  // (plan, "updatedAt") on training_days.
+  training_sessions: `SELECT, DELETE, UPDATE (status, "endedAt")`,
+  training_days: `SELECT, UPDATE (plan, "updatedAt")`,
 } as const;
 
 export interface IntEnv {
