@@ -33,8 +33,11 @@ const TC_ENUM: Record<GameTcFilter, "BULLET" | "BLITZ" | "RAPID" | "CLASSICAL"> 
   classical: "CLASSICAL",
 };
 
-/** Finished games only: a live row has no result, an aborted one is never in the archive. */
-const FINISHED = Prisma.sql`gp.result = ANY('{WIN,LOSS,DRAW}'::"PlayerResult"[])`;
+/**
+ * Finished games only: a live row has no result, an aborted one is never in the archive. Home's game lists (Continue,
+ * Recent games, the week) use the same predicate (browser pass D5). Alias `gp` = game_players.
+ */
+export const FINISHED = Prisma.sql`gp.result = ANY('{WIN,LOSS,DRAW}'::"PlayerResult"[])`;
 
 /** `%` and `_` are literal in a search, and so is the escape character itself (ILIKE's default escape is `\`). */
 export function likePattern(q: string): string {

@@ -55,6 +55,22 @@ describe("P5 HOME-1 (Postgres)", { skip: url ? false : "TEST_DATABASE_URL not se
     assert.equal(h.hasLinkedAccount, false);
   });
 
+  it("browser pass D5: an aborted game is not in Continue, Recent games or the week (as in the archive)", async () => {
+    const m = await w.member("homeabort");
+    await w.persona(m, "bank-member");
+    const before = await home(m);
+    const victim = before.recent[before.recent.length - 1]!;
+    // The game ends as aborted, just now (this week, the newest game).
+    await w.db.$executeRaw(Prisma.sql`UPDATE game_players gp SET result = 'ABORTED', "endedAt" = ${new Date(WORLD_NOW.getTime() - 3_600_000)}
+      FROM games g WHERE g.id = gp."gameId" AND g."referenceId" = ${victim.gameRef} AND gp."userId" = ${m.id}`);
+    await w.db.$executeRaw(Prisma.sql`UPDATE games SET status = 'ABORTED' WHERE "referenceId" = ${victim.gameRef}`);
+    const h = await home(m);
+    assert.ok(!h.recent.some((r) => r.gameRef === victim.gameRef), "not in Recent games (it read as DRAW)");
+    assert.notEqual(h.continue?.gameRef, victim.gameRef);
+    assert.equal(h.stats.gamesThisWeek, before.stats.gamesThisWeek, "not counted in games this week");
+    assert.equal(h.week.games, before.week.games);
+  });
+
   it("new_user: no games, no bank, no import; the legend position when one is featured; reads only", async () => {
     const m = await w.member("homenew");
     await w.persona(m, "home-new");

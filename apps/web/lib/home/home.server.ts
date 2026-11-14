@@ -27,8 +27,11 @@ import { isTrainedDay, loadTrainState, timeZoneOf, trainClock } from "@/lib/trai
 import { asDate, at, num, trainDeps, type TrainDeps } from "@/lib/train/db.server";
 import { lastMoveOf } from "@/lib/train/dto.server";
 import { duePreviewOf, duePreviewSql, type PreviewRow } from "@/lib/train/today.server";
+import { FINISHED } from "@/lib/services/analysis/archive-sql";
 import { replayMoves } from "@/lib/services/analysis/review-dto";
 
+// Every game list here is the archive's: finished games only (WIN / LOSS / DRAW), never an aborted or live one
+// (browser pass D5: an aborted game read as a DRAW in Recent games and counted in "games this week").
 // ── Statements ──────────────────────────────────────────────────────────────────────────────────────────────────
 /** h1: the newest finished games with their analysis and first moment (≤ 3). */
 export function continueGamesSql(userId: bigint): Prisma.Sql {
@@ -39,7 +42,7 @@ export function continueGamesSql(userId: bigint): Prisma.Sql {
     FROM game_players gp JOIN games g ON g.id = gp."gameId"
     LEFT JOIN game_analyses ga ON ga."gameId" = gp."gameId"
     LEFT JOIN player_reviews pr ON pr."gameId" = gp."gameId" AND pr.color = gp.color
-    WHERE gp."userId" = ${userId} AND gp."endedAt" IS NOT NULL
+    WHERE gp."userId" = ${userId} AND gp."endedAt" IS NOT NULL AND ${FINISHED}
     ORDER BY gp."endedAt" DESC, gp."gameId" DESC LIMIT 3`;
 }
 
@@ -48,14 +51,14 @@ export function recentGamesSql(userId: bigint): Prisma.Sql {
   return Prisma.sql`SELECT g."referenceId" AS ref, gp.result::text AS result, gp."opponentName", gp."opponentRating", gp.headline,
       gp."endedAt"
     FROM game_players gp JOIN games g ON g.id = gp."gameId"
-    WHERE gp."userId" = ${userId} AND gp."endedAt" IS NOT NULL
+    WHERE gp."userId" = ${userId} AND gp."endedAt" IS NOT NULL AND ${FINISHED}
     ORDER BY gp."endedAt" DESC, gp."gameId" DESC LIMIT ${HOME_RECENT_MAX}`;
 }
 
 /** h3: this week's game ends (≤ 50 rows). */
 export function weekGamesSql(userId: bigint, from: Date): Prisma.Sql {
   return Prisma.sql`SELECT gp."endedAt" FROM game_players gp
-    WHERE gp."userId" = ${userId} AND gp."endedAt" >= ${at(from)} ORDER BY gp."endedAt" DESC LIMIT 50`;
+    WHERE gp."userId" = ${userId} AND gp."endedAt" >= ${at(from)} AND ${FINISHED} ORDER BY gp."endedAt" DESC LIMIT 50`;
 }
 
 /** h3: this week's graded puzzles. */
