@@ -7,6 +7,11 @@ import { posthogRedactShareCodes, replayShareRedaction, sentryShareRedaction } f
 import { loadSentry, loadedSentry, sentryEnabled } from "./lib/sentry/lazy";
 import type { NavigationType } from "./lib/shell/nav-history";
 import "./lib/shell/nav-history";
+import { installStylesheetRejectionGuard } from "./lib/shell/stylesheet-rejections";
+
+// First, before the Sentry listeners below: a runtime stylesheet whose load failed (WebKit: cut by a navigation) is not an
+// unhandled rejection (lib/shell/stylesheet-rejections.ts).
+installStylesheetRejectionGuard();
 
 // Sentry loads after start-up (lib/sentry/lazy.ts, FIX-2): the SDK left the shared First Load JS of every route. Errors
 // thrown before it has loaded are kept here (at most EARLY_MAX) and reported once init has run.
