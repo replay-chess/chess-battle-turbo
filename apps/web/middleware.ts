@@ -34,7 +34,7 @@ import {
 } from "@/lib/auth/route-classes/rules";
 import { isLandingPath, landingTarget } from "@/lib/home/landing";
 import { cookieSecureFor } from "@/lib/onboarding/claim-cookie";
-import { onboardingGate } from "@/lib/onboarding/guard";
+import { isDocumentNavigation, onboardingGate } from "@/lib/onboarding/guard";
 
 type Prepared = { cls: RouteClass; requestId: string; forward: Headers };
 
@@ -88,6 +88,7 @@ const withClerk = clerkMiddleware(async (auth, req) => {
     nowMs: Date.now(),
     env: process.env,
     secure: cookieSecureFor(req.url, process.env),
+    navigation: isDocumentNavigation(req.headers),
   });
   if (onb.redirect || onb.setCookies.length || onb.skipMemberGate) {
     const res = onb.redirect ? NextResponse.redirect(new URL(onb.redirect, req.url), 302) : pass(p);

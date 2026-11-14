@@ -12,6 +12,13 @@
 //   3. Claims say "not onboarded" (`md.onboarded !== true`, with `md` present: unknown is not no, P1's gate rule)
 //      and no valid `rc_onb` → /onboarding?redirect_url=<path+query> with `rc_onb_next` set on that redirect.
 //   4. A valid `rc_act` (activation just confirmed, the JWT does not say so yet) → `skipMemberGate`.
+// `rc_onb_next` is written only by a document navigation (`Sec-Fetch-Mode: navigate`): where the member actually went.
+// Router prefetches are fetches, and middleware cannot tell them from a client-side navigation (Next strips the
+// Next-Router-Prefetch and RSC headers from the request middleware sees), so no fetch writes it: a client-side
+// navigation still reaches /onboarding with `?redirect_url=`, which the onboarding pages read from their URL.
+// Regression: onb-next-from-prefetch (CI 43599091643, happy-path.spec: "Go to Home" landed on /play; a not-yet-onboarded
+// member's `/` prefetched its /play and /tournaments links, both prefetches were redirected to /onboarding with
+// `rc_onb_next` set, and Done forwarded to the last one).
 import type { RcPublicMetadata } from "@/lib/auth/claims";
 import { matcherFor } from "@/lib/auth/route-classes";
 import { ACT_COOKIE, ONB_COOKIE, claimCookieSecret, verifyClaimCookie } from "./claim-cookie";
@@ -110,7 +117,19 @@ export type GateInput = {
   env: Readonly<Record<string, string | undefined>>;
   /** Set cookies with `Secure`. */
   secure: boolean;
+  /** A document navigation by the member (`isDocumentNavigation`); only these write `rc_onb_next`. Default true. */
+  navigation?: boolean;
 };
+
+/**
+ * A document navigation (`Sec-Fetch-Mode: navigate`), not a speculation (`Sec-Purpose` / `Purpose: prefetch`). A client
+ * without Fetch Metadata headers counts as navigating (old browsers keep the P4 behaviour).
+ */
+export function isDocumentNavigation(h: { get(name: string): string | null }): boolean {
+  if (/prefetch|prerender/i.test(h.get("sec-purpose") ?? "") || /prefetch/i.test(h.get("purpose") ?? "")) return false;
+  const mode = h.get("sec-fetch-mode");
+  return mode === null || mode === "navigate";
+}
 
 export type GateDecision = {
   /** Redirect target (302), or null to continue. */
@@ -139,7 +158,7 @@ export async function onboardingGate(i: GateInput): Promise<GateDecision> {
     if (md && md.onboarded === true && md.lapsed === true && md.entitled === false && md.role !== "ADMIN" && !paywallOff(i.env)) {
       return { redirect: "/pricing?reason=ended", setCookies: [], skipMemberGate: false };
     }
-    const next = safeNextPath(new URLSearchParams(i.search).get("redirect_url"));
+    const next = i.navigation === false ? null : safeNextPath(new URLSearchParams(i.search).get("redirect_url"));
     return next ? { redirect: null, setCookies: [nextCookieHeader(next, { secure: i.secure })], skipMemberGate: false } : PASS;
   }
 
@@ -150,7 +169,7 @@ export async function onboardingGate(i: GateInput): Promise<GateDecision> {
     if (!onbValid) {
       const here = safeNextPath(`${i.pathname}${i.search}`);
       const target = here ? `${ONBOARDING_ROOT}?redirect_url=${encodeURIComponent(here)}` : ONBOARDING_ROOT;
-      return { redirect: target, setCookies: here ? [nextCookieHeader(here, { secure: i.secure })] : [], skipMemberGate: false };
+      return { redirect: target, setCookies: here && i.navigation !== false ? [nextCookieHeader(here, { secure: i.secure })] : [], skipMemberGate: false };
     }
   }
 

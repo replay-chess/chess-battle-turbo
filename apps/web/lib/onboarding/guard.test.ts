@@ -5,7 +5,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { signClaimCookie } from "./claim-cookie";
-import { NEXT_COOKIE, nextCookieHeader, onboardingGate, readNextCookie, safeNextPath, type GateInput } from "./guard";
+import { isDocumentNavigation, NEXT_COOKIE, nextCookieHeader, onboardingGate, readNextCookie, safeNextPath, type GateInput } from "./guard";
 
 const SECRET = "k".repeat(64);
 const NOW = Date.parse("2026-11-12T12:00:00.000Z");
@@ -143,6 +143,32 @@ describe("onboardingGate: not onboarded", () => {
     const d = await onboardingGate(input({ pathname: "/checkout", search: "" }));
     assert.equal(d.redirect, "/onboarding");
     assert.deepEqual(d.setCookies, []);
+  });
+});
+
+describe("onboardingGate: only a document navigation stores rc_onb_next", () => {
+  // regression: onb-next-from-prefetch (CI 43599091643): the router prefetched `/`'s /play link while the member was not
+  // onboarded yet; the redirect set rc_onb_next=/play and Done forwarded there instead of Home.
+  it("a fetch (router prefetch or client navigation) is redirected without a destination cookie", async () => {
+    const d = await onboardingGate(input({ pathname: "/play", navigation: false }));
+    assert.equal(d.redirect, "/onboarding?redirect_url=%2Fplay");
+    assert.deepEqual(d.setCookies, []);
+    const real = await onboardingGate(input({ pathname: "/play", navigation: true }));
+    assert.equal(real.setCookies.length, 1, "the document navigation still stores it");
+  });
+
+  it("a fetch of /onboarding?redirect_url= (the redirected prefetch) does not store it either", async () => {
+    const d = await onboardingGate(input({ pathname: "/onboarding", search: "?redirect_url=%2Fgames", navigation: false }));
+    assert.deepEqual(d, { redirect: null, setCookies: [], skipMemberGate: false });
+  });
+
+  it("isDocumentNavigation: Fetch Metadata says navigate; fetches and speculations do not; no metadata counts as one", () => {
+    const h = (o: Record<string, string>) => new Headers(o);
+    assert.equal(isDocumentNavigation(h({ "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" })), true);
+    assert.equal(isDocumentNavigation(h({ "sec-fetch-mode": "cors", "sec-fetch-dest": "empty" })), false, "the router's fetch");
+    assert.equal(isDocumentNavigation(h({ "sec-fetch-mode": "navigate", "sec-purpose": "prefetch;prerender" })), false);
+    assert.equal(isDocumentNavigation(h({ purpose: "prefetch" })), false);
+    assert.equal(isDocumentNavigation(h({})), true);
   });
 });
 
