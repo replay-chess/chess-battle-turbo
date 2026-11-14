@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { reviewFixture } from "@repo/contracts/http/fixtures/review";
 import type { ReviewDTO } from "@repo/contracts/http/review";
 import { qk } from "@/lib/api/keys";
-import { BANK_TOGGLE_COPY, BANK_TOGGLE_STALE_KEYS, momentCardOf, withMomentBank } from "./bank";
+import { BANK_TOGGLE_COPY, BANK_TOGGLE_STALE_KEYS, bankToggleErrorCopy, momentCardOf, withMomentBank } from "./bank";
 
 const dto = reviewFixture("done") as ReviewDTO;
 const ply = dto.review!.moments[1]!.ply;
@@ -34,4 +34,11 @@ test("copy and stale keys", () => {
   assert.deepEqual(momentCardOf({ card: { ref: "m_Ab12", dueAt: "2026-11-13T08:00:00.000Z", dueLabel: "tomorrow" } }), { ref: "m_Ab12", dueLabel: "tomorrow" });
   assert.equal(momentCardOf({ card: null }), null);
   assert.deepEqual(BANK_TOGGLE_STALE_KEYS, [qk.train.all(), qk.home(), qk.badges()]);
+});
+
+test("a failed A6: not_bankable says why (browser pass D1), anything else is the generic failure", () => {
+  assert.equal(bankToggleErrorCopy({ code: "conflict", details: { reason: "not_bankable" } }), "This position can't be added to your Mistake Bank");
+  assert.equal(bankToggleErrorCopy({ code: "conflict", details: { reason: "analysis_not_done" } }), BANK_TOGGLE_COPY.failed);
+  assert.equal(bankToggleErrorCopy(new Error("network")), BANK_TOGGLE_COPY.failed);
+  assert.equal(bankToggleErrorCopy(null), BANK_TOGGLE_COPY.failed);
 });

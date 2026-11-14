@@ -12,6 +12,8 @@ export const BANK_TOGGLE_COPY = {
   added: (dueLabel: string | null) => (dueLabel ? `Added to Mistake Bank · next review ${dueLabel}` : "Added to Mistake Bank"),
   removed: "Removed from Mistake Bank",
   failed: "Couldn't update your Mistake Bank",
+  /** A6 409 `not_bankable`: the stored analysis cannot make a bank position of this moment (nothing changed). */
+  notBankable: "This position can't be added to your Mistake Bank",
   shortcutTitle: "In a Key Moment",
   shortcutRow: "Add to or remove from the Mistake Bank",
 } as const;
@@ -27,6 +29,12 @@ export function withMomentBank(dto: ReviewDTO, ply: number, inBank: boolean, car
   const moments = review.moments.slice();
   moments[i] = { ...m, inBank, card };
   return { ...dto, review: { ...review, moments } };
+}
+
+/** The error toast of a failed A6: `not_bankable` says why; anything else is the generic failure. */
+export function bankToggleErrorCopy(error: unknown): string {
+  const details = (error as { details?: Record<string, unknown> } | null)?.details;
+  return details?.reason === "not_bankable" ? BANK_TOGGLE_COPY.notBankable : BANK_TOGGLE_COPY.failed;
 }
 
 /** A6's card in A1's shape (`{ref, dueLabel}`). */

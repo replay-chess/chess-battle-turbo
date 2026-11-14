@@ -20,8 +20,10 @@ describe("review bank fields", () => {
     assert.deepEqual(bankCardsOf(null), []);
   });
 
-  it("A2: null before extraction, else the cards that exist now", () => {
-    assert.equal(reviewBankOf(cards, 0), null);
+  it("A2: null before extraction while no card exists, else the cards that exist now", () => {
+    assert.equal(reviewBankOf([], 0), null);
+    // A moment added through A6 before the side was extracted (browser pass D1) counts.
+    assert.deepEqual(reviewBankOf(cards.slice(0, 1), 0), { count: 1, plies: [cards[0]!.ply] });
     assert.deepEqual(ReviewBank.parse(reviewBankOf(cards, 1)), { count: 2, plies: [36, 32] });
     assert.deepEqual(reviewBankOf([], 1), { count: 0, plies: [] });
   });

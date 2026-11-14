@@ -60,9 +60,12 @@ export function momentBankOf(cards: readonly BankCard[], ply: number, ctx: BankC
   return { inBank: true, card: { ref: c.key, dueLabel: dayLabel(c.due, new Date(ctx.nowMs), ctx.timeZone) } };
 }
 
-/** ReviewStatusDTO.bank: null before the side was extracted (`bankVersion` 0), else the cards that exist now. */
+/**
+ * ReviewStatusDTO.bank: null before the side was extracted (`bankVersion` 0) and while it has no card, else the cards
+ * that exist now (a moment the member added through A6 before the extraction counts: browser pass D1).
+ */
 export function reviewBankOf(cards: readonly BankCard[], bankVersion: number | null | undefined): ReviewBank | null {
-  if (!bankVersion) return null;
+  if (!bankVersion && cards.length === 0) return null;
   return { count: cards.length, plies: cards.map((c) => c.ply).slice(0, 4) };
 }
 

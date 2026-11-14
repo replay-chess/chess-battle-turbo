@@ -6,7 +6,8 @@
 //   change / B   optimistic: the moment's `inBank` flips in A1 at once; A6 (P3's useToggleMomentInBank, set semantics)
 //                then writes `bankOptOut` and creates or deletes the BANK card in one transaction; the A1 refetch
 //                after it settles brings the card. Toasts: "Added to Mistake Bank · next review tomorrow" /
-//                "Removed from Mistake Bank" with Undo. A failure rolls the checkbox back with an error toast.
+//                "Removed from Mistake Bank" with Undo. A failure rolls the checkbox back with an error toast (409
+//                `not_bankable`: "This position can't be added to your Mistake Bank").
 //   stale        every bank list, today's plan, Home and the badge (refetched where they are next shown).
 // The /dev/ui demo flips the cached payload only (no request). B is registered in the `?` list while mounted.
 import { useEffect, useRef } from "react";
@@ -20,7 +21,7 @@ import { COARSE_MQ } from "@/lib/layout/media-queries";
 import { isEditableTarget, MODAL_OPEN_SELECTOR } from "@/lib/shell/key-target";
 import { singleKeyEnabledNow } from "@/lib/shell/prefs";
 import type { ShortcutSection } from "@/lib/shell/shortcuts";
-import { BANK_TOGGLE_COPY, BANK_TOGGLE_STALE_KEYS, momentCardOf, withMomentBank } from "../bank";
+import { BANK_TOGGLE_COPY, BANK_TOGGLE_STALE_KEYS, bankToggleErrorCopy, momentCardOf, withMomentBank } from "../bank";
 import { useReview } from "../context";
 import { CONTROL_SELECTOR, REVIEW_ARROW_WIDGET_SELECTOR, reviewHotkeyFor } from "../keys/hotkeys";
 import { useReviewShortcuts } from "../keys/useReviewShortcuts";
@@ -66,10 +67,10 @@ export function MomentBankToggle({ ply, inBank }: { ply: number; inBank: boolean
           if (res.inBank) notify.success(BANK_TOGGLE_COPY.added(res.card?.dueLabel ?? null));
           else notify.undo(BANK_TOGGLE_COPY.removed, { onUndo: () => set(true, { undo: true }) });
         },
-        onError: () => {
+        onError: (error) => {
           const current = qc.getQueryData<ReviewDTO>(key);
           if (current) qc.setQueryData<ReviewDTO>(key, withMomentBank(current, ply, !next, null));
-          notify.error(BANK_TOGGLE_COPY.failed);
+          notify.error(bankToggleErrorCopy(error));
         },
       },
     );

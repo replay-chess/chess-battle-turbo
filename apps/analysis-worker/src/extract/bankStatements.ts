@@ -28,85 +28,9 @@
 // the occurrence to be new in this batch, so a re-analysis of the same game is not a recurrence.
 import { stmt, type Statement } from "../db/client";
 import { NOW } from "../queue/claim";
+import type { BankRows } from "@repo/chess-training/extract";
 
-/** One `mistakes` row (§6.2), as `$m`. */
-export interface MistakeRow {
-  referenceId: string;
-  userId: string;
-  epdHash: string;
-  color: "w" | "b";
-  fen: string;
-  setupUci: string | null;
-  solution: string;
-  accept: string | null;
-  playedUci: string;
-  refuteUci: string | null;
-  judgement: string;
-  source: "OWN_ERROR" | "MISSED_PUNISH";
-  isPuzzle: boolean;
-  uniquenessGap: number | null;
-  themes: string[];
-  primaryTheme: string;
-  phase: "OPENING" | "MIDDLEGAME" | "ENDGAME";
-  winBefore: number;
-  winAfterPlayed: number;
-  cpBest: number | null;
-  mateBest: number | null;
-  timeClass: string | null;
-  ecoCode: string | null;
-  moveNumber: number;
-  lastGameId: string;
-  lastPly: number;
-  lastPlayedAt: string;
-  lastOpponentName: string;
-  /** When a changed best move resets the card (statement 0): the next release. */
-  due: string;
-}
-
-/** One `mistake_occurrences` row (+ what the recurrence rule needs), as `$o`. */
-export interface OccurrenceRow {
-  userId: string;
-  epdHash: string;
-  gameId: string;
-  ply: number;
-  /** The game side's end time: a card reviewed after it is not pulled forward. */
-  playedAt: string;
-  /** The next release in the member's zone. */
-  due: string;
-  /** A key-moment ply (it gets a card). Every new occurrence of a carded mistake is a recurrence, moment or not. */
-  moment: boolean;
-}
-
-/** One BANK card to create for a key-moment ply, as `$c`. */
-export interface CardRow {
-  userId: string;
-  epdHash: string;
-  gameId: string;
-  color: "w" | "b";
-  ply: number;
-  kind: "MISTAKE" | "REVIEW_POSITION";
-  itemKey: string;
-  due: string;
-}
-
-/** Each member's local training day (for today's cap counters), as `$days`. */
-export interface DayRow {
-  userId: string;
-  day: string;
-}
-
-export interface BankRows {
-  gameId: string;
-  mistakes: readonly MistakeRow[];
-  occurrences: readonly OccurrenceRow[];
-  cards: readonly CardRow[];
-  days: readonly DayRow[];
-  /** The member sides extracted (bankVersion). */
-  userIds: readonly string[];
-  /** Every key-moment ply of the extracted sides. */
-  momentPlies: readonly number[];
-  version: number;
-}
+export type { BankRows, CardRow, DayRow, MistakeRow, OccurrenceRow } from "@repo/chess-training/extract";
 
 const json = (rows: readonly object[]) => JSON.stringify(rows);
 

@@ -193,6 +193,83 @@ describe("P5 W5/W6/A6/review bank fields/W7/W8 (Postgres)", { skip: url ? false 
     assert.equal(await count(w.db, Prisma.sql`SELECT count(*) AS n FROM player_reviews WHERE "gameId" = ${mom.gameId} AND progress->'bankOptOut' @> to_jsonb(${mom.ply}::int)`), 1);
   });
 
+  it("A6 opt-in on a side never extracted (browser pass D1): the moment's mistake and card are made now; A1, A2, complete and the bank agree", async () => {
+    const m = await w.member("a6never");
+    const rep = await w.persona(m, "bank-member");
+    const ref = rep.gameRefs.GAME!;
+    const mom = await momentWithCard(m, ref);
+    // A game analysed before P5 that the backfill has not reached: bankVersion 0, no occurrence, no mistake, no card.
+    await w.db.$executeRaw(Prisma.sql`DELETE FROM training_cards c USING mistake_occurrences mo
+      WHERE mo."gameId" = ${mom.gameId} AND c."mistakeId" = mo."mistakeId"`);
+    await w.db.$executeRaw(Prisma.sql`DELETE FROM mistake_occurrences WHERE "gameId" = ${mom.gameId}`);
+    await w.db.$executeRaw(Prisma.sql`DELETE FROM mistakes m WHERE m."userId" = ${m.id} AND NOT EXISTS (SELECT 1 FROM mistake_occurrences o WHERE o."mistakeId" = m.id)`);
+    await w.db.$executeRaw(Prisma.sql`UPDATE game_players SET "bankVersion" = 0 WHERE "gameId" = ${mom.gameId} AND "userId" = ${m.id}`);
+    const bankTotal = async () => count(w.db, Prisma.sql`SELECT count(*) AS n FROM training_cards WHERE "userId" = ${m.id} AND deck = 'BANK'`);
+    const total0 = await bankTotal();
+    train(true);
+    const before = ok(ReviewDTO).parse(await (await w.call("review", "GET", `/api/review/${ref}`, m, { params: { ref } })).json()).data;
+    assert.equal(before.review!.moments.find((x) => x.ply === mom.ply)!.inBank, false, "nothing in the bank before");
+
+    const on = await w.call("moment", "PATCH", `/api/review/${ref}/moments/${mom.ply}`, m, { params: { ref, ply: String(mom.ply) }, body: { inBank: true } });
+    assert.equal(on.res.status, 200, await on.res.clone().text());
+    const res = ok(MomentBankResponse).parse(await on.json()).data;
+    assert.equal(res.inBank, true);
+    assert.ok(res.card, "the response carries the card it created (was card: null)");
+    assert.equal(res.card!.dueLabel, "Tomorrow");
+    assert.equal(await bankTotal(), total0 + 1, "exactly one card: the toggled moment, not the game's other moments");
+    const rows = await w.db.$queryRaw<{ itemKey: string; occurrences: number; hidden: boolean; lastGameId: bigint; solution: string }[]>(Prisma.sql`
+      SELECT c."itemKey", mi.occurrences, (mi."hiddenAt" IS NOT NULL) AS hidden, mi."lastGameId", mi.solution
+        FROM mistake_occurrences mo JOIN mistakes mi ON mi.id = mo."mistakeId" JOIN training_cards c ON c."mistakeId" = mi.id
+       WHERE mo."gameId" = ${mom.gameId} AND mo.ply = ${mom.ply}::smallint`);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]!.itemKey, res.card!.ref);
+    assert.equal(rows[0]!.occurrences, 1);
+    assert.equal(rows[0]!.hidden, false);
+    assert.equal(rows[0]!.lastGameId, mom.gameId);
+    assert.match(rows[0]!.solution, /^[a-h][1-8][a-h][1-8][nbrq]?$/, "no engine: the line is the stored best move");
+    assert.equal(await count(w.db, Prisma.sql`SELECT count(*) AS n FROM game_players WHERE "gameId" = ${mom.gameId} AND "userId" = ${m.id} AND "bankVersion" = 0`), 1, "the backfill still runs for the side");
+
+    // The review read, its status and Review complete agree with the response.
+    const a1 = ok(ReviewDTO).parse(await (await w.call("review", "GET", `/api/review/${ref}`, m, { params: { ref } })).json()).data;
+    const moment = a1.review!.moments.find((x) => x.ply === mom.ply)!;
+    assert.equal(moment.inBank, true);
+    assert.equal(moment.card?.ref, res.card!.ref);
+    const a2 = ok(ReviewStatusDTO).parse(await (await w.call("status", "GET", `/api/review/${ref}/status`, m, { params: { ref } })).json()).data;
+    assert.deepEqual(a2.bank, { count: 1, plies: [mom.ply] });
+    const { getReviewComplete } = await import("@/lib/services/analysis/read");
+    const complete = await getReviewComplete(w.db as never, w.viewerOf(m), ref, WORLD_NOW.getTime(), { shareEnabled: false, bank: true });
+    assert.equal(complete.added, 1);
+    assert.equal(complete.nextDueLabel, "tomorrow");
+    // The bank lists it.
+    const bank = ok(BankPage).parse(await (await w.call("bank", "GET", "/api/train/bank", m, { query: { view: "all" } })).json()).data;
+    assert.ok(bank.rows.some((r) => r.cardRef === res.card!.ref), "the bank lists the new card");
+
+    // Set semantics: on again answers the same card and writes nothing more.
+    const again = ok(MomentBankResponse).parse(await (await w.call("moment", "PATCH", `/api/review/${ref}/moments/${mom.ply}`, m, { params: { ref, ply: String(mom.ply) }, body: { inBank: true } })).json()).data;
+    assert.equal(again.card!.ref, res.card!.ref);
+    assert.equal(await bankTotal(), total0 + 1);
+  });
+
+  it("A6 opt-in that the stored analysis cannot bank (browser pass D1): 409 not_bankable, nothing written", async () => {
+    const m = await w.member("a6nobank");
+    const rep = await w.persona(m, "bank-member");
+    const ref = rep.gameRefs.GAME!;
+    const mom = await momentWithCard(m, ref);
+    await w.db.$executeRaw(Prisma.sql`DELETE FROM training_cards c USING mistake_occurrences mo WHERE mo."gameId" = ${mom.gameId} AND c."mistakeId" = mo."mistakeId"`);
+    await w.db.$executeRaw(Prisma.sql`DELETE FROM mistake_occurrences WHERE "gameId" = ${mom.gameId}`);
+    await w.db.$executeRaw(Prisma.sql`UPDATE game_players SET "bankVersion" = 0 WHERE "gameId" = ${mom.gameId} AND "userId" = ${m.id}`);
+    // Opted out first, then the stored arrays lose their shape (a legacy analysis): the extraction has nothing to bank.
+    await w.call("moment", "PATCH", `/api/review/${ref}/moments/${mom.ply}`, m, { params: { ref, ply: String(mom.ply) }, body: { inBank: false } });
+    await w.db.$executeRaw(Prisma.sql`UPDATE game_analyses SET judgements = judgements[1:1] WHERE "gameId" = ${mom.gameId}`);
+    train(true);
+    const r = await w.call("moment", "PATCH", `/api/review/${ref}/moments/${mom.ply}`, m, { params: { ref, ply: String(mom.ply) }, body: { inBank: true } });
+    assert.equal(r.res.status, 409, await r.res.clone().text());
+    const err = ErrorEnvelope.parse(await r.json());
+    assert.equal(err.error.details?.reason, "not_bankable");
+    assert.equal(await count(w.db, Prisma.sql`SELECT count(*) AS n FROM player_reviews WHERE "gameId" = ${mom.gameId} AND progress->'bankOptOut' @> to_jsonb(${mom.ply}::int)`), 1, "the opt-out stays (rolled back)");
+    assert.equal(await count(w.db, Prisma.sql`SELECT count(*) AS n FROM mistake_occurrences WHERE "gameId" = ${mom.gameId}`), 0);
+  });
+
   it("A6 with `train` off: an opt-out still deletes the card an extraction made (FIX-2: no card for an opted-out moment once the flag turns on); an opt-in records only the flag", async () => {
     const m = await w.member("a6off");
     const rep = await w.persona(m, "bank-member");

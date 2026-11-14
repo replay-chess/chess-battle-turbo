@@ -3,9 +3,11 @@
 // player / moment / analysis checks) runs in the SAME transaction as the card change, so the two never disagree:
 //
 //   inBank = true    un-hide the mistake and create its NEW card due at the next release (`ON CONFLICT DO NOTHING`;
-//                    the theme's `bankCount` + 1 only when a card was created). No occurrence row yet (the game is not
-//                    extracted, e.g. BANK_EXTRACT_ENABLED=false) → only the opt-out is recorded; `card: null`, and
-//                    the worker honours the opt-out later.
+//                    the theme's `bankCount` + 1 only when a card was created). No occurrence row yet (the side is not
+//                    extracted: a game analysed before P5 that the backfill has not reached, or BANK_EXTRACT_ENABLED was
+//                    off) → the moment's mistake and occurrence are made on demand from the stored analysis
+//                    (momentMistake.server.ts, the shared extraction without the engine), then the card; a moment the
+//                    extraction cannot bank → 409 `not_bankable`, nothing written (browser pass D1).
 //   inBank = false   W6's statements found by (gameId, ply): the card is deleted (the due counts read training_cards
 //                    without joining mistakes), the mistake hidden, `bankCount` − 1, the reviews bumped.
 //
@@ -24,7 +26,11 @@ import { setMomentBank, setMomentBankSql } from "@/lib/services/analysis/walkthr
 import { removeBankCard } from "./cards.server";
 import { timeZoneOf } from "./day.server";
 import { asDate, at, NOW_UTC, trainDeps, type TrainDeps } from "./db.server";
+import { addMomentMistake } from "./momentMistake.server";
 import { readProfile } from "./profile.server";
+
+/** A6's 409 `not_bankable`: the stored analysis cannot make a bank position of this moment. */
+export const NOT_BANKABLE_MESSAGE = "This position can't be added to your Mistake Bank.";
 
 /** Judgement codes of an error (P3 codec: INACCURACY 9, MISTAKE 10, MISS 11, BLUNDER 12). */
 export const ERROR_JUDGEMENTS = [9, 10, 11, 12] as const;
@@ -91,19 +97,32 @@ export async function setMomentInBank(
     // that committed after the read above created the occurrence and card this switch must act on (FIX-1 A6 race).
     // Both batches lock the review row before their card statements, so they either commit before this point (and are
     // seen here) or wait for this commit (and read the opt-out).
-    const link = (await db.$queryRaw<LinkRow[]>(momentLinkSql(viewer.id, ref, ply)))[0] ?? first;
-    if (link.mistakeId === null || link.epdHash === null) return { ply, inBank, card: null };
+    let link = (await db.$queryRaw<LinkRow[]>(momentLinkSql(viewer.id, ref, ply)))[0] ?? first;
+    if (link.mistakeId === null || link.epdHash === null) {
+      if (!inBank) return { ply, inBank, card: null };
+      // A side never extracted (the backfill has not reached a game analysed before P5): the member asked for this
+      // position, so its mistake is made now from the stored analysis (momentMistake.server.ts) and the card follows
+      // below. A moment the extraction cannot bank rolls the whole switch back with 409 not_bankable (browser pass D1:
+      // a 200 with `card: null` read as "Added" while the bank stayed empty).
+      const added = await addMomentMistake(db, { gameId: link.gameId, userId: viewer.id, ply, now, timeZone: tz, profile });
+      link = (added ? (await db.$queryRaw<LinkRow[]>(momentLinkSql(viewer.id, ref, ply)))[0] : undefined) ?? link;
+    }
+    const mistakeId = link.mistakeId;
+    const epdHash = link.epdHash;
+    if (mistakeId === null || epdHash === null) {
+      throw new ApiError("conflict", { message: NOT_BANKABLE_MESSAGE, details: { reason: "not_bankable" } });
+    }
 
     if (!inBank) {
-      await removeBankCard(db, viewer.id, { mistakeId: link.mistakeId }, now);
+      await removeBankCard(db, viewer.id, { mistakeId }, now);
       return { ply, inBank, card: null };
     }
     await db.$executeRaw(Prisma.sql`UPDATE mistakes SET "hiddenAt" = NULL, "updatedAt" = ${NOW_UTC}
-      WHERE id = ${link.mistakeId} AND "userId" = ${viewer.id} AND "hiddenAt" IS NOT NULL`);
-    const key = mistakeItemKey(BigInt(link.epdHash));
+      WHERE id = ${mistakeId} AND "userId" = ${viewer.id} AND "hiddenAt" IS NOT NULL`);
+    const key = mistakeItemKey(BigInt(epdHash));
     const created = await db.$queryRaw<{ itemKey: string; due: unknown }[]>(Prisma.sql`WITH c AS (
         INSERT INTO training_cards ("userId", deck, kind, "itemKey", "mistakeId", theme, phase, due, state, "createdAt", "updatedAt")
-        VALUES (${viewer.id}, 'BANK', ${link.isPuzzle ? "MISTAKE" : "REVIEW_POSITION"}::"TrainingItemKind", ${key}, ${link.mistakeId},
+        VALUES (${viewer.id}, 'BANK', ${link.isPuzzle ? "MISTAKE" : "REVIEW_POSITION"}::"TrainingItemKind", ${key}, ${mistakeId},
                 ${link.primaryTheme ?? "mix"}, ${link.phase ?? "MIDDLEGAME"}::"GamePhase", ${at(due)}, 'NEW', ${NOW_UTC}, ${NOW_UTC})
         ON CONFLICT ("userId", "itemKey") DO NOTHING
         RETURNING theme, "itemKey", due),

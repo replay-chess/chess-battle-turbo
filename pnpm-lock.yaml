@@ -531,6 +531,9 @@ importers:
 
   packages/chess-training:
     dependencies:
+      '@repo/chess-analysis':
+        specifier: workspace:*
+        version: link:../chess-analysis
       '@repo/contracts':
         specifier: workspace:*
         version: link:../contracts
