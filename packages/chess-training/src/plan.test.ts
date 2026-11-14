@@ -227,6 +227,7 @@ describe("the frozen plan", () => {
     assert.equal(keepGoingLabel("fork"), "Keep Going: Fork Puzzles");
     assert.equal(keepGoingLabel("hangingPiece"), "Keep Going: Loose Piece Puzzles");
     assert.equal(planFootnote("bank", 10), "Built from your Mistake Bank. Daily cap: 10 reviews.");
+    assert.equal(planFootnote("new", 10), "Built from your games and puzzles. Daily cap: 10 reviews.", "an empty bank");
     assert.equal(planFootnote("games20", 10), "Built from your last 20 games. Daily cap: 10 reviews.");
   });
 

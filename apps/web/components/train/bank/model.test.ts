@@ -189,6 +189,8 @@ describe("bank list", () => {
       practice: true,
     });
     assert.deepEqual(ctaOf([], []), { kind: "none" });
+    const one = rows.filter((r) => !r.isDue).slice(0, 1);
+    assert.deepEqual(ctaOf(one, one), { kind: "drill", label: "Drill This Position · Nothing Due", count: 1, practice: true }, "not 'Drill These 1'");
     assert.equal(estMinutes(1), 1);
     assert.equal(estMinutes(10), 8);
   });

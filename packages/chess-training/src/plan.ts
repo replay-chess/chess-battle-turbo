@@ -252,9 +252,12 @@ export function planCta(plan: Pick<DailyPlan, "steps" | "focusTheme">, planDone:
   return { kind: "continue", label: `Continue Today's Plan · ${minutesLabel(planMinutes(plan, planDone, true))}` };
 }
 
-/** "Built from your Mistake Bank. Daily cap: 10 reviews." (P6: "Built from your last 20 games."). */
+/**
+ * "Built from your Mistake Bank. Daily cap: 10 reviews." (P6: "Built from your last 20 games."). An empty bank (basis
+ * `new`: the plan is the last game's review or an import, and puzzles) is not "from your Mistake Bank".
+ */
 export function planFootnote(basis: PlanBasis, cap: number): string {
-  const from = basis === "games20" ? "your last 20 games" : "your Mistake Bank";
+  const from = basis === "games20" ? "your last 20 games" : basis === "new" ? "your games and puzzles" : "your Mistake Bank";
   return `Built from ${from}. Daily cap: ${plural(cap, "review")}.`;
 }
 

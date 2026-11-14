@@ -176,6 +176,8 @@ export type BankCta =
 export function ctaOf(pool: readonly BankRow[], visible: readonly BankRow[]): BankCta {
   const due = pool.filter((r) => r.isDue).length;
   if (due > 0) return { kind: "review", label: `Review ${due} Due · ~${estMinutes(due)} min`, due, practice: false };
+  // One position reads "Drill This Position" (as Review complete's "Drill This Mistake"), not "Drill These 1".
+  if (visible.length === 1) return { kind: "drill", label: "Drill This Position · Nothing Due", count: 1, practice: true };
   if (visible.length > 0) return { kind: "drill", label: `Drill These ${visible.length} · Nothing Due`, count: visible.length, practice: true };
   return { kind: "none" };
 }
