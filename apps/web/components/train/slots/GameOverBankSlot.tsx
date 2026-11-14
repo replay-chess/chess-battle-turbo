@@ -3,7 +3,7 @@
 // The game-over card's `bank` slot (phase-05 plan §4.8, COV C-01, P2 hand-off H-01; boards V3GameOver, V3GameOverLoss,
 // V3Game `over_*` with `r.bankOn`, the device game-over boards and V4TournamentGameOver): one line under the accuracy
 // line, "+1 position added to your Mistake Bank (move 13)." Loaded lazily (GameOverBankSlotLazy.tsx): /game/[ref] is at
-// its First Load budget.
+// its First Load budget. Its stylesheet (game-over-bank.css) is imported by that eager stub, never from here: see there.
 //
 // Data: A2's `bank` in `qk.review.status(ref)`, the same cache the P3 slots read. The P3 primary drives that cache
 // (A2 on mount, polling while the socket is down); this slot only adds `analysis:done.bankAdded` for its game (live),
@@ -19,7 +19,6 @@ import { reviewStatusQuery } from "@/lib/api/queries/review";
 import { getRealtime } from "@/lib/realtime/connection";
 import { applyBankAdded } from "@/lib/realtime/handlers/train";
 import { bankSlotLine, gameOverMode } from "./bank-line";
-import "./game-over-bank.css";
 
 export function GameOverBankSlot() {
   const view = useView();

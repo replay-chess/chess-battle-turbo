@@ -436,15 +436,17 @@ jobs:
         env:
           E2E_SMOKE: "1"
         run: pnpm --filter web exec playwright test --project=chromium --project=webkit-iphone --project=game-serial
-      - name: P5 Train, Mistake Bank, puzzles and Home specs (@p5, chromium; the shard server and leased personas)
+      - name: P5 Train, Mistake Bank, puzzles and Home specs (@p5 on chromium, @p5 @smoke on webkit-iphone)
         # phase-05 plan §12.4 PR tier: every @p5 spec (e2e/specs/train/**, home, request-budget, a11y/train) on the same
         # build and servers; the puzzle specs read the committed shard subset from the CI shard server on :4012
-        # (playwright.config.ts starts it), never R2. Runs after the smoke step even when that failed, so a P5 change
-        # always reports its own specs.
+        # (playwright.config.ts starts it), never R2. webkit-iphone runs the @p5 tests tagged @smoke (its project grep):
+        # the trainer documents (train-document.spec) and the game-over demo card's lazy line, whose WebKit-only page
+        # error (a cut runtime stylesheet, "[object Event]") chromium never shows. Runs after the smoke step even when
+        # that failed, so a P5 change always reports its own specs.
         if: success() || failure()
         env:
           E2E_PHASES: "5"
-        run: pnpm --filter web exec playwright test --project=chromium
+        run: pnpm --filter web exec playwright test --project=chromium --project=webkit-iphone
       - if: always()
         uses: actions/upload-artifact@v6
         with:

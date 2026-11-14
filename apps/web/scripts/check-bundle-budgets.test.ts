@@ -131,6 +131,22 @@ describe("check-bundle-budgets", () => {
     assert.match(ok.stdout, /\/train\/bank\/session First Load JS \| [\d.]+ kB \(budget 300 kB; page-specific [\d.]+ kB of 155 kB/);
   });
 
+  it("fails the build when a lazily loaded chunk carries CSS (regression: webkit-lazy-css-event)", () => {
+    // webpack's runtime chunk, as next build writes it: `miniCssF` maps the lazy chunks that load a stylesheet.
+    const runtime = (map: string) =>
+      `a.miniCssF=e=>"static/css/"+({${map}})[e]+".css",a.g=function(){};a.f.miniCss=(t,c)=>{({${map ? "9153:1" : ""}})[t]&&c.push(t)};`;
+    const lazy = dist({});
+    writeFileSync(path.join(lazy, "static", "chunks", "webpack-f250f552b2f3b156.js"), runtime('3512:"d36dad424cb297f0",9153:"38040c02859d87fe"'));
+    const out = run(lazy);
+    assert.equal(out.status, 1, out.stdout);
+    assert.match(out.stdout, /a lazily loaded chunk loads static\/css\/38040c02859d87fe\.css at runtime/);
+    assert.match(out.stdout, /static\/css\/d36dad424cb297f0\.css/);
+    const none = dist({});
+    writeFileSync(path.join(none, "static", "chunks", "webpack-f250f552b2f3b156.js"), runtime(""));
+    const ok = run(none);
+    assert.equal(ok.status, 0, ok.stdout);
+  });
+
   it("fails the build when a P5 route loads ts-fsrs (previews arrive in the payload; FSRS is server-only)", () => {
     const dir = dist({});
     const name = "fsrs.js";

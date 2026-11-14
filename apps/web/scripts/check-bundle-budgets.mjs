@@ -12,7 +12,11 @@
 //      DoD: `/game/[ref]` ≤ 600 kB gz, owner-approved 2026-11-06, and no engine chunk on the PvP path; the bot screen
 //      and the engine stay lazy chunks; phase-03 plan §9.6 for the review, archive, practice, share and How we grade
 //      routes; phase-04 plan §9.6 for onboarding, activation and Connected accounts; phase-05 plan §9.5 for Home,
-//      Train, the Mistake Bank, the runners and the summary, which also cap the page-specific JS and refuse ts-fsrs).
+//      Train, the Mistake Bank, the runners and the summary, which also cap the page-specific JS and refuse ts-fsrs);
+//   5. a lazily loaded client chunk carries CSS (webpack's runtime has a CSS chunk map, `miniCssF`). Next inserts such a
+//      stylesheet at runtime as a React 19 stylesheet resource whose load promise nothing awaits; a navigation that cuts
+//      the load makes WebKit reject it with the link's error Event, an uncaught "[object Event]" on the page being left
+//      (regression: webkit-lazy-css-event, /dev/ui/game-over?bank=0). Import a lazy module's CSS from its eager stub.
 //
 // A route's First Load JS (FIX-2, P4 review round 2) is what the route costs on top of what every route already
 // downloads: the files every route loads ("First Load JS shared by all") plus the route's page-entry files, less the
@@ -190,9 +194,14 @@ const chunks = [];
 const zodHits = [];
 const zodExempt = [];
 const devtoolsHits = [];
+const lazyCssHits = [];
+// 5. webpack's runtime names the CSS of lazily loaded chunks: `miniCssF=e=>"static/css/"+({<chunk id>:"<hash>",…})[e]+".css"`.
+const LAZY_CSS_MAP = /miniCssF=\w+=>"static\/css\/"\+\(\{([^}]*)\}\)/;
 for (const chunk of chunks) {
   const text = readFileSync(path.join(distDir, chunk), "utf8");
   if (DEVTOOLS_MARKER.test(text)) devtoolsHits.push(chunk);
+  const lazyCss = /(^|\/)webpack-[^/]*\.js$/.test(chunk) ? LAZY_CSS_MAP.exec(text) : null;
+  if (lazyCss && lazyCss[1].trim()) lazyCssHits.push(...lazyCss[1].split(",").map((e) => `static/css/${e.split(":")[1]?.replace(/"/g, "")}.css`));
   if (!isZod(text)) continue;
   const users = [...(routesOfFile.get(chunk) ?? [])];
   if (users.length > 0 && users.every((r) => DEV_ONLY_ROUTE.test(r))) zodExempt.push({ chunk, routes: users });
@@ -210,6 +219,9 @@ for (const h of zodHits) {
   failures.push(`zod (ZodError) in client chunk ${h.chunk}, ${where}. Pass response schemas as \`process.env.NODE_ENV === "production" ? undefined : Schema\` (lib/api/schema.ts) and import contract values only there`);
 }
 for (const c of devtoolsHits) failures.push(`TanStack Query devtools in client chunk ${c} (must stay dev-only)`);
+for (const c of lazyCssHits) {
+  failures.push(`a lazily loaded chunk loads ${c} at runtime: import that CSS from the module's eager stub (WebKit reports a cut runtime stylesheet as an uncaught "[object Event]")`);
+}
 
 // 4. Route budgets. The root layout's entry (`/layout`): its files are not the route's cost (header comment).
 const rootLayoutFiles = new Set((appManifest.pages["/layout"] ?? []).filter((f) => f.endsWith(".js")));

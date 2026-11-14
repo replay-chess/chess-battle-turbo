@@ -84,7 +84,7 @@ test("a clean game: no line once analysed, none after a reload; another member s
   await expect(d.getByTestId("game-over-bank-line")).toHaveCount(0);
 });
 
-test("demo card: no slot with the flag off, none at 0, the line at 1", { tag: ["@p5", "@demo:V3GameOver.over_checkmate_win"] }, async ({ page }) => {
+test("demo card: no slot with the flag off, none at 0, the line at 1", { tag: ["@p5", "@smoke", "@demo:V3GameOver.over_checkmate_win"] }, async ({ page }) => {
   test.setTimeout(180_000);
   await gotoOk(page, "/dev/ui/game-over?slot=done");
   await expect(page.getByTestId("game-over-demo")).toBeVisible({ timeout: 60_000 });

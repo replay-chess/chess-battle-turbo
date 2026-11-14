@@ -29,7 +29,6 @@ import {
   type GameOverModel,
 } from "./model";
 import { useAnalysisProgress } from "./useAnalysisProgress";
-import "./game-over-review.css";
 
 type GameFacts = { ref: string; plies: number; fresh: boolean; legend: boolean; demo: boolean };
 

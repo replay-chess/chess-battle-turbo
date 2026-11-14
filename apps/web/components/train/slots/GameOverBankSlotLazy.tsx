@@ -5,6 +5,12 @@
 // it into P3's REVIEW_RESULT_SLOTS when `train` is on: `withBankSlot(REVIEW_RESULT_SLOTS, train)`.
 import dynamic from "next/dynamic";
 import type { ResultSlots } from "@/features/game/screen/GameOverCard";
+// The line's CSS rides with the page, not with the lazy chunk (a few hundred bytes). A stylesheet inside a lazily loaded
+// client chunk is inserted at runtime (Next's RuntimeStyles → a React 19 stylesheet resource whose load promise nothing
+// awaits); when a navigation cuts that load, WebKit fires the link's `error` and the promise rejects with the Event: an
+// uncaught "[object Event]" on the page being left (regression: webkit-lazy-css-event, /dev/ui/game-over?bank=0).
+// scripts/check-bundle-budgets.mjs fails a build whose lazy chunks load CSS.
+import "./game-over-bank.css";
 
 const BankSlot = dynamic(() => import("./GameOverBankSlot").then((m) => m.GameOverBankSlot), { ssr: false });
 
