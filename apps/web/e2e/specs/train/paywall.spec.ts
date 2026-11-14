@@ -14,8 +14,10 @@ test("T10: a non-member is sent to /pricing from every P5 page; the P5 APIs answ
     await test.step(path, async () => {
       // The redirect itself (a document request with the member's cookies), not the legacy /pricing page it lands on:
       // that page's marketing navbar has a known signed-in hydration mismatch (P0 page, console-baseline.json).
+      // 302 from middleware's member gate once the session token carries the `md` claim (the Clerk dev instance does since
+      // 2026-11-14), else 307 from the page's own gate (regression: paywall-302-member-gate).
       const res = await page.request.get(path, { maxRedirects: 0, headers: { accept: "text/html" }, timeout: 180_000 });
-      expect([303, 307, 308], `${path}: a redirect`).toContain(res.status());
+      expect([302, 303, 307, 308], `${path}: a redirect`).toContain(res.status());
       const url = new URL(res.headers()["location"] ?? "", "http://localhost");
       expect(url.pathname, `${path}: to the pricing page`).toBe("/pricing");
       expect(url.searchParams.get("reason"), `${path}: the reason`).toMatch(/^(trial_available|trial_used|expired|payment_failed|required)$/);

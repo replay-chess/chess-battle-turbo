@@ -10,6 +10,8 @@
 //   import    leased `dev-trial` (P4's running Chess.com import): the `import_running` status row.
 // No document scroll on any of them (lock mode; phones scroll inside the page's own region).
 import type { Page } from "@playwright/test";
+import type { Match, Telemetry } from "../fixtures/telemetry";
+import { matchesProps } from "../fixtures/telemetry";
 import { DEVICES, expect, gotoOk, test, type DeviceName } from "./review/_lib/review";
 
 // Not serial: each test signs in or leases on its own, so a red T1 (the Clerk dev `md` claim, owner action) never hides the
@@ -26,6 +28,19 @@ async function openHome(page: Page, state: "populated" | "new_user"): Promise<vo
   await expect(page.locator(`[data-testid="home"][data-state="${state}"]`)).toBeVisible({ timeout: 120_000 });
 }
 
+/**
+ * `home_viewed` is sent once per mount of /home. The sign-in (member) and the persona lease (pool user) land on `/`,
+ * which P5 sends a member to /home, so that earlier mount sent one too (with the previous state's props). Only the
+ * mounts from `since` on are the test's (regression: home-viewed-per-mount: T1 and T9 counted 2 once the Clerk session
+ * token carried the `md` claim). Exactly `count`, held for a second to catch a late duplicate.
+ */
+async function expectHomeViewed(telemetry: Telemetry, since: number, match: Match, count = 1): Promise<void> {
+  const mine = async () => (await telemetry.events("client")).filter((e) => e.event === "home_viewed" && e.ts >= since && matchesProps(e.props, match)).length;
+  await expect.poll(mine, { timeout: 15_000, message: `home_viewed ${JSON.stringify(match)} ×${count} since the test's own visit` }).toBe(count);
+  await new Promise((r) => setTimeout(r, 1_000));
+  expect(await mine(), `home_viewed ${JSON.stringify(match)} exactly ${count}×`).toBe(count);
+}
+
 async function noDocumentScroll(page: Page): Promise<void> {
   const overflow = await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight);
   expect(overflow, "the document never scrolls (lock mode)").toBeLessThanOrEqual(0);
@@ -38,11 +53,7 @@ for (const device of ["desktop-1440", "iphone"] as const) {
     test("T1: a signed-in member opening / lands on /home; logo and G H come back to it", { tag: ["@state:V3Nav.home"] }, async ({ member, page, telemetry }) => {
       test.setTimeout(240_000);
       await member("K");
-      // `home_viewed` is once per mount. The sign-in itself lands on `/`, which is /home for a member now, so that mount
-      // sent one already: wait for it, then expect exactly one more for this test's own visit (regression:
-      // home-t1-viewed-per-mount, local run after the Clerk `md` claim: 2 events, the sign-in's mount and this one).
-      const signInMounts = new URL(page.url()).pathname === "/home" ? 1 : 0;
-      if (signInMounts) await telemetry.expect("home_viewed", {}, { count: 1, source: "client" });
+      const since = Date.now();
       await gotoOk(page, "/");
       await expect(page).toHaveURL(/\/home$/, { timeout: 120_000 });
       await expect(page.getByTestId("home")).toBeVisible({ timeout: 120_000 });
@@ -58,7 +69,7 @@ for (const device of ["desktop-1440", "iphone"] as const) {
         await expect(page.locator("[data-rc-tabbar] a:visible")).toHaveCount(6);
         await expect(page.locator("[data-rc-tabbar]")).toContainText("Train");
       }
-      await telemetry.expect("home_viewed", {}, { count: signInMounts + 1, source: "client" });
+      await expectHomeViewed(telemetry, since, {});
 
       // The logo (sidebar on desktop, the top bar on phones) goes to /home.
       await gotoOk(page, "/play");
@@ -78,6 +89,7 @@ for (const device of ["desktop-1440", "iphone"] as const) {
     test("T9: populated (leased bank-member): Continue, the Mistake Bank card, This week, Recent games", { tag: stateTags("populated") }, async ({ persona, page, telemetry }) => {
       test.setTimeout(300_000);
       await persona("bank-member");
+      const since = Date.now();
       const runnerPrefetch: string[] = [];
       page.on("request", (r) => {
         const u = new URL(r.url());
@@ -111,7 +123,7 @@ for (const device of ["desktop-1440", "iphone"] as const) {
       }
       await expect(page.getByTestId("home-week-dots")).toHaveAttribute("role", "img");
       await expect(page.getByTestId("home-recent-row").first()).toBeVisible();
-      await telemetry.expect("home_viewed", { state: "populated", has_continue: true }, { count: 1, source: "client" });
+      await expectHomeViewed(telemetry, since, { state: "populated", has_continue: true });
 
       // Session-creating links are never prefetched (plan §5.1); hovering them must not fetch the runner.
       await cta.hover();
@@ -130,6 +142,7 @@ for (const device of ["desktop-1440", "iphone"] as const) {
     test("T9: new_user (leased home-new): Start here, the empty bank and the empty recent list", { tag: stateTags("new_user") }, async ({ persona, page, telemetry }) => {
       test.setTimeout(300_000);
       await persona("home-new");
+      const since = Date.now();
       await openHome(page, "new_user");
       await noDocumentScroll(page);
       await expect(page.getByTestId("home-greeting")).toHaveText(/^Welcome, .+\.$/);
@@ -141,19 +154,20 @@ for (const device of ["desktop-1440", "iphone"] as const) {
       await expect(page.getByTestId("home-bank-cta")).toHaveText("How It Works");
       await expect(page.getByTestId("home-recent-empty")).toContainText("Your games appear here after you play or import them.");
       await expect(page.getByTestId("home-week-line")).toHaveText("No games yet");
-      await telemetry.expect("home_viewed", { state: "new_user", due: 0, has_continue: false }, { count: 1, source: "client" });
+      await expectHomeViewed(telemetry, since, { state: "new_user", due: 0, has_continue: false });
     });
 
     test("T9: import_running (leased dev-trial): the import status row", { tag: stateTags("import_running") }, async ({ persona, page, telemetry }) => {
       test.setTimeout(300_000);
       await persona("dev-trial");
+      const since = Date.now();
       await gotoOk(page, "/home");
       const row = page.getByTestId("home-import");
       await expect(row).toBeVisible({ timeout: 120_000 });
       await expect(row).toHaveAttribute("role", "status");
       await expect(page.getByTestId("home-import-label")).toHaveText(/^Importing \d+( \/ \d+)? games?$/);
       await noDocumentScroll(page);
-      await telemetry.expect("home_viewed", { state: "import_running" }, { count: 1, source: "client" });
+      await expectHomeViewed(telemetry, since, { state: "import_running" });
     });
   });
 }

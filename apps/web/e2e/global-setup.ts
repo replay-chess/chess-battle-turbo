@@ -2,12 +2,12 @@ import { clerkSetup } from "@clerk/testing/playwright";
 import { FullConfig } from "@playwright/test";
 import type { PrismaClient } from "@repo/db";
 import { assertFixtureHealth } from "./fixtures/health";
-import { entitleSharedMembers } from "./scripts/provision-test-users";
+import { entitleSharedMembers, restoreReadOnlyUsers } from "./scripts/provision-test-users";
 import { sweepThrowawayUsers } from "./scripts/sweep-throwaway-users";
 
 // Global setup (phase-01 plan §12.0, CT X3/X4):
 // 1. run lock: one E2E run at a time on the shared dev database;
-// 2. re-entitle the shared members A–P (idempotent upsert);
+// 2. re-entitle the shared members A–P (idempotent upsert) and restore the read-only Q and R, rows and Clerk claims;
 // 3. fixture health: fail clearly when A–P, Q or R drifted;
 // 4. sweep throwaway Clerk users older than 2 h, fail near the Clerk user cap.
 // Escape hatches for local debugging (never in CI): E2E_SKIP_RUN_LOCK=1,
@@ -93,6 +93,11 @@ export default async function globalSetup(_config: FullConfig) {
       if (process.env.E2E_SKIP_ENTITLE !== "1" || ci) {
         const n = await entitleSharedMembers(db);
         console.log(`[global-setup] entitled ${n} shared members (A–P)`);
+        // The read-only Q and R too: their rows and their Clerk claims. The claims live in the one Clerk development
+        // instance every database shares, so another run's database can leave R "not onboarded" there; since the session
+        // token carries the `md` claim, middleware then sends R to /onboarding instead of /pricing (regression:
+        // paywall-r-stale-claims, paywall.spec T10: "/home: to the pricing page", got /onboarding).
+        await restoreReadOnlyUsers(db);
       }
       if (process.env.E2E_SKIP_HEALTH !== "1" || ci) {
         const warnings = await assertFixtureHealth(db);
