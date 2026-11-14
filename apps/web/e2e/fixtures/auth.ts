@@ -236,8 +236,9 @@ function serviceWorkersBlocked(): boolean {
 }
 
 /**
- * Tracks the page's GET /api/me reads; `settled()` waits (≤ 15 s) until none is in flight and none started for
- * VIEWER_QUIET_MS, then (production builds) until the page's service-worker registration exists, then stops tracking.
+ * Tracks the page's GET /api/me reads (or the `paths` given); `settled()` waits (≤ 15 s) until none is in flight and none
+ * started for VIEWER_QUIET_MS, then (production builds) until the page's service-worker registration exists, then stops
+ * tracking.
  *
  * WebKit logs a load that a page being left had started, or starts, as a page error ("…/api/me due to access control
  * checks.", "…/sw.js due to access control checks."), whether or not the app handles it. A sign-in on `/` followed at
@@ -252,11 +253,16 @@ function serviceWorkersBlocked(): boolean {
  * `beforeunload` or `pagehide` (aborting the reads from those events was tried and changed nothing, 6 of 30 runs still
  * failed). Only the P4 lease asks for it: signIn's callers continue as soon as the viewer reads are quiet
  * (in-game-auth.spec reads a 3 s chip on another page right after; a networkidle wait there hid it).
+ *
+ * `paths`: a page's own reads of the same kind, for a spec that leaves the page right after causing them: the Train hub
+ * refetches today's plan and the badges when the tab comes back into view (day-rollover.spec; regression:
+ * webkit-train-today-cut, "…/api/train/today due to access control checks." on WebKit).
  */
-export function pendingViewerReads(page: ViewerReadsPage, opts: { swRegistration?: boolean } = {}) {
+export function pendingViewerReads(page: ViewerReadsPage, opts: { swRegistration?: boolean; paths?: readonly string[] } = {}) {
   const pending = new Set<Request>();
   let lastActivity = Date.now();
-  const isMe = (r: Request) => new URL(r.url()).pathname === "/api/me";
+  const paths = new Set(opts.paths ?? ["/api/me"]);
+  const isMe = (r: Request) => paths.has(new URL(r.url()).pathname);
   const onRequest = (r: Request) => {
     if (!isMe(r)) return;
     pending.add(r);

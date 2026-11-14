@@ -36,6 +36,7 @@ import {
   waitForSession,
   type TrainDb,
 } from "./_lib/train";
+import { pendingViewerReads } from "../../fixtures/auth";
 import { poolSlot } from "../../fixtures/users";
 
 test.describe.configure({ mode: "serial" });
@@ -43,6 +44,30 @@ test.describe.configure({ mode: "serial" });
 test.use({ ...DEVICES["desktop-1440"], timezoneId: "America/New_York", serviceWorkers: "block" });
 
 const Z = (iso: string) => new Date(iso);
+
+/**
+ * The hub's reads (today's plan, the badges, the viewer). regression: webkit-train-today-cut (CI, once: "…/api/train/
+ * today due to access control checks." on WebKit). The 08:00 step fakes a tab switch by pinning
+ * `document.visibilityState` with Object.defineProperty, and the pin ended at "visible": when the spec then left the
+ * page, the browser's own `visibilitychange` (to hidden) read "visible", so the query client took it for a return to
+ * the tab and refetched today's plan at the very moment the document was being left, and the navigation cut it
+ * (Chromium: net::ERR_ABORTED on every run; WebKit reports the cut load as an error on the page being left). A real
+ * hidden tab reads "hidden" and refetches nothing; on a real navigation the old document shows nothing anyway. The step
+ * now removes its pin (the native getter again) and waits for the reads it caused (fixtures/auth.ts
+ * pendingViewerReads; no service-worker wait: this spec blocks service workers), and the tests assert that no hub read
+ * was cut.
+ */
+const HUB_READS = ["/api/train/today", "/api/me/badges", "/api/me"] as const;
+
+/** Hub reads that failed (a navigation cut them: Chromium reports net::ERR_ABORTED, WebKit "cancelled"). */
+function cutHubReads(page: Page): string[] {
+  const cut: string[] = [];
+  page.on("requestfailed", (r) => {
+    const path = new URL(r.url()).pathname;
+    if ((HUB_READS as readonly string[]).includes(path)) cut.push(`${r.method()} ${path}: ${r.failure()?.errorText ?? "failed"}`);
+  });
+  return cut;
+}
 
 async function hubAt(page: Page, clock: { set(at: Date): void }, at: Date, state: "default" | "nothingdue"): Promise<void> {
   clock.set(at);
@@ -86,6 +111,7 @@ test.describe("day rollover · America/New_York", { tag: ["@p5", "@local-only"] 
     expect(cards).toHaveLength(2);
     for (const c of cards) expect(c.due.toISOString(), "released at 08:00 EDT").toBe("2026-10-31T12:00:00.000Z");
     const clock = await serverClock(page, baseURL!);
+    const cut = cutHubReads(page);
 
     // 03:50: Friday's day; an explicit pick counts for 2026-10-30.
     await hubAt(page, clock, t0, "nothingdue");
@@ -110,14 +136,18 @@ test.describe("day rollover · America/New_York", { tag: ["@p5", "@local-only"] 
     clock.set(Z("2026-10-31T12:00:30Z"));
     // The tab goes to the background and comes back (a real visibilitychange bubbles from document to window, where the
     // query client's focus manager listens).
+    const focusReads = pendingViewerReads(page, { paths: HUB_READS, swRegistration: false });
     await page.evaluate(() => {
       Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
       document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
       Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
       document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
+      // The native getter again (the pin is an own property of `document`): see HUB_READS.
+      delete (document as { visibilityState?: unknown }).visibilityState;
     });
     await expect(page.getByTestId("train-due-thumb")).toHaveCount(1, { timeout: 60_000 });
     expect(await getJson<{ bankDue: number; trainDot: boolean }>(page, "/api/me/badges")).toEqual({ bankDue: 1, trainDot: true });
+    await focusReads.settled();
 
     // Grading on Saturday: the streak +1, once.
     await gradeOne(page, db, `/train/bank/session?card=${cards[1]!.k}`);
@@ -127,6 +157,7 @@ test.describe("day rollover · America/New_York", { tag: ["@p5", "@local-only"] 
     clock.set(Z("2026-10-31T12:30:00Z"));
     await gradeOne(page, db, `/train/bank/session?card=${cards[0]!.k}`);
     expect((await db.profile(userId))?.dayStreak, "a second grade the same day").toBe(3);
+    expect(cut, "no hub read was cut by the spec's own navigation").toEqual([]);
   });
 
   test("DST: 01:30 twice is Saturday, release at 08:00 EST, 04:01 EST a new plan, 08:00 the 2 cards", { tag: [...stateTags("hub", "default", "nothingdue")] }, async ({ member, page, reviewDb, baseURL }, testInfo) => {
@@ -139,6 +170,7 @@ test.describe("day rollover · America/New_York", { tag: ["@p5", "@local-only"] 
     const dues = await db.raw.$queryRaw<{ due: Date }[]>`SELECT due FROM training_cards WHERE "userId" = ${userId} AND deck = 'BANK'`;
     expect(dues.map((d) => d.due.toISOString())).toEqual(["2026-11-01T13:00:00.000Z", "2026-11-01T13:00:00.000Z"]);
     const clock = await serverClock(page, baseURL!);
+    const cut = cutHubReads(page);
 
     for (const at of ["2026-11-01T05:30:00Z", "2026-11-01T06:30:00Z", "2026-11-01T08:59:00Z"]) {
       await hubAt(page, clock, Z(at), "nothingdue");
@@ -152,5 +184,6 @@ test.describe("day rollover · America/New_York", { tag: ["@p5", "@local-only"] 
     await hubAt(page, clock, Z("2026-11-01T13:00:00Z"), "default");
     await expect(page.getByTestId("train-due-thumb")).toHaveCount(2);
     expect(await getJson<{ bankDue: number; trainDot: boolean }>(page, "/api/me/badges")).toEqual({ bankDue: 2, trainDot: true });
+    expect(cut, "no hub read was cut by the spec's own navigation").toEqual([]);
   });
 });

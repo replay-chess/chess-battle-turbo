@@ -46,6 +46,20 @@ describe("pendingViewerReads", () => {
     assert.ok(took >= VIEWER_QUIET_MS - 60 && took < VIEWER_QUIET_MS + 500, `${took} ms`);
   });
 
+  it("`paths`: the page's own reads (the Train hub's today and badges) hold it; /api/me is not listed then", async () => {
+    // regression: webkit-train-today-cut (day-rollover.spec: the next goto cut the hub's GET /api/train/today).
+    const { page, ee, req } = fakePage();
+    const reads = pendingViewerReads(page, { swRegistration: false, paths: ["/api/train/today", "/api/me/badges"] });
+    const today = req("/api/train/today");
+    setTimeout(() => ee.emit("request", today), 100);
+    setTimeout(() => ee.emit("requestfinished", today), 600);
+    ee.emit("request", req("/api/me"));
+    const t0 = Date.now();
+    await reads.settled();
+    const took = Date.now() - t0;
+    assert.ok(took >= 600 + VIEWER_QUIET_MS - 60, `settled after today's read finished and the page went quiet (${took} ms)`);
+  });
+
   it("a production build waits for the page's service-worker registration, bounded", async () => {
     const { page } = fakePage({ registeredAfterMs: VIEWER_QUIET_MS + 400 });
     const t0 = Date.now();
