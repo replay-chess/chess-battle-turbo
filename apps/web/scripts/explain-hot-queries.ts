@@ -147,7 +147,97 @@ export function p5HotQueries(): P5HotQuery[] {
     { name: "W7 the viewer's reports of 24 h (reporterId, createdAt)", sql: recentReportsSql(U, NOW, { targetType: "mistake", targetRef: REF }) },
     { name: "W7 mistake target by card key (userId, itemKey) → mistakes_pkey", sql: reportTargetSql(U, { targetType: "mistake", targetRef: "m_abc" }) },
     { name: "W7 puzzle target visible to the viewer", sql: reportTargetSql(U, { targetType: "puzzle", targetRef: "00abc" }) },
+    // m5c: the import purge's Mistake Bank step (import_purge_bank, once per purge batch).
+    ...purgeBankQueries(),
   ];
+}
+
+/** m5c's purge step (packages/db/prisma/migrations/<MIGRATION>): import_purge_bank's statements as written there. */
+export const PURGE_BANK_MIGRATION = "20261114000300_m5c_purge_mistake_bank";
+
+/**
+ * import_purge_bank's statements (the import purge, one call per batch of ≤ 500 games), verbatim from the migration
+ * without their `INTO <variable>`; explain-hot-queries.test.ts checks each still appears there. `purgeBankQueries()`
+ * binds the function's variables (`p_user`, `p_games`, `touched`, `gone`) to samples.
+ */
+export const PURGE_BANK_STATEMENTS: { name: string; sql: string; allowSort?: string[] }[] = [
+  {
+    name: "PURGE bank 1 the member's occurrences on the batch's games (occurrences pkey, mistakes_pkey, game_players_pkey)",
+    sql: `WITH occ AS (
+    DELETE FROM mistake_occurrences mo
+     USING mistakes m
+     WHERE mo."gameId" = ANY (p_games) AND m.id = mo."mistakeId" AND m."userId" = p_user
+       AND NOT EXISTS (SELECT 1 FROM game_players gp WHERE gp."gameId" = mo."gameId" AND gp."userId" = p_user)
+    RETURNING mo."mistakeId"
+  )
+  SELECT COALESCE(array_agg(DISTINCT occ."mistakeId"), ARRAY[]::bigint[]) FROM occ`,
+  },
+  { name: "PURGE bank 2 lock the mistakes (mistakes_pkey)", sql: `SELECT 1 FROM mistakes m WHERE m.id = ANY (touched) ORDER BY m.id FOR UPDATE` },
+  {
+    name: "PURGE bank 3 mistakes seen nowhere else (mistakes_pkey, mistake_occurrences_mistakeId_idx)",
+    sql: `SELECT COALESCE(array_agg(m.id), ARRAY[]::bigint[])
+    FROM mistakes m
+   WHERE m.id = ANY (touched) AND NOT EXISTS (SELECT 1 FROM mistake_occurrences o WHERE o."mistakeId" = m.id)`,
+  },
+  {
+    name: "PURGE bank 3 their cards, the cards' attempts, bankCount (training_cards_mistakeId_key, attempts by userId, theme_mastery_pkey)",
+    sql: `WITH dc AS (
+      DELETE FROM training_cards c WHERE c."mistakeId" = ANY (gone) AND c."userId" = p_user
+      RETURNING c.id, c.theme, c.deck
+    ), da AS (
+      DELETE FROM training_attempts a WHERE a."userId" = p_user AND a."cardId" IN (SELECT dc.id FROM dc)
+    ), t AS (
+      SELECT dc.theme, count(*)::int AS n FROM dc WHERE dc.deck = 'BANK' GROUP BY dc.theme
+    )
+    UPDATE theme_mastery tm SET "bankCount" = GREATEST(0, tm."bankCount" - t.n)
+      FROM t
+     WHERE tm."userId" = p_user AND tm.theme = t.theme`,
+  },
+  { name: "PURGE bank 3 the mistakes (mistakes_pkey)", sql: `DELETE FROM mistakes m WHERE m.id = ANY (gone) AND m."userId" = p_user` },
+  {
+    name: "PURGE bank 4 recount the kept mistakes (mistakes_pkey, mistake_occurrences_mistakeId_idx)",
+    sql: `UPDATE mistakes m
+     SET occurrences = (SELECT count(*) FROM mistake_occurrences o WHERE o."mistakeId" = m.id)::smallint,
+         "updatedAt" = now()
+   WHERE m.id = ANY (touched) AND m."userId" = p_user`,
+  },
+  {
+    // The LATERAL top-1 sorts the occurrences of ONE mistake (a handful: `occurrences` is a smallint count of games).
+    name: "PURGE bank 4 re-point the last occurrence (per mistake: occurrences by mistakeId, games_pkey, game_players_pkey)",
+    sql: `UPDATE mistakes m
+     SET "lastGameId" = l."gameId", "lastPly" = l.ply, "lastPlayedAt" = l."playedAt", "lastOpponentName" = l.opponent,
+         "updatedAt" = now()
+    FROM mistakes k
+    CROSS JOIN LATERAL (
+      SELECT o."gameId", o.ply, COALESCE(gp."endedAt", g."completedAt", k."lastPlayedAt") AS "playedAt",
+             left(COALESCE(NULLIF(btrim(gp."opponentName"), ''), 'Opponent'), 40) AS opponent
+        FROM mistake_occurrences o
+        JOIN games g ON g.id = o."gameId"
+        LEFT JOIN game_players gp ON gp."gameId" = o."gameId" AND gp."userId" = k."userId"
+       WHERE o."mistakeId" = k.id
+       ORDER BY 3 DESC, o."gameId" DESC, o.ply DESC
+       LIMIT 1
+    ) l
+   WHERE m.id = k.id AND k.id = ANY (touched) AND k."userId" = p_user
+     AND NOT EXISTS (SELECT 1 FROM mistake_occurrences o
+                      WHERE o."gameId" = k."lastGameId" AND o.ply = k."lastPly" AND o."mistakeId" = k.id)`,
+    allowSort: ["mistake_occurrences", "game_players"],
+  },
+];
+
+const SAMPLE_IDS = (n: number, from: number) => `ARRAY[${Array.from({ length: n }, (_, i) => from + i).join(",")}]::bigint[]`;
+
+/** PURGE_BANK_STATEMENTS with the function's variables bound: a batch of 500 games, 50 touched and 20 gone mistakes. */
+export function purgeBankQueries(): P5HotQuery[] {
+  return PURGE_BANK_STATEMENTS.map((s) => ({
+    name: s.name,
+    allowSort: s.allowSort,
+    sql: s.sql
+      .replace(/\bp_user\b/g, "1::bigint")
+      .replace(/\bp_games\b/g, SAMPLE_IDS(500, 1))
+      .replace(/\btouched\b/g, SAMPLE_IDS(50, 1))
+      .replace(/\bgone\b/g, SAMPLE_IDS(20, 1)),
+  }));
 }
 
 type PlanNode = { "Node Type": string; "Relation Name"?: string; "Presorted Key"?: string[]; Plans?: PlanNode[] };

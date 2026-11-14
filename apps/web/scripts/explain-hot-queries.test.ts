@@ -4,7 +4,10 @@
 // comes from docs/indexes.json.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { p5HotQueries, p5IndexNames, p5PlanProblems } from "./explain-hot-queries";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { p5HotQueries, p5IndexNames, p5PlanProblems, PURGE_BANK_MIGRATION, PURGE_BANK_STATEMENTS } from "./explain-hot-queries";
 
 const scan = (rel: string, type = "Index Scan") => ({ "Node Type": type, "Relation Name": rel });
 
@@ -32,5 +35,16 @@ describe("P5 explain gate", () => {
     }
     const idx = p5IndexNames();
     for (const n of ["training_attempts_puzzle_idx", "training_cards_userId_deck_due_idx", "reports_reporterId_createdAt_idx"]) assert.ok(idx.includes(n), n);
+  });
+
+  it("plans the import purge's Mistake Bank statements as the m5c migration writes them", () => {
+    // The gate explains copies of import_purge_bank's statements: each must still be in the migration, verbatim (spacing
+    // aside, `INTO <variable>` dropped, PERFORM read as SELECT), so a change to the function cannot leave the gate planning an old statement.
+    const file = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../packages/db/prisma/migrations", PURGE_BANK_MIGRATION, "migration.sql");
+    const flat = (sql: string) => sql.replace(/\s+/g, " ").trim();
+    const migration = flat(readFileSync(file, "utf8")).replace(/ INTO (touched|gone)\b/g, "").replace(/\bPERFORM 1 /g, "SELECT 1 ");
+    for (const s of PURGE_BANK_STATEMENTS) assert.ok(migration.includes(flat(s.sql)), s.name);
+    const names = p5HotQueries().map((q) => q.name);
+    for (const s of PURGE_BANK_STATEMENTS) assert.ok(names.includes(s.name), s.name);
   });
 });
