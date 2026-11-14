@@ -194,6 +194,8 @@ jobs:
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-retries 10
     env:
+      # CI diagnostics: every local server tees its stdout+stderr into this directory (e2e/fixtures/server-logs.ts).
+      E2E_LOG_DIR: ${{ github.workspace }}/ci-logs
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/replay
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
@@ -203,6 +205,8 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - name: Environment (versions, commit, env names, ports)
+        run: bash scripts/ci/diagnostics.sh env "Postgres service :5432 (no app servers)"
       - run: pnpm --filter @repo/db generate
       - name: Migrate and seed
         # The integration suites need seed.ts and opening-seed.ts only; the design legends (seed:content) are seeded
@@ -265,6 +269,18 @@ jobs:
           path: perf/results/p03-explain-*.json
           retention-days: 30
           if-no-files-found: ignore
+      - name: Diagnostics on failure (containers, ports, the last 200 lines of each server log; redacted)
+        if: failure()
+        run: bash scripts/ci/diagnostics.sh failure
+      - name: Upload the diagnostics (server logs, Playwright report, traces, screenshots, results JSON)
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: integration-diagnostics
+          path: |
+            ci-logs/
+          retention-days: 7
+          if-no-files-found: ignore
 
   e2e-smoke:
     needs: verify
@@ -278,6 +294,8 @@ jobs:
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-retries 10
     env:
+      # CI diagnostics: every local server tees its stdout+stderr into this directory (e2e/fixtures/server-logs.ts).
+      E2E_LOG_DIR: ${{ github.workspace }}/ci-logs
       CI: "1"
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/replay
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/replay
@@ -357,6 +375,8 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - name: Environment (versions, commit, env names, ports)
+        run: bash scripts/ci/diagnostics.sh env "web :3000 (next start), socket main :3002 / fast :3102 / restartable :3103, analysis worker :3003, upstream mock :4010, PostHog sink :4011, puzzle shards :4012, flags-off :3110, Postgres :5432"
       - run: pnpm --filter web exec playwright install --with-deps chromium webkit
       - name: Random webhook signing keys for this run
         run: |
@@ -413,7 +433,8 @@ jobs:
       - name: Authz walker over HTTP (signed out, against next start)
         working-directory: apps/web
         run: |
-          pnpm start > ../../next-start.log 2>&1 &
+          mkdir -p "$E2E_LOG_DIR"
+          pnpm start > "$E2E_LOG_DIR/next-start-authz.log" 2>&1 &
           echo $! > ../../next-start.pid
           for _ in $(seq 1 60); do curl -fsS http://localhost:3000/api/health > /dev/null && break; sleep 1; done
           AUTHZ_BASE_URL=http://localhost:3000 pnpm exec tsx --test test/authz/walker.test.ts
@@ -436,6 +457,12 @@ jobs:
         env:
           E2E_SMOKE: "1"
         run: pnpm --filter web exec playwright test --project=chromium --project=webkit-iphone --project=game-serial
+      - name: Keep the @smoke step's report and results (the P5 step writes the same folders)
+        if: success() || failure()
+        working-directory: apps/web
+        run: |
+          if [ -d playwright-report ]; then mv playwright-report playwright-report-smoke; fi
+          if [ -d test-results ]; then mv test-results test-results-smoke; fi
       - name: P5 Train, Mistake Bank, puzzles and Home specs (@p5 on chromium, @p5 @smoke on webkit-iphone)
         # phase-05 plan §12.4 PR tier: every @p5 spec (e2e/specs/train/**, home, request-budget, a11y/train) on the same
         # build and servers; the puzzle specs read the committed shard subset from the CI shard server on :4012
@@ -447,15 +474,36 @@ jobs:
         env:
           E2E_PHASES: "5"
         run: pnpm --filter web exec playwright test --project=chromium --project=webkit-iphone
+      - name: Redact the server logs (the report below takes the authz walker's next start log)
+        if: always()
+        run: bash scripts/ci/diagnostics.sh redact
       - if: always()
         uses: actions/upload-artifact@v6
         with:
           name: e2e-smoke-report
           path: |
             apps/web/playwright-report/
+            apps/web/playwright-report-smoke/
             apps/web/test-results/results.json
-            next-start.log
+            apps/web/test-results-smoke/results.json
+            ci-logs/next-start-authz.log
           retention-days: 14
+          if-no-files-found: ignore
+      - name: Diagnostics on failure (containers, ports, the last 200 lines of each server log; redacted)
+        if: failure()
+        run: bash scripts/ci/diagnostics.sh failure
+      - name: Upload the diagnostics (server logs, Playwright report, traces, screenshots, results JSON)
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: e2e-smoke-diagnostics
+          path: |
+            ci-logs/
+            apps/web/playwright-report/
+            apps/web/playwright-report-smoke/
+            apps/web/test-results/
+            apps/web/test-results-smoke/
+          retention-days: 7
           if-no-files-found: ignore
 
   devices-game:
@@ -465,6 +513,8 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 40
     env:
+      # CI diagnostics: every local server tees its stdout+stderr into this directory (e2e/fixtures/server-logs.ts).
+      E2E_LOG_DIR: ${{ github.workspace }}/ci-logs
       CI: "1"
       DEVICES_TIER: pr
       NEXT_PUBLIC_APP_ENV: test
@@ -489,6 +539,8 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - name: Environment (versions, commit, env names, ports)
+        run: bash scripts/ci/diagnostics.sh env "devices web :3100 (next build + start), puzzle shards :4012"
       - run: pnpm --filter web exec playwright install --with-deps chromium webkit
       - run: pnpm --filter @repo/db generate
       - name: Game one-viewport (/dev/ui/game, builds .next-devices, serves :3100)
@@ -500,6 +552,21 @@ jobs:
           path: apps/web/playwright-report-devices/
           retention-days: 14
           if-no-files-found: ignore
+      - name: Diagnostics on failure (containers, ports, the last 200 lines of each server log; redacted)
+        if: failure()
+        run: bash scripts/ci/diagnostics.sh failure
+      - name: Upload the diagnostics (server logs, Playwright report, traces, screenshots, results JSON)
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: devices-game-diagnostics
+          path: |
+            ci-logs/
+            apps/web/playwright-report-devices/
+            apps/web/test-results/
+            apps/web/test-results-devices/
+          retention-days: 7
+          if-no-files-found: ignore
 
   devices-p4:
     # phase-04 plan §12.4: the onboarding steps, /settings/connected and the activation card in every demo state on the PR
@@ -510,6 +577,8 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 45
     env:
+      # CI diagnostics: every local server tees its stdout+stderr into this directory (e2e/fixtures/server-logs.ts).
+      E2E_LOG_DIR: ${{ github.workspace }}/ci-logs
       CI: "1"
       DEVICES_TIER: pr
       NEXT_PUBLIC_APP_ENV: test
@@ -534,6 +603,8 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - name: Environment (versions, commit, env names, ports)
+        run: bash scripts/ci/diagnostics.sh env "devices web :3100 (next build + start), puzzle shards :4012"
       - run: pnpm --filter web exec playwright install --with-deps chromium webkit
       - run: pnpm --filter @repo/db generate
       - name: Onboarding, connected accounts and activating one viewport + CLS (builds .next-devices, serves :3100)
@@ -546,6 +617,21 @@ jobs:
           name: devices-p4-report
           path: apps/web/playwright-report-devices/
           retention-days: 14
+          if-no-files-found: ignore
+      - name: Diagnostics on failure (containers, ports, the last 200 lines of each server log; redacted)
+        if: failure()
+        run: bash scripts/ci/diagnostics.sh failure
+      - name: Upload the diagnostics (server logs, Playwright report, traces, screenshots, results JSON)
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: devices-p4-diagnostics
+          path: |
+            ci-logs/
+            apps/web/playwright-report-devices/
+            apps/web/test-results/
+            apps/web/test-results-devices/
+          retention-days: 7
           if-no-files-found: ignore
 
   devices-p5:
@@ -564,6 +650,8 @@ jobs:
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-retries 10
     env:
+      # CI diagnostics: every local server tees its stdout+stderr into this directory (e2e/fixtures/server-logs.ts).
+      E2E_LOG_DIR: ${{ github.workspace }}/ci-logs
       CI: "1"
       DEVICES_TIER: pr
       NEXT_PUBLIC_APP_ENV: test
@@ -593,6 +681,8 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - name: Environment (versions, commit, env names, ports)
+        run: bash scripts/ci/diagnostics.sh env "devices web :3100 (next build + start), puzzle shards :4012, Postgres :5432"
       - run: pnpm --filter web exec playwright install --with-deps chromium webkit
       - name: Random keys for this run (the persona tool's ledger pepper and the signed cookies)
         run: |
@@ -617,6 +707,21 @@ jobs:
           path: apps/web/playwright-report-devices/
           retention-days: 14
           if-no-files-found: ignore
+      - name: Diagnostics on failure (containers, ports, the last 200 lines of each server log; redacted)
+        if: failure()
+        run: bash scripts/ci/diagnostics.sh failure
+      - name: Upload the diagnostics (server logs, Playwright report, traces, screenshots, results JSON)
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: devices-p5-diagnostics
+          path: |
+            ci-logs/
+            apps/web/playwright-report-devices/
+            apps/web/test-results/
+            apps/web/test-results-devices/
+          retention-days: 7
+          if-no-files-found: ignore
 
   devices-review:
     # phase-03 plan §12.3: the P3 screens (/dev/ui review, complete, share, compare, practice, games, game-over,
@@ -633,6 +738,8 @@ jobs:
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-retries 10
     env:
+      # CI diagnostics: every local server tees its stdout+stderr into this directory (e2e/fixtures/server-logs.ts).
+      E2E_LOG_DIR: ${{ github.workspace }}/ci-logs
       CI: "1"
       DEVICES_TIER: pr
       NEXT_PUBLIC_APP_ENV: test
@@ -657,6 +764,8 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - name: Environment (versions, commit, env names, ports)
+        run: bash scripts/ci/diagnostics.sh env "devices web :3100 (next build + start), puzzle shards :4012, Postgres :5432"
       - run: pnpm --filter web exec playwright install --with-deps chromium webkit
       - name: Migrate and seed the Docker database
         run: |
@@ -675,3 +784,19 @@ jobs:
           path: apps/web/playwright-report-devices/
           retention-days: 14
           if-no-files-found: ignore
+      - name: Diagnostics on failure (containers, ports, the last 200 lines of each server log; redacted)
+        if: failure()
+        run: bash scripts/ci/diagnostics.sh failure
+      - name: Upload the diagnostics (server logs, Playwright report, traces, screenshots, results JSON)
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: devices-review-diagnostics
+          path: |
+            ci-logs/
+            apps/web/playwright-report-devices/
+            apps/web/test-results/
+            apps/web/test-results-devices/
+          retention-days: 7
+          if-no-files-found: ignore
+

@@ -18,6 +18,7 @@ import {
 import { WORKER_PORT, WORKER_SERVER_COMMAND, WORKER_URL, workerFaultsHonoured, workerServerEnv } from "./e2e/fixtures/analysis-worker";
 import { UPSTREAM_PORT, upstreamEnv } from "./e2e/mocks/upstream-client";
 import { PUZZLE_SHARDS_PORT, puzzleShardEnv } from "./e2e/mocks/puzzle-shards-client";
+import { loggedCommand } from "./e2e/fixtures/server-logs";
 
 const WEB_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -228,7 +229,7 @@ const testServerEnv = {
 const upstreamServer = {
   // The upstream mock signs its Dodo webhooks with DODO_PAYMENTS_WEBHOOK_KEY (inherited from this process: .env.test
   // locally, the per-run key in CI) and posts them to the web server under test.
-  command: `npx tsx e2e/mocks/upstream-server.ts --port ${UPSTREAM_PORT} --web http://localhost:${WEB_PORT}`,
+  command: loggedCommand("upstream-mock", `npx tsx e2e/mocks/upstream-server.ts --port ${UPSTREAM_PORT} --web http://localhost:${WEB_PORT}`),
   url: `http://127.0.0.1:${UPSTREAM_PORT}/__health`,
   reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
   timeout: 15_000,
@@ -236,7 +237,7 @@ const upstreamServer = {
 
 /** P5 (phase-05 plan §9.3): the static puzzle shard server on 4012 (+ offset), the committed fixture subset. */
 const puzzleShardServer = {
-  command: `npx tsx e2e/mocks/puzzle-shards.ts --port ${PUZZLE_SHARDS_PORT}`,
+  command: loggedCommand("puzzle-shards", `npx tsx e2e/mocks/puzzle-shards.ts --port ${PUZZLE_SHARDS_PORT}`),
   url: `http://127.0.0.1:${PUZZLE_SHARDS_PORT}/__health`,
   reuseExistingServer: true,
   timeout: 15_000,
@@ -244,7 +245,7 @@ const puzzleShardServer = {
 
 const sinkServer = {
   // Server-side PostHog sink (plan §10.1). The web server reaches it through POSTHOG_HOST.
-  command: `npx tsx e2e/mocks/posthog-sink.ts --port ${SINK_PORT}`,
+  command: loggedCommand("posthog-sink", `npx tsx e2e/mocks/posthog-sink.ts --port ${SINK_PORT}`),
   url: `http://127.0.0.1:${SINK_PORT}/__health`,
   reuseExistingServer: true,
   timeout: 15_000,
@@ -257,7 +258,7 @@ const sinkServer = {
  * apps/web-socket/.env). The restartable :3103 is spawned by the `restartable` fixture in the game-serial project.
  */
 const socketServer = (kind: "main" | "fast", webAppUrl: string) => ({
-  command: SOCKET_SERVER_COMMAND,
+  command: loggedCommand(`socket-${kind}-${webAppUrl.replace(/^.*:/, "")}`, SOCKET_SERVER_COMMAND),
   url: `http://127.0.0.1:${kind === "main" ? MAIN_SOCKET_PORT : FAST_SOCKET_PORT}/ready`,
   env: socketServerEnv(kind, { webAppUrl, extraOrigins: [`http://localhost:${FLAGS_OFF_PORT}`], sinkPort: SINK_PORT }),
   reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
@@ -270,7 +271,7 @@ const socketServer = (kind: "main" | "fast", webAppUrl: string) => ({
  * the :3002 socket kick it; it emits analysis:* to :3002.
  */
 const workerServer = () => ({
-  command: WORKER_SERVER_COMMAND,
+  command: loggedCommand("analysis-worker", WORKER_SERVER_COMMAND),
   url: `http://127.0.0.1:${WORKER_PORT}/ready`,
   stdout: serverStdout,
   env: {
@@ -292,11 +293,14 @@ const serverStdout = process.env.E2E_SERVER_LOGS === "1" ? ("pipe" as const) : (
 const localServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
   upstreamServer,
   {
-    command: WEB_BUILD
-      ? `pnpm start${WEB_PORT === 3000 ? "" : ` --port ${WEB_PORT}`}`
-      : WEB_PORT === 3000
-        ? "pnpm dev"
-        : `node scripts/build-engine-assets.mjs && pnpm exec next dev --port ${WEB_PORT}`,
+    command: loggedCommand(
+      "web",
+      WEB_BUILD
+        ? `pnpm start${WEB_PORT === 3000 ? "" : ` --port ${WEB_PORT}`}`
+        : WEB_PORT === 3000
+          ? "pnpm dev"
+          : `node scripts/build-engine-assets.mjs && pnpm exec next dev --port ${WEB_PORT}`,
+    ),
     port: WEB_PORT,
     env: testServerEnv,
     stdout: serverStdout,
@@ -315,7 +319,7 @@ const localServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
 const lapsedReadServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
   upstreamServer,
   {
-    command: WEB_BUILD ? `pnpm start --port ${LAPSED_READ_PORT}` : `pnpm exec next dev --port ${LAPSED_READ_PORT}`,
+    command: loggedCommand("web-lapsed-read", WEB_BUILD ? `pnpm start --port ${LAPSED_READ_PORT}` : `pnpm exec next dev --port ${LAPSED_READ_PORT}`),
     port: LAPSED_READ_PORT,
     env: {
       ...testServerEnv,
@@ -337,9 +341,10 @@ const lapsedReadServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => 
 const flagsOffServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
   upstreamServer,
   {
-    command: process.env.CI
-      ? `pnpm build && pnpm start --port ${FLAGS_OFF_PORT}`
-      : `pnpm exec next dev --port ${FLAGS_OFF_PORT}`,
+    command: loggedCommand(
+      "web-flags-off",
+      process.env.CI ? `pnpm build && pnpm start --port ${FLAGS_OFF_PORT}` : `pnpm exec next dev --port ${FLAGS_OFF_PORT}`,
+    ),
     port: FLAGS_OFF_PORT,
     env: {
       ...testServerEnv,
@@ -355,7 +360,7 @@ const flagsOffServers = (): NonNullable<PlaywrightTestConfig["webServer"]> => [
 
 const prodGuardServer: NonNullable<PlaywrightTestConfig["webServer"]> = [
   {
-    command: `pnpm build && pnpm start --port ${PROD_GUARD_PORT}`,
+    command: loggedCommand("web-prod-guard", `pnpm build && pnpm start --port ${PROD_GUARD_PORT}`),
     port: PROD_GUARD_PORT,
     env: { ...prodGuardEnv(), ...blankTelemetry, NEXT_DIST_DIR: ".next-prodcheck" },
     reuseExistingServer: process.env.PW_REUSE_SERVER === "1",
@@ -370,7 +375,9 @@ export default defineConfig<ConsoleGuardOptions & TelemetryOptions>({
   retries: process.env.CI ? 1 : 0,
   timeout: 180_000,
   expect: { timeout: 15_000 },
-  reporter: process.env.CI ? [["html"], ["json", { outputFile: "test-results/results.json" }], ["list"]] : "list",
+  // CI: the list (each failure's project, title, error and location in the job log), GitHub annotations, the HTML
+  // report and the JSON results (uploaded by ci.yml).
+  reporter: process.env.CI ? [["html"], ["json", { outputFile: "test-results/results.json" }], ["list"], ["github"]] : "list",
   use: {
     baseURL: PROD_GUARD
       ? `http://localhost:${PROD_GUARD_PORT}`

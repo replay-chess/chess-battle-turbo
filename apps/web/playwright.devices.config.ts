@@ -43,6 +43,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { BASE_DEVICES, MOTION_PROJECTS, UI_PROJECTS, ZOOMS, baseDevice, projectName, zoomed } from "./e2e/devices/matrix";
 import { PUZZLE_SHARDS_PORT, puzzleShardEnv } from "./e2e/mocks/puzzle-shards-client";
+import { loggedCommand } from "./e2e/fixtures/server-logs";
 
 // E2E_ENV_FILE: another env file (outside the repo), as in playwright.config.ts.
 loadEnv({ path: process.env.E2E_ENV_FILE || path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env.test"), override: true });
@@ -91,7 +92,15 @@ export default defineConfig({
   snapshotPathTemplate: "{testDir}/../__screenshots__/{projectName}/{testFilePath}/{arg}{ext}",
   // CI never writes a missing baseline (the update-snapshots workflow passes --update-snapshots itself).
   updateSnapshots: process.env.CI ? "none" : "missing",
-  reporter: process.env.CI ? [["html", { open: "never", outputFolder: "playwright-report-devices" }], ["list"]] : "list",
+  // CI: the HTML report, the list and GitHub annotations in the job log, and the JSON results (ci.yml uploads them).
+  reporter: process.env.CI
+    ? [
+        ["html", { open: "never", outputFolder: "playwright-report-devices" }],
+        ["json", { outputFile: "test-results-devices/results.json" }],
+        ["list"],
+        ["github"],
+      ]
+    : "list",
   use: {
     baseURL: process.env.DEVICES_BASE_URL ?? "http://localhost:3100",
     contextOptions: { reducedMotion: "reduce" },
@@ -104,7 +113,7 @@ export default defineConfig({
     ? undefined
     : [
         {
-          command: "pnpm build && pnpm start --port 3100",
+          command: loggedCommand("devices-web", "pnpm build && pnpm start --port 3100"),
           port: 3100,
           // next build and next start write to stdout; Playwright drops a webServer's stdout unless asked.
           stdout: "pipe",
@@ -123,7 +132,7 @@ export default defineConfig({
           },
         },
         {
-          command: `npx tsx e2e/mocks/puzzle-shards.ts --port ${PUZZLE_SHARDS_PORT}`,
+          command: loggedCommand("puzzle-shards", `npx tsx e2e/mocks/puzzle-shards.ts --port ${PUZZLE_SHARDS_PORT}`),
           url: `http://127.0.0.1:${PUZZLE_SHARDS_PORT}/__health`,
           reuseExistingServer: true,
           timeout: 15_000,
