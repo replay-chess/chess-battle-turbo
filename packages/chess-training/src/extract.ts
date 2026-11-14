@@ -22,7 +22,7 @@ import {
 } from "@repo/chess-analysis/codec";
 import { epdHash } from "@repo/chess-analysis/epd";
 import { extendLine, type LineSearch, type ReplySearch } from "@repo/chess-analysis/puzzle/line";
-import { matesFor, puzzleVerdict } from "@repo/chess-analysis/puzzle/validAttack";
+import { matesFor, puzzleVerdict, type PuzzleVerdict } from "@repo/chess-analysis/puzzle/validAttack";
 import type { Replay } from "@repo/chess-analysis/replay";
 import { tagThemes } from "@repo/chess-analysis/themes/index";
 import { WIN_CP_CLAMP } from "@repo/chess-analysis/winpct";
@@ -346,13 +346,21 @@ async function recordOf(
   const line = input.lines[String(i)];
   const pv = pvOf(line);
   const evalBest = input.evals[i] as number;
-  const verdict = puzzleVerdict({
-    best: evalBest,
-    second: input.second[i] as number,
-    mover: color,
-    legalCount: replay.legal[i] ?? 0,
-    evalBeforeSetup: i >= 1 ? (input.evals[i - 1] ?? null) : null,
-  });
+  const second = input.second[i];
+  // An analysis without a stored MultiPV-2 score for this position (`second` empty or short: a seeded or legacy
+  // analysis) cannot show the best move is the only good one, so the position is banked as a review position instead
+  // of a scored puzzle. Indexing past the array threw `RangeError: not an eval: undefined`, which made A6's on-demand
+  // "Add this position" answer 500 (regression: a6-no-second) and would fail EXTRACT_MISTAKES for the same side.
+  const verdict: Pick<PuzzleVerdict, "isPuzzle" | "gap"> =
+    typeof second === "number" && Number.isFinite(second)
+      ? puzzleVerdict({
+          best: evalBest,
+          second,
+          mover: color,
+          legalCount: replay.legal[i] ?? 0,
+          evalBeforeSetup: i >= 1 ? (input.evals[i - 1] ?? null) : null,
+        })
+      : { isPuzzle: false, gap: null };
   let solution = [best];
   if (verdict.isPuzzle && deps.search) {
     try {

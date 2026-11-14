@@ -250,6 +250,29 @@ describe("P5 W5/W6/A6/review bank fields/W7/W8 (Postgres)", { skip: url ? false 
     assert.equal(await bankTotal(), total0 + 1);
   });
 
+  it("regression a6-no-second: A6 opt-in on a never-extracted side whose analysis has no MultiPV-2 scores makes a review-position card (was 500)", async () => {
+    const m = await w.member("a6nosecond");
+    const rep = await w.persona(m, "bank-member");
+    const ref = rep.gameRefs.GAME!;
+    const mom = await momentWithCard(m, ref);
+    await w.db.$executeRaw(Prisma.sql`DELETE FROM training_cards c USING mistake_occurrences mo WHERE mo."gameId" = ${mom.gameId} AND c."mistakeId" = mo."mistakeId"`);
+    await w.db.$executeRaw(Prisma.sql`DELETE FROM mistake_occurrences WHERE "gameId" = ${mom.gameId}`);
+    await w.db.$executeRaw(Prisma.sql`DELETE FROM mistakes m WHERE m."userId" = ${m.id} AND NOT EXISTS (SELECT 1 FROM mistake_occurrences o WHERE o."mistakeId" = m.id)`);
+    await w.db.$executeRaw(Prisma.sql`UPDATE game_players SET "bankVersion" = 0 WHERE "gameId" = ${mom.gameId} AND "userId" = ${m.id}`);
+    // A seeded or legacy analysis: no stored second-best score (`second` empty), as P3's seed builders write it.
+    await w.db.$executeRaw(Prisma.sql`UPDATE game_analyses SET second = '{}' WHERE "gameId" = ${mom.gameId}`);
+    train(true);
+    const on = await w.call("moment", "PATCH", `/api/review/${ref}/moments/${mom.ply}`, m, { params: { ref, ply: String(mom.ply) }, body: { inBank: true } });
+    assert.equal(on.res.status, 200, await on.res.clone().text());
+    const res = ok(MomentBankResponse).parse(await on.json()).data;
+    assert.ok(res.card, "the card is made");
+    const rows = await w.db.$queryRaw<{ kind: string; isPuzzle: boolean; gap: number | null }[]>(Prisma.sql`
+      SELECT c.kind::text AS kind, mi."isPuzzle", mi."uniquenessGap" AS gap
+        FROM mistake_occurrences mo JOIN mistakes mi ON mi.id = mo."mistakeId" JOIN training_cards c ON c."mistakeId" = mi.id
+       WHERE mo."gameId" = ${mom.gameId} AND mo.ply = ${mom.ply}::smallint`);
+    assert.deepEqual(rows, [{ kind: "REVIEW_POSITION", isPuzzle: false, gap: null }], "without a second-best score uniqueness is unknown: a review position");
+  });
+
   it("A6 opt-in that the stored analysis cannot bank (browser pass D1): 409 not_bankable, nothing written", async () => {
     const m = await w.member("a6nobank");
     const rep = await w.persona(m, "bank-member");
