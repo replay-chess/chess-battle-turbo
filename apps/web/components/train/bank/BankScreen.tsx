@@ -36,6 +36,7 @@ import {
   bankHref,
   bankSessionBody,
   bodyOf,
+  pageAfterRemovals,
   parseBankSearch,
   serverFilterOf,
   solveHref,
@@ -96,7 +97,9 @@ export function BankScreen({ initial, serverNowMs }: { initial: BankUrlState; se
       pendingRemovals.current.delete(ref);
       void api(cardPath(ref), { method: "DELETE", keepalive })
         .then(() => {
-          for (const key of [qk.train.today(), BANK_LISTS_KEY, qk.home(), qk.badges(), qk.me()]) {
+          // The bank on screen refetches now (its head: counts, upcoming, the next batch); the rest where next shown.
+          void qc.invalidateQueries({ queryKey: BANK_LISTS_KEY, refetchType: "active" });
+          for (const key of [qk.train.today(), qk.home(), qk.badges(), qk.me()]) {
             void qc.invalidateQueries({ queryKey: key, refetchType: "none" });
           }
         })
@@ -157,13 +160,15 @@ export function BankScreen({ initial, serverNowMs }: { initial: BankUrlState; se
 
   const sourceRows = complete ? bankRowsOf(baseData) : bankRowsOf(activeData ?? baseData);
   const rows = removed.size ? sourceRows.filter((r) => !removed.has(r.cardRef)) : sourceRows;
+  // The head follows the rows still shown (D6): counts, the empty state and the next batch after a removal.
+  const shown = pageAfterRemovals(page, sourceRows, removed);
   const tz = safeTimeZone(timeZone);
   const nextDay = page.nextBatch ? dayWord(page.nextBatch.at, now, tz, page.nextBatch.dayStartHour ?? DEFAULT_DAY_START_HOUR) : null;
-  const body = bodyOf(page, url);
+  const body = bodyOf(shown, url);
 
   return (
     <BankView
-      page={page}
+      page={shown}
       rows={rows}
       complete={complete}
       filter={url}

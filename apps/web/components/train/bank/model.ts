@@ -345,6 +345,25 @@ export function caughtUpOf(page: BankPage, day: string | null): CaughtUpModel {
   };
 }
 
+/**
+ * The page head with the member's pending and committed removals applied (browser pass D6): Remove From Bank hides
+ * the row at once and the server's head arrives only with the next refetch, so the counts, the state and the next
+ * batch follow the rows still shown. Only removed rows that the page still holds count (once a refetch has dropped a
+ * row, the server's head already excludes it). The last card gone → the empty bank, with no next batch.
+ */
+export function pageAfterRemovals(page: BankPage, sourceRows: readonly BankRow[], removed: ReadonlySet<string>): BankPage {
+  if (removed.size === 0) return page;
+  const gone = sourceRows.filter((r) => removed.has(r.cardRef));
+  if (gone.length === 0) return page;
+  const dueGone = gone.filter((r) => r.isDue).length;
+  const all = Math.max(0, page.counts.all - gone.length);
+  const due = Math.max(0, page.counts.due - dueGone);
+  const counts = { ...page.counts, all, due, dueRaw: Math.max(0, page.counts.dueRaw - dueGone) };
+  if (all === 0) return { ...page, state: "empty", counts, nextBatch: null, upcoming: [] };
+  const state = page.state === "default" && due === 0 ? "caughtup" : page.state;
+  return { ...page, state, counts };
+}
+
 /** The header's tags ("4 due today", "23 in bank"). */
 export function headerTags(page: BankPage): { due: string; total: string } {
   return { due: `${page.counts.due} due today`, total: `${page.counts.all} in bank` };

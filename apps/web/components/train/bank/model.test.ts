@@ -25,6 +25,7 @@ import {
   groupRows,
   headerTags,
   nextBatchTag,
+  pageAfterRemovals,
   parseBankSearch,
   poolOf,
   rowBoardLabel,
@@ -262,5 +263,42 @@ describe("bank page states", () => {
     for (const s of ["default", "empty", "caughtup", "cap_reached", "stress"] as const) {
       assert.equal(BankPageSchema.safeParse(bankPageFixture(s)).success, true, s);
     }
+  });
+});
+
+describe("pageAfterRemovals (browser pass D6: the head follows a removal)", () => {
+  it("one removed row: the in-bank count and the CTA agree; a due row leaves the due count", () => {
+    const page = bankPageFixture("caughtup");
+    const removed = new Set([page.rows[0]!.cardRef]);
+    const shown = pageAfterRemovals(page, page.rows, removed);
+    const rows = page.rows.filter((r) => !removed.has(r.cardRef));
+    assert.equal(headerTags(shown).total, `${page.counts.all - 1} in bank`, "was 23 in bank beside Drill These 22");
+    const cta = ctaOf(rows, rows);
+    assert.equal(cta.kind, "drill");
+    assert.equal(cta.kind === "drill" ? cta.count : -1, shown.counts.all);
+    const due = bankPageFixture("default");
+    const dueRow = due.rows.find((r) => r.isDue)!;
+    const afterDue = pageAfterRemovals(due, due.rows, new Set([dueRow.cardRef]));
+    assert.equal(afterDue.counts.due, due.counts.due - 1);
+    assert.equal(afterDue.counts.all, due.counts.all - 1);
+  });
+
+  it("the last card removed: the empty bank, no next batch chip; the last due card: caught up", () => {
+    const page = bankPageFixture("caughtup");
+    const all = new Set(page.rows.map((r) => r.cardRef));
+    const shown = pageAfterRemovals(page, page.rows, all);
+    assert.equal(shown.state, "empty");
+    assert.equal(bodyOf(shown, EMPTY_FILTER), "empty", "was the Due tab's 'Nothing is due right now'");
+    assert.equal(bodyOf(shown, { ...EMPTY_FILTER, view: "all" }), "empty");
+    assert.equal(nextBatchTag(shown.nextBatch, "tomorrow"), null, "no NEXT BATCH chip");
+    const def = bankPageFixture("default");
+    const dues = new Set(def.rows.filter((r) => r.isDue).map((r) => r.cardRef));
+    assert.equal(pageAfterRemovals(def, def.rows, dues).state, "caughtup");
+  });
+
+  it("a removal the server already applied (the row is gone from the refetched page) is not counted twice", () => {
+    const page = bankPageFixture("default");
+    assert.equal(pageAfterRemovals(page, page.rows, new Set(["m_not_on_this_page"])), page);
+    assert.equal(pageAfterRemovals(page, page.rows, new Set()), page);
   });
 });
