@@ -180,6 +180,8 @@ export function applyImportEvent(
   if (refetchImports) void qc.invalidateQueries({ queryKey: qk.imports(), exact: true, refetchType: "active" });
   if (refetchImports || refetchAccounts) void qc.invalidateQueries({ queryKey: qk.accounts(), exact: true, refetchType: "active" });
   if (name === "import:finished") void qc.invalidateQueries({ queryKey: qk.games.all(), refetchType: "none" });
+  // Home's import row (browser pass D7): a run that ended here is read again where Home is next shown.
+  if (name !== "import:progress") void qc.invalidateQueries({ queryKey: qk.home(), exact: true, refetchType: "none" });
   return refetchImports || refetchAccounts;
 }
 

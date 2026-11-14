@@ -5,9 +5,15 @@
 //   analysis:progress  → home.continue.analysis {done, total}  (only for the Continue game; priority ≥ 80 jobs only)
 //   analysis:done      → for the game the Continue card shows as analysing: one refetch now (the card swaps to the
 //                        moments view); any other game: the invalidator
+//   import:finished    → home.import = null at once (the row goes; browser pass D7: a Sync with nothing new left
+//                        "IMPORTING 0 GAMES" until a reload), then the invalidator for the rest
+//   import:failed      → one refetch now (the row's state is the server's: failed, or paused until retryAt)
 //   import:finished, analysis:done, analysis:batch → the invalidator on qk.home(): invalidateThrottled by default (one
 //                        trailing refetch per 30 s; a hidden tab only marks it stale), so a 500-game backlog costs at
 //                        most one GET /api/home per 30 s while Home is visible
+//   hello              → when Home shows an import row, one refetch now: a short run can end between the server render
+//                        and this subscription, and its finish frame is then never heard (D7); otherwise a resync
+//                        only marks Home stale
 //
 // Sentry (plan §10.2): `home.refetch{cause}` counts each refetch Home's events open (one per throttle window, and the
 // immediate Continue swap), by the event that caused it (FIX-2). Throttled-away frames are not counted.
@@ -15,7 +21,7 @@ import { useEffect, useRef } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import type { HomeData } from "@repo/contracts/http/home";
 import type { AnalysisProgressEvent } from "@repo/contracts/socket/analysis";
-import type { ImportProgressEvent } from "@repo/contracts/socket/user";
+import type { ImportFinishedEvent, ImportProgressEvent } from "@repo/contracts/socket/user";
 import { qk } from "@/lib/api/keys";
 import { getRealtime } from "../connection";
 import { withSentry } from "@/lib/sentry/lazy";
@@ -40,7 +46,7 @@ export function homeRefetchInvalidator(cause: string, report: HomeRefetchReport 
 }
 
 export const HOME_PATCH_EVENTS = ["import:progress", "analysis:progress"] as const;
-export const HOME_INVALIDATE_EVENTS = ["import:finished", "analysis:done", "analysis:batch"] as const;
+export const HOME_INVALIDATE_EVENTS = ["import:finished", "import:failed", "analysis:done", "analysis:batch"] as const;
 export type HomeEventName = (typeof HOME_PATCH_EVENTS)[number] | (typeof HOME_INVALIDATE_EVENTS)[number];
 
 /** `import:progress` → the Home status row ("IMPORTING 212 / 480 GAMES"). Never lowers the imported count. */
@@ -49,6 +55,17 @@ export function homeOnImportProgress(d: HomeData, ev: ImportProgressEvent): Home
   const imported = Math.max(d.import.imported, ev.imported);
   if (imported === d.import.imported && ev.total === d.import.total) return d;
   return { ...d, import: { ...d.import, imported, total: ev.total } };
+}
+
+/** `import:finished` → the Home status row goes (the run of that provider ended; nothing to show while it is idle). */
+export function homeOnImportFinished(d: HomeData, ev: Pick<ImportFinishedEvent, "provider">): HomeData {
+  if (!d.import || d.import.provider !== ev.provider) return d;
+  return { ...d, import: null };
+}
+
+/** True when Home's cache shows an import row (a hello must then catch up on a finish it may have missed). */
+export function homeShowsImport(d: HomeData | undefined): boolean {
+  return !!d?.import;
 }
 
 /** `analysis:progress` → "Analysing · 14 of 38 moves" on the Continue card of that game. */
@@ -79,6 +96,22 @@ export function applyHomeEvent(
     const next =
       name === "import:progress" ? homeOnImportProgress(d, ev as ImportProgressEvent) : homeOnAnalysisProgress(d, ev as AnalysisProgressEvent);
     if (next !== d) qc.setQueryData<HomeData>(qk.home(), next);
+    return;
+  }
+  if (name === "import:finished") {
+    const d = qc.getQueryData<HomeData>(qk.home());
+    if (d) {
+      const next = homeOnImportFinished(d, ev as ImportFinishedEvent);
+      if (next !== d) qc.setQueryData<HomeData>(qk.home(), next);
+    }
+    invalidate(qc, qk.home());
+    return;
+  }
+  if (name === "import:failed") {
+    if (!qc.getQueryData<HomeData>(qk.home())) return;
+    const hidden = documentHidden();
+    void qc.invalidateQueries({ queryKey: qk.home(), exact: true, refetchType: hidden ? "none" : "active" });
+    if (!hidden) report(name);
     return;
   }
   if (name === "analysis:done" && finishesContinue(qc.getQueryData<HomeData>(qk.home()), ev as { gameRef?: unknown })) {
@@ -120,7 +153,10 @@ export function useHomeEvents(options: { enabled?: boolean; invalidate?: Invalid
       }),
     );
     const offHello = rt.onHello((_hello, resync) => {
-      if (resync) markStale(qc, qk.home());
+      if (homeShowsImport(qc.getQueryData<HomeData>(qk.home())) && !documentHidden()) {
+        void qc.invalidateQueries({ queryKey: qk.home(), exact: true, refetchType: "active" });
+        reportHomeRefetch("hello");
+      } else if (resync) markStale(qc, qk.home());
     });
     return () => {
       for (const off of offs) off();

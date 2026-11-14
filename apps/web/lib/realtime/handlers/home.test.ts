@@ -8,7 +8,7 @@ import { homeFixture } from "@repo/contracts/http/fixtures/p05";
 import type { HomeData } from "@repo/contracts/http/home";
 import { qk } from "@/lib/api/keys";
 import { cancelThrottledInvalidations, pendingInvalidations, PUSH_INVALIDATE_MS } from "../invalidateThrottled";
-import { applyHomeEvent, finishesContinue, homeInvalidator, homeRefetchInvalidator } from "./home";
+import { applyHomeEvent, finishesContinue, homeInvalidator, homeOnImportFinished, homeRefetchInvalidator, homeShowsImport } from "./home";
 
 function recorder() {
   const keys: QueryKey[] = [];
@@ -38,6 +38,30 @@ describe("home handler", () => {
     applyHomeEvent(qc, "analysis:batch", { v: 1, done: 3, total: 9 }, rec.invalidate);
     applyHomeEvent(qc, "import:finished", {}, rec.invalidate);
     assert.deepEqual(rec.keys, [qk.home(), qk.home(), qk.home()]);
+  });
+
+  it("browser pass D7: import:finished clears the import row at once (a Sync with nothing new: 'IMPORTING 0 GAMES')", () => {
+    const qc = new QueryClient();
+    const importing: HomeData = { ...homeFixture("populated"), import: { provider: "chesscom", imported: 0, total: null, etaSec: null } };
+    qc.setQueryData<HomeData>(qk.home(), importing);
+    assert.equal(homeShowsImport(importing), true);
+    const rec = recorder();
+    applyHomeEvent(qc, "import:finished", { v: 1, provider: "chesscom", imported: 0, total: 0, newGames: 0 }, rec.invalidate);
+    assert.equal(qc.getQueryData<HomeData>(qk.home())!.import, null, "the row goes without waiting for a refetch");
+    assert.deepEqual(rec.keys, [qk.home()], "the rest still refetches through the invalidator");
+    // Another provider's finish leaves the row alone.
+    assert.equal(homeOnImportFinished(importing, { provider: "lichess" }), importing);
+    assert.equal(homeShowsImport(homeFixture("populated")), false);
+  });
+
+  it("import:failed refetches Home now (the row shows the server's failed or paused state)", () => {
+    const qc = new QueryClient();
+    qc.setQueryData<HomeData>(qk.home(), { ...homeFixture("populated"), import: { provider: "lichess", imported: 4, total: 9, etaSec: null } });
+    const spy = mock.method(qc, "invalidateQueries");
+    const rec = recorder();
+    applyHomeEvent(qc, "import:failed", { v: 1, provider: "lichess" }, rec.invalidate);
+    assert.equal(rec.keys.length, 0);
+    assert.equal(spy.mock.callCount(), 1);
   });
 
   it("finishesContinue only for an analysing Continue card of that game", () => {

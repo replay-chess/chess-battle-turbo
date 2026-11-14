@@ -256,6 +256,8 @@ export function useSyncAccount(provider: ProviderSlug) {
     onSuccess: (data) => {
       qc.setQueryData<AccountsData>(qk.accounts(), (d) => patchAccount(d, provider, { status: "queued", run: data.run }));
       qc.setQueryData<ImportStatusData>(qk.imports(), (d) => prependRun(d, data.run));
+      // Home's import row is read again where Home is next shown (browser pass D7).
+      void qc.invalidateQueries({ queryKey: qk.home(), exact: true, refetchType: "none" });
     },
     retry: 0,
     meta: { errorUi: "inline", paywall: "inline", object: "the sync" },
