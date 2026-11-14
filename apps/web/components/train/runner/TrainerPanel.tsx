@@ -94,7 +94,7 @@ export function TrainerPanel({ queueLabels, statusRef }: { queueLabels: SessionP
             {view.graded && view.suggested && view.gradeNote ? (
               <GradeBar preview={cur.item.preview} suggested={view.suggested} note={view.gradeNote} onGrade={actions.grade} />
             ) : null}
-            {!view.graded && mode === "bank" && cur.item.context ? <SourceCard context={cur.item.context} /> : null}
+            {!view.graded && mode === "bank" && cur.item.context ? <SourceCard context={cur.item.context} tried={view.tried} /> : null}
             {!view.graded && mode === "bank" && cur.item.preview ? <RuleLine preview={cur.item.preview} /> : null}
             {/* "This puzzle" shows while solving (§4.5): not in the wrong state, whose footer has no Hint (V3PuzzleSolve-wrong). */}
             {!view.graded && !view.wrong && mode === "puzzles" ? <PuzzleCard item={cur.item} hinted={view.hint.step > 0} /> : null}

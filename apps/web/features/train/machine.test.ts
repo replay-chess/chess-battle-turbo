@@ -217,3 +217,16 @@ test("an alternative mate at the last ply of a 3-ply line solves it", () => {
   assert.equal(run.wrongs, 0);
   assert.equal(run.ply, 3);
 });
+
+test("tried (browser pass D2): false until a move is played or the solution is shown; then true to the end", () => {
+  const p = prep(rxf5);
+  let run = initialRun(p, rxf5.context!.playedUci);
+  assert.equal(viewOf(rxf5, p, run).tried, false, "setup / solve before any move: the cost line stays hidden");
+  if (run.phase === "setup") run = step(p, run, { type: "setup_done" });
+  assert.equal(viewOf(rxf5, p, run).tried, false);
+  assert.equal(viewOf(rxf5, p, step(p, run, { type: "hint" })).tried, false, "a hint is not a try");
+  assert.equal(viewOf(rxf5, p, step(p, run, { type: "move", uci: "d1d2" })).tried, true, "a wrong move");
+  assert.equal(viewOf(rxf5, p, step(p, step(p, run, { type: "move", uci: "d1d2" }), { type: "retry" })).tried, true, "Try Again keeps it");
+  assert.equal(viewOf(rxf5, p, step(p, run, { type: "move", uci: "f1f5" })).tried, true, "a right first move");
+  assert.equal(viewOf(rxf5, p, step(p, run, { type: "show_solution" })).tried, true, "Show Solution");
+});

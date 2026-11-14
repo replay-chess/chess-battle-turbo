@@ -179,6 +179,12 @@ export type RunView = {
   score: 0 | 0.5 | 1;
   /** "· streak reset" after a wrong move or a shown solution. */
   streakReset: boolean;
+  /**
+   * The member has tried: a move was played (right or wrong) or the solution was shown. Until then nothing on screen
+   * may name the best move or its eval ("best move hidden until you try"; browser pass D2: the "From your game" card's
+   * cost line named it while solving).
+   */
+  tried: boolean;
 };
 
 export function viewOf(item: TrainItem, p: PreparedItem, run: ItemRun): RunView {
@@ -286,5 +292,11 @@ export function viewOf(item: TrainItem, p: PreparedItem, run: ItemRun): RunView 
     firstTry: outcome.firstTry,
     score: outcome.score,
     streakReset: run.phase === "wrong" || (graded && outcome.streakReset),
+    tried: hasTried(run),
   };
+}
+
+/** A move was played (right or wrong), the solution was shown, or the item is graded. */
+export function hasTried(run: ItemRun): boolean {
+  return run.phase === "graded" || run.ply > 0 || run.wrongs > 0 || run.shown || run.accepted !== null;
 }
