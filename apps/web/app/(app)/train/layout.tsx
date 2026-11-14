@@ -1,5 +1,5 @@
-// /train/** layout: noindex metadata and the gate (sign-in, membership, the `train` flag), outside every child
-// segment's loading.tsx Suspense boundary, so its redirects never run after a skeleton streamed (P2 FIX-A, T17). The
+// /train/** layout: noindex metadata and the gate (sign-in, membership, the `train` flag), before anything renders, so its
+// redirects never run after a skeleton streamed (P2 FIX-A, T17); no /train segment has a route loading.tsx. The
 // runner segments keep their own layouts and session handling; this one adds nothing to their bundles (server only).
 import type { Metadata } from "next";
 import { createMetadata } from "@/lib/seo";

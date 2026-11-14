@@ -54,3 +54,38 @@ test.describe("trainer documents", { tag: ["@p5", "@smoke", "@local-only"] }, ()
     });
   }
 });
+
+// The hub and the bank list are in the document's shell too. regression: train-streamed-hub (CI 43620776665 follow-up):
+// /train and /train/bank had a route loading.tsx (HubSkeleton, BankSkeleton), so the whole screen streamed as a hidden
+// segment, as /home did (home.spec "home document"): a hidden second copy of the screen while a client-rendered
+// boundary waits for the reveal, and a hydration that trails the server's HTML (the hub's clock and focus handling
+// start late; day-rollover's 08:00 step faked its focus into that gap).
+test.describe("train hub and bank documents", { tag: ["@p5", "@smoke", "@local-only"] }, () => {
+  test.use({ timezoneId: "UTC" });
+
+  for (const [route, root] of [
+    ["/train", "train-hub"],
+    ["/train/bank", "train-bank"],
+  ] as const) {
+    test(`${route} renders the screen in the shell, with nothing streamed after it, and one copy after a reload`, async ({ persona, page }) => {
+      test.setTimeout(300_000);
+      await persona("bank-member");
+      const doc = await documentParts(page, route);
+      expect(doc.status).toBe(200);
+      const ids = [...new Set((doc.shell.match(/data-testid="[^"]+"/g) ?? []).map((m) => m.slice(13, -1)))];
+      expect((doc.shell.match(new RegExp(`data-testid="${root}"`, "g")) ?? []).length, `${route}: the screen is in the shell, once (shell test ids: ${ids.join(", ")})`).toBe(1);
+      // The real screen, not the route skeleton (which carries the same test id with data-state="loading").
+      expect(doc.shell, `${route}: the shell holds the screen, not its skeleton`).not.toMatch(new RegExp(`data-testid="${root}"[^>]*data-state="loading"`));
+      const streamed = doc.segments.filter((s) => s.html.includes("data-testid=")).map((s) => s.id);
+      expect(streamed, `${route}: no part of the screen streams as a hidden segment`).toEqual([]);
+
+      await gotoOk(page, route);
+      await expect(page.getByTestId(root)).toBeVisible({ timeout: 120_000 });
+      await page.reload();
+      await expect(page.getByTestId(root)).toBeVisible({ timeout: 120_000 });
+      await expect(page.locator(`[data-testid="${root}"]`), "one screen after the reload").toHaveCount(1);
+      await expect(page.locator(`[data-testid="${root}"]`)).not.toHaveAttribute("data-state", "loading");
+      expect(await page.locator('div[hidden][id^="S:"] [data-testid]').count(), "no hidden segment holds a test id").toBe(0);
+    });
+  }
+});

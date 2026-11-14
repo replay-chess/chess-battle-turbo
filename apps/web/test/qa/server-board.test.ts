@@ -37,8 +37,8 @@ test("no server component imports the interactive Board (it takes function props
 // second copy of the screen when React client-rendered the boundary first: bot-resume-starved-frames.spec.ts,
 // review-document.spec.ts). A loading.tsx in those segments would bring the boundary back. P5: the two trainer
 // routes render the interactive TrainerBoard the same way (train-document.spec.ts), and Home (its `role="status"` import
-// row twice, CI 43608761478; home.spec.ts "home document").
-test("the game, review, trainer and Home screens have no route loading boundary", () => {
+// row twice, CI 43608761478; home.spec.ts "home document"), the Train hub and the bank list (train-document.spec.ts).
+test("the game, review, trainer, Home, hub and bank screens have no route loading boundary", () => {
   const segments = [
     "app/(app)/game/[ref]",
     "app/(app)/review/[ref]",
@@ -48,6 +48,8 @@ test("the game, review, trainer and Home screens have no route loading boundary"
     "app/(app)/train/puzzles",
     "app/(app)/train/bank/session",
     "app/(app)/home",
+    "app/(app)/train/(hub)",
+    "app/(app)/train/bank/(list)",
   ];
   const found = segments.flatMap((dir) => readdirSync(path.join(WEB, dir)).filter((f) => /^loading\.(tsx|ts|jsx|js)$/.test(f)).map((f) => `${dir}/${f}`));
   assert.deepEqual(found, []);

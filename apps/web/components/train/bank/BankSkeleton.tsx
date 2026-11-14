@@ -1,6 +1,7 @@
 // /train/bank's loading state (phase-05 plan §4.3 `loading`; DR/V3MistakeBank `loading`, V3BankLoading and the device
 // `loading` boards): the header with its h1, a board-sized block with the info lines, and 9 ghost rows (V3Skeletons
-// `list`) in the list panel, laid out by the same grid as the screen. Server-compatible (loading.tsx renders it).
+// `list`) in the list panel, laid out by the same grid as the screen. BankScreen renders it while page 1 has no data
+// (/train/bank has no route loading.tsx: the bank is in the document's shell, train-document.spec.ts).
 import { Skeleton, SkeletonRegion } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { BOARD, INFO, SECTION } from "./BankDetail";

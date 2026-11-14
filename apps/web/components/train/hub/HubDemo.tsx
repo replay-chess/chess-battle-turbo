@@ -2,8 +2,8 @@
 
 // /dev/ui/train/hub (phase-05 plan §2.1 "Dev demo routes"): the hub in every board state from WP-A's contract fixtures
 // (`app/dev/ui/_fixtures/train.ts`), with no server. `loading` is the in-place plan skeleton of V3TrainHubLoading (the
-// header and All training stay); `route=1` shows loading.tsx's full skeleton instead. Start shows its pending state
-// for a moment and goes nowhere (there is no session server here).
+// header and All training stay); `route=1` shows the full HubSkeleton instead (what the screen shows before today's
+// plan has data). Start shows its pending state for a moment and goes nowhere (there is no session server here).
 import { useState } from "react";
 import { hubDemo, P5_FIXTURE_NOW, type HubDemoState } from "@/app/dev/ui/_fixtures/train";
 import { trainTodayFixture } from "@repo/contracts/http/fixtures/p05";

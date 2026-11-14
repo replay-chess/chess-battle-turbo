@@ -2,8 +2,8 @@
 // A nested segment rendered inside it streams the wrong skeleton first, and a redirect() it throws after that
 // skeleton streamed is the P2 FIX-A crash class (T17). Regression (P5 INTEGRATE-2): /train's hub skeleton wrapped the
 // runners, the session redirect page and the summary, and /train/bank's list skeleton wrapped the bank drill. The hub
-// and the bank list now keep their loading.tsx inside route groups (`train/(hub)`, `train/bank/(list)`), so each
-// skeleton wraps its own page only.
+// and the bank list moved into route groups (`train/(hub)`, `train/bank/(list)`), so each skeleton wrapped its own page
+// only; since then both skeletons are gone too (the screens are in the document's shell, train-document.spec.ts).
 import assert from "node:assert/strict";
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
@@ -40,11 +40,15 @@ test("a loading.tsx wraps only its own page, never a nested segment's layout or 
   assert.deepEqual(offenders, [], "move the page and its loading.tsx into a route group, e.g. train/(hub)/");
 });
 
-test("the P5 hub and bank list skeletons sit in their route groups next to their pages", () => {
+test("the P5 hub and bank list stay in their route groups, with no route skeleton at all", () => {
+  // Since the follow-up to CI 43620776665 (train-document.spec.ts) the hub and the bank list render in the document's
+  // shell: neither has a loading.tsx (it streamed the whole screen as a hidden segment), and nothing under /train does.
   for (const dir of ["(app)/train/(hub)", "(app)/train/bank/(list)"]) {
     assert.ok(files.includes(`${dir}/page.tsx`), `${dir}/page.tsx`);
-    assert.ok(files.includes(`${dir}/loading.tsx`), `${dir}/loading.tsx`);
   }
-  assert.ok(!files.includes("(app)/train/loading.tsx"), "no /train-wide skeleton over the runners and the summary");
-  assert.ok(!files.includes("(app)/train/bank/loading.tsx"), "no bank-wide skeleton over the bank drill");
+  assert.deepEqual(
+    files.filter((f) => f.startsWith("(app)/train/") && f.endsWith("/loading.tsx")),
+    [],
+    "no route loading.tsx under /train (the screens are in the document's shell)",
+  );
 });

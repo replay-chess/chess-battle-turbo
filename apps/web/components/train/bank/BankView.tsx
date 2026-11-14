@@ -12,7 +12,7 @@
 //
 // Keys (desktop, page-scoped, never inside fields or dialogs): ↑/↓ move the selection, Enter solves it, F opens Filter,
 // Esc closes it (the surface's own Esc).
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import type { BankPage, BankRow } from "@repo/contracts/http/train";
@@ -53,7 +53,29 @@ import {
   type BankView as BankTab,
 } from "./model";
 
-const BankRowMenu = lazy(() => import("./BankRowMenu").then((m) => ({ default: m.BankRowMenu })));
+type RowMenu = (typeof import("./BankRowMenu"))["BankRowMenu"];
+
+/**
+ * The row ⋯ menu's module (`bank-remove` on), loaded after mount and never rendered on the server. As a React.lazy in a
+ * Suspense per row it streamed one hidden segment per row (`bank-row-more`, 43 on a 23-card bank), each a second copy
+ * of the button while React client-renders a boundary (regression: train-streamed-hub, train-document.spec.ts). Until
+ * it arrives, and if it fails to load, the row keeps the menu's width.
+ */
+function useRowMenu(enabled: boolean): RowMenu | null {
+  const [menu, setMenu] = useState<RowMenu | null>(null);
+  useEffect(() => {
+    if (!enabled || menu) return;
+    let live = true;
+    import("./BankRowMenu").then(
+      (m) => live && setMenu(() => m.BankRowMenu),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [enabled, menu]);
+  return menu;
+}
 
 /** The hairline over a list that refetches for a new filter shows only after this delay (cdl §3.9). */
 export const REFRESH_HAIRLINE_DELAY_MS = 200;
@@ -118,6 +140,7 @@ export function BankView(props: BankViewProps) {
 
   // The hairline over a list refetching for a new filter appears only after 200 ms.
   const [hairline, setHairline] = useState(false);
+  const RowMenu = useRowMenu(Boolean(props.removable && props.onRemove));
   useEffect(() => {
     if (!props.refreshing) {
       setHairline(false);
@@ -226,9 +249,7 @@ export function BankView(props: BankViewProps) {
         }}
       />
       {props.removable && props.onRemove ? (
-        <Suspense fallback={<span className="w-12 shrink-0" />}>
-          <BankRowMenu row={row} onRemove={props.onRemove} />
-        </Suspense>
+        RowMenu ? <RowMenu row={row} onRemove={props.onRemove} /> : <span className="w-12 shrink-0" />
       ) : null}
     </li>
   );

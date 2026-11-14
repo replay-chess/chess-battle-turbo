@@ -1,6 +1,7 @@
 // /train's loading state (phase-05 plan §4.2 `loading`; DR/V3TrainHubLoading.dc.html): the hub's grid with the static
 // words in place (h1 Train, the section labels) and ghost blocks for everything data-driven, so the page replaces it
-// without a shift. Server-compatible (loading.tsx renders it); one aria-busy region with an sr-only "Loading…".
+// without a shift. TrainHubScreen renders it while today's plan has no data (/train has no route loading.tsx: the hub is
+// in the document's shell, train-document.spec.ts); one aria-busy region with an sr-only "Loading…".
 import { ScrollRegion } from "@/components/layout/ScrollRegion";
 import { Skeleton, SkeletonRegion } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
