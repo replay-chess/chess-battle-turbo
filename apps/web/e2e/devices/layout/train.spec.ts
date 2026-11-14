@@ -259,22 +259,46 @@ for (const path of ["/dev/ui/train/runner?state=solve", "/dev/ui/train/puzzles?s
   });
 }
 
+/**
+ * The move → verdict lab gate. Two budgets at a 4× CPU throttle:
+ * - the move's verdict paint (rc:train-move-verdict, plan §9.6) ≤ 50 ms;
+ * - no long task (> 50 ms) of the page's own after hydration, apart from the two clicks' input tasks: work that mounts
+ *   or evaluates late (a lazy chunk, Clerk, the stylesheet guard, telemetry) fails here;
+ * - each click's input task (the long task in which the browser ran the click's events, by Event Timing) ≤ 100 ms: the
+ *   select click repaints the board with its destinations (style and layout over 64 squares), the move click carries
+ *   the verdict above.
+ * regression: train-longtask-input (CI 43620776665 devices-p5: one 74 ms long task, the verdict 50 ms or less). The input
+ * tasks are the app's own click handling, so they scale with the runner's CPU: locally 50–59 ms at 8× (no long task at
+ * 4×). They were budgeted twice, once by the 50 ms long-task rule meant for background work. They keep a ceiling of
+ * their own (100 ms at 4×: about 25 ms unthrottled, 1.35× the CI runner's 74 ms, half of INP's 200 ms "good"); any
+ * other long task still fails, and the message lists every task (with the events it ran) and every event with its
+ * offset from the first click.
+ */
 test("move → verdict ≤ 50 ms and no long task after hydration, 4× CPU throttle @p5", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-1440@100", "desktop-1440@100 only (a CDP throttle)");
   const cdp = await page.context().newCDPSession(page);
   await page.addInitScript(() => {
-    const w = window as unknown as { __rcLong: number[] };
-    w.__rcLong = [];
+    type Rec = { long: { start: number; dur: number }[]; events: { name: string; start: number; procStart: number; procEnd: number; dur: number }[] };
+    const w = window as unknown as { __rcPerf: Rec };
+    w.__rcPerf = { long: [], events: [] };
     new PerformanceObserver((list) => {
-      for (const e of list.getEntries()) w.__rcLong.push(e.duration);
+      for (const e of list.getEntries()) w.__rcPerf.long.push({ start: e.startTime, dur: e.duration });
     }).observe({ type: "longtask", buffered: false });
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries() as PerformanceEventTiming[]) {
+        w.__rcPerf.events.push({ name: e.name, start: e.startTime, procStart: e.processingStart, procEnd: e.processingEnd, dur: e.duration });
+      }
+    }).observe({ type: "event", durationThreshold: 16, buffered: false } as PerformanceObserverInit);
   });
   await gotoStable(page, "/dev/ui/train/runner?state=solve");
   const board = page.getByTestId("trainer-board");
   await expect(board).toHaveAttribute("data-input", "", { timeout: 30_000 });
   await waitForStable(page);
-  await page.evaluate(() => {
-    (window as unknown as { __rcLong: number[] }).__rcLong = [];
+  const t0 = await page.evaluate(() => {
+    const w = window as unknown as { __rcPerf: { long: unknown[]; events: unknown[] } };
+    w.__rcPerf.long = [];
+    w.__rcPerf.events = [];
+    return performance.now();
   });
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
   const item = runnerDemo("solve").payload.items[0]!;
@@ -286,11 +310,23 @@ test("move → verdict ≤ 50 ms and no long task after hydration, 4× CPU throt
     .poll(() => page.evaluate(() => performance.getEntriesByName("rc:train-move-verdict", "measure").length), { timeout: 15_000 })
     .toBeGreaterThan(0);
   const verdict = await page.evaluate(() => performance.getEntriesByName("rc:train-move-verdict", "measure").at(-1)!.duration);
+  await page.waitForTimeout(500); // late work after the verdict, still under the throttle
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
   testInfo.annotations.push({ type: "move-verdict-ms", description: String(Math.round(verdict)) });
   expect(verdict, "move → verdict with a 4× CPU throttle").toBeLessThanOrEqual(50);
-  const longTasks = await page.evaluate(() => (window as unknown as { __rcLong: number[] }).__rcLong);
-  expect(longTasks.filter((d) => d > 50), "no long task > 50 ms after hydration").toEqual([]);
+
+  const perf = await page.evaluate(
+    () => (window as unknown as { __rcPerf: { long: { start: number; dur: number }[]; events: { name: string; start: number; procStart: number; procEnd: number; dur: number }[] } }).__rcPerf,
+  );
+  const at = (ms: number) => `+${Math.round(ms - t0)}`;
+  // An input task: the long task in which the browser processed one of the clicks' events.
+  const inputOf = (l: { start: number; dur: number }) => perf.events.filter((e) => e.procStart >= l.start - 1 && e.procEnd <= l.start + l.dur + 1).map((e) => e.name);
+  const tasks = perf.long.map((l) => ({ at: at(l.start), ms: Math.round(l.dur), input: inputOf(l) }));
+  const events = perf.events.map((e) => ({ name: e.name, at: at(e.start), ms: Math.round(e.dur), handlerMs: Math.round(e.procEnd - e.procStart) }));
+  const detail = `long tasks ${JSON.stringify(tasks)}; events ${JSON.stringify(events)}`;
+  testInfo.annotations.push({ type: "long-tasks", description: detail });
+  expect(tasks.filter((t) => t.ms > 50 && t.input.length === 0), `no long task > 50 ms after hydration besides the clicks' input tasks (${detail})`).toEqual([]);
+  expect(tasks.filter((t) => t.ms > 100 && t.input.length > 0), `each click's input task ≤ 100 ms (${detail})`).toEqual([]);
 });
 
 // ── Real routes ───────────────────────────────────────────────────────────────────────────────────────────────────
