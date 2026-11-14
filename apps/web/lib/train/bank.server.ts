@@ -19,8 +19,9 @@ import {
   type Facet,
   type PhaseW,
 } from "@repo/contracts/http/train";
-import { calendarDaysBetween, localDate } from "@repo/chess-training/tz";
-import { atLabel, dayLabel, releaseLabel } from "@repo/chess-training/labels";
+import { DEFAULT_DAY_START_HOUR } from "@repo/chess-training/constants";
+import { addDaysToKey, dayKey, daysBetween } from "@repo/chess-training/day";
+import { atLabel, releaseLabel, weekdayLabel } from "@repo/chess-training/labels";
 import { focusTheme, type PlanTheme } from "@repo/chess-training/plan";
 import type { BankCardIn } from "@repo/chess-training/session";
 import { seedOf as filterSeed } from "@repo/chess-training/session";
@@ -56,9 +57,14 @@ function filterSql(f: Partial<BankFilterQuery>, now: Date): Prisma.Sql {
 }
 
 /** Bank rows in (due, id) order: `limit` rows after the cursor, filtered (the paged path) or not (the complete path). */
-export function bankRowsSql(userId: bigint, o: { now: Date; filter?: Partial<BankFilterQuery>; after?: { due: Date; id: bigint }; limit: number }): Prisma.Sql {
+export function bankRowsSql(
+  userId: bigint,
+  o: { now: Date; filter?: Partial<BankFilterQuery>; after?: { due: Date; id: bigint }; limit: number; dayStart?: boolean },
+): Prisma.Sql {
   const after = o.after ? Prisma.sql`AND (c.due, c.id) > (${at(o.after.due)}, ${o.after.id})` : Prisma.empty;
-  return Prisma.sql`SELECT ${CARD_COLUMNS}, ${MISTAKE_COLUMNS} ${FROM_BANK}
+  // A cursor page has no train state: the member's day start rides along as a PK scalar (still one statement).
+  const dayStart = o.dayStart ? Prisma.sql`, (SELECT tp."dayStartHour" FROM training_profiles tp WHERE tp."userId" = ${userId}) AS "dayStartHour"` : Prisma.empty;
+  return Prisma.sql`SELECT ${CARD_COLUMNS}, ${MISTAKE_COLUMNS} ${dayStart} ${FROM_BANK}
     WHERE c."userId" = ${userId} AND c.deck = 'BANK' AND m."hiddenAt" IS NULL ${filterSql(o.filter ?? {}, o.now)} ${after}
     ORDER BY c.due, c.id LIMIT ${o.limit}`;
 }
@@ -182,31 +188,40 @@ export function facetsOfSql(rows: readonly FacetRow[]): BankPage["facets"] {
  * "Tomorrow 6 · Saturday 3 · Sunday 5 · Next week 9": per local day for the next 6 days (non-zero only), then the
  * days 7–13 as "Next week", at most 4 rows.
  */
-export function upcomingOf(dues: readonly Date[], now: Date, timeZone: string): BankPage["upcoming"] {
-  const today = localDate(now, timeZone);
+export function upcomingOf(dues: readonly Date[], now: Date, timeZone: string, dayStartHour = 0): BankPage["upcoming"] {
+  const today = dayKey(now, timeZone, dayStartHour);
   const perDay = new Map<number, number>();
   let nextWeek = 0;
   for (const due of dues) {
     if (due.getTime() <= now.getTime()) continue;
-    const d = calendarDaysBetween(today, localDate(due, timeZone));
+    const d = daysBetween(today, dayKey(due, timeZone, dayStartHour));
     if (d >= 1 && d <= 6) perDay.set(d, (perDay.get(d) ?? 0) + 1);
     else if (d >= 7 && d <= 13) nextWeek += 1;
   }
   const out: BankPage["upcoming"] = [...perDay]
     .sort((a, b) => a[0] - b[0])
-    .map(([d, n]) => ({ label: dayLabel(new Date(now.getTime() + d * 86_400_000), now, timeZone, { long: true }), n }));
+    .map(([d, n]) => ({ label: upcomingDayLabel(addDaysToKey(today, d), d), n }));
   if (nextWeek > 0) out.push({ label: "Next week", n: nextWeek });
   return out.slice(0, 4);
 }
 
-/** The next batch (`NextBatch`) from the due summary, labelled in the zone at `now`. */
-export function nextBatchOf(due: DueSummary, timeZone: string, now: Date): BankPage["nextBatch"] {
+/** "Tomorrow", then the weekday, for the upcoming histogram's day `d` (1–6) ahead of today's training day. */
+function upcomingDayLabel(key: string, d: number): string {
+  return d === 1 ? "Tomorrow" : weekdayLabel(key);
+}
+
+/**
+ * The next batch (`NextBatch`) from the due summary, labelled in the zone at `now` on the member's training day
+ * (P5-FZ-4: at 01:00 a 08:00 release is "tomorrow" when the day starts at 04:00, as the hub's header says).
+ */
+export function nextBatchOf(due: DueSummary, timeZone: string, now: Date, dayStartHour = 0): BankPage["nextBatch"] {
   if (!due.nextBatchAt || due.nextBatch <= 0) return null;
   return {
     at: due.nextBatchAt.toISOString(),
     atLabel: atLabel(due.nextBatchAt, timeZone),
     count: due.nextBatch,
-    whenLabel: releaseLabel(due.nextBatchAt, now, timeZone),
+    whenLabel: releaseLabel(due.nextBatchAt, now, timeZone, { dayStartHour }),
+    dayStartHour,
   };
 }
 
@@ -234,9 +249,9 @@ export function readBankCursor(cursor: string, f: Partial<BankFilterQuery>): { d
 }
 
 // ── listBank ────────────────────────────────────────────────────────────────────────────────────────────────────
-function rowsOf(rows: readonly CardRowDb[], now: Date, tz: string): BankRow[] {
+function rowsOf(rows: readonly CardRowDb[], now: Date, tz: string, dayStartHour: number): BankRow[] {
   return rows.flatMap((r) => {
-    const row = bankRowOf(r, now, tz);
+    const row = bankRowOf(r, now, tz, dayStartHour);
     return row ? [row] : [];
   });
 }
@@ -253,7 +268,7 @@ function pageHead(
   return {
     state: due.total === 0 ? "empty" : cap.dueShown === 0 ? "caughtup" : "default",
     counts: { due: cap.dueShown, dueRaw: cap.dueRaw, all: due.total, capRemaining: cap.capRemaining, cap: profile.bankDailyCap },
-    nextBatch: nextBatchOf(due, clock.timeZone, clock.now),
+    nextBatch: nextBatchOf(due, clock.timeZone, clock.now, clock.dayStartHour),
     focusTheme: { key: focus, label: themePluralLabel(focus) },
     lesson: null,
   };
@@ -274,11 +289,14 @@ export async function listBank(
   const tz = timeZoneOf(viewer);
   if (cursor) {
     const after = readBankCursor(cursor, filter);
-    const rows = await db.$queryRaw<CardRowDb[]>(bankRowsSql(viewer.id, { now, filter, after, limit: BANK_PAGE_ROWS + 1 }));
+    const rows = await db.$queryRaw<(CardRowDb & { dayStartHour?: number | null })[]>(
+      bankRowsSql(viewer.id, { now, filter, after, limit: BANK_PAGE_ROWS + 1, dayStart: true }),
+    );
     const page = rows.slice(0, BANK_PAGE_ROWS);
     const last = page[page.length - 1];
+    const dayStartHour = rows[0]?.dayStartHour ?? null;
     return {
-      data: { rows: rowsOf(page, now, tz) },
+      data: { rows: rowsOf(page, now, tz, dayStartHour === null ? DEFAULT_DAY_START_HOUR : num(dayStartHour)) },
       meta: { nextCursor: rows.length > BANK_PAGE_ROWS && last ? bankCursor({ due: asDate(last.due)!, cardId: last.cardId }, filter) : null, complete: false },
     };
   }
@@ -293,14 +311,14 @@ export async function listBank(
   const emptyCtas = head.state === "empty" ? await emptyCtasOf(deps, viewer) : null;
 
   if (all.length <= BANK_COMPLETE_MAX_ROWS) {
-    const rows = rowsOf(all, now, tz);
+    const rows = rowsOf(all, now, tz, clock.dayStartHour);
     const dues = all.map((r) => {
       const d = asDate(r.due)!;
       const s = asDate(r.suspendedUntil);
       return s && s.getTime() > d.getTime() ? s : d;
     });
     return {
-      data: { ...head, rows, facets: facetsOfRows(rows), upcoming: upcomingOf(dues, now, tz), emptyCtas },
+      data: { ...head, rows, facets: facetsOfRows(rows), upcoming: upcomingOf(dues, now, tz, clock.dayStartHour), emptyCtas },
       meta: { nextCursor: null, complete: true },
     };
   }
@@ -316,9 +334,9 @@ export async function listBank(
   return {
     data: {
       ...head,
-      rows: rowsOf(page, now, tz),
+      rows: rowsOf(page, now, tz, clock.dayStartHour),
       facets: facetsOfSql(facets),
-      upcoming: upcomingOf(upcoming.map((u) => asDate(u.due)!), now, tz),
+      upcoming: upcomingOf(upcoming.map((u) => asDate(u.due)!), now, tz, clock.dayStartHour),
       emptyCtas,
     },
     meta: { nextCursor: rows.length > BANK_PAGE_ROWS && last ? bankCursor({ due: asDate(last.due)!, cardId: last.cardId }, filter) : null, complete: false },

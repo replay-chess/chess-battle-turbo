@@ -43,16 +43,32 @@ describe("R2 helpers", () => {
     assert.equal(upcomingOf([at(1), at(2), at(3), at(4), at(5)], NOW, "UTC").length, 4);
   });
 
+  it("browser pass D4: at 01:00 Sunday IST (Saturday's training day) the 08:00 cards are Tomorrow, in rows and the histogram", () => {
+    const now = new Date("2026-11-14T19:30:00Z"); // 01:00 Sunday Asia/Calcutta
+    const sunday8 = new Date("2026-11-15T02:30:00Z"); // 08:00 Sunday local
+    const row = bankRowOf(cardRow({ due: sunday8 }), now, "Asia/Calcutta", 4)!;
+    assert.equal(row.isDue, false);
+    assert.equal(row.nextLabel, "Tomorrow", "was \"Today\" under SCHEDULED LATER");
+    assert.equal(bankRowOf(cardRow({ due: sunday8 }), now, "Asia/Calcutta")!.nextLabel, "Today", "the calendar word without the day start");
+    assert.deepEqual(upcomingOf([sunday8, new Date(sunday8.getTime() + DAY)], now, "Asia/Calcutta", 4), [
+      { label: "Tomorrow", n: 1 },
+      { label: "Monday", n: 1 },
+    ]);
+  });
+
   it("the next batch is labelled in the zone; none when nothing is ahead", () => {
     const due = { dueReview: 0, dueNew: 0, total: 3, nextAt: new Date("2026-11-13T08:00:00Z"), nextBatchAt: new Date("2026-11-13T08:00:00Z"), nextBatch: 3 };
-    assert.deepEqual(nextBatchOf(due, "Asia/Kolkata", new Date("2026-11-12T18:00:00Z")), {
+    assert.deepEqual(nextBatchOf(due, "Asia/Kolkata", new Date("2026-11-12T18:00:00Z"), 4), {
       at: "2026-11-13T08:00:00.000Z",
       atLabel: "13:30",
       count: 3,
       whenLabel: "tomorrow at 13:30",
+      dayStartHour: 4,
     });
-    // The day word is the member's: the same instant is "today" once their local date has turned.
-    assert.equal(nextBatchOf(due, "Asia/Kolkata", new Date("2026-11-12T19:00:00Z"))?.whenLabel, "today at 13:30");
+    // The day word is the member's training day (P5-FZ-4): at 00:30 local it is still yesterday's day, so tomorrow;
+    // once the day starts (04:00 local) the same instant is today.
+    assert.equal(nextBatchOf(due, "Asia/Kolkata", new Date("2026-11-12T19:00:00Z"), 4)?.whenLabel, "tomorrow at 13:30");
+    assert.equal(nextBatchOf(due, "Asia/Kolkata", new Date("2026-11-12T22:30:00Z"), 4)?.whenLabel, "today at 13:30");
     assert.equal(nextBatchOf({ dueReview: 0, dueNew: 0, total: 0, nextAt: null, nextBatchAt: null, nextBatch: 0 }, "UTC", new Date()), null);
   });
 

@@ -265,7 +265,7 @@ export async function getTrainToday(viewer: Viewer, now: Date, deps: TrainDeps =
       waitingLine: waitingLine(cap, profile.bankDailyCap),
       preview: previews.slice(0, Math.min(4, cap.dueShown)).map(duePreviewOf),
     },
-    nextBatch: nextBatchOf(due, clock.timeZone, clock.now),
+    nextBatch: nextBatchOf(due, clock.timeZone, clock.now, clock.dayStartHour),
     allTraining: { bank: { due: cap.dueShown, total: due.total }, puzzles: { themes: trainedPickerThemes(themes) } },
     mastery: masteryBars(themes),
     keepGoing: allDone ? { href: keepGoingHref, label: keepGoingLabel(plan.focusTheme) } : null,

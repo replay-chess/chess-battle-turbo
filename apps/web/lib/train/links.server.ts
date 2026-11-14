@@ -134,13 +134,13 @@ export async function setMomentInBank(
       const existing = await db.$queryRaw<{ itemKey: string; due: unknown }[]>(Prisma.sql`SELECT "itemKey", due FROM training_cards
         WHERE "userId" = ${viewer.id} AND "itemKey" = ${key}`);
       if (!existing[0]) return { ply, inBank, card: null };
-      return { ply, inBank, card: cardOf(existing[0], now, tz) };
+      return { ply, inBank, card: cardOf(existing[0], now, tz, profile.dayStartHour) };
     }
-    return { ply, inBank, card: cardOf(card, now, tz) };
+    return { ply, inBank, card: cardOf(card, now, tz, profile.dayStartHour) };
   });
 }
 
-function cardOf(c: { itemKey: string; due: unknown }, now: Date, tz: string): NonNullable<MomentBankResponse["card"]> {
+function cardOf(c: { itemKey: string; due: unknown }, now: Date, tz: string, dayStartHour: number): NonNullable<MomentBankResponse["card"]> {
   const due = asDate(c.due)!;
-  return { ref: c.itemKey, dueAt: due.toISOString(), dueLabel: dayLabel(due, now, tz) };
+  return { ref: c.itemKey, dueAt: due.toISOString(), dueLabel: dayLabel(due, now, tz, { dayStartHour }) };
 }

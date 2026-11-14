@@ -112,13 +112,15 @@ describe("hub model", () => {
 
 describe("day words and the training day", () => {
   it("today / tomorrow / weekday / date, in the member's zone", () => {
-    assert.equal(dayWord("2026-11-13T08:00:00.000Z", NOW, "UTC"), "tomorrow");
-    assert.equal(dayWord("2026-11-12T21:00:00.000Z", NOW, "UTC"), "today");
-    assert.equal(dayWord("2026-11-14T08:00:00.000Z", NOW, "UTC"), "Saturday");
-    assert.equal(dayWord("2026-11-25T08:00:00.000Z", NOW, "UTC"), "Nov 25");
-    // 19:00Z is already Friday 00:30 in Kolkata: Friday 08:00 local is "today" there.
-    assert.equal(dayWord("2026-11-13T02:30:00.000Z", NOW, "Asia/Kolkata"), "today");
-    assert.equal(dayWord("not a date", NOW, "UTC"), null);
+    assert.equal(dayWord("2026-11-13T08:00:00.000Z", NOW, "UTC", 0), "tomorrow");
+    assert.equal(dayWord("2026-11-12T21:00:00.000Z", NOW, "UTC", 0), "today");
+    assert.equal(dayWord("2026-11-14T08:00:00.000Z", NOW, "UTC", 0), "Saturday");
+    assert.equal(dayWord("2026-11-25T08:00:00.000Z", NOW, "UTC", 0), "Nov 25");
+    // 19:00Z is already Friday 00:30 in Kolkata: Friday 08:00 local is "today" on the calendar, but "tomorrow" on the
+    // training day (Thursday's until 04:00, P5-FZ-4).
+    assert.equal(dayWord("2026-11-13T02:30:00.000Z", NOW, "Asia/Kolkata", 0), "today");
+    assert.equal(dayWord("2026-11-13T02:30:00.000Z", NOW, "Asia/Kolkata", 4), "tomorrow");
+    assert.equal(dayWord("not a date", NOW, "UTC", 0), null);
   });
 
   it("the training day starts at dayStartHour (03:00 with a 04:00 start is still yesterday)", () => {
@@ -132,10 +134,10 @@ describe("day words and the training day", () => {
     assert.equal(safeTimeZone("Not/AZone"), "UTC");
     assert.equal(safeTimeZone(null), "UTC");
     assert.equal(safeTimeZone("Europe/Berlin"), "Europe/Berlin");
-    assert.equal(dayWord("2026-11-13T08:00:00.000Z", NOW, "Not/AZone"), "tomorrow");
+    assert.equal(dayWord("2026-11-13T08:00:00.000Z", NOW, "Not/AZone", 0), "tomorrow");
     assert.equal(localDayKey(NOW, "Not/AZone", 4), "2026-11-12");
     // Berlin leaves summer time on 2026-10-25: two days later is still "Tuesday", not a date.
-    assert.equal(dayWord("2026-10-27T07:00:00Z", Date.parse("2026-10-25T10:00:00Z"), "Europe/Berlin"), "Tuesday");
+    assert.equal(dayWord("2026-10-27T07:00:00Z", Date.parse("2026-10-25T10:00:00Z"), "Europe/Berlin", 4), "Tuesday");
   });
 });
 

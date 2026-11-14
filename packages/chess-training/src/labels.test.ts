@@ -27,6 +27,21 @@ describe("dayLabel", () => {
     assert.equal(dayLabel(at("2026-11-15T02:30:00Z"), NOW, "Asia/Kolkata"), "Sun");
   });
 
+  it("on the training day (dayStartHour, browser pass D4): 00:00–04:00 is still yesterday's day", () => {
+    // NOW is 00:30 Friday in Kolkata: Thursday's training day with a 04:00 start.
+    const o = { dayStartHour: 4 };
+    assert.equal(dayLabel(at("2026-11-13T02:30:00Z"), NOW, "Asia/Kolkata", o), "Tomorrow", "08:00 Friday");
+    assert.equal(dayLabel(at("2026-11-12T22:00:00Z"), NOW, "Asia/Kolkata", o), "Today", "03:30 Friday is still Thursday's");
+    assert.equal(dayLabel(at("2026-11-14T02:30:00Z"), NOW, "Asia/Kolkata", { ...o, long: true }), "Saturday");
+    assert.equal(releaseLabel(at("2026-11-13T02:30:00Z"), NOW, "Asia/Kolkata", o), "tomorrow at 08:00");
+    // From 04:00 the training day is the calendar day again.
+    const morning = at("2026-11-12T23:00:00Z"); // 04:30 Friday
+    assert.equal(dayLabel(at("2026-11-13T02:30:00Z"), morning, "Asia/Kolkata", o), "Today");
+    // UTC 01:00: the 08:00 release that morning.
+    assert.equal(dayLabel(at("2026-11-13T08:00:00Z"), at("2026-11-13T01:00:00Z"), "UTC", o), "Tomorrow");
+    assert.equal(dayLabel(at("2026-11-13T08:00:00Z"), at("2026-11-13T01:00:00Z"), "UTC"), "Today", "without it, the calendar day");
+  });
+
   it("in America/New_York (14:00 on Thursday)", () => {
     assert.equal(dayLabel(at("2026-11-13T03:00:00Z"), NOW, "America/New_York"), "Today", "22:00 Thursday local");
     assert.equal(dayLabel(at("2026-11-13T13:00:00Z"), NOW, "America/New_York"), "Tomorrow");

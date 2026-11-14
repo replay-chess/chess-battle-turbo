@@ -11,6 +11,7 @@
 import { Prisma } from "@repo/db";
 import type { MomentBankCard, MomentCard, ReviewBank } from "@repo/contracts/http/train";
 import { dayLabel } from "@repo/chess-training/labels";
+import { DEFAULT_DAY_START_HOUR } from "@repo/chess-training/constants";
 import { isValidTimeZone } from "@repo/chess-training/tz";
 import type { Viewer } from "@/lib/auth/viewer";
 import { asDate, num } from "./db.server";
@@ -45,19 +46,23 @@ export function bankCardsOf(value: unknown): BankCard[] {
   });
 }
 
-/** How the bank fields are labelled: the request clock and the viewer's zone. */
-export type BankContext = { nowMs: number; timeZone: string };
+/**
+ * How the bank fields are labelled: the request clock, the viewer's zone and the training-day start (P5-FZ-4). The
+ * review read is one statement without the training profile, so it uses the default start (04:00): the member can
+ * change it only through W8, which no screen calls yet (D-20).
+ */
+export type BankContext = { nowMs: number; timeZone: string; dayStartHour?: number };
 
 export function bankContextOf(viewer: { onboarding?: Viewer["onboarding"]; user?: Pick<Viewer["user"], "timeZone"> }, nowMs: number): BankContext {
   const tz = viewer.onboarding?.timeZone ?? viewer.user?.timeZone ?? "UTC";
-  return { nowMs, timeZone: isValidTimeZone(tz) ? tz : "UTC" };
+  return { nowMs, timeZone: isValidTimeZone(tz) ? tz : "UTC", dayStartHour: DEFAULT_DAY_START_HOUR };
 }
 
 /** MomentDTO.inBank / card for one moment ply. */
 export function momentBankOf(cards: readonly BankCard[], ply: number, ctx: BankContext): { inBank: boolean; card: MomentCard | null } {
   const c = cards.find((x) => x.ply === ply);
   if (!c) return { inBank: false, card: null };
-  return { inBank: true, card: { ref: c.key, dueLabel: dayLabel(c.due, new Date(ctx.nowMs), ctx.timeZone) } };
+  return { inBank: true, card: { ref: c.key, dueLabel: dayLabel(c.due, new Date(ctx.nowMs), ctx.timeZone, { dayStartHour: ctx.dayStartHour }) } };
 }
 
 /**
@@ -77,7 +82,7 @@ export function completeBankOf(
 ): { added: number; nextDueAt: string | null; nextDueLabel: string | null; drillHref: string | null } {
   if (cards.length === 0) return { added: 0, nextDueAt: null, nextDueLabel: null, drillHref: null };
   const first = cards.reduce((a, b) => (b.due.getTime() < a.due.getTime() ? b : a));
-  const label = dayLabel(first.due, new Date(ctx.nowMs), ctx.timeZone, { long: true });
+  const label = dayLabel(first.due, new Date(ctx.nowMs), ctx.timeZone, { long: true, dayStartHour: ctx.dayStartHour });
   return {
     added: Math.min(3, cards.length),
     nextDueAt: first.due.toISOString(),
@@ -88,7 +93,7 @@ export function completeBankOf(
 
 /** A6's card in the response shape. */
 export function momentBankCardOf(c: BankCard, ctx: BankContext): MomentBankCard {
-  return { ref: c.key, dueAt: c.due.toISOString(), dueLabel: dayLabel(c.due, new Date(ctx.nowMs), ctx.timeZone) };
+  return { ref: c.key, dueAt: c.due.toISOString(), dueLabel: dayLabel(c.due, new Date(ctx.nowMs), ctx.timeZone, { dayStartHour: ctx.dayStartHour }) };
 }
 
 // ── The `train` flag (lazy, with a test seam; flags never gate authorisation) ──────────────────────────────────

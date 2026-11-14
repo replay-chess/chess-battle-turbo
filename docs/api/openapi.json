@@ -6221,6 +6221,11 @@
             "minimum": 0,
             "type": "integer"
           },
+          "dayStartHour": {
+            "maximum": 23,
+            "minimum": 0,
+            "type": "integer"
+          },
           "whenLabel": {
             "maxLength": 32,
             "type": "string"

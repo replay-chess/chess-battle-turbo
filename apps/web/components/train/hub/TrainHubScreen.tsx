@@ -123,7 +123,7 @@ export function TrainHubScreen({ serverNowMs }: { serverNowMs: number }) {
 
   const rolledOver = currentDayKey !== undefined && today.dayKey !== currentDayKey;
   const tz = safeTimeZone(today.prefs.timeZone);
-  const nextDay = today.nextBatch ? dayWord(today.nextBatch.at, now, tz) : null;
+  const nextDay = today.nextBatch ? dayWord(today.nextBatch.at, now, tz, today.prefs.dayStartHour) : null;
 
   return (
     <TrainHubView

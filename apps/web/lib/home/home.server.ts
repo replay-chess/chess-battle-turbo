@@ -240,7 +240,7 @@ export async function getHomeData(viewer: Viewer, now: Date, deps: TrainDeps = t
         const d = duePreviewOf(p);
         return { cardRef: d.cardRef, fen: d.fen, orient: d.orient, label: d.label };
       }),
-      nextBatch: nextBatchOf(due, clock.timeZone, clock.now),
+      nextBatch: nextBatchOf(due, clock.timeZone, clock.now, clock.dayStartHour),
     },
     week: { days, games: gamesThisWeek, puzzles: num(weekPuzzles[0]?.n), aria: weekAria(days) },
     recent: recentRows.map((r) => ({

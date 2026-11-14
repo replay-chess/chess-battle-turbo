@@ -113,6 +113,8 @@ export const NextBatch = z.object({
   count: z.number().int().min(0),
   /** "tomorrow at 08:00" / "Saturday at 08:00", in the member's zone at the read (Home: "Next batch tomorrow at 08:00."). Optional: older builds omit it. */
   whenLabel: z.string().max(32).optional(),
+  /** The member's training-day start hour: the client's day word for `at` counts training days (P5-FZ-4). Optional: older builds omit it. */
+  dayStartHour: z.number().int().min(0).max(23).optional(),
 });
 export type NextBatch = z.infer<typeof NextBatch>;
 

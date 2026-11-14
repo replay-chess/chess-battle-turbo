@@ -2,6 +2,7 @@
 // §8.14, §8.2). Browser-safe (a /labels subpath): no ts-fsrs, no Node built-ins, English names from fixed tables
 // (the runtime's Intl locale data never changes a label). Every function takes the instants it compares.
 import { MIN_PER_BANK_ITEM, MIN_PER_PUZZLE, MIN_PER_WEAKNESS_ITEM } from "./constants";
+import { dayKey } from "./day";
 import { calendarDaysBetween, localDate, localParts, parseYmd, weekdayOf, type YMD } from "./tz";
 
 export const WEEKDAYS_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
@@ -33,13 +34,21 @@ export function intervalLabel(days: number): string {
   return `${Math.round(d / 30)} months`;
 }
 
+/** Day-word options: `long` weekdays; `dayStartHour`, the member's training-day start (0 = the calendar day). */
+export type DayWordOptions = { long?: boolean; dayStartHour?: number };
+
 /**
- * When a card is due, from the member's side (§8.14): same local day (or overdue) "Today", next day "Tomorrow",
- * within 6 days the weekday ("Sat"; `long` → "Saturday" for the caught-up list), else "Nov 6".
+ * When a card is due, from the member's side (§8.14): same day (or overdue) "Today", next day "Tomorrow", within 6
+ * days the weekday ("Sat"; `long` → "Saturday" for the caught-up list), else "Nov 6".
+ *
+ * "Day" is the member's training day when `dayStartHour` is given (browser pass D4, P5-FZ-4): the Train hub's header,
+ * the plan, the cap and the streak all live on the training day (a 01:00 Sunday visit is still Saturday's), so a batch
+ * released at 08:00 Sunday is "tomorrow" there, not "today". Without it (0) the calendar day, as before.
  */
-export function dayLabel(due: Date, now: Date, timeZone: string, opts: { long?: boolean } = {}): string {
-  const target = localDate(due, timeZone);
-  const diff = calendarDaysBetween(localDate(now, timeZone), target);
+export function dayLabel(due: Date, now: Date, timeZone: string, opts: DayWordOptions = {}): string {
+  const start = opts.dayStartHour ?? 0;
+  const target = parseYmd(dayKey(due, timeZone, start));
+  const diff = calendarDaysBetween(parseYmd(dayKey(now, timeZone, start)), target);
   if (diff <= 0) return "Today";
   if (diff === 1) return "Tomorrow";
   if (diff <= 6) return (opts.long ? WEEKDAYS_LONG : WEEKDAYS_SHORT)[weekdayOf(target)]!;
@@ -69,9 +78,12 @@ export function atLabel(at: Date, timeZone: string): string {
   return `${pad2(p.h)}:${pad2(p.min)}`;
 }
 
-/** When the next batch arrives, for a sentence: "today at 08:00", "tomorrow at 08:00", "Sat at 08:00", "Nov 6 at 08:00". */
-export function releaseLabel(at: Date, now: Date, timeZone: string): string {
-  const day = dayLabel(at, now, timeZone);
+/**
+ * When the next batch arrives, for a sentence: "today at 08:00", "tomorrow at 08:00", "Sat at 08:00", "Nov 6 at 08:00"
+ * (the day word as `dayLabel`, on the training day when `dayStartHour` is given).
+ */
+export function releaseLabel(at: Date, now: Date, timeZone: string, opts: { dayStartHour?: number } = {}): string {
+  const day = dayLabel(at, now, timeZone, opts);
   const lead = day === "Today" || day === "Tomorrow" ? day.toLowerCase() : day;
   return `${lead} at ${atLabel(at, timeZone)}`;
 }

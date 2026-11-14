@@ -949,7 +949,7 @@ async function applyInTx(
         cardOut = {
           ref: key,
           due: card.due.toISOString(),
-          dueLabel: dayLabel(card.due, now, tz),
+          dueLabel: dayLabel(card.due, now, tz, { dayStartHour: dsh }),
           mastery: cardNow.mastery,
           reps: card.reps,
           scheduled,

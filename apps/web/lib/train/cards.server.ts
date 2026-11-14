@@ -45,7 +45,7 @@ export async function skipCard(viewer: Viewer, ref: string, sessionRef: string |
       }
     }
   });
-  return { suspendedUntil: until.toISOString(), label: dayLabel(until, now, tz) };
+  return { suspendedUntil: until.toISOString(), label: dayLabel(until, now, tz, { dayStartHour: profile.dayStartHour }) };
 }
 
 /**

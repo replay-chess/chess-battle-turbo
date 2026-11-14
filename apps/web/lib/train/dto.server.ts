@@ -205,7 +205,7 @@ export function playedWhen(r: Pick<MistakeCols, "lastPlayedAt">, now: Date, time
 }
 
 /** One Mistake Bank row (strict: no solution, no best move). Null for a row whose last game is gone. */
-export function bankRowOf(r: CardRowDb, now: Date, timeZone: string): BankRow | null {
+export function bankRowOf(r: CardRowDb, now: Date, timeZone: string, dayStartHour = 0): BankRow | null {
   if (!r.mistakeRef || !r.fen || !r.playedUci || !r.gameRef) return null;
   const fen = positionAfter(r.fen, r.setupUci);
   const due = asDate(r.due)!;
@@ -227,7 +227,8 @@ export function bankRowOf(r: CardRowDb, now: Date, timeZone: string): BankRow | 
     source: sourceWire(r.source ?? "OWN_ERROR"),
     mastery: Math.min(5, Math.max(0, num(r.mastery))),
     isDue,
-    nextLabel: isDue ? null : dayLabel(nextAt, now, timeZone),
+    // The member's training day (P5-FZ-4): at 01:00 a card due at 08:00 is "Tomorrow" when the day starts at 04:00.
+    nextLabel: isDue ? null : dayLabel(nextAt, now, timeZone, { dayStartHour }),
     skippedToday: skipped,
     occurrences: Math.max(1, num(r.occurrences)),
     gameRef: r.gameRef,
