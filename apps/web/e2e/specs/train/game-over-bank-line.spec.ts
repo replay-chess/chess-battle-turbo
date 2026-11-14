@@ -84,14 +84,31 @@ test("a clean game: no line once analysed, none after a reload; another member s
   await expect(d.getByTestId("game-over-bank-line")).toHaveCount(0);
 });
 
+/**
+ * Clerk has finished loading on this page, so the next hard navigation cuts none of its requests. Every page loads
+ * Clerk (the root ClerkProvider); on a fresh signed-out browser its development instance first creates a "dev browser"
+ * (POST <instance>.clerk.accounts.dev/v1/dev_browser), then reads /v1/environment and /v1/client. A `page.goto` while
+ * one of them is in flight cuts it; WebKit rejects the fetch ("TypeError: Load failed", no stack) and Clerk's loader logs
+ * it with `console.error(e.stack || e.message || e)`: "[console] Load failed". Nothing of the app's is involved (no
+ * app request was cut), and the test, not a member, leaves the page within ~100 ms of its first paint.
+ * regression: demo-card-clerk-cut (CI 43608761478, webkit-iphone: the dev_browser POST cut by the goto to `bank=0`,
+ * 75 ms after it started, and again on `bank=1`; the first cut left no dev browser, so each page created one again).
+ * The same settle as telemetry.spec's settleClerk.
+ */
+async function clerkLoaded(page: Page): Promise<void> {
+  await page.waitForFunction(() => (window as unknown as { Clerk?: { loaded?: boolean } }).Clerk?.loaded === true, null, { timeout: 60_000 });
+}
+
 test("demo card: no slot with the flag off, none at 0, the line at 1", { tag: ["@p5", "@smoke", "@demo:V3GameOver.over_checkmate_win"] }, async ({ page }) => {
   test.setTimeout(180_000);
   await gotoOk(page, "/dev/ui/game-over?slot=done");
   await expect(page.getByTestId("game-over-demo")).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId("game-over-bank-line")).toHaveCount(0);
+  await clerkLoaded(page);
   await gotoOk(page, "/dev/ui/game-over?slot=done&bank=0");
   await expect(page.getByTestId("game-over-demo")).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId("game-over-bank-line")).toHaveCount(0);
+  await clerkLoaded(page);
   await gotoOk(page, "/dev/ui/game-over?slot=done&bank=1");
   await expect(bankLine(page)).toHaveText(LINE, { timeout: 60_000 });
 });
