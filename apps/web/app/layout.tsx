@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { BASE_URL, safeJsonLd } from "@/lib/seo";
+import { CHUNK_SCRIPT_GUARD } from "@/lib/pwa/chunk-retry";
 
 import "./globals.css";
 import { UserSync } from "./components/UserSync";
@@ -112,6 +113,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/* A server-rendered chunk <script> that fails before webpack asks for its chunk is taken out of the document,
+            so webpack loads the chunk again instead of waiting on the dead tag (lib/pwa/chunk-retry.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: CHUNK_SCRIPT_GUARD }} />
         {/* Fonts loaded via next/font/google (self-hosted at build time) — no preconnect needed */}
         <link rel="dns-prefetch" href="https://img.clerk.com" />
         <link rel="preconnect" href="https://www.googletagmanager.com" />

@@ -10,8 +10,29 @@
 // webpack forgets a failed chunk, so asking again reloads it. `installChunkRetry()` wraps `.e` once with retries at
 // 0.5 s, 1.5 s and 3 s: a transient failure recovers, and on a page being left the retry outlives the document, so no
 // error is ever reported there. A chunk that is really gone (a deploy replaced it) still fails after ~5 s, as before.
+//
+// The route chunks the first paint needs are also `<script async>` tags in the server-rendered <head>, requested
+// before any JavaScript runs. webpack's script loader (`__webpack_require__.l`) looks for a tag with the chunk's URL
+// before it makes one and, if there is one, waits on that tag's load/error events. When that tag had already failed
+// (cut, network error) before the App Router asked for its chunk, those events have fired: webpack waited for its
+// 120 s timeout with no error to retry and no request (regression: webkit-route-chunk-dead-tag, CI 43653740138 on the
+// 8 MB /openings document, whose RSC payload names the (app) layout chunk 3.4 MB in). CHUNK_SCRIPT_GUARD, inline in the
+// root layout's <head>, takes such a failed tag out of the document when webpack is not attached to it (no `onerror`),
+// so a later load makes a fresh tag and a fresh request; a failure webpack is attached to is webpack's rejection, which
+// the retry above handles.
 
 export const CHUNK_RETRY_DELAYS_MS = [500, 1_500, 3_000] as const;
+
+/**
+ * Inline `<head>` script (app/layout.tsx): a `/_next/static/chunks/` script whose load failed while no loader was
+ * attached to it (webpack sets `onerror` when it waits on a tag) is removed, so webpack never waits on a dead tag. A
+ * capture listener on `window`: element load errors do not bubble. Plain ES5, no dependencies; it runs before any app
+ * module (the parser reaches it once the stylesheets above it have loaded), so it sees failures that come before
+ * instrumentation-client.ts runs. chunk-retry.test.ts runs this exact text.
+ */
+export const CHUNK_SCRIPT_GUARD =
+  'addEventListener("error",function(e){var s=e.target;if(s&&s.tagName==="SCRIPT"&&typeof s.onerror!=="function"&&' +
+  '/\\/_next\\/static\\/chunks\\//.test(s.src)&&s.parentNode)s.parentNode.removeChild(s)},true);';
 
 type EnsureChunk = ((chunkId: string | number) => Promise<unknown>) & { rcRetry?: true };
 

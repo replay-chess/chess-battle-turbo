@@ -2,7 +2,7 @@
 // review's `?m=2` reload). A failed chunk load is retried at 0.5 / 1.5 / 3 s before it is reported; other errors are not.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CHUNK_RETRY_DELAYS_MS, installChunkRetry, isChunkLoadError, retryingChunkLoader } from "./chunk-retry";
+import { CHUNK_RETRY_DELAYS_MS, CHUNK_SCRIPT_GUARD, installChunkRetry, isChunkLoadError, retryingChunkLoader } from "./chunk-retry";
 
 const chunkError = (id: number) => Object.assign(new Error(`Loading chunk ${id} failed.\n(error: http://x/_next/static/chunks/${id}.js)`), { name: "ChunkLoadError" });
 
@@ -47,6 +47,31 @@ describe("chunk retry", () => {
     }, CHUNK_RETRY_DELAYS_MS, async () => undefined);
     await assert.rejects(load(1), TypeError);
     assert.equal(calls, 1);
+  });
+
+  // regression: webkit-route-chunk-dead-tag (CI 43653740138): webpack waited 120 s on a server-rendered chunk <script>
+  // that had already failed. The inline guard removes such a tag unless a loader is attached to it.
+  it("the inline guard removes a failed chunk <script> no loader waits on, and nothing else", () => {
+    type Listener = (e: { target: unknown }) => void;
+    const listeners: { type: string; fn: Listener; capture: unknown }[] = [];
+    new Function("addEventListener", CHUNK_SCRIPT_GUARD)((type: string, fn: Listener, capture: unknown) => listeners.push({ type, fn, capture }));
+    assert.equal(listeners.length, 1);
+    assert.equal(listeners[0]!.type, "error");
+    assert.equal(listeners[0]!.capture, true, "capture: an element's load error does not bubble to window");
+    const removed: string[] = [];
+    const el = (tagName: string, src: string, onerror: unknown = null) => {
+      const node = { tagName, src, onerror, parentNode: { removeChild: () => removed.push(src) } };
+      return node;
+    };
+    const fire = (target: unknown) => listeners[0]!.fn({ target });
+    fire(el("SCRIPT", "http://localhost:3000/_next/static/chunks/app/(app)/layout-15ae7ff7d7e4f708.js"));
+    fire(el("SCRIPT", "http://localhost:3000/_next/static/chunks/2563-abc.js", () => undefined)); // webpack is attached
+    fire(el("SCRIPT", "https://cdn.example/npm/@clerk/clerk-js@5/dist/clerk.browser.js"));
+    fire(el("LINK", "http://localhost:3000/_next/static/chunks/x.css"));
+    fire(el("IMG", "http://localhost:3000/_next/static/chunks/x.png"));
+    fire({ tagName: "SCRIPT", src: "http://localhost:3000/_next/static/chunks/1.js", onerror: null, parentNode: null });
+    fire(null);
+    assert.deepEqual(removed, ["http://localhost:3000/_next/static/chunks/app/(app)/layout-15ae7ff7d7e4f708.js"]);
   });
 
   it("outside the browser bundle there is nothing to wrap", () => {
