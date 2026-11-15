@@ -38,6 +38,35 @@ describe("review bank fields", () => {
     assert.deepEqual(completeBankOf([], "x", ctx), { added: 0, nextDueAt: null, nextDueLabel: null, drillHref: null });
   });
 
+  // P5-FZ-4: Train's day words count the training day (default start 04:00), so a card just added comes back
+  // "tomorrow" until 04:00 local even when its 08:00 release is later the same calendar day. regression:
+  // review-complete-hour (CI 43662852275, e2e review-to-bank at 01:32 UTC expected the calendar word "today").
+  it("complete: a card due at the next 08:00 release reads by the training day at 23:30, 00:30, 03:30, 04:30 local", () => {
+    // [zone, the release instant (08:00 local on 2026-11-15), [local time, its UTC instant, the word]]
+    const cases = [
+      ["UTC", "2026-11-15T08:00:00.000Z", [
+        ["23:30", "2026-11-14T23:30:00.000Z", "tomorrow"],
+        ["00:30", "2026-11-15T00:30:00.000Z", "tomorrow"],
+        ["03:30", "2026-11-15T03:30:00.000Z", "tomorrow"],
+        ["04:30", "2026-11-15T04:30:00.000Z", "today"],
+      ]],
+      ["Asia/Calcutta", "2026-11-15T02:30:00.000Z", [
+        ["23:30", "2026-11-14T18:00:00.000Z", "tomorrow"],
+        ["00:30", "2026-11-14T19:00:00.000Z", "tomorrow"],
+        ["03:30", "2026-11-14T22:00:00.000Z", "tomorrow"],
+        ["04:30", "2026-11-14T23:00:00.000Z", "today"],
+      ]],
+    ] as const;
+    for (const [timeZone, due, hours] of cases) {
+      const card = [{ ply: 6, key: "m_k", due: new Date(due) }];
+      for (const [local, at, word] of hours) {
+        const ctx = bankContextOf({ user: { timeZone } }, Date.parse(at));
+        assert.equal(completeBankOf(card, "g", ctx).nextDueLabel, word, `${timeZone} ${local}`);
+        assert.equal(momentBankOf(card, 6, ctx).card?.dueLabel, word === "today" ? "Today" : "Tomorrow", `${timeZone} ${local} (A1)`);
+      }
+    }
+  });
+
   it("the labels use the viewer's zone (UTC for an unknown one)", () => {
     assert.equal(bankContextOf({ user: { timeZone: "Asia/Kolkata" } }, 0).timeZone, "Asia/Kolkata");
     assert.equal(bankContextOf({ user: { timeZone: "Nope/Zone" } }, 0).timeZone, "UTC");

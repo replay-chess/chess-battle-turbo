@@ -9,14 +9,14 @@
 //     with "Couldn't update your Mistake Bank"; off → "Removed from Mistake Bank", the ply is in
 //     `player_reviews.progress.bankOptOut` and the card is gone; on → "Added to Mistake Bank · next review …", the ply
 //     leaves `bankOptOut` and the card is back;
-//   - Review complete: "3 moments reviewed · 3 added to your Mistake Bank. The first one comes back tomorrow." (today
-//     before the 08:00 release), an "Added"
+//   - Review complete: "3 moments reviewed · 3 added to your Mistake Bank. The first one comes back tomorrow." (the
+//     word counts training days, P5-FZ-4: pinned at fixed server times around the card's 08:00 release), an "Added"
 //     tag on each moment, Drill These 3 Mistakes → the runner with exactly this game's 3 positions.
 // @local-only: the e2e worker with the fake engine.
 import type { Page } from "@playwright/test";
 import { Chess } from "chess.js";
 import { completeBotGame, createBotGame } from "../review/_lib/games";
-import { DEVICES, expect, gotoOk, poolUserEmail, sessionPayload, stateTags, test, trainDb, trainerBoard, waitForSession, type TrainDb } from "./_lib/train";
+import { DEVICES, expect, gotoOk, poolUserEmail, serverClock, sessionPayload, stateTags, test, trainDb, trainerBoard, waitForSession, type TrainDb } from "./_lib/train";
 
 // The spec routes requests: a service worker would take them past page.route (docs/decisions.md, the P1 SW rule).
 test.describe.configure({ mode: "serial" });
@@ -46,6 +46,21 @@ async function gameCards(db: TrainDb, userId: bigint, gameRef: string): Promise<
      ORDER BY mo.ply`;
 }
 
+const HOUR_MS = 3_600_000;
+
+/**
+ * The day word a UTC member reads for a card due at `due` when the server clock says `now`, written out from the rule
+ * (plan §8.4 + P5-FZ-4: Train's day words count training days; the review read uses the default 04:00 day start), not
+ * from the product's helpers: "today" from 04:00 on the release day, "tomorrow" before.
+ */
+function dayWordUtc(due: Date, now: number): string {
+  const trainingDay = (t: number) => Date.parse(new Date(t - 4 * HOUR_MS).toISOString().slice(0, 10));
+  const days = Math.round((trainingDay(due.getTime()) - trainingDay(now)) / (24 * HOUR_MS));
+  return days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
+}
+
+const leadOf = (word: string) => `3 moments reviewed · 3 added to your Mistake Bank. The first one comes back ${word}.`;
+
 async function optOut(db: TrainDb, gameRef: string): Promise<number[]> {
   const rows = await db.raw.$queryRaw<{ o: number[] | null }[]>`
     SELECT ARRAY(SELECT jsonb_array_elements_text(COALESCE(pr.progress->'bankOptOut', '[]'::jsonb))::int) AS o
@@ -56,7 +71,7 @@ async function optOut(db: TrainDb, gameRef: string): Promise<number[]> {
 test(
   "T2–T4: 3 key moments → 3 cards; the moment switch rolls back on a 500, then off/on; Review complete → Drill These 3",
   { tag: ["@p5", "@local-only", ...stateTags("runner", "solve")] },
-  async ({ persona, page, reviewDb, telemetry }, testInfo) => {
+  async ({ persona, page, reviewDb, telemetry, baseURL }, testInfo) => {
     test.setTimeout(600_000);
     await persona("bank-empty");
     const db = trainDb(reviewDb);
@@ -118,14 +133,36 @@ test(
       const r = page.locator('[data-testid="reveal-answer"]:visible, [data-testid="bar-reveal-answer"]:visible').first();
       if (await r.count()) await r.click();
     }
+    const finishedAt = Date.now();
     await control(page, "finish-review").click();
     await page.waitForURL(new RegExp(`/review/${ref}/complete`), { timeout: 120_000 });
-    // The cards come back at the next 08:00 release in the member's zone (UTC): today before 08:00, else tomorrow.
+    // The cards come back at the next 08:00 release in the member's zone (UTC). The word counts training days (P5-FZ-4,
+    // day start 04:00): from 00:00 to 04:00 the release later that morning is still "tomorrow" (the training day is the
+    // previous one), from 04:00 to 08:00 "today". The page as served now says the word of the server's clock (either
+    // side of a boundary crossed while it loaded); the exact words are then pinned at fixed server times.
+    // regression: review-complete-hour (CI 43662852275 at 01:32 UTC: the spec counted calendar days and expected "today").
     const [first] = await db.raw.$queryRaw<{ due: Date }[]>`
       SELECT min(c.due) AS due FROM training_cards c JOIN mistake_occurrences mo ON mo."mistakeId" = c."mistakeId"
         JOIN games g ON g.id = mo."gameId" WHERE c."userId" = ${userId} AND g."referenceId" = ${ref}`;
-    const when = first!.due.toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10) ? "today" : "tomorrow";
-    await expect(page.getByTestId("complete-lead")).toHaveText(`3 moments reviewed · 3 added to your Mistake Bank. The first one comes back ${when}.`, { timeout: 60_000 });
+    const due = first!.due;
+    expect(due.getUTCHours(), "a new card is due at the 08:00 UTC release").toBe(8);
+    const lead = page.getByTestId("complete-lead");
+    await expect(async () => {
+      const words = [...new Set([dayWordUtc(due, finishedAt), dayWordUtc(due, Date.now())])];
+      expect(words.map(leadOf)).toContain(await lead.textContent());
+    }).toPass({ timeout: 60_000 });
+    // The same page at fixed server times around the release day D (08:00 UTC): 23:30 the day before, 00:30 and 03:30
+    // ("tomorrow", the training day is D−1) and 04:30 ("today").
+    const clock = await serverClock(page, baseURL!);
+    for (const [beforeDue, word] of [[8.5, "tomorrow"], [7.5, "tomorrow"], [4.5, "tomorrow"], [3.5, "today"]] as const) {
+      const at = new Date(due.getTime() - beforeDue * HOUR_MS);
+      expect(dayWordUtc(due, at.getTime()), `the rule at ${at.toISOString()}`).toBe(word);
+      clock.set(at);
+      await gotoOk(page, `/review/${ref}/complete`);
+      await expect(lead, `served at ${at.toISOString()}`).toHaveText(leadOf(word), { timeout: 60_000 });
+    }
+    clock.clear();
+    await gotoOk(page, `/review/${ref}/complete`);
     const tags = page.getByTestId("complete-moment-bank");
     await expect(tags).toHaveCount(3);
     for (const t of await tags.all()) await expect(t).toHaveText("Added");
