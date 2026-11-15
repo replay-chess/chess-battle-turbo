@@ -107,13 +107,13 @@ describe("worker telemetry (Postgres + PostHog/Sentry sink)", { skip: skipInt },
   // The waits are for the worker to finish real work (a kicked 30-ply analysis, a failed attempt, the sinks' flush), not
   // a latency target: 2.5 s alone, 11 s in CI's integration job (CI 43452098148), where every int file of the package
   // runs at the same time on 4 vCPUs, and more than 15 s once (CI 43468582948: "timed out" on the first wait).
-  async function until(check: () => Promise<boolean> | boolean, ms = 60_000) {
+  async function until(check: () => Promise<boolean> | boolean, state?: () => Promise<unknown>, ms = 60_000) {
     const end = Date.now() + ms;
     while (Date.now() < end) {
       if (await check()) return;
       await new Promise((r) => setTimeout(r, 50));
     }
-    throw new Error("timed out");
+    throw new Error(`timed out${state ? `: ${JSON.stringify(await state())}` : ""}`);
   }
 
   it("a kicked analysis reaches PostHog and Sentry; a failed attempt reaches PostHog", async () => {
@@ -144,20 +144,29 @@ describe("worker telemetry (Postgres + PostHog/Sentry sink)", { skip: skipInt },
       payload: { v: 1, gameId: ok.id, gameRef: ok.ref, reason: "bot_end" },
     });
     await kick({ watch: ok.ref });
-    await until(async () => (await jobRow(env, okJob)).status === "DONE");
+    await until(
+      async () => (await jobRow(env, okJob)).status === "DONE",
+      () => jobRow(env, okJob),
+    );
 
+    // The fault is armed before the job exists, as review-failed-retry.spec.ts arms it before the game ends: a kick's
+    // fault is taken by the run that claims the game's job after the kick, and the drain that ran the first job can
+    // still be in its tail (events, telemetry) when the test sees DONE. With the job committed first, that drain could
+    // claim it before the fault kick arrived and run it to DONE, and this wait timed out on an idle worker (CI
+    // 43653740138; regression: telemetry-fault-after-insert, reproduced by committing the job while the drain is busy).
     const bad = await game();
+    await kick({ watch: bad.ref, fault: "fail_at_ply:12" });
     const badJob = await insertJob(env, {
       gameId: bad.id,
       priority: JOB_PRIORITY.GAME_ENDED,
       dedupeKey: `analyze:${bad.id}`,
       payload: { v: 1, gameId: bad.id, gameRef: bad.ref, reason: "live_end" },
     });
-    await kick({ watch: bad.ref, fault: "fail_at_ply:12" });
+    await kick({ watch: bad.ref });
     await until(async () => {
       const row = await jobRow(env, badJob);
       return row.status === "QUEUED" && row.attempts === 1;
-    });
+    }, () => jobRow(env, badJob));
 
     await worker.shutdown();
     worker = null;
