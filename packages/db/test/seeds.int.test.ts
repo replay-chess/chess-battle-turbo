@@ -83,6 +83,9 @@ describe("Phase 3 seeds and backfills (Postgres)", { skip: TEST_URL ? false : "T
   });
   after(async () => db.$disconnect());
 
+  // The counts run in one REPEATABLE READ snapshot: `pnpm -r test:int` runs the web and worker suites on the same
+  // database meanwhile, and a real-looking user one of them commits between the two counts made "70 synthetic users are
+  // not counted" read 9 !== 8 (READ COMMITTED; 3 of 5 local runs of the whole set under CPU load).
   it("regression: tripwire-test-users: synthetic @test.invalid users never trip the seed guard; real-looking ones do", async () => {
     const ROLLBACK = new Error("rollback");
     const insertMany = (tx: Prisma.TransactionClient, n: number, domain: string) => {
@@ -101,7 +104,7 @@ describe("Phase 3 seeds and backfills (Postgres)", { skip: TEST_URL ? false : "T
         await insertMany(tx, 61 - before, "example.com");
         await assert.rejects(checkTripwire(tx), /looks like production/);
         throw ROLLBACK;
-      }),
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead }),
       (e: unknown) => e === ROLLBACK,
     );
   });
