@@ -254,6 +254,14 @@ function serviceWorkersBlocked(): boolean {
  * failed). Only the P4 lease asks for it: signIn's callers continue as soon as the viewer reads are quiet
  * (in-game-auth.spec reads a 3 s chip on another page right after; a networkidle wait there hid it).
  *
+ * App Router payload requests (`?_rsc=`) are tracked whatever `paths` says: when a spec leaves a page while a soft
+ * navigation's payload is still streaming, WebKit fails the stream with "TypeError: Load failed", React throws it into
+ * the route's error boundary, and Next's onCaughtError logs it with a bare console.error (an `?_rsc` fetch cut before
+ * its answer is the separate, excused "Failed to fetch RSC payload … TypeError: Load failed"). Reproduced by holding the
+ * second half of a soft navigation's payload in a proxy and leaving: WebKit logs exactly "TypeError: Load failed" from
+ * Next's onCaughtError, with app/error.tsx rendered (regression: webkit-rsc-stream-cut, CI 43653740138 connected.spec,
+ * the page on /onboarding/plan after the lease's claims refresh).
+ *
  * `paths`: a page's own reads of the same kind, for a spec that leaves the page right after causing them: the Train hub
  * refetches today's plan and the badges when the tab comes back into view (day-rollover.spec; regression:
  * webkit-train-today-cut, "…/api/train/today due to access control checks." on WebKit).
@@ -262,7 +270,14 @@ export function pendingViewerReads(page: ViewerReadsPage, opts: { swRegistration
   const pending = new Set<Request>();
   let lastActivity = Date.now();
   const paths = new Set(opts.paths ?? ["/api/me"]);
-  const isMe = (r: Request) => paths.has(new URL(r.url()).pathname);
+  // App Router payloads (`?_rsc=`: a soft navigation, a refresh, a prefetch) count as reads too: a navigation whose
+  // payload was still streaming when the spec left the page threw WebKit's "TypeError: Load failed" into the error
+  // boundary that Next then logs bare with console.error (connected.spec after the P4 lease's claims refresh, on
+  // /onboarding/plan; regression: webkit-rsc-stream-cut).
+  const isMe = (r: Request) => {
+    const u = new URL(r.url());
+    return paths.has(u.pathname) || u.searchParams.has("_rsc");
+  };
   const onRequest = (r: Request) => {
     if (!isMe(r)) return;
     pending.add(r);

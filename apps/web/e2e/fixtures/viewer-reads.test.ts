@@ -60,6 +60,20 @@ describe("pendingViewerReads", () => {
     assert.ok(took >= 600 + VIEWER_QUIET_MS - 60, `settled after today's read finished and the page went quiet (${took} ms)`);
   });
 
+  it("an App Router payload in flight (`?_rsc=`) holds it as a viewer read does", async () => {
+    // regression: webkit-rsc-stream-cut (connected.spec: the next goto cut the claims refresh's navigation to
+    // /onboarding/plan mid-stream; WebKit's "TypeError: Load failed" reached app/error.tsx and Next logged it).
+    const { page, ee, req } = fakePage();
+    const reads = pendingViewerReads(page, { swRegistration: false, paths: ["/api/train/today"] });
+    const nav = req("/onboarding/plan?_rsc=1x2y3");
+    setTimeout(() => ee.emit("request", nav), 100);
+    setTimeout(() => ee.emit("requestfinished", nav), 700);
+    const t0 = Date.now();
+    await reads.settled();
+    const took = Date.now() - t0;
+    assert.ok(took >= 700 + VIEWER_QUIET_MS - 60, `settled after the payload finished and the page went quiet (${took} ms)`);
+  });
+
   it("a production build waits for the page's service-worker registration, bounded", async () => {
     const { page } = fakePage({ registeredAfterMs: VIEWER_QUIET_MS + 400 });
     const t0 = Date.now();
