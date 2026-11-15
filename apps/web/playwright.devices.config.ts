@@ -26,8 +26,22 @@
  * the puzzle session reads the committed shard subset from the CI shard server (e2e/mocks/puzzle-shards.ts, started
  * below with the build; a reused DEVICES_BASE_URL server must already point PUZZLE_SHARD_BASE_URL at one).
  * P5's tier rows: the PR tier runs train/home (and the CLS ≤ 0.02 runner gate) on the 4 PR projects; nightly runs
- * them on all 40; the move → verdict throttle check runs on desktop-1440@100 only; p05.visual.spec.ts on the plan's
+ * them on all 40; the move → verdict throttle check runs in the lab project (below); p05.visual.spec.ts on the plan's
  * 8 visual projects (full tier, official image).
+ *
+ * Lab timing gates (@lab, DEVICES_LAB): the move → verdict gate of layout/train.spec.ts measures one paint at a 4×
+ * CPU throttle, so it must not share the runner's CPUs with other tests. In CI 43646432212, 43653740138 and
+ * 43662852275 it failed at 55, 70 and 54 ms while three other workers loaded the 4 vCPUs (the renderer waited one or
+ * two frames with no script running; in Docker at 4 CPUs the same builds read p50 27 ms and max 30 ms alone, and
+ * 9–14 % over 50 ms with four workers, the build before as often). Its project `lab-desktop-1440@100` (desktop-1440@100
+ * settings, the @lab tests only) is chosen by DEVICES_LAB:
+ *   unset   every project, the lab one included, alongside the others (local test:devices / test:layout, nightly
+ *           devices-full); `DEVICES_LAB=only pnpm test:devices` runs it alone after a build;
+ *   skip    without the lab project (ci.yml devices-p5, first step: the parallel suite);
+ *   only    the lab project alone, one worker, `next start` on the .next-devices build the first step made (built
+ *           only if missing), its own report (playwright-report-devices-lab/), results
+ *           (test-results-devices-lab/results.json), artifacts (test-results-lab/) and server log (devices-web-lab).
+ * The layout projects never run @lab tests, so the gate runs once.
  *
  * Visual baselines (1Q·2, plan §12.4): ui/visual.spec.ts (@visual) compares
  * screenshots with e2e/__screenshots__/<project>/<spec>/<name>.png. Baselines
@@ -50,6 +64,9 @@ loadEnv({ path: process.env.E2E_ENV_FILE || path.resolve(path.dirname(fileURLToP
 
 const PR_TIER = new Set(["desktop-1440@100", "desktop-1280@125", "iphone@100", "ipad-portrait@100"]);
 const tier = process.env.DEVICES_TIER === "pr" ? "pr" : "full";
+/** Lab timing gates (header): "skip" leaves the lab project out, "only" runs it alone; unset runs everything. */
+const lab = process.env.DEVICES_LAB === "only" ? "only" : process.env.DEVICES_LAB === "skip" ? "skip" : "all";
+const LAB_TAG = /@lab\b/;
 /** Mirrors REAL_ROUTE_PROJECTS in e2e/devices/layout/routes.real.ts. */
 const REAL_ROUTE_PROJECTS = new Set(["desktop-1440@100", "desktop-1440@150", "iphone@100", "iphone@125", "ipad-portrait@100"]);
 
@@ -61,9 +78,15 @@ const layoutProjects: Project[] = BASE_DEVICES.flatMap((d) =>
     const testMatch = REAL_ROUTE_PROJECTS.has(name)
       ? ["layout/**/*.spec.ts", "game/**/*.spec.ts", "layout/routes.real.ts"]
       : ["layout/**/*.spec.ts", "game/**/*.spec.ts"];
-    return { name, testMatch, ...zoomed(d, z) };
+    return { name, testMatch, grepInvert: LAB_TAG, ...zoomed(d, z) };
   }),
 ).filter((p) => tier === "full" || PR_TIER.has(p.name!));
+
+/** The lab timing gates alone (header): desktop-1440@100 settings, the @lab tests of layout/train.spec.ts. */
+const labDesktop = zoomed(baseDevice("desktop-1440"), 1);
+const labProjects: Project[] = [
+  { name: "lab-desktop-1440@100", testMatch: "layout/train.spec.ts", grep: LAB_TAG, use: labDesktop.use, metadata: { ...labDesktop.metadata, lab: true } },
+];
 
 const uiProjects: Project[] = UI_PROJECTS.map(({ name, device }) => ({
   name,
@@ -79,7 +102,7 @@ const motionProjects: Project[] = MOTION_PROJECTS.map(({ name, device }) => {
 export default defineConfig({
   testDir: "./e2e/devices",
   fullyParallel: true,
-  workers: process.env.CI ? 4 : "50%",
+  workers: lab === "only" ? 1 : process.env.CI ? 4 : "50%",
   // A shared `next dev` (DEVICES_BASE_URL) recompiles under load and times out a cold `page.goto` now and then
   // (GATE-B, P1, P2 hand-backs); retry once there. Production builds (the default) get no retries.
   retries: process.env.DEVICES_BASE_URL ? 1 : 0,
@@ -95,8 +118,8 @@ export default defineConfig({
   // CI: the HTML report, the list and GitHub annotations in the job log, and the JSON results (ci.yml uploads them).
   reporter: process.env.CI
     ? [
-        ["html", { open: "never", outputFolder: "playwright-report-devices" }],
-        ["json", { outputFile: "test-results-devices/results.json" }],
+        ["html", { open: "never", outputFolder: lab === "only" ? "playwright-report-devices-lab" : "playwright-report-devices" }],
+        ["json", { outputFile: lab === "only" ? "test-results-devices-lab/results.json" : "test-results-devices/results.json" }],
         ["list"],
         ["github"],
       ]
@@ -108,12 +131,18 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  projects: [...layoutProjects, ...uiProjects, ...motionProjects],
+  // DEVICES_LAB=only: a run of its own; its artifacts must not clean away the first step's (Playwright empties outputDir).
+  ...(lab === "only" ? { outputDir: "test-results-lab" } : {}),
+  projects: lab === "only" ? labProjects : lab === "skip" ? [...layoutProjects, ...uiProjects, ...motionProjects] : [...layoutProjects, ...labProjects, ...uiProjects, ...motionProjects],
   webServer: process.env.DEVICES_BASE_URL
     ? undefined
     : [
         {
-          command: loggedCommand("devices-web", "pnpm build && pnpm start --port 3100"),
+          // DEVICES_LAB=only serves the build the suite's run made (one `next build` per job), building only if it is missing.
+          command:
+            lab === "only"
+              ? loggedCommand("devices-web-lab", "{ [ -f .next-devices/BUILD_ID ] || pnpm build; } && pnpm start --port 3100")
+              : loggedCommand("devices-web", "pnpm build && pnpm start --port 3100"),
           port: 3100,
           // next build and next start write to stdout; Playwright drops a webServer's stdout unless asked.
           stdout: "pipe",

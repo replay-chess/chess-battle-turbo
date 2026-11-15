@@ -637,9 +637,10 @@ jobs:
   devices-p5:
     # phase-05 plan §12.4: the Train screens and Home in every demo state (+ stress=1 at 150 %) on the PR tier
     # (desktop-1440@100, desktop-1280@125, iphone@100, ipad-portrait@100; nightly devices-full runs all 40), the runner CLS
-    # ≤ 0.02 lab gate, move → verdict with a 4× CPU throttle on desktop-1440@100, and the real routes as a leased
-    # `bank-member` on desktop-1440@100 and iphone@100. The real routes need the Docker database and the CI shard server
-    # (playwright.devices.config.ts starts it with the build; never R2).
+    # ≤ 0.02 lab gates and the real routes as a leased `bank-member` on desktop-1440@100 and iphone@100, 4 workers; then
+    # move → verdict with a 4× CPU throttle (desktop-1440@100 settings) as a step of its own, alone (see that step). The
+    # real routes need the Docker database and the CI shard server (playwright.devices.config.ts starts it with the
+    # build; never R2).
     needs: verify
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 45
@@ -698,13 +699,29 @@ jobs:
           pnpm --filter @repo/db migrate:deploy
           pnpm --filter @repo/db seed
           pnpm --filter @repo/db seed:openings
-      - name: Train and Home one viewport, the runner lab gates, the real routes (builds .next-devices, serves :3100)
+      - name: Train and Home one viewport, the runner CLS gates, the real routes, 4 workers (builds .next-devices, serves :3100; no @lab test)
         run: pnpm --filter web exec playwright test -c playwright.devices.config.ts layout/train.spec.ts layout/home.spec.ts
+        env: { DEVICES_LAB: skip }
+      # The move → verdict gate times one paint at a 4× CPU throttle: alone, after the suite, on the same .next-devices
+      # (next start only). Sharing the 4 vCPUs with three workers it failed at 55, 70 and 54 ms in CI 43646432212,
+      # 43653740138 and 43662852275 (the renderer waiting for a frame, no product work; playwright.devices.config.ts).
+      # It runs even when the suite failed; its own failure fails the job.
+      - name: The move → verdict lab gate alone, 1 worker (serves the same .next-devices on :3100, no rebuild)
+        if: ${{ !cancelled() }}
+        run: pnpm --filter web exec playwright test -c playwright.devices.config.ts layout/train.spec.ts
+        env: { DEVICES_LAB: only }
       - if: always()
         uses: actions/upload-artifact@v6
         with:
           name: devices-p5-report
           path: apps/web/playwright-report-devices/
+          retention-days: 14
+          if-no-files-found: ignore
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: devices-p5-lab-report
+          path: apps/web/playwright-report-devices-lab/
           retention-days: 14
           if-no-files-found: ignore
       - name: Diagnostics on failure (containers, ports, the last 200 lines of each server log; redacted)
@@ -718,8 +735,11 @@ jobs:
           path: |
             ci-logs/
             apps/web/playwright-report-devices/
+            apps/web/playwright-report-devices-lab/
             apps/web/test-results/
+            apps/web/test-results-lab/
             apps/web/test-results-devices/
+            apps/web/test-results-devices-lab/
           retention-days: 7
           if-no-files-found: ignore
 

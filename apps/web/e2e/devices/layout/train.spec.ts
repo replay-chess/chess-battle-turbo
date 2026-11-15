@@ -12,8 +12,15 @@
 //                opponent names, 3-digit move numbers, both colours, 365-day streak) runs at 150 %.
 //   real routes  signed in as a pool user leased to `bank-member` on REAL_PROJECTS: /train, /train/bank, the bank drill
 //                and a puzzle session (`?s=`), with the same checks.
-//   lab gates    (Chromium) CLS ≤ 0.02 on the runner routes at every zoom of the tier; move → verdict ≤ 50 ms and no
-//                long task > 50 ms after hydration on the runner with a 4× CPU throttle (desktop-1440@100).
+//   lab gates    (Chromium) CLS ≤ 0.02 on the runner routes at every zoom of the tier, and when the page is painted
+//                before the board's bottom bar is parsed: these run in the parallel suite, on purpose (a layout shift
+//                under load is a real defect a busy phone shows too: CI 43653740138 found one, 6910e86 fixed it).
+//                move → verdict ≤ 50 ms and no long task > 50 ms after hydration on the runner with a 4× CPU throttle
+//                (@lab): it times one paint, so it runs alone in the `lab-desktop-1440@100` project
+//                (playwright.devices.config.ts DEVICES_LAB; ci.yml devices-p5 runs it as its own step after the suite,
+//                on the same build). Sharing the 4 vCPUs with three workers, it failed at 55, 70 and 54 ms in CI
+//                43646432212, 43653740138 and 43662852275 with no product work in the window (the renderer waited a
+//                frame or two); every build read p50 27 ms, max 30 ms alone in Docker at 4 CPUs.
 //
 // Each demo test belongs to one device family and skips on the others, so its @demo tags name exactly the boards that
 // ran (the P2/P3 pattern).
@@ -332,8 +339,8 @@ async function expectCls(page: Page, testInfo: TestInfo) {
  * offsets from the throttle's start) is recorded before the verdict budget is checked, so a slow verdict says where its
  * time went (CI 43662852275 failed at 53.6 ms with no detail kept).
  */
-test("move → verdict ≤ 50 ms and no long task after hydration, 4× CPU throttle @p5", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-1440@100", "desktop-1440@100 only (a CDP throttle)");
+test("move → verdict ≤ 50 ms and no long task after hydration, 4× CPU throttle @p5 @lab", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.metadata?.lab !== true, "the lab project only (desktop-1440@100 settings, run alone: a CDP throttle)");
   const cdp = await page.context().newCDPSession(page);
   await page.addInitScript(() => {
     type Rec = {
