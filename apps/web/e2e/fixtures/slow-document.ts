@@ -42,6 +42,11 @@ export async function startSlowDocumentProxy(opts: {
   target: number;
   /** Which documents may be held (pathname). */
   match: (pathname: string) => boolean;
+  /**
+   * Hold from the tag that contains this text instead of from the streamed part: the browser gets the document up to
+   * there, and may paint it, before the rest (a document painted mid-parse, as a busy device does).
+   */
+  splitAt?: string;
 }): Promise<SlowDocumentProxy> {
   let holdMs = 0;
   /** The proxy's own origin, known once it listens. */
@@ -55,6 +60,10 @@ export async function startSlowDocumentProxy(opts: {
   /** Where the streamed part starts: the first Suspense segment or the RSC payload, whichever comes first. */
   const STREAMED = [Buffer.from('<div hidden id="S:'), Buffer.from("<script>(self.__next_f=")];
   const streamedAt = (chunk: Buffer) => {
+    if (opts.splitAt !== undefined) {
+      const i = chunk.indexOf(opts.splitAt);
+      return i < 0 ? -1 : chunk.lastIndexOf("<", i);
+    }
     const hits = STREAMED.map((m) => chunk.indexOf(m)).filter((i) => i >= 0);
     return hits.length ? Math.min(...hits) : -1;
   };

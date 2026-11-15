@@ -21,6 +21,7 @@ import type { Page, TestInfo } from "@playwright/test";
 import { expectTapTargets, isChromium } from "../helpers";
 import { familyOf, type DeviceFamily } from "../game/families";
 import { expectOneViewport } from "./assertions";
+import { startSlowDocumentProxy } from "../../fixtures/slow-document";
 import { expect, gotoStable, hasInsets, test, waitForStable } from "./fixtures";
 import { BANK_DEMO_STATES, HUB_DEMO_STATES, PUZZLE_DEMO_STATES, RUNNER_DEMO_STATES, SUMMARY_DEMO_STATES, runnerDemo } from "../../../app/dev/ui/_fixtures/train";
 
@@ -242,21 +243,75 @@ for (const path of ["/dev/ui/train/runner?state=solve", "/dev/ui/train/puzzles?s
   test(`CLS ≤ ${CLS_BUDGET} on load: ${path} @p5`, async ({ page }, testInfo) => {
     test.skip(!isChromium(testInfo), "layout-shift entries are Chromium-only");
     test.skip(hasInsets(testInfo), "projects without insets only (the inset emulation re-lays out the page once)");
-    await page.addInitScript(() => {
-      const w = window as unknown as { __rcCls: number };
-      w.__rcCls = 0;
-      new PerformanceObserver((list) => {
-        for (const e of list.getEntries() as (PerformanceEntry & { value: number; hadRecentInput: boolean })[]) {
-          if (!e.hadRecentInput) w.__rcCls += e.value;
-        }
-      }).observe({ type: "layout-shift", buffered: true });
-    });
+    await observeCls(page);
     await gotoStable(page, path);
     await expect(page.locator('[data-testid="trainer-board"]').first()).toBeVisible();
     await page.waitForTimeout(1_500);
-    const cls = await page.evaluate(() => (window as unknown as { __rcCls: number }).__rcCls);
-    expect(cls, `cumulative layout shift on ${testInfo.project.name}`).toBeLessThanOrEqual(CLS_BUDGET);
+    await expectCls(page, testInfo);
   });
+}
+
+// regression: stage-partial-parse-shift (CI 43653740138 devices-p5: CLS 0.0904 on /dev/ui/train/puzzles?state=solve). A
+// busy browser painted the document after it had parsed the board but not the bottom bar and the aside: the stage
+// column was laid out centred on its own, then moved 201 px left and 24 px up when they arrived (board-stage.css).
+// Here the document is held right before the bottom bar for 300 ms, so that paint always happens.
+test("CLS ≤ 0.02 when the page is painted before the board's bottom bar and aside are parsed: /dev/ui/train/puzzles?state=solve @p5", async ({ browser }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-1440@100", "desktop-1440@100 only (a side-mode stage, layout-shift entries)");
+  const base = new URL(String(testInfo.project.use.baseURL ?? "http://localhost:3100"));
+  const path = "/dev/ui/train/puzzles";
+  const proxy = await startSlowDocumentProxy({ target: Number(base.port || 80), match: (p) => p === path, splitAt: 'data-rc-bar="bottom"' });
+  const use = testInfo.project.use;
+  const context = await browser.newContext({ baseURL: proxy.url, viewport: use.viewport ?? null, deviceScaleFactor: use.deviceScaleFactor, reducedMotion: "reduce", serviceWorkers: "block" });
+  try {
+    const page = await context.newPage();
+    // The first visit goes through Clerk's development handshake; the second, with its cookie, stays on the proxy.
+    await page.goto(`${path}?state=solve`);
+    await observeCls(page);
+    proxy.hold(300);
+    await gotoStable(page, `${path}?state=solve`);
+    expect(proxy.held().at(-1)?.bytes ?? 0, "the document was held before its bottom bar").toBeGreaterThan(0);
+    await expect(page.locator('[data-testid="trainer-board"]').first()).toBeVisible();
+    await page.waitForTimeout(1_500);
+    await expectCls(page, testInfo);
+  } finally {
+    await context.close();
+    await proxy.close();
+  }
+});
+
+/** Sums the page's layout shifts (no recent input) from its next load, with the elements each one moved. */
+async function observeCls(page: Page) {
+  await page.addInitScript(() => {
+    type Rect = { x: number; y: number; width: number; height: number };
+    type Shift = PerformanceEntry & { value: number; hadRecentInput: boolean; sources?: { node?: Node; previousRect: Rect; currentRect: Rect }[] };
+    const w = window as unknown as { __rcCls: number; __rcShifts: string[] };
+    w.__rcCls = 0;
+    w.__rcShifts = [];
+    const name = (n?: Node) => {
+      if (!(n instanceof Element)) return n?.nodeName ?? "?";
+      const id = n.getAttribute("data-testid") ?? "";
+      return `${n.tagName.toLowerCase()}${id ? `[${id}]` : ""}.${String(n.className).split(" ").slice(0, 2).join(".")}`;
+    };
+    const r = (x: Rect) => `${Math.round(x.x)},${Math.round(x.y)} ${Math.round(x.width)}x${Math.round(x.height)}`;
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries() as Shift[]) {
+        if (e.hadRecentInput) continue;
+        w.__rcCls += e.value;
+        // Which elements moved, from where to where: a failure says what shifted.
+        const moved = (e.sources ?? []).map((s) => `${name(s.node)} ${r(s.previousRect)} → ${r(s.currentRect)}`).join("; ");
+        w.__rcShifts.push(`+${Math.round(e.startTime)}ms ${e.value.toFixed(4)}: ${moved}`);
+      }
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+}
+
+async function expectCls(page: Page, testInfo: TestInfo) {
+  const { cls, shifts } = await page.evaluate(() => {
+    const w = window as unknown as { __rcCls: number; __rcShifts: string[] };
+    return { cls: w.__rcCls, shifts: w.__rcShifts };
+  });
+  testInfo.annotations.push({ type: "cls", description: `${cls.toFixed(4)} ${shifts.join(" | ")}` });
+  expect(cls, `cumulative layout shift on ${testInfo.project.name} (${shifts.join(" | ")})`).toBeLessThanOrEqual(CLS_BUDGET);
 }
 
 /**

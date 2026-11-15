@@ -73,6 +73,17 @@
   }
   .rc-stage__foot  { display: none; }
 
+  /* Partial parse: a browser may paint a long document before it has parsed all of it (a busy or slow device, a slow
+     stream). The side-mode geometry must not wait for the later children: the column has its full height before its
+     bottom bar is parsed (the bars and the board, as the aside), and until the aside is parsed a placeholder holds
+     its room. The final layout is unchanged; nothing moves when they arrive (regression: stage-partial-parse-shift,
+     CI 43653740138 devices-p5: CLS 0.0904 on /dev/ui/train/puzzles, the column painted centered on its own after the
+     board was parsed, then 201 px left and 24 px up once the bottom bar and the aside were). */
+  .rc-stage__col   { height: calc(var(--rc-board) + var(--rc-bars)); }
+  .rc-stage__in[data-aside]:not(:has(> .rc-stage__aside))::after {
+    content: ""; flex: 0 1 var(--rc-aside-max); min-width: var(--rc-aside-min);
+  }
+
   /* density step: the design's max-height:620px, measured on the stage so a banner also triggers it */
   @container rc-stage (height <= 620px) {
     .rc-stage__in { --rc-px: 16px; --rc-py: 8px; --rc-bar-h: 40px; --rc-bar-gap: 4px; }
@@ -94,7 +105,8 @@
     .rc-stage__in:not([data-aside]) { --rc-strip-min: 0px; }
     .rc-stage__in[data-bars="labels"] { --rc-bar-h: 44px; }
     .rc-stage__in[data-footer]      { --rc-foot: calc(56px + var(--safe-bottom)); }
-    .rc-stage__col   { width: 100%; }
+    .rc-stage__col   { width: 100%; height: auto; }
+    .rc-stage__in[data-aside]::after { display: none; }
     .rc-stage__board { margin-inline: auto; }
     .rc-stage__bar   { padding-inline: max(16px, (100% - var(--rc-board)) / 2); }   /* bar text aligns with board edges (iPad 37px) */
     .rc-stage__aside { flex: 1 1 0; width: 100%; min-width: 0; min-height: var(--rc-strip-min); height: auto; overflow: clip; }
