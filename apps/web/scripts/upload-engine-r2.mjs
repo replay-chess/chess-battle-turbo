@@ -141,6 +141,9 @@ async function main() {
     region: "auto",
     endpoint: `https://${requireEnv("R2_ACCOUNT_ID")}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId: requireEnv("R2_ACCESS_KEY_ID"), secretAccessKey: requireEnv("R2_SECRET_ACCESS_KEY") },
+    // R2 and the SDK's default checksums (CRC32 on every put since 3.729) do not mix: send one only when required.
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   });
 
   for (const f of files) {

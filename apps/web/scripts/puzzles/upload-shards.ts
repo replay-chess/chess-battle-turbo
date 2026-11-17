@@ -98,6 +98,10 @@ async function main(argv: string[]): Promise<number> {
     region: "auto",
     endpoint: `https://${requireEnv("R2_ACCOUNT_ID")}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId: requireEnv("R2_ACCESS_KEY_ID"), secretAccessKey: requireEnv("R2_SECRET_ACCESS_KEY") },
+    // R2 accepts one checksum per put: the ContentMD5 above, so no SDK-default CRC32 (else every put is rejected with
+    // "You can only specify one non-default checksum at a time").
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   });
   const shards = items.slice(0, -1);
   const manifest = items[items.length - 1] as UploadItem;
