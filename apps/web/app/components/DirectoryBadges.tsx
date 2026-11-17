@@ -178,14 +178,6 @@ export const DIRECTORY_BADGES: {
     height: 55,
   },
   {
-    // DirOnix — badge required for the free launch (2 dofollow links)
-    href: "https://dironix.com",
-    src: "https://dironix.com/bage.png",
-    alt: "Featured on dironix.com",
-    width: 200,
-    height: 54,
-  },
-  {
     // SaaSBison — badge required for the free listing; must stay permanently
     href: "https://saasbison.com",
     src: "https://saasbison.com/badge.png",
@@ -216,14 +208,6 @@ export const DIRECTORY_BADGES: {
     alt: "ReplayChess on StartupTrusted",
     width: 240,
     height: 54,
-  },
-  {
-    // DailyPings — free listing goes live instantly on badge verify; dofollow while the badge stays (checked daily)
-    href: "https://dailypings.com/p/replaychess",
-    src: "https://dailypings.com/badge.svg",
-    alt: "Featured on DailyPings",
-    width: 179,
-    height: 32,
   },
   {
     // Huzzler — badge required to enter the free 72-day queue (DR 64 dofollow)
