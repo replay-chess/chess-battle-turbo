@@ -7,7 +7,8 @@
  *   caughtup   today's 10 reviewed (cap reached), nothing due, Tomorrow 6 · day 2 3 · day 3 5 · next week 9
  *   trial      a trial member while a Chess.com import runs (212 / 480) with 6 due cards
  *   new        no games, no bank, no linked account
- *   perfect    member plus one completed five-item session, all first try, crossing forks 70 %
+ *   perfect    member whose 5 due cards were all reviewed today in one completed session, first try each, crossing
+ *              forks 70 % (the session is the product's own W2 → W1 → W4: scripts/dev/p05-session.ts)
  *
  * Any lease-pool name (bank-member, bank-empty, …) works too. Training state is generated relative to now, so "due
  * today" is due on the day the seed runs.

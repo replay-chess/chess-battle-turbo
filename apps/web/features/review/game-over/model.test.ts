@@ -3,7 +3,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { QueryClient } from "@tanstack/react-query";
-import { legendSummaryFixture, reviewStatusFixture } from "@repo/contracts/http/fixtures/review";
+import { compareWithLegend } from "@repo/chess-analysis/legend/compare";
+import { legendSummary, summaryLine } from "@repo/chess-analysis/legend/summary";
+import { legendSummaryFixture, OPERA, reviewStatusFixture } from "@repo/contracts/http/fixtures/review";
 import type { ReviewStatusDTO } from "@repo/contracts/http/review";
 import { ANALYSIS_MIN_PLIES } from "@repo/contracts/internal/jobs";
 import { qk } from "@/lib/api/keys";
@@ -141,6 +143,34 @@ describe("the over_legend copy", () => {
       assert.equal(opp.yours, "25…Kb6");
       assert.equal(opp.theirs, "25…Kxd4");
     }
+  });
+
+  it("regression staging-legend-0-of-0: the opponent leaves the legend's line before the member's first move", () => {
+    // A game started from the Opera position (White to move at 10.) with the member on Black: the opponent's first
+    // move is not the legend's, so no move of the member's was compared. The card said "You matched Isouard for 0 of
+    // 0 moves before the game left Isouard's path on 10.Bxb5"; there is nothing to count.
+    const facts = compareWithLegend({
+      startFen: OPERA.startFen,
+      startPly: 18,
+      moves: ["c4b5", "c6b5", "c3b5"],
+      member: "b",
+      legendUci: OPERA.legendUci.split(" "),
+      historicalName: "Isouard",
+      legendResult: "white_won",
+      legendTotalMoves: 17,
+    });
+    assert.deepEqual([facts.matchedPlies, facts.comparedPlies, facts.divergencePly, facts.divergenceBy], [0, 0, 0, "opponent"]);
+    const c = { ...legendSummary({ startFen: OPERA.startFen, facts }, "cref", "draw"), status: "ready" as const, compareHref: "/review/cref/legend" };
+    const line = legendLine(c);
+    assert.equal(line.kind, "diverged");
+    if (line.kind !== "diverged") return;
+    assert.equal(line.matched, null, "no count is shown");
+    const text = `${line.lead}${line.matched ?? ""}${line.middle}${line.yours}${line.between}${line.theirs}${line.end}`;
+    assert.equal(text, "The game left Isouard’s path on 10.Bxb5 before your first move (the original game went 10.Nxb5).");
+    assert.doesNotMatch(text, /0 of 0/);
+    assert.equal(replayLink(c), null, "the member never left the path, so no Replay link");
+    // The compare page's summary line says the same, without the count.
+    assert.equal(summaryLine(facts), "The game left Isouard’s path on 10.Bxb5 before your first move.");
   });
 
   it("moveNumberOf reads 12. and 25…", () => {

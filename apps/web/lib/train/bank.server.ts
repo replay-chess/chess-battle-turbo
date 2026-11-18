@@ -2,10 +2,11 @@
 // §5.2 S3, §9.1).
 //
 // A bank of ≤ 300 cards (the common case) is sent whole on the first request (`meta.complete = true`): every row, the
-// facets, the upcoming histogram and the labels computed in TS from those rows, so tab, filter and clear run on the
-// client. A larger bank pages by 50 with the filters in SQL; the first request adds the facets (one GROUPING SETS
-// statement) and the upcoming histogram, and a request with a cursor returns rows only (api-perf AP-38: one
-// statement). The cursor is `[due, id, filterHash]`; a cursor minted for other filters is 400 `cursor_filter_mismatch`.
+// facets and the labels computed in TS from those rows, so tab, filter and clear run on the client. A larger bank
+// pages by 50 with the filters in SQL; the first request adds the facets (one GROUPING SETS statement), and a request
+// with a cursor returns rows only (api-perf AP-38: one statement). The next batch and the upcoming rows of both come
+// from statement (a)'s arrivals under the daily cap (`batchesOf`). The cursor is `[due, id, filterHash]`; a cursor
+// minted for other filters is 400 `cursor_filter_mismatch`.
 // No `player_reviews` read per row (no TOAST detoast): the "See It in Your Game" ply is the mistake's `lastPly`.
 import { Prisma } from "@repo/db";
 import { decodeCursor, encodeCursor } from "@repo/contracts/http/cursor";
@@ -19,8 +20,8 @@ import {
   type Facet,
   type PhaseW,
 } from "@repo/contracts/http/train";
+import { servedByDay, type ServedDay } from "@repo/chess-training/caps";
 import { DEFAULT_DAY_START_HOUR } from "@repo/chess-training/constants";
-import { addDaysToKey, dayKey, daysBetween } from "@repo/chess-training/day";
 import { atLabel, releaseLabel, weekdayLabel } from "@repo/chess-training/labels";
 import { focusTheme, type PlanTheme } from "@repo/chess-training/plan";
 import type { BankCardIn } from "@repo/chess-training/session";
@@ -76,13 +77,6 @@ export function bankFacetsSql(userId: bigint): Prisma.Sql {
     FROM training_cards c JOIN mistakes m ON m.id = c."mistakeId"
     WHERE c."userId" = ${userId} AND c.deck = 'BANK' AND m."hiddenAt" IS NULL
     GROUP BY GROUPING SETS ((c.theme), (c.phase), (m.source))`;
-}
-
-/** Future dues of the next 14 days (the upcoming histogram of a large bank). */
-export function upcomingDuesSql(userId: bigint, now: Date): Prisma.Sql {
-  return Prisma.sql`SELECT GREATEST(due, COALESCE("suspendedUntil", due)) AS due FROM training_cards
-    WHERE "userId" = ${userId} AND deck = 'BANK' AND due > ${at(now)} - interval '1 day'
-      AND due <= ${at(now)} + interval '14 days'`;
 }
 
 /** The ≤ 50 due BANK cards (W2's BANK query; R1's plan reads the same), oldest due first. */
@@ -185,22 +179,41 @@ export function facetsOfSql(rows: readonly FacetRow[]): BankPage["facets"] {
 }
 
 /**
- * "Tomorrow 6 · Saturday 3 · Sunday 5 · Next week 9": per local day for the next 6 days (non-zero only), then the
- * days 7–13 as "Next week", at most 4 rows.
+ * The reviews each coming training day serves under the member's cap (`servedByDay`, §8.5): the one source of every
+ * "next batch" count (bank, hub, Home) and of the bank's "Coming up" rows, so none promises more than the cap.
  */
-export function upcomingOf(dues: readonly Date[], now: Date, timeZone: string, dayStartHour = 0): BankPage["upcoming"] {
-  const today = dayKey(now, timeZone, dayStartHour);
-  const perDay = new Map<number, number>();
+export function batchesOf(
+  due: Pick<DueSummary, "dueReview" | "dueNew" | "arrivals">,
+  profile: Pick<TrainingProfile, "bankDailyCap" | "newPerDay">,
+  day: DayCounters,
+  clock: Pick<TrainClock, "now" | "timeZone" | "dayStartHour" | "today">,
+): ServedDay[] {
+  return servedByDay({
+    cap: profile.bankDailyCap,
+    newPerDay: profile.newPerDay,
+    bankReviewed: day.bankReviewed,
+    newIntroduced: day.newIntroduced,
+    dueReview: due.dueReview,
+    dueNew: due.dueNew,
+    arrivals: due.arrivals,
+    now: clock.now,
+    timeZone: clock.timeZone,
+    dayStartHour: clock.dayStartHour,
+    today: clock.today,
+  });
+}
+
+/**
+ * "Tomorrow 6 · Saturday 3 · Sunday 5 · Next week 9": the reviews served per training day (`batchesOf`) for the next 6
+ * days (non-zero only), then the days 7–13 as "Next week", at most 4 rows.
+ */
+export function upcomingOf(days: readonly ServedDay[]): BankPage["upcoming"] {
   let nextWeek = 0;
-  for (const due of dues) {
-    if (due.getTime() <= now.getTime()) continue;
-    const d = daysBetween(today, dayKey(due, timeZone, dayStartHour));
-    if (d >= 1 && d <= 6) perDay.set(d, (perDay.get(d) ?? 0) + 1);
-    else if (d >= 7 && d <= 13) nextWeek += 1;
+  const out: BankPage["upcoming"] = [];
+  for (const d of days) {
+    if (d.offset >= 1 && d.offset <= 6) out.push({ label: upcomingDayLabel(d.key, d.offset), n: d.n });
+    else if (d.offset >= 7 && d.offset <= 13) nextWeek += d.n;
   }
-  const out: BankPage["upcoming"] = [...perDay]
-    .sort((a, b) => a[0] - b[0])
-    .map(([d, n]) => ({ label: upcomingDayLabel(addDaysToKey(today, d), d), n }));
   if (nextWeek > 0) out.push({ label: "Next week", n: nextWeek });
   return out.slice(0, 4);
 }
@@ -211,17 +224,19 @@ function upcomingDayLabel(key: string, d: number): string {
 }
 
 /**
- * The next batch (`NextBatch`) from the due summary, labelled in the zone at `now` on the member's training day
- * (P5-FZ-4: at 01:00 a 08:00 release is "tomorrow" when the day starts at 04:00, as the hub's header says).
+ * The next batch (`NextBatch`): the first coming day's reviews under the cap (`batchesOf`), labelled in the zone at
+ * `now` on the member's training day (P5-FZ-4: at 01:00 a 08:00 release is "tomorrow" when the day starts at 04:00,
+ * as the hub's header says).
  */
-export function nextBatchOf(due: DueSummary, timeZone: string, now: Date, dayStartHour = 0): BankPage["nextBatch"] {
-  if (!due.nextBatchAt || due.nextBatch <= 0) return null;
+export function nextBatchOf(days: readonly ServedDay[], clock: Pick<TrainClock, "now" | "timeZone" | "dayStartHour">): BankPage["nextBatch"] {
+  const next = days[0];
+  if (!next) return null;
   return {
-    at: due.nextBatchAt.toISOString(),
-    atLabel: atLabel(due.nextBatchAt, timeZone),
-    count: due.nextBatch,
-    whenLabel: releaseLabel(due.nextBatchAt, now, timeZone, { dayStartHour }),
-    dayStartHour,
+    at: next.at.toISOString(),
+    atLabel: atLabel(next.at, clock.timeZone),
+    count: next.n,
+    whenLabel: releaseLabel(next.at, clock.now, clock.timeZone, { dayStartHour: clock.dayStartHour }),
+    dayStartHour: clock.dayStartHour,
   };
 }
 
@@ -262,13 +277,15 @@ function pageHead(
   day: DayCounters,
   themes: readonly ThemeMasteryRow[],
   clock: TrainClock,
-): Pick<BankPage, "state" | "counts" | "nextBatch" | "focusTheme" | "lesson"> {
+): Pick<BankPage, "state" | "counts" | "nextBatch" | "upcoming" | "focusTheme" | "lesson"> {
   const cap = capOf(due, profile, day);
   const focus = focusTheme(planThemesOf(themes)).key;
+  const batches = batchesOf(due, profile, day, clock);
   return {
     state: due.total === 0 ? "empty" : cap.dueShown === 0 ? "caughtup" : "default",
     counts: { due: cap.dueShown, dueRaw: cap.dueRaw, all: due.total, capRemaining: cap.capRemaining, cap: profile.bankDailyCap },
-    nextBatch: nextBatchOf(due, clock.timeZone, clock.now, clock.dayStartHour),
+    nextBatch: nextBatchOf(batches, clock),
+    upcoming: upcomingOf(batches),
     focusTheme: { key: focus, label: themePluralLabel(focus) },
     lesson: null,
   };
@@ -316,22 +333,16 @@ export async function listBank(
 
   if (all.length <= BANK_COMPLETE_MAX_ROWS) {
     const rows = rowsOf(all, now, tz, clock.dayStartHour);
-    const dues = all.map((r) => {
-      const d = asDate(r.due)!;
-      const s = asDate(r.suspendedUntil);
-      return s && s.getTime() > d.getTime() ? s : d;
-    });
     return {
-      data: { ...head, rows, facets: facetsOfRows(rows), upcoming: upcomingOf(dues, now, tz, clock.dayStartHour), emptyCtas },
+      data: { ...head, rows, facets: facetsOfRows(rows), emptyCtas },
       meta: { nextCursor: null, complete: true },
     };
   }
 
-  // A large bank: page 1 of the filtered list, the facets and the upcoming histogram (one more parallel round trip).
-  const [rows, facets, upcoming] = await Promise.all([
+  // A large bank: page 1 of the filtered list and the facets (one more parallel round trip).
+  const [rows, facets] = await Promise.all([
     db.$queryRaw<CardRowDb[]>(bankRowsSql(viewer.id, { now, filter, limit: BANK_PAGE_ROWS + 1 })),
     db.$queryRaw<FacetRow[]>(bankFacetsSql(viewer.id)),
-    db.$queryRaw<{ due: Date }[]>(upcomingDuesSql(viewer.id, now)),
   ]);
   const page = rows.slice(0, BANK_PAGE_ROWS);
   const last = page[page.length - 1];
@@ -340,7 +351,6 @@ export async function listBank(
       ...head,
       rows: rowsOf(page, now, tz, clock.dayStartHour),
       facets: facetsOfSql(facets),
-      upcoming: upcomingOf(upcoming.map((u) => asDate(u.due)!), now, tz, clock.dayStartHour),
       emptyCtas,
     },
     meta: { nextCursor: rows.length > BANK_PAGE_ROWS && last ? bankCursor({ due: asDate(last.due)!, cardId: last.cardId }, filter) : null, complete: false },

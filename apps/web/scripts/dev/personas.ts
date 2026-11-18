@@ -230,7 +230,9 @@ export async function resetPersona(target: string, personaName: string, opts: Re
     // Phase 5: clear the user's bank and training rows (every reset), then write the P5 persona's.
     const { clearP05State, writeP05Persona } = await import("@repo/db/seed/p05-personas");
     if (isP05Persona(persona) && p05Deps) {
-      const p5 = await writeP05Persona(db, email, persona.p05, { now, deps: p05Deps, log });
+      // dev-perfect's session is completed by the product's own W2 → W1 → W4 (./p05-session.ts, in a tsx child on url).
+      const { personaSessionInChild } = await import("./p05-session-child");
+      const p5 = await writeP05Persona(db, email, persona.p05, { now, deps: p05Deps, log, session: personaSessionInChild(url) });
       refs = { ...refs, ...p5.gameRefs };
     } else {
       await clearP05State(db, email, { log });

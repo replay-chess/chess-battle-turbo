@@ -9,6 +9,7 @@ import type { TrainingDeps } from "@repo/db/seed/p05-persona-states";
 import type { Viewer } from "@/lib/auth/viewer";
 import type { RouteHandler } from "@/lib/api/route";
 import { loadTrainingDeps } from "../../../scripts/dev/p05-deps";
+import { completePersonaSession } from "../../../scripts/dev/p05-session";
 import { installTestDeps, jsonOf, noParams, request, viewerFixture, type Recorded } from "../../helpers/route-harness";
 
 /** Thursday 2026-11-12 19:00 UTC (the contract fixtures' clock): the personas' "now". */
@@ -97,7 +98,7 @@ export function trainWorld(url: string) {
 
   /** Puts the persona state on the member (relative to `now`), exactly as the e2e lease does. */
   async function persona(m: Member, name: string, now: Date = WORLD_NOW): Promise<P05PersonaReport> {
-    const report = await writeP05Persona(db, m.email, name, { now, deps });
+    const report = await writeP05Persona(db, m.email, name, { now, deps, session: completePersonaSession });
     const tz = await db.$queryRaw<{ tz: string }[]>(Prisma.sql`SELECT "timeZone" AS tz FROM users WHERE id = ${m.id}`);
     m.timeZone = tz[0]!.tz;
     return report;

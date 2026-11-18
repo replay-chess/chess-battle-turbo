@@ -87,7 +87,10 @@ export interface P05PersonaState {
   /** Today's cap counters (caughtup: the cap is reached). */
   today: { bankReviewed: number; newIntroduced: number } | null;
   mastery: readonly P05ThemeSpec[];
-  /** One COMPLETED five-item session, all first try, that crossed forks 70 % (V3SessionPerfect). */
+  /**
+   * One COMPLETED session of the due cards, all first try, through the product's own functions (V3SessionPerfect;
+   * the writer needs `P05WriteOptions.session`).
+   */
   perfectSession: boolean;
 }
 
@@ -117,6 +120,7 @@ const NONE = { mistakes: 0, cards: 0, trainedDaysAgo: [], today: null, mastery: 
 
 function state(s: P05PersonaState): P05PersonaState {
   if (s.cards > s.mistakes) throw new Error(`${s.name}: more cards than mistakes`);
+  if (s.today && !s.trainedDaysAgo.includes(0)) throw new Error(`${s.name}: today's counters are today's attempts (0 in trainedDaysAgo)`);
   if (s.schedule.kind === "spread" && s.schedule.dueNow > s.cards) throw new Error(`${s.name}: more due than cards`);
   if (s.schedule.kind === "blocks" && s.schedule.blocks.reduce((n, b) => n + b.n, 0) !== s.cards) {
     throw new Error(`${s.name}: the blocks must cover every card`);
@@ -282,8 +286,12 @@ export const P05_SEED_PERSONAS = {
     ...P05_POOL_PERSONAS["bank-member"],
     name: "dev-perfect",
     seed: "perfect",
-    description: "bank-member plus one completed five-item session, all first try, that crossed forks 70 %",
+    description: "bank-member with 5 due, all reviewed today in one completed session, first try each, that crossed forks 70 %",
     states: ["V3SessionPerfect.perfect"],
+    // Five due, so the due-queue session the product builds holds five; the writer completes it through W2 → W1 → W4
+    // (P05WriteOptions.session), and forks at 66 % cross 70 % with that session's fork position.
+    schedule: { kind: "spread", dueNow: 5 },
+    mastery: DESIGN_MASTERY.map((t) => (t.theme === "fork" ? { ...t, ewma: 0.66 } : t)),
     perfectSession: true,
   }),
 } as const satisfies Record<string, P05PersonaState>;

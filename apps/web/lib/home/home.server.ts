@@ -26,7 +26,7 @@ import { cachedData } from "@/lib/api/context";
 import type { Viewer } from "@/lib/auth/viewer";
 import { getImportStatus } from "@/lib/data/imports";
 import { capOf } from "@/lib/train/badges.server";
-import { nextBatchOf } from "@/lib/train/bank.server";
+import { batchesOf, nextBatchOf } from "@/lib/train/bank.server";
 import { isTrainedDay, loadTrainState, timeZoneOf, trainClock } from "@/lib/train/day.server";
 import { asDate, at, num, trainDeps, type TrainDeps } from "@/lib/train/db.server";
 import { lastMoveOf } from "@/lib/train/dto.server";
@@ -254,7 +254,7 @@ export async function getHomeData(viewer: Viewer, now: Date, deps: TrainDeps = t
         const d = duePreviewOf(p);
         return { cardRef: d.cardRef, fen: d.fen, orient: d.orient, label: d.label };
       }),
-      nextBatch: nextBatchOf(due, clock.timeZone, clock.now, clock.dayStartHour),
+      nextBatch: nextBatchOf(batchesOf(due, profile, state.counters, clock), clock),
     },
     week: { days, games: gamesThisWeek, puzzles: num(weekPuzzles[0]?.n), aria: weekAria(days) },
     recent: recentRows.map((r) => ({

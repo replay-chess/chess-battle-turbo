@@ -12,7 +12,8 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { Prisma } from "@repo/db";
 import { ErrorEnvelope, ok } from "@repo/contracts/http/envelope";
-import { BankNextPage, BankPage, BankPageMeta, type BankRow } from "@repo/contracts/http/train";
+import { HomeData } from "@repo/contracts/http/home";
+import { BankNextPage, BankPage, BankPageMeta, TrainToday, type BankRow } from "@repo/contracts/http/train";
 import { facetsOfRows } from "@/lib/train/bank.server";
 import { routeStatements } from "../../helpers/query-counter";
 import { trainWorld, WORLD_NOW, type Member } from "./train-world";
@@ -90,6 +91,33 @@ describe("P5 R2 bank (Postgres)", { skip: url ? false : "TEST_DATABASE_URL not s
     assert.equal(caught.counts.due, 0);
     assert.ok(caught.nextBatch);
     assert.deepEqual(caught.upcoming.map((u) => u.n), [6, 3, 5, 9]);
+  });
+
+  it("regression staging-next-batch-cap: the bank's next batch, its Coming up and the hub's next reviews never pass the daily cap", async () => {
+    // bank-caughtup: today's 10 reviewed, 6 due tomorrow, 3 Saturday, 5 Sunday, 9 next week. With the cap lowered to 5
+    // through W8, tomorrow serves 5 and the sixth rolls to Saturday; the copy said "The next batch of 6 arrives
+    // tomorrow" next to "You never get more than 5 a day" (staging README §5 item 2: 69 beside 10).
+    const m = await w.member("bankcap");
+    await w.persona(m, "bank-caughtup");
+    const patched = await w.call("prefs", "PATCH", "/api/train/prefs", m, { body: { bankDailyCap: 5 } });
+    assert.equal(patched.res.status, 200, await patched.res.clone().text());
+    const page = ok(BankPage).parse(await (await w.call("bank", "GET", "/api/train/bank", m)).json()).data;
+    assert.equal(page.state, "caughtup");
+    assert.equal(page.counts.cap, 5);
+    assert.equal(page.nextBatch?.count, 5, "tomorrow's batch is the cap, not the 6 that fall due");
+    assert.equal(page.nextBatch?.whenLabel, "tomorrow at 08:00");
+    assert.deepEqual(page.upcoming, [
+      { label: "Tomorrow", n: 5 },
+      { label: "Saturday", n: 4 },
+      { label: "Sunday", n: 5 },
+      { label: "Next week", n: 9 },
+    ]);
+    for (const u of page.upcoming.slice(0, 3)) assert.ok(u.n <= 5, `${u.label} ${u.n} passes the cap`);
+    const hub = ok(TrainToday).parse(await (await w.call("today", "GET", "/api/train/today", m)).json()).data;
+    assert.equal(hub.state, "nothingdue");
+    assert.deepEqual(hub.nextBatch, page.nextBatch, "the hub's \"next N reviews\" is the bank's next batch");
+    const home = ok(HomeData).parse(await (await w.call("home", "GET", "/api/home", m)).json()).data;
+    assert.deepEqual(home.bank.nextBatch, page.nextBatch, "Home's next batch is the same");
   });
 
   it("regression bank-empty-ctas: removing the last card on the page shows the same empty-bank links as the server's empty bank", async () => {

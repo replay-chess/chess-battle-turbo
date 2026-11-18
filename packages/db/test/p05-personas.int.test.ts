@@ -66,6 +66,38 @@ async function count(db: PrismaClient, sql: Prisma.Sql): Promise<number> {
   return Number(rows[0]!.n);
 }
 
+/**
+ * Regression staging-persona-state (staging README §5 item 4): a persona's graded history is what the product would
+ * have written. Every graded BANK card was reviewed then (`lastReview` ≥ the attempt), is not due now and is not NEW;
+ * every day row counts that day's attempts (`bankReviewed` the BANK ones, `puzzlesDone` the puzzles); no card was
+ * reviewed today without an attempt today; no session lists cards it left due.
+ */
+async function assertHistoryMatchesCards(db: PrismaClient, userId: bigint, timeZone: string, name: string) {
+  const NOW_TS = NOW.toISOString().replace("Z", "");
+  const stale = await count(db, Prisma.sql`
+    SELECT count(*) AS n FROM training_attempts a JOIN training_cards c ON c.id = a."cardId"
+     WHERE a."userId" = ${userId} AND a.deck = 'BANK'
+       AND (c.due <= ${NOW_TS}::timestamp OR c.state = 'NEW' OR c."lastReview" IS NULL OR c."lastReview" < a."reviewedAt")`);
+  assert.equal(stale, 0, `${name}: a graded card was left due, NEW, or not reviewed by its attempt`);
+  const attempts = await db.$queryRaw<{ deck: string; at: Date; card: bigint | null }[]>(Prisma.sql`
+    SELECT deck::text AS deck, "reviewedAt" AS at, "cardId" AS card FROM training_attempts WHERE "userId" = ${userId}`);
+  const days = await db.$queryRaw<{ day: string; br: number; pd: number }[]>(Prisma.sql`
+    SELECT to_char(day, 'YYYY-MM-DD') AS day, "bankReviewed" AS br, "puzzlesDone" AS pd FROM training_days WHERE "userId" = ${userId}`);
+  const keyOf = (d: Date) => TEST_DEPS.dayKey(new Date(`${d.toISOString().slice(0, 23)}Z`), timeZone, 4);
+  for (const d of days) {
+    const that = attempts.filter((a) => keyOf(a.at) === d.day);
+    assert.equal(d.br, that.filter((a) => a.deck === "BANK" && a.card !== null).length, `${name}: ${d.day} bankReviewed = that day's BANK attempts`);
+    assert.equal(d.pd, that.filter((a) => a.deck === "PUZZLE").length, `${name}: ${d.day} puzzlesDone = that day's puzzles`);
+  }
+  const today = TEST_DEPS.dayKey(NOW, timeZone, 4);
+  const cards = await db.$queryRaw<{ id: bigint; last: Date | null }[]>(Prisma.sql`
+    SELECT id, "lastReview" AS last FROM training_cards WHERE "userId" = ${userId}`);
+  const gradedToday = new Set(attempts.filter((a) => a.card !== null && keyOf(a.at) === today).map((a) => String(a.card)));
+  for (const c of cards) {
+    if (c.last && keyOf(c.last) === today) assert.ok(gradedToday.has(String(c.id)), `${name}: a card reviewed today without an attempt today`);
+  }
+}
+
 describe("P5 persona writer (Postgres)", { skip: TEST_URL ? false : "TEST_DATABASE_URL not set" }, () => {
   let db: PrismaClient;
 
@@ -80,6 +112,13 @@ describe("P5 persona writer (Postgres)", { skip: TEST_URL ? false : "TEST_DATABA
       const s = getP05PersonaState(name);
       const u = await makeUser(db, `p5${name.replace(/[^a-z]/g, "")}`.slice(0, 20));
       const email = (await db.$queryRaw<{ e: string }[]>(Prisma.sql`SELECT email AS e FROM users WHERE id = ${u.id}`))[0]!.e;
+      if (s.perfectSession) {
+        // Its session is the product's (W2 → W1 → W4, apps/web/scripts/dev/p05-session.ts; covered by the web's
+        // today.contract.int.test.ts): without that runner the writer refuses before any write.
+        await assert.rejects(writeP05Persona(db, email, name, OPTS), /completes its session through the product's functions/);
+        assert.equal(await count(db, Prisma.sql`SELECT count(*) AS n FROM training_cards WHERE "userId" = ${u.id}`), 0);
+        return;
+      }
       const first = await writeP05Persona(db, email, name, OPTS);
       const snap1 = await snapshot(db, u.id);
       const second = await writeP05Persona(db, email, name, OPTS);
@@ -117,12 +156,7 @@ describe("P5 persona writer (Postgres)", { skip: TEST_URL ? false : "TEST_DATABA
            WHERE gp."userId" = ${u.id} AND g."referenceId" = ANY(${games}::text[]) AND gp."bankVersion" <> ${EXTRACT_VERSION}`);
         assert.equal(unextracted, 0, "the written games are marked extracted");
       }
-      if (s.perfectSession) {
-        const sess = await db.$queryRaw<{ status: string; firstTry: number; n: bigint }[]>(Prisma.sql`
-          SELECT s.status::text AS status, s."firstTry", (SELECT count(*) FROM training_attempts a WHERE a."sessionId" = s.id) AS n
-            FROM training_sessions s WHERE s."userId" = ${u.id}`);
-        assert.deepEqual(sess.map((r) => [r.status, r.firstTry, Number(r.n)]), [["COMPLETED", 5, 5]]);
-      }
+      await assertHistoryMatchesCards(db, u.id, s.timeZone, name);
     });
   }
 

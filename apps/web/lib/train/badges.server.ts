@@ -16,7 +16,7 @@
 // byte for byte (`badgesFor`).
 import { Prisma } from "@repo/db";
 import type { Badges } from "@repo/contracts/http/train";
-import { capState, type CapState } from "@repo/chess-training/caps";
+import { capState, type Arrival, type CapState } from "@repo/chess-training/caps";
 import { DEFAULT_BANK_DAILY_CAP, DEFAULT_DAY_START_HOUR, DEFAULT_NEW_PER_DAY } from "@repo/chess-training/constants";
 import { trainingDayAt } from "@repo/chess-training/day";
 import { isValidTimeZone } from "@repo/chess-training/tz";
@@ -31,29 +31,48 @@ export type DueSummary = {
   nextAt: Date | null;
   /** The next batch: the next release when cards are due by then, else the earliest future due. */
   nextBatchAt: Date | null;
+  /** Cards falling due by `nextBatchAt`, uncapped: what the screens show comes from `arrivals` (`servedByDay`). */
   nextBatch: number;
+  /** The cards falling due in the next 14 days, grouped by instant and NEW-ness (a skipped card at its skip end). */
+  arrivals: Arrival[];
 };
 
 /**
  * Statement (a). `rel` = the next release instant: the batch is every card due in (now, max(rel, nextAt)], so a bank
- * whose next cards come in three days still says when and how many.
+ * whose next cards come in three days still says when and how many. `arrivals` = the cards that fall due in the next
+ * 14 days (a skipped card when its skip ends), grouped by instant and NEW-ness, for the cap projection (`servedByDay`).
  */
 export function dueSummarySql(userId: bigint, now: Date, rel: Date): Prisma.Sql {
   const NOW = at(now);
   return Prisma.sql`WITH c AS (
-      SELECT due, state, ("suspendedUntil" IS NOT NULL AND "suspendedUntil" > ${NOW}) AS skipped
+      SELECT due, state, ("suspendedUntil" IS NOT NULL AND "suspendedUntil" > ${NOW}) AS skipped,
+             GREATEST(due, COALESCE("suspendedUntil", due)) AS avail
         FROM training_cards WHERE "userId" = ${userId} AND deck = 'BANK'),
-    n AS (SELECT min(due) AS next_at FROM c WHERE due > ${NOW})
+    n AS (SELECT min(due) AS next_at FROM c WHERE due > ${NOW}),
+    a AS (SELECT avail, state = 'NEW' AS fresh, count(*)::int AS k FROM c
+           WHERE avail > ${NOW} AND avail <= ${NOW} + interval '14 days' GROUP BY 1, 2)
     SELECT count(*) FILTER (WHERE due <= ${NOW} AND state <> 'NEW' AND NOT skipped)::int AS "dueReview",
            count(*) FILTER (WHERE due <= ${NOW} AND state = 'NEW' AND NOT skipped)::int AS "dueNew",
            count(*)::int AS total,
            (SELECT next_at FROM n) AS "nextAt",
            GREATEST(${at(rel)}, (SELECT next_at FROM n)) AS "nextBatchAt",
-           count(*) FILTER (WHERE due > ${NOW} AND due <= GREATEST(${at(rel)}, (SELECT next_at FROM n)))::int AS "nextBatch"
+           count(*) FILTER (WHERE due > ${NOW} AND due <= GREATEST(${at(rel)}, (SELECT next_at FROM n)))::int AS "nextBatch",
+           (SELECT coalesce(json_agg(json_build_object('at', avail, 'new', fresh, 'n', k) ORDER BY avail), '[]'::json) FROM a) AS arrivals
       FROM c`;
 }
 
-type DueRow = { dueReview: number; dueNew: number; total: number; nextAt: unknown; nextBatchAt: unknown; nextBatch: number };
+type DueRow = { dueReview: number; dueNew: number; total: number; nextAt: unknown; nextBatchAt: unknown; nextBatch: number; arrivals?: unknown };
+
+/** The `arrivals` json (`[{at, new, n}]`, `at` a UTC timestamp without zone) as Arrival rows; anything malformed is dropped. */
+export function arrivalsOf(value: unknown): Arrival[] {
+  const v = typeof value === "string" ? (JSON.parse(value) as unknown) : value;
+  if (!Array.isArray(v)) return [];
+  return v.flatMap((x: unknown) => {
+    const o = x && typeof x === "object" ? (x as Record<string, unknown>) : null;
+    const when = o ? asDate(o.at) : null;
+    return o && when ? [{ at: when, isNew: o.new === true, n: num(o.n) }] : [];
+  });
+}
 
 export function dueSummaryOf(row: DueRow | undefined): DueSummary {
   const nextAt = asDate(row?.nextAt);
@@ -65,6 +84,7 @@ export function dueSummaryOf(row: DueRow | undefined): DueSummary {
     nextAt,
     nextBatchAt: nextAt ? asDate(row?.nextBatchAt) : null,
     nextBatch: nextAt ? nextBatch : 0,
+    arrivals: arrivalsOf(row?.arrivals),
   };
 }
 

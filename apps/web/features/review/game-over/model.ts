@@ -170,7 +170,7 @@ export function gameOverModel(input: GameOverInput): GameOverModel {
 // ── the legend block (`over_legend`) ────────────────────────────────────────────────────────────────────────────
 export type LegendLine =
   | { kind: "followed"; text: string }
-  | { kind: "diverged"; lead: string; matched: string; middle: string; yours: string; between: string; theirs: string; end: string };
+  | { kind: "diverged"; lead: string; matched: string | null; middle: string; yours: string; between: string; theirs: string; end: string };
 
 /** The fullmove number of a move label ("12." → 12, "25…" → 25). */
 export function moveNumberOf(label: string): number {
@@ -185,6 +185,9 @@ export function moveNumberOf(label: string): number {
  *   opponent left:  You matched Kasparov for **6 of 6** moves before the game left Kasparov’s path on 25…Kb6 (the
  *                   original game went 25…Kxd4).
  *   followed:       You followed Morphy to the end.
+ *   opponent left before the member's first move (a game started from a legend position whose opponent moved first
+ *   and left the line at once: nothing was compared, so no count; regression staging-legend-0-of-0):
+ *                   The game left Kieseritzky’s path on 18.Nb6 before your first move (the original game went 18.Bxd7).
  */
 export function legendLine(c: LegendSummaryDTO): LegendLine {
   const name = c.legendName;
@@ -193,6 +196,18 @@ export function legendLine(c: LegendSummaryDTO): LegendLine {
   const yours = `${d.moveLabel}${d.userSan}`;
   const theirs = `${d.moveLabel}${d.legendSan}`;
   const matched = `${c.matched} of ${c.compared}`;
+  if (d.by === "opponent" && c.compared === 0) {
+    return {
+      kind: "diverged",
+      lead: `The game left ${name}’s path on `,
+      matched: null,
+      middle: "",
+      yours,
+      between: " before your first move (the original game went ",
+      theirs,
+      end: ").",
+    };
+  }
   if (d.by === "opponent") {
     return {
       kind: "diverged",

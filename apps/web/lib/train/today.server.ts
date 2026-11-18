@@ -41,6 +41,7 @@ import type { Viewer } from "@/lib/auth/viewer";
 import { capOf } from "./badges.server";
 import {
   bankCardIn,
+  batchesOf,
   dueCardsSql,
   lastGameSql,
   nextBatchOf,
@@ -342,7 +343,7 @@ export async function getTrainToday(viewer: Viewer, now: Date, deps: TrainDeps =
       waitingLine: waitingLine(cap, profile.bankDailyCap),
       preview: previews.slice(0, Math.min(4, cap.dueShown)).map(duePreviewOf),
     },
-    nextBatch: nextBatchOf(due, clock.timeZone, clock.now, clock.dayStartHour),
+    nextBatch: nextBatchOf(batchesOf(due, profile, state.counters, clock), clock),
     allTraining: {
       bank: { due: cap.dueShown, total: due.total },
       puzzles: { themes: trainedPickerThemes(themes) },

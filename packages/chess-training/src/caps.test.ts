@@ -2,7 +2,7 @@
 // fair-use limit (phase-05 plan §8.5, §12.1).
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { capIncrements, capReachedLine, capState, exceedsPuzzleLimit, isScheduled, waitingLine, type ScheduledInputs } from "./caps";
+import { capIncrements, capReachedLine, capState, exceedsPuzzleLimit, isScheduled, servedByDay, waitingLine, type ScheduledInputs } from "./caps";
 
 const base = { cap: 10, newPerDay: 5, bankReviewed: 0, newIntroduced: 0, dueReview: 0, dueNew: 0 };
 
@@ -121,5 +121,32 @@ describe("puzzle fair use", () => {
     assert.equal(exceedsPuzzleLimit(390, 10), false);
     assert.equal(exceedsPuzzleLimit(391, 10), true);
     assert.equal(exceedsPuzzleLimit(0, 10, 5), true);
+  });
+});
+
+describe("servedByDay (staging fix: every next-batch count respects the cap)", () => {
+  const now = new Date("2026-11-12T06:00:00.000Z");
+  const at8 = (d: number) => new Date(Date.UTC(2026, 10, 12 + d, 8));
+  const proj = (o: Partial<Parameters<typeof servedByDay>[0]>) =>
+    servedByDay({ ...base, arrivals: [], now, timeZone: "UTC", dayStartHour: 4, today: "2026-11-12", ...o }).map((d) => [d.offset, d.n, d.at.toISOString()]);
+
+  it("today's room takes the cards released later today; the rest come tomorrow from the day's start, then with the release", () => {
+    assert.deepEqual(proj({ dueReview: 4, arrivals: [{ at: at8(0), isNew: false, n: 20 }, { at: at8(2), isNew: false, n: 3 }] }), [
+      [0, 6, "2026-11-12T08:00:00.000Z"],
+      [1, 10, "2026-11-13T04:00:00.000Z"],
+      [2, 7, "2026-11-14T04:00:00.000Z"],
+    ]);
+  });
+
+  it("reviews come before NEW cards, and NEW ones stay within newPerDay", () => {
+    assert.deepEqual(proj({ bankReviewed: 10, arrivals: [{ at: at8(1), isNew: true, n: 8 }, { at: at8(1), isNew: false, n: 7 }] }), [
+      [1, 10, "2026-11-13T08:00:00.000Z"],
+      [2, 5, "2026-11-14T04:00:00.000Z"],
+    ]);
+  });
+
+  it("nothing due and nothing ahead: no day; arrivals past the window or already due are not arrivals", () => {
+    assert.deepEqual(proj({}), []);
+    assert.deepEqual(proj({ arrivals: [{ at: at8(20), isNew: false, n: 3 }, { at: new Date(now.getTime() - 1), isNew: false, n: 3 }] }), []);
   });
 });

@@ -10,7 +10,7 @@ export function loadTrainStateFromRows(now: Date, timeZone = "UTC"): TrainState 
   return {
     profile,
     clock: trainClock(now, timeZone, profile),
-    due: { dueReview: 0, dueNew: 0, total: 0, nextAt: null, nextBatchAt: null, nextBatch: 0 },
+    due: { dueReview: 0, dueNew: 0, total: 0, nextAt: null, nextBatchAt: null, nextBatch: 0, arrivals: [] },
     today: undefined,
     counters: ZERO_DAY,
     week: [],

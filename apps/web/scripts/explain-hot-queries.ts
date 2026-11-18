@@ -34,7 +34,7 @@ import { recentReportsSql, reportTargetSql } from "@/lib/reports/reports.server"
 import { reviewReadSql } from "@/lib/services/analysis/review-sql";
 import { dayAttemptsSql, lockProfileSql, w1ReadSql, w1WriteSql } from "@/lib/train/attempts.server";
 import { dueSummarySql } from "@/lib/train/badges.server";
-import { bankFacetsSql, bankRowsSql, dueCardsSql, lastGameSql, themeMasterySql, upcomingDuesSql } from "@/lib/train/bank.server";
+import { bankFacetsSql, bankRowsSql, dueCardsSql, lastGameSql, themeMasterySql } from "@/lib/train/bank.server";
 import { recentDaysSql } from "@/lib/train/day.server";
 import { momentLinkSql } from "@/lib/train/links.server";
 import { profileSql } from "@/lib/train/profile.server";
@@ -131,7 +131,6 @@ export function p5HotQueries(): P5HotQuery[] {
       tieBreak: true,
     },
     { name: "R2 facets (GROUPING SETS over the user's range)", sql: bankFacetsSql(U) },
-    { name: "R2 upcoming histogram (due idx range)", sql: upcomingDuesSql(U, NOW) },
     { name: "R2 empty bank: the newest analysed game", sql: lastGameSql(U) },
     // Review bank fields (A1 / A2 under `train`), A6.
     { name: "A1 review read with bank fields (one statement)", sql: reviewReadSql("review", { viewerId: U, ref: REF, admin: false, bank: true }), allowSort: P3_REVIEW_SORT },

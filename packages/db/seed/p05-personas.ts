@@ -10,7 +10,12 @@
 //      their reports), sets the user's time zone, marks the written games extracted (`bankVersion` = EXTRACT_VERSION,
 //      so the backfill never adds to an exact state), then writes the mistakes (the games' key moments, deduped per
 //      position), their occurrences, the cards with their schedules, the profile, the trained days and their
-//      attempts, theme mastery and, for `dev-perfect`, one completed session.
+//      attempts and theme mastery;
+//   3. for `dev-perfect`, after that transaction: one completed session through the product's own functions
+//      (`opts.session`, the web's W2 → W1 → W4: apps/web/scripts/dev/p05-session.ts), so its cards, today's counters,
+//      the streak and mastery are what a member who really finished it has. Without `session` that persona is refused
+//      before any write: a hand-written session left its cards due and today's `bankReviewed` at 0 (staging README §5
+//      item 4).
 // Every business timestamp comes from `now` and every id that leaves the database (refs, card keys, attempt ids) is
 // derived from the member and the position, so the same persona applied twice yields the same rows (only the serial
 // ids differ). The domain rules come in as `TrainingDeps` (no second copy of epdHash, the key codec or the clock).
@@ -20,7 +25,6 @@ import type { PrismaClient } from "#generated";
 import { Prisma } from "#generated";
 import { decodeEval, decodeMove, judgementEnum, type Color } from "@repo/chess-analysis/codec";
 import { EXTRACT_VERSION } from "@repo/contracts/internal/jobs";
-import { buildSessionItems } from "../src/json/training";
 import { MAX_TARGET_USERS } from "../prisma/seed-guards";
 import { seededRef, type SeedFixture } from "./builders";
 import {
@@ -42,10 +46,23 @@ const DAY_MS = 86_400_000;
 const RELEASE_HOUR = 8;
 const DAY_START_HOUR = 4;
 
+/** What the persona session runner gets: the member, the persona and the reset's `now`. */
+export interface PersonaSessionInput {
+  userId: bigint;
+  userRef: string;
+  persona: string;
+  now: Date;
+}
+
 export interface P05WriteOptions {
   now?: Date;
   deps: TrainingDeps;
   log?: (line: string) => void;
+  /**
+   * Completes the persona's session with the product's functions (`perfectSession` personas need it): open the due
+   * BANK session, grade every item first try, end it. Runs after the reset's transaction on the same client.
+   */
+  session?: (db: PrismaClient, input: PersonaSessionInput) => Promise<{ attempts: number }>;
 }
 
 export interface P05ClearReport {
@@ -259,6 +276,70 @@ export function personaBank(state: P05PersonaState, fixtures: readonly SeedFixtu
   return { mistakes, cards };
 }
 
+type PersonaCard = ReturnType<typeof personaBank>["cards"][number];
+
+/** One graded attempt of a persona's history: the trained day (days before today), when, and the card (null: a puzzle). */
+export interface HistoryAttempt {
+  daysAgo: number;
+  /** Its index among that day's attempts. */
+  i: number;
+  reviewedAt: Date;
+  card: number | null;
+  /** The card was NEW before this review (today's `newIntroduced`). */
+  wasNew: boolean;
+}
+
+/**
+ * The persona's graded history, consistent with its cards (staging README §5 item 4: the history must be what the
+ * product would have written). Each past trained day grades one BANK card that is not due now and is not NEW, and that
+ * card's `lastReview` becomes the attempt (it was reviewed then and scheduled to its current due); with no such card
+ * left the day was a puzzle. Today's counters are today's attempts, on cards reviewed today (the first
+ * `newIntroduced` of them NEW before it). No other card was reviewed today. Pure: returns the cards with their
+ * reviews applied.
+ */
+export function personaHistory(
+  state: P05PersonaState,
+  cards: readonly PersonaCard[],
+  now: Date,
+  today: string,
+  deps: Pick<TrainingDeps, "dayKey" | "masteryOf">,
+): { attempts: HistoryAttempt[]; cards: PersonaCard[] } {
+  const out = cards.map((c) => ({ ...c, schedule: { ...c.schedule } }));
+  const used = new Set<number>();
+  const review = (k: number, at: Date, wasNew: boolean) => {
+    const c = out[k]!;
+    used.add(k);
+    const s = { ...c.schedule, lastReview: at, scheduledDays: Math.max(1, Math.round((c.schedule.due.getTime() - at.getTime()) / DAY_MS)) };
+    if (wasNew) Object.assign(s, { reps: 1, lapses: 0 });
+    out[k] = { ...c, schedule: s, mastery: deps.masteryOf(s.state, s.stability) };
+  };
+  const dayOf = (d: Date) => deps.dayKey(d, state.timeZone, DAY_START_HOUR);
+  // A review schedules a day or more ahead (snapped to the release hour): a card due on a later training day than the attempt.
+  const pick = (at: Date) =>
+    out.findIndex((c, k) => !used.has(k) && c.schedule.state !== "NEW" && c.schedule.due.getTime() > now.getTime() && dayOf(c.schedule.due) > dayOf(at));
+  const attempts: HistoryAttempt[] = [];
+  for (const n of state.trainedDaysAgo) {
+    const isToday = n === 0;
+    const count = isToday ? (state.today?.bankReviewed ?? 1) : 1;
+    for (let i = 0; i < count; i++) {
+      const reviewedAt = isToday ? new Date(now.getTime() - (count - i) * 5_000) : new Date(now.getTime() - n * DAY_MS - 2 * 3_600_000);
+      const k = pick(reviewedAt);
+      if (k < 0 && isToday) throw new Error(`${state.name}: no card left for today's review ${i + 1} of ${count}`);
+      const wasNew = isToday && i < (state.today?.newIntroduced ?? 0);
+      if (k >= 0) review(k, reviewedAt, wasNew);
+      attempts.push({ daysAgo: n, i, reviewedAt, card: k >= 0 ? k : null, wasNew });
+    }
+  }
+  // A card nobody graded today was not reviewed today.
+  for (const [k, c] of out.entries()) {
+    const last = c.schedule.lastReview;
+    if (used.has(k) || !last || dayOf(last) !== today) continue;
+    const moved = new Date(Math.min(last.getTime(), now.getTime()) - DAY_MS);
+    out[k] = { ...c, schedule: { ...c.schedule, lastReview: moved, scheduledDays: Math.max(1, Math.round((c.schedule.due.getTime() - moved.getTime()) / DAY_MS)) } };
+  }
+  return { attempts, cards: out };
+}
+
 async function insertMistakes(tx: Tx, userId: bigint, mistakes: readonly PersonaMistake[], gameIds: Map<string, bigint>, now: Date) {
   const rows = mistakes.map((m) => {
     const last = m.occurrences.reduce((a, b) => (b.playedAt > a.playedAt ? b : a));
@@ -358,6 +439,9 @@ async function insertCards(tx: Tx, userId: bigint, cards: ReturnType<typeof pers
 export async function writeP05Persona(db: PrismaClient, email: string, personaName: string, opts: P05WriteOptions): Promise<P05PersonaReport> {
   refuseShared(email);
   const state = getP05PersonaState(personaName);
+  if (state.perfectSession && !opts.session) {
+    throw new SeedGuardError(`${state.name} completes its session through the product's functions: pass \`session\` (apps/web/scripts/dev/p05-session.ts)`);
+  }
   const now = opts.now ?? new Date();
   const deps = opts.deps;
   await checkTripwire(db, MAX_TARGET_USERS);
@@ -381,8 +465,10 @@ export async function writeP05Persona(db: PrismaClient, email: string, personaNa
     fixtures = [];
   }
 
-  const bank = personaBank(state, fixtures, member, now, deps);
   const today = deps.dayKey(now, state.timeZone, DAY_START_HOUR);
+  const written = personaBank(state, fixtures, member, now, deps);
+  const history = personaHistory(state, written.cards, now, today, deps);
+  const bank = { mistakes: written.mistakes, cards: history.cards };
   const ts = now.toISOString().replace("Z", "");
 
   const report = await db.$transaction(
@@ -410,10 +496,6 @@ export async function writeP05Persona(db: PrismaClient, email: string, personaNa
       const themes = new Map<string, { attempts: number; firstTry: number; ewma: number; milestonePct: number; bankCount: number }>();
       for (const t of state.mastery) themes.set(t.theme, { attempts: t.attempts, firstTry: t.firstTry, ewma: t.ewma, milestonePct: t.milestonePct, bankCount: 0 });
       for (const [theme, n] of bankCount) themes.set(theme, { ...(themes.get(theme) ?? { attempts: 0, firstTry: 0, ewma: 0, milestonePct: 0 }), bankCount: n });
-      if (state.perfectSession) {
-        const fork = themes.get("fork");
-        if (fork) themes.set("fork", { ...fork, attempts: fork.attempts + 5, firstTry: fork.firstTry + 5, ewma: 0.71, milestonePct: 70 });
-      }
       for (const [theme, t] of themes) {
         await tx.$executeRaw(Prisma.sql`
           INSERT INTO theme_mastery ("userId", theme, attempts, "firstTry", ewma, "bankCount", "milestonePct", "lastAttemptAt")
@@ -432,53 +514,37 @@ export async function writeP05Persona(db: PrismaClient, email: string, personaNa
                   ${p.dayStreak}, ${p.dayStreakBest}, ${lastActive}::date, ${DAY_START_HOUR}, ${RELEASE_HOUR}, 10, 5, false, ${ts}::timestamp)`);
       }
 
-      // Trained days: one graded BANK attempt each (on the first cards), oldest first; today's cap counters.
+      // Trained days (personaHistory): one graded attempt each, oldest first, on a card whose schedule it explains
+      // (or a puzzle); today's counters are today's attempts.
       let attempts = 0;
       for (const n of state.trainedDaysAgo) {
         const day = daysBefore(today, n);
-        const reviewedAt = new Date(now.getTime() - n * DAY_MS - 2 * 3_600_000);
-        const c = bank.cards.length ? bank.cards[attempts % bank.cards.length]! : null;
-        const isToday = n === 0 && state.today !== null;
+        const mine = history.attempts.filter((a) => a.daysAgo === n);
+        const bankN = mine.filter((a) => a.card !== null).length;
+        const isToday = n === 0;
         await tx.$executeRaw(Prisma.sql`
           INSERT INTO training_days ("userId", day, "bankReviewed", "newIntroduced", "puzzlesDone", "activeMs", "updatedAt")
-          VALUES (${user.id}, ${day}::date, ${isToday ? state.today!.bankReviewed : 1}, ${isToday ? state.today!.newIntroduced : 0}, 0,
+          VALUES (${user.id}, ${day}::date, ${bankN}, ${mine.filter((a) => a.card !== null && a.wasNew).length}, ${mine.length - bankN},
                   ${isToday ? 600_000 : 90_000}, ${ts}::timestamp)`);
-        await tx.$executeRaw(Prisma.sql`
+        for (const a of mine) {
+          const c = a.card === null ? null : bank.cards[a.card]!;
+          const key = isToday ? `${user.ref}:${state.name}:day:0:${a.i}` : `${user.ref}:${state.name}:day:${n}`;
+          const theme = c?.mistake.primaryTheme ?? state.mastery[0]?.theme ?? "fork";
+          await tx.$executeRaw(
+            c
+              ? Prisma.sql`
           INSERT INTO training_attempts ("clientAttemptId", "userId", "cardId", deck, kind, theme, solved, "firstTry", "timeMs", grade,
                                          "suggestedGrade", state, stability, difficulty, "scheduledDays", "reviewedAt", "createdAt")
-          SELECT ${seededUuid(`${user.ref}:${state.name}:day:${n}`)}::uuid, ${user.id},
-                 (SELECT id FROM training_cards WHERE "userId" = ${user.id} AND "itemKey" = ${c?.itemKey ?? ""}),
-                 'BANK', ${c ? cardKind(c.mistake) : "MISTAKE"}::"TrainingItemKind", ${c?.mistake.primaryTheme ?? "fork"}, true, true,
-                 24000, 'GOOD', 'GOOD', 'REVIEW', 4, 5, 4, ${reviewedAt.toISOString().replace("Z", "")}::timestamp, ${ts}::timestamp`);
-        attempts++;
-      }
-      if (state.today && !state.trainedDaysAgo.includes(0)) {
-        await tx.$executeRaw(Prisma.sql`
-          INSERT INTO training_days ("userId", day, "bankReviewed", "newIntroduced", "updatedAt")
-          VALUES (${user.id}, ${today}::date, ${state.today.bankReviewed}, ${state.today.newIntroduced}, ${ts}::timestamp)`);
-      }
-
-      // dev-perfect: one COMPLETED five-item session, all first try.
-      if (state.perfectSession) {
-        const five = bank.cards.slice(0, 5);
-        const items = buildSessionItems({ v: 1, items: five.map((c, i) => ({ id: `i${i + 1}`, key: c.itemKey, kind: cardKind(c.mistake), pass: 1 })) });
-        const startedAt = new Date(now.getTime() - 3_600_000);
-        const ended = new Date(now.getTime() - 3_000_000);
-        const sessionRef = seededRef(`p5-session:${state.name}`, user.ref);
-        await tx.$executeRaw(Prisma.sql`
-          INSERT INTO training_sessions ("referenceId", "userId", kind, status, source, "filterKey", size, items, day, total, solved, "firstTry",
-                                         "withHint", "startedAt", "endedAt")
-          VALUES (${sessionRef}, ${user.id}, 'BANK', 'COMPLETED', 'hub', ${`p5-persona:${state.name}`}, 5, ${JSON.stringify(items)}::jsonb,
-                  ${today}::date, 5, 5, 5, 0, ${startedAt.toISOString().replace("Z", "")}::timestamp, ${ended.toISOString().replace("Z", "")}::timestamp)`);
-        for (const [i, c] of five.entries()) {
-          await tx.$executeRaw(Prisma.sql`
-            INSERT INTO training_attempts ("clientAttemptId", "userId", "cardId", "sessionId", "itemId", deck, kind, theme, solved, "firstTry",
-                                           "timeMs", grade, "suggestedGrade", state, stability, difficulty, "scheduledDays", "reviewedAt", "createdAt")
-            SELECT ${seededUuid(`${user.ref}:${state.name}:session:${i}`)}::uuid, ${user.id},
-                   (SELECT id FROM training_cards WHERE "userId" = ${user.id} AND "itemKey" = ${c.itemKey}),
-                   (SELECT id FROM training_sessions WHERE "referenceId" = ${sessionRef}), ${`i${i + 1}`}, 'BANK',
-                   ${cardKind(c.mistake)}::"TrainingItemKind", 'fork', true, true, 18000, 'GOOD', 'GOOD', 'REVIEW', 4, 5, 4,
-                   ${new Date(startedAt.getTime() + (i + 1) * 60_000).toISOString().replace("Z", "")}::timestamp, ${ts}::timestamp`);
+          SELECT ${seededUuid(key)}::uuid, ${user.id}, (SELECT id FROM training_cards WHERE "userId" = ${user.id} AND "itemKey" = ${c.itemKey}),
+                 'BANK', ${cardKind(c.mistake)}::"TrainingItemKind", ${theme}, true, true, 24000, 'GOOD', 'GOOD',
+                 ${c.schedule.state}::"CardState", ${c.schedule.stability}, ${c.schedule.difficulty}, ${c.schedule.scheduledDays},
+                 ${a.reviewedAt.toISOString().replace("Z", "")}::timestamp, ${ts}::timestamp`
+              : Prisma.sql`
+          INSERT INTO training_attempts ("clientAttemptId", "userId", deck, kind, "puzzleId", "puzzleRating", theme, solved, "firstTry",
+                                         "timeMs", "reviewedAt", "createdAt")
+          VALUES (${seededUuid(key)}::uuid, ${user.id}, 'PUZZLE', 'LICHESS_PUZZLE', ${`p5d${n}`}, 1500, ${theme}, true, true, 24000,
+                  ${a.reviewedAt.toISOString().replace("Z", "")}::timestamp, ${ts}::timestamp)`,
+          );
           attempts++;
         }
       }
@@ -487,10 +553,21 @@ export async function writeP05Persona(db: PrismaClient, email: string, personaNa
     { timeout: TX_TIMEOUT_MS },
   );
 
-  const dueNow = bank.cards.filter((c) => c.schedule.due.getTime() <= now.getTime()).length;
+  // dev-perfect: the session the persona describes, completed by the product (W2 → W1 → W4) on the written state.
+  let attempts = report.attempts;
+  let dueNow = bank.cards.filter((c) => c.schedule.due.getTime() <= now.getTime()).length;
+  if (state.perfectSession && opts.session) {
+    const user = await memberByEmail(db, email, null);
+    if (!user) throw new SeedGuardError(`no users row for ${email}`);
+    attempts += (await opts.session(db, { userId: user.id, userRef: user.ref, persona: state.name, now })).attempts;
+    const rows = await db.$queryRaw<{ n: bigint }[]>(Prisma.sql`
+      SELECT count(*) AS n FROM training_cards WHERE "userId" = ${user.id} AND deck = 'BANK'
+         AND due <= ${now.toISOString().replace("Z", "")}::timestamp`);
+    dueNow = Number(rows[0]?.n ?? 0);
+  }
   opts.log?.(
     `[personas] p5 ${state.name}: ${fixtures.length} game(s), ${bank.mistakes.length} mistake(s), ${bank.cards.length} card(s) (${dueNow} due), ` +
-      `${report.attempts} attempt(s)`,
+      `${attempts} attempt(s)`,
   );
   return {
     persona: state.name,
@@ -499,7 +576,7 @@ export async function writeP05Persona(db: PrismaClient, email: string, personaNa
     mistakes: bank.mistakes.length,
     cards: bank.cards.length,
     dueNow,
-    attempts: report.attempts,
+    attempts,
     gameRefs: Object.fromEntries(fixtures.map((f) => [f.key, f.game.ref])),
     firstCardKey: bank.cards[0]?.itemKey ?? null,
   };

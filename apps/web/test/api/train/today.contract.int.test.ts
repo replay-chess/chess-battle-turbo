@@ -13,6 +13,7 @@ import { Prisma } from "@repo/db";
 import { ok } from "@repo/contracts/http/envelope";
 import { Badges, ThemesResult, TrainToday } from "@repo/contracts/http/train";
 import { countQueries, routeStatements } from "../../helpers/query-counter";
+import { getSessionSummary } from "@/lib/train/sessions.server";
 import { getTrainToday } from "@/lib/train/today.server";
 import { count, trainWorld, WORLD_NOW } from "./train-world";
 
@@ -28,6 +29,41 @@ describe("P5 R1 today, R4 themes, R8 badges (Postgres)", { skip: url ? false : "
   const w = trainWorld(url ?? "");
   before(() => w.setup());
   after(() => w.teardown());
+
+  it("regression staging-perfect-persona: dev-perfect's completed session left nothing due, counted today and lit today's dot", async () => {
+    // The persona used to insert a COMPLETED session over the due cards by hand, leaving them due and today's
+    // bankReviewed at 0: the hub said "Done for today · Nothing is due" beside "Mistake Bank 4 due" and today's streak
+    // dot stayed empty (staging README §5 item 4). The writer now completes it with W2 → W1 → W4.
+    const m = await w.member("perfect");
+    const report = await w.persona(m, "dev-perfect");
+    assert.equal(report.dueNow, 0, "the session reviewed every due card");
+    const sessions = await w.db.$queryRaw<{ ref: string; status: string; total: number; firstTry: number; items: { key: string }[] }[]>(Prisma.sql`
+      SELECT "referenceId" AS ref, status::text AS status, total, "firstTry", items->'items' AS items FROM training_sessions WHERE "userId" = ${m.id}`);
+    assert.equal(sessions.length, 1);
+    const s = sessions[0]!;
+    assert.deepEqual([s.status, s.total, s.firstTry, s.items.length], ["COMPLETED", 5, 5, 5]);
+    const keys = s.items.map((it) => it.key);
+    assert.equal(await count(w.db, Prisma.sql`
+      SELECT count(*) AS n FROM training_cards WHERE "userId" = ${m.id} AND "itemKey" = ANY(${keys}::text[])
+         AND due <= ${WORLD_NOW.toISOString().replace("Z", "")}::timestamp`), 0, "no card of the session is still due");
+    const [day] = await w.db.$queryRaw<{ br: number }[]>(Prisma.sql`
+      SELECT "bankReviewed" AS br FROM training_days WHERE "userId" = ${m.id} AND day = '2026-11-12'::date`);
+    assert.equal(day?.br, 5, "today's bankReviewed counts the session");
+
+    const today = ok(TrainToday).parse(await (await w.call("today", "GET", "/api/train/today", m)).json()).data;
+    assert.equal(today.state, "nothingdue");
+    assert.equal(today.due.shown, 0);
+    assert.equal(today.allTraining.bank.due, 0, "the Mistake Bank row agrees with \"Nothing is due\"");
+    assert.equal(today.streak.current, 5, "yesterday's streak of 4 plus today");
+    assert.equal(today.streak.week[3], true, "today's dot (Thursday) is lit");
+    const badges = ok(Badges).parse(await (await w.call("badges", "GET", "/api/me/badges", m)).json()).data;
+    assert.equal(badges.bankDue, 0);
+
+    const summary = await getSessionSummary(w.viewerOf(m), s.ref, WORLD_NOW);
+    assert.equal(summary.variant, "perfect");
+    assert.deepEqual(summary.stats, { solved: 5, total: 5, firstTry: 5, withHint: 0, skipped: 0 });
+    assert.equal(summary.milestone?.label, "Milestone · forks 70%");
+  });
 
   it("bank-member: the hub's numbers, the plan frozen once, a second read writes nothing", async () => {
     const m = await w.member("today");

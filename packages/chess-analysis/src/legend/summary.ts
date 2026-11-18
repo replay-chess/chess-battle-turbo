@@ -149,6 +149,10 @@ function divergenceMove(f: ComparisonFacts, san: string | null): string {
 export function summaryLine(f: ComparisonFacts): string {
   const name = f.historicalName;
   if (f.divergencePly === null) return `You found every one of ${name}${APOS}s moves.`;
+  if (f.divergenceBy === "opponent" && f.comparedPlies === 0) {
+    // The opponent left the line before the member's first move: nothing was compared (never "0 of 0").
+    return `The game left ${name}${APOS}s path on ${divergenceMove(f, f.userSan)} before your first move.`;
+  }
   if (f.divergenceBy === "opponent") {
     return `You matched ${f.matchedPlies} of ${f.comparedPlies} moves before the game left ${name}${APOS}s path on ${divergenceMove(f, f.userSan)}.`;
   }
@@ -160,6 +164,7 @@ export function matchedLine(f: ComparisonFacts): string {
   const name = f.historicalName;
   if (f.divergencePly === null) return `You followed ${name} to the end.`;
   const verb = f.divergenceBy === "opponent" ? "the game left" : "left";
+  if (f.comparedPlies === 0) return `The game left ${name}${APOS}s path with ${divergenceMove(f, f.userSan)} before your first move`;
   return `Matched ${f.matchedPlies} of ${f.comparedPlies} · ${verb} ${name}${APOS}s path with ${divergenceMove(f, f.userSan)}`;
 }
 

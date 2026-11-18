@@ -197,7 +197,7 @@ export function LegendBlock({ c }: { c: LegendSummaryDTO }) {
       ) : (
         <span className="rv-go-legend__line">
           {line.lead}
-          <b>{line.matched}</b>
+          {line.matched === null ? null : <b>{line.matched}</b>}
           {line.middle}
           <span className="g-mono">{line.yours}</span>
           {line.between}
