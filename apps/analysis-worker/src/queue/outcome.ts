@@ -59,7 +59,15 @@ const payloadId = (key: string) =>
   `CASE WHEN j.payload->>'${key}' ~ '^[0-9]{1,18}$' THEN (j.payload->>'${key}')::bigint END`;
 
 /**
- * The side effects of a failed/reaped job, appended after a CTE `j` that RETURNs the jobs rows:
+ * P6 FIX-3 (D-P6-FIX3-2): a `weakness_lines` refresh is an ANALYZE_GAME row of its own (`weaklines:<gameId>`) that only
+ * rewrites the members' five weakness input columns. Its failure, release or reap never touches the game: no FAILED or
+ * QUEUED analysis status, no `failedAtPly`, no `gamesVersion` bump and no members returned (so no `analysis:failed`),
+ * also when the game's own analysis or regrade is queued or running meanwhile. `j` must RETURN `payload`.
+ */
+export const NOT_LINES_REFRESH = `(j.payload->>'reason') IS DISTINCT FROM 'weakness_lines'`;
+
+/**
+ * The side effects of a failed/reaped job, appended after a CTE `j` that RETURNs the jobs rows (with `payload`):
  *   - ANALYZE_GAME: the game is marked FAILED, `failedAtPly` recorded, the members' archive version bumped;
  *   - LEGEND_COMPARE failed for good (`compare`: the reaper only; the runner's own failure path is the handler's
  *     `onFailed`): the member's comparison row becomes FAILED (`compareError`, $n) and the row returns the member's
@@ -88,7 +96,7 @@ function failureEffects(compare: { errorParam: string; again: boolean } | null):
 , g AS (
   UPDATE games SET "analysisStatus" = 'FAILED', "updatedAt" = ${NOW}
     FROM j
-   WHERE j.kind = 'ANALYZE_GAME' AND games.id = j."gameId"
+   WHERE j.kind = 'ANALYZE_GAME' AND games.id = j."gameId" AND ${NOT_LINES_REFRESH}
      AND games."analysisStatus" IN ('QUEUED', 'RUNNING', 'FAILED')
   RETURNING games.id, games."referenceId" AS ref, games."plyCount" AS "plyCount"
 ), a AS (
@@ -212,7 +220,7 @@ export function failStatement(input: {
          attempts = CASE WHEN $6::boolean AND status = 'RUNNING' THEN GREATEST(attempts - 1, 0) ELSE attempts END,
          "lastError" = $3, "lockedBy" = NULL, "lockedAt" = NULL, "heartbeatAt" = NULL
    WHERE id = $1::bigint AND (${mine}${alreadyFailedByMe ? ` OR ${again}` : ""})
-  RETURNING id, kind, status, attempts, "maxAttempts", "runAt", "gameId"
+  RETURNING id, kind, status, attempts, "maxAttempts", "runAt", "gameId", payload
 )${GAME_FAILURE_EFFECTS}`,
       [
         input.jobId,
@@ -482,6 +490,26 @@ export function lockGuardStatement(jobId: string, me: string): Statement {
   );
 }
 
+/**
+ * P6 FIX-3: the SQLSTATE a guard statement raises when the rows a job read have changed since (`ln(0)`:
+ * invalid_argument_for_logarithm, which no other statement of these batches can raise). The whole transaction rolls
+ * back; `isInputsChanged(error)` recognises it.
+ */
+export const INPUTS_CHANGED_SQLSTATE = "2201E";
+
+/**
+ * A batch statement (after lockGuardStatement) that rolls the transaction back with INPUTS_CHANGED_SQLSTATE unless
+ * `holds` (an SQL boolean over `values`) is true. A `holds` that locks the rows it reads (FOR SHARE / FOR KEY SHARE)
+ * keeps them as read until the commit.
+ */
+export function inputsGuardStatement(holds: string, values: unknown[]): Statement {
+  return stmt(`SELECT ln(CASE WHEN ${holds} THEN 1.0 ELSE 0.0 END) AS intact`, values);
+}
+
+export function isInputsChanged(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === INPUTS_CHANGED_SQLSTATE;
+}
+
 export function isLockLost(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "22012";
 }
@@ -498,7 +526,7 @@ export function heartbeatStatement(jobId: string, me: string): Statement {
 
 /**
  * Release (graceful SIGTERM, or a payload written by a newer build): QUEUED again without counting the attempt.
- * A running analysis's game goes back to QUEUED. `delaySec` keeps a job this build cannot read from being
+ * A running analysis's game goes back to QUEUED (never for a `weakness_lines` refresh: NOT_LINES_REFRESH). `delaySec` keeps a job this build cannot read from being
  * re-claimed in a loop.
  */
 export function releaseStatement(jobId: string, me: string, delaySec = 0): Statement {
@@ -508,11 +536,11 @@ export function releaseStatement(jobId: string, me: string, delaySec = 0): State
      SET status = 'QUEUED', "runAt" = ${NOW} + ($3::int * interval '1 second'), attempts = GREATEST(attempts - 1, 0),
          "lockedBy" = NULL, "lockedAt" = NULL, "heartbeatAt" = NULL
    WHERE id = $1::bigint AND "lockedBy" = $2 AND status = 'RUNNING'
-  RETURNING id, kind, "gameId"
+  RETURNING id, kind, "gameId", payload
 ), g AS (
   UPDATE games SET "analysisStatus" = 'QUEUED', "updatedAt" = ${NOW}
     FROM j
-   WHERE j.kind = 'ANALYZE_GAME' AND games.id = j."gameId" AND games."analysisStatus" = 'RUNNING'
+   WHERE j.kind = 'ANALYZE_GAME' AND games.id = j."gameId" AND ${NOT_LINES_REFRESH} AND games."analysisStatus" = 'RUNNING'
   RETURNING games.id
 )
 SELECT j.id::text AS id, (SELECT count(*) FROM g)::int AS "gamesRequeued" FROM j`,

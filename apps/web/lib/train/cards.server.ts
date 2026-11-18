@@ -18,6 +18,7 @@ import { timeZoneOf } from "./day.server";
 import { at, NOW_UTC, trainDeps, type TrainDb, type TrainDeps } from "./db.server";
 import { readProfile } from "./profile.server";
 import { storedItemsOf, type SessionRow } from "./sessions.server";
+import { weaknessEnabled } from "./weakness.server";
 
 /** W5. 404 for a card (or a session) that is not the viewer's. */
 export async function skipCard(viewer: Viewer, ref: string, sessionRef: string | null, now: Date, deps: TrainDeps = trainDeps()): Promise<SkipResult> {
@@ -57,8 +58,18 @@ export async function skipCard(viewer: Viewer, ref: string, sessionRef: string |
  * 4 the card and `theme_mastery`), so W6 / A6 off and a J1 of another game holding the same mistake never deadlock.
  * P6 (FIX-1): then the member's RECOMPUTE_WEAKNESS row (`removed`, only with a READY profile), last, as the analysis
  * batch takes it.
+ *
+ * `opts.weakness`: the viewer's `weakness` flag, evaluated by the caller before its transaction (`weaknessEnabled`, the
+ * evaluation the weakness routes and the lit slots use). FIX-3 (review item 12): with the flag off the web writes no
+ * weakness job, so the `removed` arm is skipped; the card, the mistake and the reviews change exactly as before.
  */
-export async function removeBankCard(db: TrainDb, userId: bigint, where: { ref: string } | { mistakeId: bigint }, now: Date): Promise<bigint | null> {
+export async function removeBankCard(
+  db: TrainDb,
+  userId: bigint,
+  where: { ref: string } | { mistakeId: bigint },
+  now: Date,
+  opts: { weakness: boolean },
+): Promise<bigint | null> {
   const target =
     "ref" in where
       ? Prisma.sql`(SELECT "mistakeId" FROM training_cards WHERE "userId" = ${userId} AND "itemKey" = ${where.ref} AND deck = 'BANK')`
@@ -93,15 +104,16 @@ export async function removeBankCard(db: TrainDb, userId: bigint, where: { ref: 
     // the analysis batch. No READY profile: nothing is armed. FIX-2 (D-P6-FIX2-15): only a real visible → hidden
     // change arms, and never faster than TR-12's limit (`weaknessHiddenSql`): A6 inBank=false on an already hidden
     // mistake, or hide / un-hide toggles, cannot queue recomputes past 1 per 600 s.
-    if (hidden[0].newlyHidden) await db.$queryRaw(weaknessHiddenSql(userId));
+    if (hidden[0].newlyHidden && opts.weakness) await db.$queryRaw(weaknessHiddenSql(userId));
   }
   return deleted.length ? mistakeId : null;
 }
 
 /** W6. `removed` false = it was removed before (204 all the same). 404 for a ref that was never the viewer's. */
 export async function removeCard(viewer: Viewer, ref: string, now: Date, deps: TrainDeps = trainDeps()): Promise<{ removed: boolean }> {
+  const weakness = await weaknessEnabled(viewer);
   return deps.tx(async (db) => {
-    const mistakeId = await removeBankCard(db, viewer.id, { ref }, now);
+    const mistakeId = await removeBankCard(db, viewer.id, { ref }, now, { weakness });
     if (mistakeId !== null) return { removed: true };
     const hash = decodeMistakeItemKey(ref);
     if (hash === null) throw new DataError("not_found");

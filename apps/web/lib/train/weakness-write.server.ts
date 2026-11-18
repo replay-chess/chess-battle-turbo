@@ -66,12 +66,13 @@ export function upsertScopeSql(userId: bigint, scope: WeaknessScope, seed: { puz
 /** `requestRecomputeSql`'s row (its `scope` variant is not used: see the header). */
 type EnqueueRow = { queued: number | bigint; prevUserAtMs: number | null };
 
-/** 429 for the durable limit: retry when the previous request is 600 s old (1 … 600 s). */
+/** 429 for the durable limit: retry when the previous member-armed run is 600 s old (1 … 1,200 s; FIX-3). */
 export function recomputeLimitError(prevUserAtMs: number | null, now: Date): ApiError {
   const retryAfterSec =
     prevUserAtMs === null
       ? WEAKNESS_RECOMPUTE_WINDOW_SEC
-      : Math.min(WEAKNESS_RECOMPUTE_WINDOW_SEC, recomputeRetryAfterSec(prevUserAtMs, now.getTime()));
+      : // FIX-3 (D-P6-FIX3-5): a hide stamps the instant of the run it armed, which may lie ahead (≤ one more window).
+        Math.min(2 * WEAKNESS_RECOMPUTE_WINDOW_SEC, recomputeRetryAfterSec(prevUserAtMs, now.getTime()));
   return new ApiError("rate_limited", { retryAfterSec, details: { reason: "recompute_limit", bucket: "weakness-recompute" } });
 }
 

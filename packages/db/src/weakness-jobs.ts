@@ -36,6 +36,7 @@ import {
   RecomputeWeaknessPayloadV1,
   WEAKNESS_TRIGGERS,
   weaknessDedupeKey,
+  weaknessLinesPayload,
   type JobPriority,
   type WeaknessTrigger,
 } from "@repo/contracts/internal/jobs";
@@ -151,13 +152,6 @@ export interface EnqueueWeaknessManyInput {
   delaySec?: number;
   debounceSec: number;
   freezeSeeded?: boolean;
-  /**
-   * FIX-2: a QUEUED or RUNNING row is left exactly as it is (never pulled forward, never flagged to run again): the run
-   * already pending reads the change. The
-   * web's `removed` arm uses it with a debounce of RECOMPUTE_LIMIT_SEC, so a member cannot force recomputes faster than
-   * TR-12's limit by hiding and un-hiding mistakes (D-P6-FIX2-15).
-   */
-  leaveActive?: boolean;
 }
 
 /**
@@ -167,7 +161,7 @@ export interface EnqueueWeaknessManyInput {
  */
 export function enqueueWeaknessManySql(i: EnqueueWeaknessManyInput): Prisma.Sql {
   checkPriority(i.priority);
-  checkDebounce(i.debounceSec, i.leaveActive ? WEAKNESS_RECOMPUTE_LIMIT_SEC : WEAKNESS_DEBOUNCE_MAX_SEC);
+  checkDebounce(i.debounceSec);
   const delay = i.delaySec ?? 0;
   if (!Number.isInteger(delay) || delay < 0 || delay > 86_400) throw new Error("weakness jobs: delaySec must be an integer within 0..86400");
   const runAt = i.runAt ? utc(i.runAt, "runAt") : Prisma.sql`(${NOW_UTC} + make_interval(secs => ${delay}::int))`;
@@ -178,7 +172,7 @@ export function enqueueWeaknessManySql(i: EnqueueWeaknessManyInput): Prisma.Sql 
          'QUEUED', 0, ${JOB_MAX_ATTEMPTS.RECOMPUTE_WEAKNESS}::smallint, ${NOW_UTC}
     FROM (${typeof i.rows === "string" ? Prisma.raw(i.rows) : i.rows}) AS r("userId", trigger)
    WHERE r.trigger::text = ANY(${[...WEAKNESS_TRIGGERS]}::text[])
-  ${conflictClause(i.debounceSec, i.freezeSeeded === true, i.leaveActive ? Prisma.sql`jobs.status NOT IN ('QUEUED', 'RUNNING')` : null)}`;
+  ${conflictClause(i.debounceSec, i.freezeSeeded === true, null)}`;
 }
 
 /** A parameter-free `bigint[]` literal of user ids (each checked to be an id), for `rows` subqueries. */
@@ -281,53 +275,104 @@ export function weaknessKickCasSql(userId: bigint, now: Date): Prisma.Sql {
 }
 
 /**
- * FIX-1, trigger `removed`: rows the profile was computed from are gone (an IMPORT_PURGE batch) or a bank card was
- * removed (its mistake hidden), so the counts and the example positions may be stale. Arms the member's row now
- * (debounce 0) when the member has a snapshot (`readyOnly`: a READY one, the hide path: only a READY profile shows
- * examples). Parameter-free apart from the user id; the worker embeds it through `userIdsLiteral`.
+ * FIX-1, trigger `removed`: rows the profile was computed from are gone (an IMPORT_PURGE batch). Arms the member's row
+ * now (debounce 0; a RUNNING row is flagged `rerun`). Parameter-free apart from the user id; the worker embeds it
+ * through `userIdsLiteral`.
+ *
+ * FIX-3 (D-P6-FIX3-1): it arms when the member has a snapshot (any week) OR a QUEUED or RUNNING recompute row. A first
+ * build that is running while the purge finishes has no snapshot yet; without the second arm it committed a profile of
+ * the purged games (with their example positions) and nothing re-armed it. The arm is evaluated against the row as it
+ * is when the purge's batch takes its lock: a recompute committing meanwhile is re-armed DONE → QUEUED (now). The
+ * recompute's own final batch also refuses to commit a snapshot whose inputs a purge removed after it read them
+ * (jobs/weakness-recompute.ts `inputsIntactStatement`), so no interleaving leaves purged rows in a snapshot.
  */
-export function weaknessRemovedSql(
-  userId: bigint | string,
-  opts: { readyOnly: boolean; freezeSeeded?: boolean; debounceSec?: number; leaveActive?: boolean },
-): Prisma.Sql {
-  const status = opts.readyOnly ? ` AND ws.status = 'READY'` : "";
+export function weaknessRemovedSql(userId: bigint | string, opts: { freezeSeeded?: boolean } = {}): Prisma.Sql {
   return enqueueWeaknessManySql({
     rows: `SELECT x.u, 'removed'::text FROM unnest(${userIdsLiteral([String(userId)])}) AS x(u)
-            WHERE EXISTS (SELECT 1 FROM weakness_snapshots ws WHERE ws."userId" = x.u${status})`,
+            WHERE EXISTS (SELECT 1 FROM weakness_snapshots ws WHERE ws."userId" = x.u)
+               OR EXISTS (SELECT 1 FROM jobs aj WHERE aj."dedupeKey" = 'weakness:' || x.u::text AND aj.status IN ('QUEUED', 'RUNNING'))`,
     priority: JOB_PRIORITY.WEAKNESS,
     runAt: null,
     delaySec: 0,
-    debounceSec: opts.debounceSec ?? 0,
+    debounceSec: 0,
     ...(opts.freezeSeeded ? { freezeSeeded: true } : {}),
-    ...(opts.leaveActive ? { leaveActive: true } : {}),
   });
 }
 
 /**
- * FIX-2 (D-P6-FIX2-15): the web's `removed` arm (a bank card removed, its mistake newly hidden). Never faster than
- * TR-12's durable limit: a finished row re-arms at the earliest `finishedAt + WEAKNESS_RECOMPUTE_LIMIT_SEC`; a queued or
- * running one is left alone (no pull forward, no rerun flag).
+ * The web's `removed` arm (a bank card removed, its mistake newly hidden), for a member with a READY snapshot (only a
+ * READY profile shows examples).
+ *
+ * FIX-3 (D-P6-FIX3-5): ONE durable limit for every member-triggered arm (this and TR-12's requestRecomputeSql): the
+ * member's job row keeps `payload.userAt`, the instant of the run the last member call armed, and no member call arms a
+ * run earlier than `userAt + WEAKNESS_RECOMPUTE_LIMIT_SEC`. TR-12 refuses (429) inside that window; a hide never
+ * refuses (the example must eventually go) but arms its run at the earliest
+ * max(now, userAt + limit, finishedAt + limit) and stamps that instant as the new `userAt`, so a TR-12 right after a
+ * hide is refused too. A QUEUED or RUNNING row is left exactly as it is (the run already pending reads the change;
+ * never pulled forward, never flagged to run again). So no sequence of member API calls causes more than one run per
+ * WEAKNESS_RECOMPUTE_LIMIT_SEC (FIX-2's version stamped nothing: hide then TR-12 gave two runs back to back).
+ * RETURNING id, status, runAtMs, created (0 rows: no READY snapshot, or the row was left alone).
  */
 export function weaknessHiddenSql(userId: bigint | string): Prisma.Sql {
-  return weaknessRemovedSql(userId, { readyOnly: true, debounceSec: WEAKNESS_RECOMPUTE_LIMIT_SEC, leaveActive: true });
+  const key = weaknessDedupeKey(BigInt(String(userId)));
+  const limit = Prisma.sql`make_interval(secs => ${WEAKNESS_RECOMPUTE_LIMIT_SEC}::int)`;
+  const iso = (ts: Prisma.Sql) => Prisma.sql`to_char(${ts}, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
+  const runAt = Prisma.sql`GREATEST(${NOW_UTC},
+                   COALESCE(jobs."finishedAt" + ${limit}, ${NOW_UTC}),
+                   COALESCE(((jobs.payload->>'userAt')::timestamptz AT TIME ZONE 'UTC') + ${limit}, ${NOW_UTC}))`;
+  return Prisma.sql`INSERT INTO jobs (kind, "dedupeKey", "userId", priority, "fairSeq", "runAt", payload, status, attempts,
+                  "maxAttempts", "createdAt")
+  SELECT 'RECOMPUTE_WEAKNESS', ${key}, ${String(userId)}::bigint, ${JOB_PRIORITY.WEAKNESS}::smallint, 0, ${NOW_UTC},
+         jsonb_build_object('v', 1, 'trigger', 'removed', 'userAt', ${iso(NOW_UTC)}), 'QUEUED', 0,
+         ${JOB_MAX_ATTEMPTS.RECOMPUTE_WEAKNESS}::smallint, ${NOW_UTC}
+   WHERE EXISTS (SELECT 1 FROM weakness_snapshots ws WHERE ws."userId" = ${String(userId)}::bigint AND ws.status = 'READY')
+  ON CONFLICT ("dedupeKey") DO UPDATE SET
+    payload       = (jobs.payload - 'rerun') || jsonb_build_object('trigger', 'removed', 'userAt', ${iso(runAt)}),
+    status        = 'QUEUED'::"JobStatus",
+    "runAt"       = ${runAt},
+    priority      = EXCLUDED.priority,
+    attempts      = 0,
+    "maxAttempts" = EXCLUDED."maxAttempts",
+    "lastError" = NULL, "finishedAt" = NULL, "lockedBy" = NULL, "lockedAt" = NULL, "heartbeatAt" = NULL, "startedAt" = NULL,
+    result = jobs.result
+  WHERE jobs.status NOT IN ('QUEUED', 'RUNNING')
+  RETURNING id, "userId", status::text AS status, (extract(epoch FROM "runAt") * 1000)::float8 AS "runAtMs", (xmax = 0) AS created`;
 }
+
+/**
+ * Members a Weakness Profile can be built for (the web's `isEntitled` + admin; worker import/context.ts isMember with the
+ * paywall on), in SQL over a `users` row aliased `u`. The daily slice's arms and the `weakness_lines` arm use it.
+ */
+export const WEAKNESS_ENTITLED_SQL = `(u.role = 'ADMIN' OR u."subscriptionStatus" = 'active'
+          OR (u."subscriptionStatus" = 'cancelled' AND u."cancelAtPeriodEnd" AND u."currentPeriodEnd" > (now() AT TIME ZONE 'UTC'))
+          OR (u."subscriptionStatus" IN ('on_hold', 'past_due') AND u."currentPeriodEnd" > (now() AT TIME ZONE 'UTC')))`;
 
 /**
  * P6 FIX-2 (docs/decisions.md D-P6-FIX2-8): one `weakness_lines` ANALYZE_GAME row per game (dedupe key
  * `weaklines:<gameId>`, HOUSEKEEPING priority, no userId, so no member's probe counts it as analysis work): the worker
  * searches the member errors' lines and refutations of the finished analysis and rewrites the five weakness input
  * columns, nothing else. A finished row is revived; a pending one is left as it is. RETURNING the armed count.
- * Shared by the recompute's heal (worker) and B-W1 (web script).
+ * Shared by the recompute's heal (worker), the analysis whose weakness searches were cut short (FIX-3) and B-W1.
+ *
+ * FIX-3: the payload is `v: 2` (contracts AnalyzeGamePayloadV2, D-P6-FIX3-2): a worker built before the reason existed
+ * never claims it. A QUEUED row still at `v: 1` (written by the FIX-2 build) is rewritten to `v: 2`. Only games with
+ * at least one entitled member side are armed (WEAKNESS_ENTITLED_SQL, D-P6-FIX3-10): the refresh feeds a profile, and
+ * nobody else has one.
  */
 export function weaknessLinesSql(games: readonly { gameId: bigint | string; gameRef: string }[]): Prisma.Sql {
-  for (const g of games) if (!/^[1-9][0-9]{0,18}$/.test(String(g.gameId))) throw new Error(`weakness jobs: "${String(g.gameId)}" is not a game id`);
+  for (const g of games) {
+    if (!/^[1-9][0-9]{0,18}$/.test(String(g.gameId))) throw new Error(`weakness jobs: "${String(g.gameId)}" is not a game id`);
+    weaknessLinesPayload(g.gameId, g.gameRef);
+  }
   const doc = JSON.stringify(games.map((g) => ({ g: String(g.gameId), r: g.gameRef })));
   return Prisma.sql`WITH v AS (
   SELECT x.g::bigint AS "gameId", x.r AS ref FROM jsonb_to_recordset(${doc}::jsonb) AS x(g text, r text)
+   WHERE EXISTS (SELECT 1 FROM game_players gp JOIN users u ON u.id = gp."userId"
+                  WHERE gp."gameId" = x.g::bigint AND ${Prisma.raw(WEAKNESS_ENTITLED_SQL)})
 ), up AS (
   INSERT INTO jobs (kind, "dedupeKey", "gameId", priority, "fairSeq", payload, "runAt", status, attempts, "maxAttempts", "createdAt")
   SELECT 'ANALYZE_GAME', 'weaklines:' || v."gameId"::text, v."gameId", ${JOB_PRIORITY.HOUSEKEEPING}::smallint, 0,
-         jsonb_build_object('v', 1, 'gameId', v."gameId"::text, 'gameRef', v.ref, 'reason', 'weakness_lines'),
+         jsonb_build_object('v', 2, 'gameId', v."gameId"::text, 'gameRef', v.ref, 'reason', 'weakness_lines'),
          ${NOW_UTC}, 'QUEUED', 0, ${JOB_MAX_ATTEMPTS.ANALYZE_GAME}::smallint, ${NOW_UTC}
     FROM v
   ON CONFLICT ("dedupeKey") DO UPDATE SET
@@ -335,6 +380,7 @@ export function weaknessLinesSql(games: readonly { gameId: bigint | string; game
     "lockedBy" = NULL, "lockedAt" = NULL, "heartbeatAt" = NULL, "lastError" = NULL, "startedAt" = NULL, "finishedAt" = NULL,
     result = NULL
   WHERE jobs.status IN ('DONE', 'FAILED', 'CANCELLED')
+     OR (jobs.status = 'QUEUED' AND (jobs.payload->>'v') IS DISTINCT FROM '2')
   RETURNING 1
 )
 SELECT count(*)::int AS armed FROM up`;

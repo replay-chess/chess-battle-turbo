@@ -15,6 +15,7 @@
 //
 // Best effort, like every emit: an error is logged and never fails the analysis or the import that called it. No
 // timer: a frame inside the gap is dropped (the next analysis or the TR-5 poll carries the numbers).
+import { inputsHealableSql } from "@repo/chess-analysis/weakness-inputs";
 import { WEAKNESS_PROGRESS_MIN_GAP_MS, WEAKNESS_PROGRESS_STEP_PCT } from "@repo/contracts/socket/user";
 import { PRELIMINARY_FROM } from "@repo/chess-training/weakness/constants";
 import { computeProgress } from "@repo/chess-training/weakness/progress";
@@ -66,7 +67,7 @@ export function probeStatement(userId: string, since: Date, scope: Pick<Weakness
 )
 SELECT (SELECT count(*) FROM s)::int AS "inScope",
        (SELECT count(*) FROM s WHERE accuracy IS NOT NULL
-          AND (s.v >= 1 OR (s.v = 0 AND EXISTS (SELECT 1 FROM game_analyses ga WHERE ga."gameId" = s."gameId" AND ga."completedAt" IS NOT NULL))))::int
+          AND (s.v >= 1 OR (${inputsHealableSql("s.v")} AND EXISTS (SELECT 1 FROM game_analyses ga WHERE ga."gameId" = s."gameId" AND ga."completedAt" IS NOT NULL))))::int
          AS analysed,
        (SELECT (extract(epoch FROM max(ga."completedAt")) * 1000)::float8 FROM s JOIN game_analyses ga ON ga."gameId" = s."gameId")
          AS "lastAnalysedAtMs",

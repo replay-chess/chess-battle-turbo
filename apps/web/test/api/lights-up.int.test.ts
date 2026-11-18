@@ -190,8 +190,9 @@ describe("P6 lights up (Postgres, real games)", { skip: url && LOCAL.has(new URL
       assert.ok(puzzles, JSON.stringify(data.plan.steps));
       if (focus) {
         // regression: hub-two-weakest (FIX-2, D-P6-FIX2-10): "Your top weakness" only for the top row's own match in a
-        // band comparison; a lower row's theme (or a most-frequent list) reads "From your Weakness Profile".
-        const topIsFocus = readyRows[0] && weaknessMatchTheme(readyRows[0].pattern) === focus && listMode !== "most_frequent";
+        // band comparison; a lower row's theme (or a most-frequent or own-only list, FIX-3 review item 7) reads "From your
+        // Weakness Profile".
+        const topIsFocus = readyRows[0] && weaknessMatchTheme(readyRows[0].pattern) === focus && listMode === "vs_band";
         assert.match(puzzles.subtitle, topIsFocus ? /^Your top weakness · / : /^From your Weakness Profile · /);
         assert.match(puzzles.href, new RegExp(`[?&]theme=${encodeURIComponent(focus)}(&|$)`));
       }

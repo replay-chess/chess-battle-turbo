@@ -45,7 +45,7 @@ describe("P6 weakness environment", () => {
   it("defaults: on in test and dev, off in production until P13; caps 100 / 20; debounce 240 s; no seed freeze", () => {
     for (const env of [test, dev]) {
       const w = loadEnv(env).weakness;
-      assert.deepEqual(w, { enabled: true, analyseCap: 100, analyseCapTrial: 20, debounceSec: 240, seedFreeze: false, healMaxRows: 40 });
+      assert.deepEqual(w, { enabled: true, analyseCap: 100, analyseCapTrial: 20, debounceSec: 240, seedFreeze: false, healMaxRows: 40, linesBudgetMs: 20_000, inputsVersion: 1 });
     }
     assert.equal(loadEnv(production).weakness.enabled, false, "the kill switch is closed in production by default");
     assert.equal(loadEnv({ ...production, WEAKNESS_JOBS_ENABLED: "on" }).weakness.enabled, true);
@@ -55,6 +55,9 @@ describe("P6 weakness environment", () => {
 
   it("WEAKNESS_HEAL_MAX_ROWS (FIX-1): rows one recompute heals, 1..300", () => {
     assert.equal(loadEnv({ ...test, WEAKNESS_HEAL_MAX_ROWS: "16" }).weakness.healMaxRows, 16);
+    // FIX-3: the weakness-only engine searches' budget (1..120 s).
+    assert.equal(loadEnv({ ...test, WEAKNESS_LINES_BUDGET_MS: "5000" }).weakness.linesBudgetMs, 5_000);
+    assert.throws(() => loadEnv({ ...test, WEAKNESS_LINES_BUDGET_MS: "500" }), /WEAKNESS_LINES_BUDGET_MS must be within 1000\.\.120000/);
     refused({ ...test, WEAKNESS_HEAL_MAX_ROWS: "0" }, /WEAKNESS_HEAL_MAX_ROWS must be within 1\.\.300/);
     refused({ ...test, WEAKNESS_HEAL_MAX_ROWS: "many" }, /WEAKNESS_HEAL_MAX_ROWS must be an integer/);
   });

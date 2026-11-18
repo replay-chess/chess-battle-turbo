@@ -8,6 +8,7 @@
  *   npx tsx scripts/backfill/backfill-weakness-inputs.ts                 # dry run: candidates, members, sample errors
  *   npx tsx scripts/backfill/backfill-weakness-inputs.ts --apply         # writes in keyset batches of 500
  *   npx tsx scripts/backfill/backfill-weakness-inputs.ts --verify        # nothing left + 10 stored rows recomputed
+ *                                                                        # (themes only where stored data can reproduce them, FIX-3)
  *   … --member <email>                                                   # only that member's games
  *
  * Per keyset batch over `(gameId, userId)`: one read (game_players ⋈ games ⋈ game_analyses), computeSideInputs per row
@@ -213,10 +214,24 @@ export async function runWeaknessInputs(
 export interface InputsCheck {
   gameId: string;
   userId: string;
+  /** Every field compared below equals the recomputation. */
   matches: boolean;
+  /**
+   * FIX-3 (D-P6-FIX3-4): the themes (`errorThemes`, `errorThemeN`) were compared too. They are comparable only when the
+   * stored analysis holds every member error's line and refutation (computeSideInputs `report.partial` 0): otherwise
+   * whoever wrote the row may have tagged from engine lines that are not stored (the analysis's pass-1 PVs, a
+   * `weakness_lines` refresh), and a recomputation from stored data cannot reproduce them. `stats` and `errorLog` do
+   * not depend on lines and are always compared.
+   */
+  themesCompared: boolean;
 }
 
-/** --verify: up to `n` sides already at the current version, recomputed and compared with what is stored. */
+/**
+ * --verify: up to `n` sides already at the current version, recomputed from the stored rows and compared with what is
+ * stored: `stats` and `errorLog` always, the themes where stored data can reproduce them (`themesCompared`). FIX-3:
+ * comparing the themes of every row reported correct rows written by the P6 worker (10 of 25 on the worker's int world)
+ * as wrong.
+ */
 export async function verifyStoredInputs(db: BackfillDb, n = 10, s: InputsScope = {}): Promise<InputsCheck[]> {
   const rows = await db.$queryRaw<(InputsRow & { stored: SideInputs })[]>(Prisma.sql`
     SELECT ${ROW_COLUMNS},
@@ -230,15 +245,19 @@ export async function verifyStoredInputs(db: BackfillDb, n = 10, s: InputsScope 
      LIMIT ${n}`);
   return rows.map((r) => {
     let matches = false;
+    let themesCompared = false;
     try {
-      const want = inputsOf(r);
+      const report = { partial: 0 };
+      const want = inputsOf(r, report);
+      themesCompared = report.partial === 0;
+      const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
       matches =
-        JSON.stringify([want.stats, want.errorLog, want.errorThemeN, want.errorThemes]) ===
-        JSON.stringify([r.stored.stats, r.stored.errorLog, r.stored.errorThemeN, r.stored.errorThemes]);
+        same([want.stats, want.errorLog], [r.stored.stats, r.stored.errorLog]) &&
+        (!themesCompared || same([want.errorThemeN, want.errorThemes], [r.stored.errorThemeN, r.stored.errorThemes]));
     } catch {
       matches = false;
     }
-    return { gameId: r.gameId.toString(), userId: r.userId.toString(), matches };
+    return { gameId: r.gameId.toString(), userId: r.userId.toString(), matches, themesCompared };
   });
 }
 
@@ -254,9 +273,17 @@ async function main(): Promise<void> {
     console.log(`found    ${before.sides} analysed game side(s) without weakness inputs, ${before.members} member(s)`);
     if (cli.flags.has("--verify")) {
       const checks = await verifyStoredInputs(db, 10, scope);
-      for (const c of checks) console.log(`  game ${c.gameId} user ${c.userId}: ${c.matches ? "matches" : "DIFFERS"}`);
+      for (const c of checks) {
+        const what = c.themesCompared ? "stats, error log, themes" : "stats, error log; themes not comparable";
+        console.log(`  game ${c.gameId} user ${c.userId}: ${c.matches ? "matches" : "DIFFERS"} (${what})`);
+      }
+      const notComparable = checks.filter((c) => !c.themesCompared).length;
+      console.log(
+        `checked  ${checks.length} side(s): stats and error log compared on all; themes compared on ${checks.length - notComparable}, ` +
+          `not comparable on ${notComparable} (tagged from engine lines that are not stored: the analysis's own pass-1 lines or a weakness lines refresh)`,
+      );
       const ok = before.sides === 0 && checks.every((c) => c.matches);
-      console.log(ok ? "\nverified: nothing left, the stored inputs match a recomputation." : "\nNOT verified: see above.");
+      console.log(ok ? "\nverified: nothing left, the stored inputs match a recomputation where one is possible." : "\nNOT verified: see above.");
       if (!ok) process.exitCode = 1;
       return;
     }

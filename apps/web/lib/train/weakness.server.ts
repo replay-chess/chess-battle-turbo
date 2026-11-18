@@ -10,6 +10,7 @@
 // kick compare-and-set Q-W12 on a stale QUEUED recompute, run in `after()` by the route (registered `kick_cas`).
 //
 // Every timestamp column is UTC `timestamp(3)`; instants are bound with `at()` from the request clock `now`.
+import { inputsHealableSql } from "@repo/chess-analysis/weakness-inputs";
 import { Prisma } from "@repo/db";
 import { parseWeaknessMetrics } from "@repo/db/json";
 import { weaknessKickCasSql } from "@repo/db/weakness-jobs";
@@ -88,34 +89,45 @@ export function weaknessJobsSql(userId: bigint): Prisma.Sql {
 }
 
 /**
- * Q-W3, game_players part: the window's games per time class (bullet included: the "include bullet" offer reads it),
- * human games only (no BOT / LEGEND_BOT mode, no imported game against a BOT-titled account, §8.2), aborted games
- * left out (`game_players_userId_endedAt_gameId_idx` + `games_pkey`, newest 1,000).
+ * Q-W3, game_players part: the window's human games per time class (no BOT / LEGEND_BOT mode, no imported game against
+ * a BOT-titled account, §8.2; aborted games left out), in two bounded parts of one statement, both on
+ * `game_players_userId_endedAt_gameId_idx` + `games_pkey`:
+ *   - `s`, the scope: exactly the rows the worker's recompute reads (Q-W5, `load.ts`), the scope's time classes
+ *     filtered BEFORE the limit, the newest `maxGames` (300). FIX-3 (review item 3): the plan's single "newest 1,000 of
+ *     every class" read ranked the scope only inside those 1,000, so a member with 1,000 newer bullet games read
+ *     "0 analysed" while the worker counted 30;
+ *   - `o`, the other time classes (bullet, for the "include bullet" offer, D-P6-FIX3-W1): their newest 1,000, counts only.
  *
  * `analysed` (FIX-2, D-P6-FIX2-7) counts exactly the rows the worker's recompute counts, so the page and the snapshot
- * can never disagree about "20 analysed" (a disagreement kept the page "computing" for good): among the scope's time
- * classes, the newest `maxGames` (300, Q-W5's order and filters), analysed (`accuracy`), with usable weakness inputs
- * (`weaknessInputsV` ≥ 1) or inputs the recompute's heal will compute (still 0, the analysis finished). A row whose
- * heal failed (−1) or whose re-analysis is running does not count, as it does not in the snapshot.
+ * can never disagree about "20 analysed" (a disagreement kept the page "computing" for good): analysed (`accuracy`),
+ * with usable weakness inputs (`weaknessInputsV` ≥ 1) or inputs the recompute's heal will compute (still 0, the
+ * analysis finished). A row whose heal failed (−1) or whose re-analysis is running does not count, as it does not in
+ * the snapshot. The progress probe (`progressEmitter.ts`) and J4 (`coverage.ts`) use the same set and predicate.
  */
 export function scopeCountsSql(userId: bigint, since: Date, scopeTimeClasses: readonly string[] = ["RAPID", "BLITZ"], maxGames = 300): Prisma.Sql {
-  return Prisma.sql`SELECT s."timeClass", count(*)::int AS n,
-      count(*) FILTER (WHERE s."inScope" AND s.rn <= ${maxGames} AND s.accuracy IS NOT NULL
-        AND (s.v >= 1 OR (s.v = 0 AND EXISTS (SELECT 1 FROM game_analyses ga WHERE ga."gameId" = s."gameId" AND ga."completedAt" IS NOT NULL))))::int AS analysed
-    FROM (
-      SELECT w.*, row_number() OVER (PARTITION BY w."inScope" ORDER BY w."endedAt" DESC, w."gameId" DESC) AS rn
-        FROM (
-          SELECT gp."gameId", gp."endedAt", gp."timeClass"::text AS "timeClass", gp.accuracy, gp."weaknessInputsV" AS v,
-                 (gp."timeClass"::text = ANY(${[...scopeTimeClasses]}::text[])) AS "inScope"
-            FROM game_players gp JOIN games g ON g.id = gp."gameId"
-           WHERE gp."userId" = ${userId} AND gp."endedAt" >= ${at(since)}
+  const tcs = [...scopeTimeClasses];
+  const human = Prisma.sql`gp."userId" = ${userId} AND gp."endedAt" >= ${at(since)}
              AND gp.mode NOT IN ('BOT', 'LEGEND_BOT') AND gp.result IS DISTINCT FROM 'ABORTED'
-             AND NOT (gp.source <> 'REPLAY' AND COALESCE(CASE gp.color WHEN 'w' THEN g."blackTitle" ELSE g."whiteTitle" END, '') = 'BOT')
-           ORDER BY gp."endedAt" DESC, gp."gameId" DESC
-           LIMIT 1000
-        ) w
-    ) s
-    GROUP BY s."timeClass"`;
+             AND NOT (gp.source <> 'REPLAY' AND COALESCE(CASE gp.color WHEN 'w' THEN g."blackTitle" ELSE g."whiteTitle" END, '') = 'BOT')`;
+  return Prisma.sql`WITH s AS (
+      SELECT gp."gameId", gp."timeClass"::text AS "timeClass", gp.accuracy, gp."weaknessInputsV" AS v
+        FROM game_players gp JOIN games g ON g.id = gp."gameId"
+       WHERE ${human} AND gp."timeClass"::text = ANY(${tcs}::text[])
+       ORDER BY gp."endedAt" DESC, gp."gameId" DESC
+       LIMIT ${maxGames}
+    ), o AS (
+      SELECT gp."timeClass"::text AS "timeClass"
+        FROM game_players gp JOIN games g ON g.id = gp."gameId"
+       WHERE ${human} AND (gp."timeClass"::text = ANY(${tcs}::text[])) IS NOT TRUE
+       ORDER BY gp."endedAt" DESC, gp."gameId" DESC
+       LIMIT 1000
+    )
+    SELECT s."timeClass", count(*)::int AS n,
+        count(*) FILTER (WHERE s.accuracy IS NOT NULL
+          AND (s.v >= 1 OR (${Prisma.raw(inputsHealableSql("s.v"))} AND EXISTS (SELECT 1 FROM game_analyses ga WHERE ga."gameId" = s."gameId" AND ga."completedAt" IS NOT NULL))))::int AS analysed
+      FROM s GROUP BY s."timeClass"
+    UNION ALL
+    SELECT o."timeClass", count(*)::int, 0 FROM o GROUP BY o."timeClass"`;
 }
 
 /** The member's queued or running imports, summed over both providers (`import_runs_userId_createdAt_idx` prefix). */

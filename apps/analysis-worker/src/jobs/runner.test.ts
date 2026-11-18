@@ -80,11 +80,12 @@ describe("runner", () => {
     const s = setup(async () => {
       ran = true;
       return "done";
-    }, { v: 2, gameId: "1" });
-    // The claim never takes v > PAYLOAD_V_MAX; a build that does (here, by claiming with v 2) releases it.
+    }, { v: 3, gameId: "1" });
+    // The claim never takes v > PAYLOAD_V_MAX; a build that does (here, by claiming with v 3) releases it. FIX-3:
+    // ANALYZE_GAME's own max is 2 (the `weakness_lines` refresh), so "newer" is v 3 here.
     const claimed = await (async () => {
       const db = new CountingDb(s.queue);
-      return claimJob(db, ME, ["ANALYZE_GAME"], 2);
+      return claimJob(db, ME, ["ANALYZE_GAME"], 3);
     })();
     assert.ok(claimed);
     const result = await runJob(claimed, {

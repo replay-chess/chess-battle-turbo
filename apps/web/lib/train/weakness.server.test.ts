@@ -96,7 +96,10 @@ describe("recomputeLimitError", () => {
     assert.equal(e.status, 429);
     assert.equal(e.retryAfterSec, 360);
     assert.equal(recomputeLimitError(NOW.getTime() - 599_500, NOW).retryAfterSec, 1);
-    assert.equal(recomputeLimitError(NOW.getTime() + 5_000, NOW).retryAfterSec, 600, "a clock behind the stored request never asks for more than the window");
+    // FIX-3 (D-P6-FIX3-5): a hide stamps the instant of the run it armed, up to one window ahead: the answer is that
+    // instant + the window, never more than two windows (FIX-2 clamped it to one window, an early retry got a 429 again).
+    assert.equal(recomputeLimitError(NOW.getTime() + 5_000, NOW).retryAfterSec, 605, "a run armed 5 s ahead: retry 605 s from now");
+    assert.equal(recomputeLimitError(NOW.getTime() + 3_600_000, NOW).retryAfterSec, 1_200, "never more than two windows");
     assert.equal(recomputeLimitError(null, NOW).retryAfterSec, 600);
   });
 });

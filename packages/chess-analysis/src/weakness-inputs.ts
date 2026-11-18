@@ -48,6 +48,27 @@ import { winPct } from "./winpct";
 /** `game_players."weaknessInputsV"` of rows these functions wrote: STATS_V1 + ERROR_LOG_V1 + ordered errorThemes. */
 export const WEAKNESS_INPUTS_VERSION = 1;
 
+/**
+ * P6 FIX-3 (D-P6-FIX3-8): a row whose stored analysis could not be computed into inputs under version `version` is
+ * marked `−version` (FIX-2 marked −1 whatever the version). It is out of the profile and no heal candidate under that
+ * version (the heal loop FIX-2 closed stays closed); a build with a higher WEAKNESS_INPUTS_VERSION (a fixed tagger)
+ * retries it ONCE, and marks it with its own −version if it fails again.
+ */
+export function inputsFailedMarker(version: number = WEAKNESS_INPUTS_VERSION): number {
+  return -version;
+}
+
+/** A row the heal computes under `version`: inputs missing (0), or failed under an earlier version (−1 … −(version−1)). */
+export function inputsHealable(v: number, version: number = WEAKNESS_INPUTS_VERSION): boolean {
+  return v === 0 || (v < 0 && -v < version);
+}
+
+/** `inputsHealable` in SQL over a `"weaknessInputsV"` column expression (an integer literal only is embedded). */
+export function inputsHealableSql(column: string, version: number = WEAKNESS_INPUTS_VERSION): string {
+  if (!Number.isSafeInteger(version) || version < 1) throw new RangeError("inputsHealableSql: version must be a positive integer");
+  return `(${column} = 0 OR (${column} < 0 AND ${column} > ${-version}))`;
+}
+
 /** The `games` columns the inputs read. */
 export interface SideInputsGame extends ClockGame {
   startingFen: string;

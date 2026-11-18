@@ -84,6 +84,26 @@ FIX-2 (D-P6-FIX2-8):
   refutation and rewrites the inputs as a fresh analysis would. Expect the engine lane to work through them after B-W1
   on dev (hundreds of games) and at P13 on production (every pre-P6 game: ≈ 1–2 s of engine time each on the A1).
 
+FIX-3 (D-P6-FIX3-1 … 10):
+- Failed rows carry the inputs version they failed under (`weaknessInputsV = −version`, −1 today). A build with a
+  higher `WEAKNESS_INPUTS_VERSION` (a fixed tagger) retries them once: the daily heal sweep arms their members; a
+  second failure is marked with the new −version and never retried by that build. Find them:
+  `SELECT "gameId", "weaknessInputsV" FROM game_players WHERE "userId" = $1 AND "weaknessInputsV" < 0`.
+- The lines refresh rows (`weaklines:<gameId>`) are payload `v: 2`: a worker image older than FIX-3 never claims them
+  (they wait, QUEUED). Their failure, release or reap never touches the game (no FAILED, no `analysis:failed`). Only
+  games with at least one entitled member side are armed. With `WEAKNESS_JOBS_ENABLED` off a refresh is not lost: it
+  waits QUEUED a day later (attempts not counted) and runs once the switch is back on.
+- The weakness-only engine searches of one analysis, regrade or refresh stop after `WEAKNESS_LINES_BUDGET_MS`
+  (default 20 s; metric `worker.weakness.lines_cut {why: budget|engine}`); a failed search never fails the analysis or
+  the regrade: its error keeps "no line" and a `weakness_lines` refresh of the game is armed.
+- A recompute whose inputs or example mistakes an IMPORT_PURGE removed after it read them discards its result and runs
+  again at once (`result.discarded = "inputs_changed"`, metric `worker.weakness.discarded`); a purge also re-arms a
+  member whose recompute is QUEUED or RUNNING, so no profile of purged games survives.
+- B-W1 `--verify` compares `stats` and `errorLog` on every sampled row and the themes only where the stored analysis
+  holds every member error's line and refutation (rows tagged from the analysis's own pass-1 lines or a lines refresh
+  cannot be recomputed from stored data). It prints "themes compared on N, not comparable on M"; only a DIFFERS row or
+  a side still at 0 fails it (exit 1).
+
 ### Migrations
 
 Any further schema change for P6 on the dev branch is rehearsed first on a throwaway Neon child branch of `dev` (a

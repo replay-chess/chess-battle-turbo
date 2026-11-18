@@ -20,7 +20,7 @@
 // With WEAKNESS_JOBS_ENABLED off only the prune runs.
 import { ALGO_VERSION, KEEP_WEEKS, PRELIMINARY_FROM, SCOPE_DEFAULT, SCOPE_MONTHS } from "@repo/chess-training/weakness/constants";
 import { JOB_PRIORITY } from "@repo/contracts/internal/jobs";
-import { enqueueWeaknessManySql } from "@repo/db/weakness-jobs";
+import { enqueueWeaknessManySql, WEAKNESS_ENTITLED_SQL } from "@repo/db/weakness-jobs";
 import { fromPrisma, num, stmt, type Statement } from "../../db/client";
 import { NOW } from "../../queue/claim";
 import type { WeaknessSettings } from "../../weakness/settings";
@@ -42,10 +42,8 @@ const int = (n: number) => {
 /** The member's zone as Postgres knows it, else UTC (one hashed scan of pg_timezone_names per statement). */
 const TZ = `(CASE WHEN u."timeZone" IN (SELECT name FROM pg_timezone_names) THEN u."timeZone" ELSE 'UTC' END)`;
 
-/** The web's `isEntitled` + admin (worker import/context.ts isMember with the paywall on), in SQL. */
-const ENTITLED = `(u.role = 'ADMIN' OR u."subscriptionStatus" = 'active'
-          OR (u."subscriptionStatus" = 'cancelled' AND u."cancelAtPeriodEnd" AND u."currentPeriodEnd" > ${NOW})
-          OR (u."subscriptionStatus" IN ('on_hold', 'past_due') AND u."currentPeriodEnd" > ${NOW}))`;
+/** The web's `isEntitled` + admin (worker import/context.ts isMember with the paywall on), in SQL (@repo/db, shared with the `weakness_lines` arm). */
+const ENTITLED = WEAKNESS_ENTITLED_SQL;
 
 /** The scope window start (TRN scopeSince: local midnight of the 1st, `months` back) as a UTC timestamp. */
 const SINCE = `((date_trunc('month', now() AT TIME ZONE ${TZ})
@@ -95,7 +93,10 @@ export function weeklyRollStatement(s: WeaknessSettings, max = WEAKNESS_ROLL_MAX
   );
 }
 
-/** Statement 2: the heal sweep (`heal` without a snapshot, `algo` with an older algorithm's). */
+/**
+ * Statement 2: the heal sweep (`heal` without a snapshot, a paused member, or rows an earlier inputs version could not
+ * compute (FIX-3); `algo` with an older algorithm's snapshot).
+ */
 export function healSweepStatement(s: WeaknessSettings, max = WEAKNESS_HEAL_MAX): Statement {
   return armStatement(
     `cand AS (
@@ -110,7 +111,12 @@ export function healSweepStatement(s: WeaknessSettings, max = WEAKNESS_HEAL_MAX)
           -- FIX-2 (D-P6-FIX2-14): a member the kill switch paused (their last recompute ended DONE skipped "disabled"),
           -- whatever their snapshot: the page shows "Profile updates are paused" until a run succeeds.
           OR EXISTS (SELECT 1 FROM jobs pj WHERE pj."dedupeKey" = 'weakness:' || u.id::text AND pj.status = 'DONE'
-                       AND pj.result->>'skipped' = 'disabled'))
+                       AND pj.result->>'skipped' = 'disabled')
+          -- FIX-3 (D-P6-FIX3-8): rows an earlier inputs version could not compute (−1 … −(version−1)): this build's
+          -- heal retries them once (and marks a second failure with its own −version, so it is never armed again).
+          OR EXISTS (SELECT 1 FROM game_players fp
+                      WHERE fp."userId" = u.id AND fp."endedAt" >= ${SINCE} AND fp.accuracy IS NOT NULL
+                        AND fp."weaknessInputsV" < 0 AND fp."weaknessInputsV" > ${-int(s.inputsVersion)}))
      AND NOT EXISTS (SELECT 1 FROM jobs j WHERE j."dedupeKey" = 'weakness:' || u.id::text AND j.status IN ('QUEUED', 'RUNNING'))
      AND (SELECT count(*) FROM (SELECT 1 FROM game_players gp
                                  WHERE gp."userId" = u.id AND gp."endedAt" >= ${SINCE} AND gp.accuracy IS NOT NULL

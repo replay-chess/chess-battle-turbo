@@ -197,9 +197,13 @@ export function weekAria(days: readonly boolean[]): string {
   return `Played ${on.slice(0, -1).join(", ")} and ${on[on.length - 1]} this week`;
 }
 
-/** The bank card's top-theme line: the READY profile's top weakness (P6), else P5's most common bank theme. */
+/**
+ * The bank card's top-theme line: the READY profile's top weakness (P6) while the bank holds cards of it, else P5's
+ * most common bank theme (which needs bankCount > 0). FIX-3 (review item 11, D-P6-FIX3-W2): the line describes the
+ * bank, so "Time-pressure blunders is your top weakness (0 in bank)." never shows; the profile itself is on the hub.
+ */
 export function homeTopTheme(top: { theme: string; bankCount: number } | undefined, weakness: TopWeakness | null): HomeData["bank"]["topTheme"] {
-  if (weakness) return { label: weakness.label, n: weakness.inBank, source: "weakness" };
+  if (weakness && weakness.inBank > 0) return { label: weakness.label, n: weakness.inBank, source: "weakness" };
   return top && num(top.bankCount) > 0 ? { label: themePluralLabel(top.theme), n: num(top.bankCount) } : null;
 }
 

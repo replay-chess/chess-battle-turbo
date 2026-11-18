@@ -37,7 +37,15 @@ import { analysisDoneDedupeKey } from "@repo/contracts/socket/analysis";
 import { buildReviewContent, LinesV1 } from "@repo/db/json";
 import type { Fault } from "../config/faults";
 import { evalSourceOf, hintedPass1, usableHint } from "../import/eval-hint";
-import { doneStatement, lockGuardStatement, REAP_STALE_SEC } from "../queue/outcome";
+import {
+  doneStatement,
+  inputsGuardStatement,
+  isInputsChanged,
+  lockGuardStatement,
+  REAP_STALE_SEC,
+  rescheduleStatement,
+  rescheduleToken,
+} from "../queue/outcome";
 import { buildEvent } from "../socket/events";
 import { JobAborted, JobError, type JobContext, type JobHandler } from "../jobs/types";
 import type { ProductEvents } from "../obs/posthog";
@@ -60,8 +68,10 @@ import type { WeaknessBatchPlan } from "./final-batch/types";
 import { weaknessBatchPlan, type WeaknessAnalyzeDeps } from "../weakness/analysis";
 import { healReadStatement } from "../weakness/heal";
 import { sideInputsOf, sideInputsUpdateStatement, type SideInputsRow } from "../weakness/inputs";
+import { WEAKNESS_LINES_BUDGET_MS } from "../weakness/settings";
 import { analysisTriggerStatement } from "../weakness/triggers";
-import { stmt, type Statement } from "../db/client";
+import { fromPrisma, stmt, type Row, type Statement } from "../db/client";
+import { weaknessLinesSql } from "@repo/db/weakness-jobs";
 import { openingOf, type OpeningBook, type OpeningIndex } from "./openings";
 import { fromInitialPosition, planPositions, type PositionPlan } from "./positions";
 import { ProgressStream } from "./progress";
@@ -189,6 +199,33 @@ export function previousFailure(lastError: string | null): AnalysisFailureCode |
 /** The member colours of a loaded game (the sides whose errors the weakness lines are searched for). */
 function memberSides(game: Pick<LoadedGame, "members">): ReadonlySet<Color> {
   return new Set(game.members.map((m) => m.color));
+}
+
+/** FIX-3: why a job's weakness searches stopped early (null: every wanted line was searched). */
+export type LinesCut = "budget" | "engine" | null;
+
+/** FIX-3 (D-P6-FIX3-10): a `weakness_lines` refresh the kill switch paused runs again this much later. */
+export const LINES_PAUSED_SEC = 86_400;
+
+/**
+ * FIX-3 (D-P6-FIX3-9): an analysis or regrade whose weakness searches were cut short arms a `weakness_lines` refresh
+ * of the game in its own final batch (the row stays eligible: the refresh searches the lines later, on its own job).
+ */
+export function linesRefreshArm(game: Pick<LoadedGame, "id" | "ref">, cut: LinesCut): Statement[] {
+  return cut ? [fromPrisma(weaknessLinesSql([{ gameId: game.id, gameRef: game.ref }]))] : [];
+}
+
+/**
+ * FIX-3: the `weakness_lines` batch's guard (after the job's lock guard): the game's analysis is still the finished one
+ * this job read (same `completedAt`), held FOR SHARE until the commit, so a regrade or re-analysis that committed in
+ * between is never overwritten with inputs of the older analysis, and one that commits later waits and writes its own.
+ */
+export function linesAnalysisGuardStatement(gameId: string, read: Row): Statement {
+  return inputsGuardStatement(
+    `(SELECT count(*) FROM (SELECT 1 FROM game_analyses WHERE "gameId" = $1::bigint AND "completedAt" IS NOT NULL
+                               AND "completedAt"::text = $2::text FOR SHARE) held) = 1`,
+    [gameId, typeof read.completedAtText === "string" ? read.completedAtText : null],
+  );
 }
 
 /** P6 FIX-2 `weakness_lines`: the game's members (user id, colour, result) with an analysed side. */
@@ -485,7 +522,11 @@ class Run {
       : null;
     // No span of its own: the analysis's span list is P3's (its searches show in the job's engine time and in the
     // `worker.weakness.line_searches` count).
-    if (this.deps.weakness?.settings.enabled) await this.weaknessLines(memberSides(game), replay!, positions, result, arrays.best, pass1Pv, searcher);
+    // FIX-3 (D-P6-FIX3-9): isolated: bounded by the weakness lines budget, a failed search ends them as "no line" and
+    // the final batch arms a `weakness_lines` refresh of this game instead of failing the analysis.
+    const linesCut = this.deps.weakness?.settings.enabled
+      ? (await this.weaknessLines(memberSides(game), replay!, positions, result, arrays.best, pass1Pv, searcher)).cut
+      : null;
     const plan = planExtensions(this.extensions, {
       gameId: game.id,
       gameRef: game.ref,
@@ -534,7 +575,7 @@ class Run {
         comparisons: comparisons.filter((c) => c.ready || !this.inserted(c.userId, facts)),
         chessPositionId: game.legend?.chessPositionId ?? null,
         result: { plies: n, resumedFrom: resume.graded, pass2: searched, regrade: false },
-        extensions: plan.statements,
+        extensions: [...plan.statements, ...linesRefreshArm(game, linesCut)],
       }),
     );
     reportCommitted(plan, extensionRows, { metrics: ctx.metrics, telemetry: ctx.telemetry, events: this.deps.events, batchMs: ctx.clock.now() - batchMs0 });
@@ -840,10 +881,13 @@ class Run {
     // FIX-2 (D-P6-FIX2-8): with an engine at hand (the engine lane always has one), a regrade gives every member error
     // its full pass-1 line and refutation, as a fresh analysis does, so a regrade (P3's sweep, or the one P6 arms for a
     // row healed or backfilled from stored data alone) tags like the J5 band. Without one it tags from stored data.
+    // FIX-3 (D-P6-FIX3-9): isolated as in a fresh analysis (budget, a failed search = no line + a lines refresh armed):
+    // a weakness search never fails or slows a regrade past the budget.
     const regradePv: Array<readonly string[] | undefined> = [];
+    let linesCut: LinesCut = null;
     if (this.deps.weakness?.settings.enabled && ctx.engine) {
       const searcher = new Searcher({ engine: ctx.engine, cache: ctx.evalCache, lag: ctx.lag, signal: ctx.signal, fromInitial: fromInitialPosition(replay) });
-      await this.weaknessLines(memberSides(game), replay, planPositions(replay), result, stored.best, regradePv, searcher);
+      linesCut = (await this.weaknessLines(memberSides(game), replay, planPositions(replay), result, stored.best, regradePv, searcher)).cut;
     }
     const plan = planExtensions(this.extensions, {
       gameId: game.id,
@@ -902,7 +946,7 @@ class Run {
           changedPlies: result.changedPlies.length,
           fromVersion: stored.version,
         },
-        extensions: plan.statements,
+        extensions: [...plan.statements, ...linesRefreshArm(game, linesCut)],
       }),
     );
     reportCommitted(plan, extensionRows, { metrics: ctx.metrics, telemetry: ctx.telemetry, events: this.deps.events, batchMs: ctx.clock.now() - batchMs0 });
@@ -978,7 +1022,19 @@ class Run {
       ctx.heartbeat.noteWrite();
       return "done" as const;
     };
-    if (!settings?.enabled || !ctx.engine) return finish([], { skipped: settings?.enabled ? "no_engine" : "disabled" });
+    if (!settings?.enabled) {
+      // FIX-3 (D-P6-FIX3-10): the kill switch pauses the refresh instead of ending it: the row waits (QUEUED, a day
+      // later, the attempt not counted) and runs once the switch is back on; a DONE "disabled" row was lost for good.
+      const token = rescheduleToken(ctx.me, ctx.job.id, ctx.job.attempts);
+      await ctx.db.batch([
+        lockGuardStatement(ctx.job.id, ctx.me),
+        rescheduleStatement({ jobId: ctx.job.id, me: ctx.me, runAt: new Date(ctx.clock.now() + LINES_PAUSED_SEC * 1000), priority: ctx.job.priority, payload: ctx.payload, token }),
+      ]);
+      ctx.heartbeat.noteWrite();
+      ctx.log.info("weakness lines refresh paused: the weakness jobs are off", { gameRef: this.gameRef });
+      return "done";
+    }
+    if (!ctx.engine) return finish([], { skipped: "no_engine" });
     const [row] = await ctx.db.query(healReadStatement([ctx.payload.gameId], 1));
     const members = await ctx.db.query(linesMembersStatement(ctx.payload.gameId));
     if (!row || members.length === 0) return finish([], { skipped: "not_analysed" });
@@ -1002,7 +1058,10 @@ class Run {
     const searcher = new Searcher({ engine: ctx.engine, cache: ctx.evalCache, lag: ctx.lag, signal: ctx.signal, fromInitial: fromInitialPosition(replay) });
     const pv: Array<readonly string[] | undefined> = [];
     const lines = (analysis.lines ?? {}) as unknown as AnalysisResult["lines"];
-    const searched = await this.weaknessLines(sides, replay, planPositions(replay), { judgements: analysis.judgements, lines }, analysis.best, pv, searcher);
+    const { searched, cut } = await this.weaknessLines(sides, replay, planPositions(replay), { judgements: analysis.judgements, lines }, analysis.best, pv, searcher);
+    // FIX-3: a failed search fails this refresh (retried with back-off; never the game's analysis: queue/outcome.ts
+    // NOT_LINES_REFRESH); a budget cut writes what was searched (the rest tagged from stored data) and ends.
+    if (cut === "engine") throw new JobError("engine_failed", "a weakness lines search failed");
     const rows: SideInputsRow[] = [];
     for (const m of members) {
       const out = sideInputsOf(
@@ -1026,7 +1085,14 @@ class Run {
       settings,
     );
     ctx.telemetry.metric("count", "worker.weakness.lines_refreshed", rows.length);
-    return finish([...(rows.length ? [sideInputsUpdateStatement(rows)] : []), ...(trigger ? [trigger] : [])], { linesRefreshed: rows.length, searched });
+    return finish(
+      [linesAnalysisGuardStatement(ctx.payload.gameId, row), ...(rows.length ? [sideInputsUpdateStatement(rows)] : []), ...(trigger ? [trigger] : [])],
+      { linesRefreshed: rows.length, searched, ...(cut ? { cut } : {}) },
+    ).catch(async (error: unknown) => {
+      // The game's analysis was redone or regraded after this job read it: its own write holds the current inputs.
+      if (!isInputsChanged(error)) throw error;
+      return finish([], { skipped: "analysis_changed" });
+    });
   }
 
   /** The weakness input columns and the in-scope members of this game (weakness/analysis.ts), or null when off. */
@@ -1057,6 +1123,13 @@ class Run {
    * theme tagger, as the J5 baseline has for every error. Pass 2 stores lines for the review's moments only, and pass
    * 1 kept its PVs in `pass1Pv`; the plies with neither (a resumed run's earlier plies, an eval-hinted import that
    * skipped pass 1) get one pass-1 search here (cached positions cost nothing). Mutates `pass1Pv`.
+   *
+   * FIX-3 (D-P6-FIX3-9): these searches serve the weakness inputs only, so they are isolated from the job they run in:
+   * no new search starts once WEAKNESS_LINES_BUDGET_MS of this machine's time is spent (`cut: "budget"`; at most the
+   * one search in flight, itself bounded by the engine pool's timeout and single retry, runs past it), and a failed
+   * search ends them (`cut: "engine"`) instead of failing the analysis or regrade: its error ply keeps "no line" (tagged
+   * from stored data, as a heal does) and the caller arms a `weakness_lines` refresh of the game. Only a stop or a lost
+   * job (the job's own signal) still propagates.
    */
   private async weaknessLines(
     sides: ReadonlySet<Color>,
@@ -1066,15 +1139,30 @@ class Run {
     best: readonly number[],
     pass1Pv: Array<readonly string[] | undefined>,
     searcher: Searcher,
-  ): Promise<number> {
+  ): Promise<{ searched: number; cut: LinesCut }> {
     const lines = result.lines as Record<string, { pv?: string } | undefined>;
+    const budgetMs = this.deps.weakness?.settings.linesBudgetMs ?? WEAKNESS_LINES_BUDGET_MS;
+    // The machine's own elapsed time (never the job clock: a FakeClock in tests does not move while the engine runs).
+    const t0 = performance.now();
     let searched = 0;
+    let cut: LinesCut = null;
     const search = async (ply: number): Promise<void> => {
+      if (cut) return;
       const pos = positions[ply] as PositionPlan | undefined;
       if (!pos || pos.terminal !== null) return;
-      const e = await searcher.evaluate(pos, ENGINE_PROFILE.pass1, { pass1: false });
-      pass1Pv[ply] = e.lines[0]?.pv;
-      searched += 1;
+      if (performance.now() - t0 >= budgetMs) {
+        cut = "budget";
+        return;
+      }
+      try {
+        const e = await searcher.evaluate(pos, ENGINE_PROFILE.pass1, { pass1: false });
+        pass1Pv[ply] = e.lines[0]?.pv;
+        searched += 1;
+      } catch (error) {
+        if (this.ctx.signal.aborted) throw error;
+        cut = "engine";
+        this.ctx.log.warn("weakness lines: a search failed (no line; a weakness_lines refresh is armed)", { gameRef: this.gameRef, error });
+      }
     };
     for (let i = 0; i < replay.uci.length; i++) {
       if (!sides.has(moverAt(i, replay.startMover))) continue;
@@ -1087,7 +1175,8 @@ class Run {
       if (!lines[String(next)]?.pv && decodeMove(best[next] ?? 0) === null && pass1Pv[next] === undefined) await search(next);
     }
     if (searched > 0) this.ctx.telemetry.metric("count", "worker.weakness.line_searches", searched);
-    return searched;
+    if (cut) this.ctx.telemetry.metric("count", "worker.weakness.lines_cut", 1, { why: cut });
+    return { searched, cut };
   }
 
   /**

@@ -6,6 +6,9 @@
 import { DEFAULT_BASELINE_ID, loadBaseline } from "@repo/chess-training/baselines/load";
 import {
   BAND_HALF_WIDTH,
+  CLOCK_EDGES_MS,
+  CLOCK_MIN_MOVES_BUCKET,
+  CLOCK_SENTENCE_RISE_RATIO,
   DEBOUNCE_SEC,
   DRILL_OWN_SHARE,
   DRILL_SIZES,
@@ -26,6 +29,7 @@ import {
   TOP_N,
   TREND_ALPHA,
   TREND_MIN_MOVES,
+  TREND_MIN_MOVES_TP,
   TREND_PRIOR_DAYS,
   TREND_RATIO,
   TREND_RECENT_DAYS,
@@ -38,6 +42,7 @@ export const WEAKNESS_ANCHOR = "weakness";
 const num = (n: number) => n.toLocaleString("en-US");
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 const minutes = (sec: number) => `${Math.round(sec / 60)} minutes`;
+const clockMinutes = (ms: number) => ms / 60_000;
 const words = (keys: readonly string[]) => {
   const lower = keys.map((k) => k.toLowerCase());
   return lower.length <= 1 ? (lower[0] ?? "") : `${lower.slice(0, -1).join(", ")} and ${lower[lower.length - 1]}`;
@@ -64,6 +69,8 @@ export type WeaknessSection = { id: string; title: string; paragraphs: string[] 
 /** The section's text, in reading order (exported for the test that pins it to the constants). */
 export function weaknessSections(): WeaknessSection[] {
   const tpSeconds = TIME_PRESSURE_MS / 1000;
+  // The Clock tab's buckets (< 1, 1–2, 2–5, > 5 minutes): the rising-rate rule reads them (breakdown.ts clockRises).
+  const [lt1Min, lt2Min, gt5Min] = CLOCK_EDGES_MS.map(clockMinutes) as [number, number, number];
   const own = Math.round(DRILL_SIZES[0] * DRILL_OWN_SHARE);
   return [
     {
@@ -87,16 +94,16 @@ export function weaknessSections(): WeaknessSection[] {
       id: "weakness-list",
       title: "What makes the list",
       paragraphs: [
-        `A pattern is a weakness when it happened at least ${MIN_EVENTS} times in at least ${MIN_GAMES_WITH} different games, over at least ${num(MIN_MOVES)} of your moves, at least ${RATIO_MIN} times as often as in your rating band, and by a margin that is not chance. We test about ${ELIGIBILITY_TESTS} patterns for every player, so the margin must hold for all of them together: a player exactly at their band's level sees a weakness list no more than ${pct(FAMILY_ALPHA)} of the time. A pattern counts at most ${EVENTS_PER_GAME_CAP} times per game in this test, for you and for your band alike (one long rook endgame can carry many errors).`,
+        `A pattern is a weakness when it happened at least ${MIN_EVENTS} times in at least ${MIN_GAMES_WITH} different games, over at least ${num(MIN_MOVES)} of your moves, at least ${RATIO_MIN} times as often as in your rating band, and by a margin that is not chance. We test about ${ELIGIBILITY_TESTS} patterns for every player, so the margin must hold for all of them together: a player exactly at their band's level sees a weakness list no more than ${pct(FAMILY_ALPHA)} of the time. A pattern counts at most ${EVENTS_PER_GAME_CAP} times per game in this test, for you and for your band alike (one long rook endgame can carry many errors). Time pressure is the one exception: it is counted in full, for you and for your band.`,
         `Patterns rank by the win% they cost you per 100 moves beyond what players at your rating lose to them: the top ${TOP_N}, and up to ${TOP_N + MORE_N} with See all. When nothing stands out against your band, we list the patterns you meet most often instead and say so. "Where" counts how many of your last ${WHERE_LAST_N} games it happened in.`,
-        `Time-pressure blunders are blunders made with under ${tpSeconds} seconds on your clock, counted per 100 of your moves with that little time. They need at least ${num(MIN_MOVES_TP)} such moves.`,
+        `Time-pressure blunders are blunders made with under ${tpSeconds} seconds on your clock, counted per 100 of your moves with that little time. They need at least ${num(MIN_MOVES_TP)} such moves, and your own blunder rate must rise as your clock runs down, as the Clock tab shows it: under ${lt2Min} minutes, and under ${lt1Min} minute alone, it must be at least ${CLOCK_SENTENCE_RISE_RATIO} times your rate with more than ${gt5Min} minutes left (or ${lt2Min}–${gt5Min} minutes when you rarely have ${gt5Min}), each rate over at least ${num(CLOCK_MIN_MOVES_BUCKET)} moves. If you blunder no more often short of time than with time to spare, time pressure is not your weakness, however often you blunder. The per-game limit above does not apply to it: its moves with under ${tpSeconds} seconds left come in the same scrambles as its blunders.`,
       ],
     },
     {
       id: "weakness-trend",
       title: "Trend and updates",
       paragraphs: [
-        `The trend compares your last ${TREND_RECENT_DAYS} days with the ${TREND_PRIOR_DAYS} days before them, once each period holds at least ${num(TREND_MIN_MOVES)} of your moves. It reads as getting worse or improving only when the rate changed by at least ${TREND_RATIO} times (either way) and the change is clear at the ${pct(TREND_ALPHA)} level; otherwise it is about the same.`,
+        `The trend compares your last ${TREND_RECENT_DAYS} days with the ${TREND_PRIOR_DAYS} days before them, once each period holds at least ${num(TREND_MIN_MOVES)} of your moves (for time pressure, at least ${num(TREND_MIN_MOVES_TP)} moves with under ${tpSeconds} seconds left). It reads as getting worse or improving only when the rate changed by at least ${TREND_RATIO} times (either way) and the change is clear at the ${pct(TREND_ALPHA)} level; otherwise it is about the same.`,
         `The profile is rebuilt a few minutes after new games are analysed (within about ${minutes(DEBOUNCE_SEC)}). You can ask for a rebuild yourself once every ${minutes(RECOMPUTE_LIMIT_SEC)}.`,
       ],
     },

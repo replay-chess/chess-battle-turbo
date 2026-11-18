@@ -67,13 +67,14 @@ export function importTriggerStatement(userId: string, nowMs: number, s: Weaknes
 }
 
 /**
- * `removed` (FIX-1): a purge deleted games of a member who has a snapshot. Without it a READY profile kept counting
+ * `removed` (FIX-1; FIX-3: also when a recompute is QUEUED or RUNNING, D-P6-FIX3-1): a purge deleted games of a member
+ * who has a snapshot. Without it a READY profile kept counting
  * the purged games and pointing at their deleted mistakes until the weekly roll, which a member with no games left
  * never gets. A statement of the purge's final batch (only when it removed rows).
  */
 export function removedTriggerStatement(userId: string, s: WeaknessSettings): Statement | null {
   if (!s.enabled) return null;
-  return fromPrisma(weaknessRemovedSql(userId, { readyOnly: false, freezeSeeded: s.seedFreeze }));
+  return fromPrisma(weaknessRemovedSql(userId, { freezeSeeded: s.seedFreeze }));
 }
 
 /**

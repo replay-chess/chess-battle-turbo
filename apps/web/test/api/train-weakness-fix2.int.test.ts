@@ -91,15 +91,20 @@ describe("P6 FIX-2 weakness reads and arms (Postgres, real games)", { skip: url 
   it("the analysed count stops at the scope's newest maxGames, as Q-W5's LIMIT 300 does (Q-W3's own parameter)", async () => {
     const scope = resolveScope(null);
     const since = scopeSince(WORLD_NOW, "Asia/Kolkata", scope.months);
-    const all = await w.db.$queryRaw<{ n: number; analysed: number }[]>(scopeCountsSql(H.id, since, scope.timeClasses, 300));
-    const ten = await w.db.$queryRaw<{ n: number; analysed: number }[]>(scopeCountsSql(H.id, since, scope.timeClasses, 10));
+    const all = await w.db.$queryRaw<{ timeClass: string | null; n: number; analysed: number }[]>(scopeCountsSql(H.id, since, scope.timeClasses, 300));
+    const ten = await w.db.$queryRaw<{ timeClass: string | null; n: number; analysed: number }[]>(scopeCountsSql(H.id, since, scope.timeClasses, 10));
     const sum = (rows: { n: number; analysed: number }[], k: "n" | "analysed") => rows.reduce((s, r) => s + Number(r[k]), 0);
     const [truth] = await w.db.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT count(*)::int AS n FROM game_players
       WHERE "userId" = ${H.id} AND accuracy IS NOT NULL AND "timeClass" IN ('RAPID', 'BLITZ') AND "endedAt" >= ${since}`);
     assert.ok(truth!.n > 10);
     assert.equal(sum(all, "analysed"), truth!.n);
     assert.equal(sum(ten, "analysed"), 10, "only the newest 10 in scope count");
-    assert.equal(sum(ten, "n"), sum(all, "n"), "games in scope are all counted");
+    // FIX-3 (review item 3): the scope part is Q-W5's own set (the newest maxGames in scope), so "in scope" stops there
+    // too, as the worker's progress probe and J4 count it (it was "every in-scope game among the newest 1,000").
+    const inScope = (rows: { timeClass: string | null; n: number }[]) =>
+      rows.filter((r) => r.timeClass !== null && (scope.timeClasses as string[]).includes(r.timeClass)).reduce((s, r) => s + Number(r.n), 0);
+    assert.equal(inScope(ten), 10, "games in scope: the newest maxGames, as the worker counts them");
+    assert.ok(inScope(all) > 10);
   });
 
   it("regression: weakness-hide-rearm-limit — repeated hides arm one recompute, never before TR-12's 600 s after the last run", async () => {
@@ -113,18 +118,18 @@ describe("P6 FIX-2 weakness reads and arms (Postgres, real games)", { skip: url 
        WHERE m."userId" = ${H.id} AND m."hiddenAt" IS NULL ORDER BY m.id LIMIT 3`);
     assert.equal(mistakes.length, 3);
     // The first real hide arms once, at the earliest finishedAt + 600 s.
-    assert.ok(await removeBankCard(w.db, H.id, { mistakeId: mistakes[0]!.id }, WORLD_NOW));
+    assert.ok(await removeBankCard(w.db, H.id, { mistakeId: mistakes[0]!.id }, WORLD_NOW, { weakness: true }));
     const armed = (await job(H))!;
     assert.equal(armed.status, "QUEUED");
     assert.equal(armed.payload.trigger, "removed");
     assert.ok(armed.runAt.getTime() >= finished.getTime() + 600 * SEC - SEC, `runAt ${armed.runAt.toISOString()}`);
     // More hides (other mistakes), the A6 path on an already hidden mistake (no card left), and un-hide / re-hide
     // toggles: the pending row is left exactly as it is.
-    await removeBankCard(w.db, H.id, { mistakeId: mistakes[1]!.id }, WORLD_NOW);
+    await removeBankCard(w.db, H.id, { mistakeId: mistakes[1]!.id }, WORLD_NOW, { weakness: true });
     for (let i = 0; i < 5; i++) {
-      await removeBankCard(w.db, H.id, { mistakeId: mistakes[0]!.id }, WORLD_NOW);
+      await removeBankCard(w.db, H.id, { mistakeId: mistakes[0]!.id }, WORLD_NOW, { weakness: true });
       await w.db.$executeRaw(Prisma.sql`UPDATE mistakes SET "hiddenAt" = NULL WHERE id = ${mistakes[2]!.id}`);
-      await removeBankCard(w.db, H.id, { mistakeId: mistakes[2]!.id }, WORLD_NOW);
+      await removeBankCard(w.db, H.id, { mistakeId: mistakes[2]!.id }, WORLD_NOW, { weakness: true });
     }
     const after = (await job(H))!;
     assert.deepEqual([after.status, after.runAt.getTime()], ["QUEUED", armed.runAt.getTime()], "never pulled forward");
@@ -132,7 +137,7 @@ describe("P6 FIX-2 weakness reads and arms (Postgres, real games)", { skip: url 
     assert.equal(rows[0]!.n, 1);
     // A finished row: an already hidden mistake arms nothing.
     await w.db.$executeRaw(Prisma.sql`UPDATE jobs SET status = 'DONE', "finishedAt" = ${finished} WHERE "dedupeKey" = ${`weakness:${H.id}`}`);
-    await removeBankCard(w.db, H.id, { mistakeId: mistakes[0]!.id }, WORLD_NOW);
+    await removeBankCard(w.db, H.id, { mistakeId: mistakes[0]!.id }, WORLD_NOW, { weakness: true });
     assert.equal((await job(H))!.status, "DONE", "no visible → hidden change, no arm");
   });
 

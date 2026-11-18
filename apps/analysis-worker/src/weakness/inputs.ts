@@ -11,6 +11,7 @@ import type { Color } from "@repo/chess-analysis/codec";
 import type { Replay } from "@repo/chess-analysis/replay";
 import {
   computeSideInputs,
+  inputsHealableSql,
   WEAKNESS_INPUTS_VERSION,
   type SideInputs,
   type SideInputsAnalysis,
@@ -58,15 +59,17 @@ export function sideInputsOf(
 
 /**
  * The batch update of the five columns. `onlyMissing` (the heal): rows that already have inputs are left alone, so a
- * heal racing an analysis never overwrites the analysis's own values. RETURNING the updated count.
+ * heal racing an analysis never overwrites the analysis's own values (FIX-3: rows failed under an earlier inputs
+ * version count as missing, CA inputsHealable). RETURNING the updated count.
  */
-export function sideInputsUpdateStatement(rows: readonly SideInputsRow[], opts: { onlyMissing?: boolean } = {}): Statement {
+export function sideInputsUpdateStatement(rows: readonly SideInputsRow[], opts: { onlyMissing?: boolean; version?: number } = {}): Statement {
+  const version = opts.version ?? WEAKNESS_INPUTS_VERSION;
   return stmt(
     `WITH u AS (
   UPDATE game_players gp
      SET stats = v.st, "errorThemes" = v.et, "errorLog" = v.el, "errorThemeN" = v.etn, "weaknessInputsV" = $2::smallint
     FROM jsonb_to_recordset($1::jsonb) AS v("gameId" bigint, color text, st smallint[], et text[], el smallint[], etn smallint[])
-   WHERE gp."gameId" = v."gameId" AND gp.color = v.color${opts.onlyMissing ? ` AND gp."weaknessInputsV" = 0` : ""}
+   WHERE gp."gameId" = v."gameId" AND gp.color = v.color${opts.onlyMissing ? ` AND ${inputsHealableSql(`gp."weaknessInputsV"`, version)}` : ""}
   RETURNING 1
 )
 SELECT count(*)::int AS updated FROM u`,
@@ -74,7 +77,7 @@ SELECT count(*)::int AS updated FROM u`,
       JSON.stringify(
         rows.map((r) => ({ gameId: r.gameId, color: r.color, st: r.stats, et: r.errorThemes, el: r.errorLog, etn: r.errorThemeN })),
       ),
-      WEAKNESS_INPUTS_VERSION,
+      version,
     ],
   );
 }

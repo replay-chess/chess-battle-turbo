@@ -48,6 +48,15 @@ describe("topWeaknessOf (Q-W1 ‖ Q-W2 → the lit slots)", () => {
     assert.deepEqual(focusTheme([], "fork", true), { key: "fork", source: "weakness" });
     const mostFrequent = { status: "READY", metrics: { ...golden.metrics, listMode: "most_frequent" } };
     assert.equal(topWeaknessOf(mostFrequent, BANK)!.focusIsTop, false, "a most-frequent list has no weakness to call the top one");
+    // FIX-3 (review item 7, D-P6-FIX2-10): "Your top weakness" only in a band comparison. An own-only list (no band)
+    // ranks the member's own losses, so its top row's match is a "From your Weakness Profile" focus.
+    assert.equal(golden.metrics.listMode, "vs_band", "the golden member is compared with a band");
+    const ownOnly = { status: "READY", metrics: { ...golden.metrics, listMode: "own_only" } };
+    const own = topWeaknessOf(ownOnly, BANK)!;
+    assert.equal(own.pattern, "fork");
+    assert.equal(own.focusTheme, "fork", "the top row is matchable");
+    assert.equal(own.focusIsTop, false, "an own-only list has no band to call the top row a weakness against");
+    assert.deepEqual(focusTheme([], own.focusTheme, own.focusIsTop), { key: "fork", source: "weaknessRow" });
     const noMatch = { status: "READY", metrics: { ...golden.metrics, rows: [rows[2]!, rows[3]!] } };
     assert.equal(topWeaknessOf(noMatch, BANK)!.focusTheme, null);
     assert.equal(focusTheme([], null).source, "default", "no matchable row: P5's focus rules");
@@ -74,6 +83,11 @@ describe("the lit copy", () => {
     assert.deepEqual(homeTopTheme({ theme: "hangingPiece", bankCount: 7 }, top), { label: "Missed forks", n: 12, source: "weakness" });
     assert.deepEqual(homeTopTheme({ theme: "hangingPiece", bankCount: 7 }, null), { label: "Loose pieces", n: 7 });
     assert.equal(homeTopTheme(undefined, null), null);
+    // FIX-3 (review item 11): no card of the top weakness in the bank → P5's most common bank theme, or nothing.
+    const empty = topWeaknessOf(READY, BANK.filter((b) => b.theme !== "fork"))!;
+    assert.equal(empty.inBank, 0);
+    assert.deepEqual(homeTopTheme({ theme: "hangingPiece", bankCount: 7 }, empty), { label: "Loose pieces", n: 7 });
+    assert.equal(homeTopTheme(undefined, empty), null);
     const bank = { due: 4, total: 23, estMin: 3, thumbs: [], nextBatch: null };
     assert.equal(bankLine({ ...bank, topTheme: homeTopTheme(undefined, top) }, false), "Missed forks is your top weakness (12 in bank).");
     assert.equal(bankLine({ ...bank, topTheme: homeTopTheme({ theme: "hangingPiece", bankCount: 7 }, null) }, false), "Loose pieces is your most common theme (7 in bank).");

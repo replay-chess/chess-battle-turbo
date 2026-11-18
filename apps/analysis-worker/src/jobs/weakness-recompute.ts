@@ -38,6 +38,8 @@ import type { Clock } from "../scheduler/clock";
 import type { EmitSink } from "../socket/emit";
 import type { ProductEvents } from "../obs/posthog";
 import {
+  inputsGuardStatement,
+  isInputsChanged,
   isLockLost,
   lockGuardStatement,
   outcomeByMeStatement,
@@ -176,6 +178,42 @@ async function continueHeal(ctx: Ctx, deps: WeaknessJobDeps, healed: number, rem
   return "done";
 }
 
+/**
+ * FIX-3 (D-P6-FIX3-1): the final batch's guard, right after the job row's lock. Every game side this run read (Q-W5) is
+ * still the member's, and every bank mistake an example points at still exists; both sets are held FOR KEY SHARE until
+ * the commit. An IMPORT_PURGE batch deletes game_players rows (then the mistakes seen only in them, in that order:
+ * migration m5c), so a purge that removed any of them after this run read its inputs makes the batch roll back
+ * (INPUTS_CHANGED_SQLSTATE) and the run start over at once (`inputsChanged`); one that reaches them later waits for this
+ * commit, and its final batch then re-arms the member (`removed`) and deletes the snapshot. Updates of non-key columns
+ * (an analysis writing inputs, a heal, a card hidden) never wait on these locks.
+ */
+export function inputsIntactStatement(userId: string, inputs: readonly LoadedInput[], metrics: { rows: readonly { example?: { mistakeRef: string } | null }[] }): Statement {
+  const gameIds = inputs.map((g) => g.gameId);
+  const refs = [...new Set(metrics.rows.flatMap((r) => (r.example ? [r.example.mistakeRef] : [])))];
+  return inputsGuardStatement(
+    `(SELECT count(*) FROM (SELECT 1 FROM game_players WHERE "userId" = $1::bigint AND "gameId" = ANY($2::bigint[]) FOR KEY SHARE) s) = $3::int
+     AND (SELECT count(*) FROM (SELECT 1 FROM mistakes WHERE "userId" = $1::bigint AND "referenceId" = ANY($4::text[]) FOR KEY SHARE) m) = $5::int`,
+    [userId, [...new Set(gameIds)], inputs.length, refs, refs.length],
+  );
+}
+
+/**
+ * FIX-3: the final batch found rows it read purged meanwhile. Nothing of this run is kept (no snapshot, no version bump,
+ * no event); the row is QUEUED again at once (a fresh job), so the next run reads what is left.
+ */
+async function inputsChanged(ctx: Ctx, healed: number): Promise<JobOutcome> {
+  const token = runToken(ctx);
+  await finalWeaknessBatch(ctx, token, [
+    lockGuardStatement(ctx.job.id, ctx.me),
+    rerunIfFlaggedStatement({ jobId: ctx.job.id, me: ctx.me, rerunDelaySec: 0, token, forceRerun: true, result: { discarded: "inputs_changed", healed } }),
+  ]);
+  ctx.heartbeat.noteWrite();
+  ctx.telemetry.metric("count", "worker.weakness.discarded", 1, { why: "inputs_changed" });
+  ctx.wakeIo?.(ctx.clock.now());
+  ctx.log.info("weakness recompute discarded: rows it read were purged meanwhile; it runs again");
+  return "done";
+}
+
 /** Ends the job without a snapshot (disabled, lapsed, no user). */
 async function skip(ctx: Ctx, deps: WeaknessJobDeps, reason: string): Promise<JobOutcome> {
   const token = runToken(ctx);
@@ -225,15 +263,17 @@ async function run(ctx: Ctx, deps: WeaknessJobDeps, span: SpanHandle): Promise<J
     inputs,
     (error) => ctx.log.warn("weakness heal: a row could not be computed", { error }),
     deps.settings.healMaxRows,
+    undefined,
+    deps.settings.inputsVersion,
   );
   if (heal.failed > 0) {
     ctx.telemetry.metric("count", "worker.weakness.heal_failed", heal.failed);
     // FIX-2: marked −1 on their own (like the heal's update, never under the job row's lock), so no later run picks them.
-    await ctx.db.query(healFailedStatement(heal.failedSides));
+    await ctx.db.query(healFailedStatement(heal.failedSides, deps.settings.inputsVersion));
   }
   if (heal.rows.length > 0) {
     throwIfAborted(ctx.signal);
-    await ctx.db.query(sideInputsUpdateStatement(heal.rows, { onlyMissing: true }));
+    await ctx.db.query(sideInputsUpdateStatement(heal.rows, { onlyMissing: true, version: deps.settings.inputsVersion }));
     ctx.heartbeat.noteWrite();
     ctx.telemetry.metric("count", "worker.weakness.healed_rows", heal.rows.length);
   }
@@ -244,7 +284,7 @@ async function run(ctx: Ctx, deps: WeaknessJobDeps, span: SpanHandle): Promise<J
     ctx.telemetry.metric("count", "worker.weakness.lines_regrades", heal.partialGames.length);
     ctx.wakeEngine?.();
   }
-  applyHeal(inputs, heal.rows);
+  applyHeal(inputs, heal.rows, deps.settings.inputsVersion);
   throwIfAborted(ctx.signal);
   if (heal.remaining > 0) {
     span.setAttributes({ healed: heal.rows.length, status: "healing" });
@@ -276,6 +316,8 @@ async function run(ctx: Ctx, deps: WeaknessJobDeps, span: SpanHandle): Promise<J
   const write = writeOf(userId, weekStart, { ...draft, metrics });
   const statements: Statement[] = [
     lockGuardStatement(ctx.job.id, ctx.me),
+    // FIX-3 (D-P6-FIX3-1): nothing this run read was purged since (else the batch rolls back and the run starts over).
+    inputsIntactStatement(userId, inputs, metrics),
     snapshotUpsertStatement(write),
     ...(bumped ? [bumpVersionStatement(userId)] : []),
     rerunIfFlaggedStatement({
@@ -287,14 +329,20 @@ async function run(ctx: Ctx, deps: WeaknessJobDeps, span: SpanHandle): Promise<J
     }),
   ];
   throwIfAborted(ctx.signal);
-  const out = await ctx.telemetry.span("db.weakness.write", { kind: "RECOMPUTE_WEAKNESS" }, () => finalWeaknessBatch(ctx, token, statements));
+  let out: Awaited<ReturnType<typeof finalWeaknessBatch>>;
+  try {
+    out = await ctx.telemetry.span("db.weakness.write", { kind: "RECOMPUTE_WEAKNESS" }, () => finalWeaknessBatch(ctx, token, statements));
+  } catch (error) {
+    if (!isInputsChanged(error)) throw error;
+    return inputsChanged(ctx, heal.rows.length);
+  }
   ctx.heartbeat.noteWrite();
 
   // 10. after the commit
   let written: WrittenSnapshot | null;
   let version: number;
   if (out) {
-    const at = 1;
+    const at = 2; // after the lock guard and the inputs guard (FIX-3)
     written = toWrittenSnapshot(out[at]?.[0]);
     version = bumped ? (versionOf(out[at + 1]?.[0]) ?? c.weaknessVersion + 1) : c.weaknessVersion;
   } else {

@@ -199,8 +199,26 @@ export function housekeepingDedupeKey(day: string): string {
 }
 
 // ── Payloads (`jobs.payload`, versioned: an older worker releases a job whose `v` it cannot read) ──────────────
-/** The highest payload version this build reads. */
-export const PAYLOAD_V_MAX = 1;
+/**
+ * The highest payload version this build reads, per kind. P6 FIX-3 (docs/decisions.md D-P6-FIX3-2): ANALYZE_GAME's
+ * `weakness_lines` refresh is written as `v: 2` (AnalyzeGamePayloadV2), so a worker built before it (whose claim takes
+ * `v` ≤ 1 only, queue/claim.ts) never claims one and a build that does claim one releases it untouched ("newer")
+ * instead of failing it for good as an unknown reason. Every other kind reads `v: 1` only.
+ */
+export const PAYLOAD_V_MAX_OF = {
+  ANALYZE_GAME: 2,
+  LEGEND_COMPARE: 1,
+  HOUSEKEEPING: 1,
+  IMPORT_SYNC: 1,
+  IMPORT_PURGE: 1,
+  EXTRACT_MISTAKES: 1,
+  RECOMPUTE_WEAKNESS: 1,
+} as const satisfies Record<RunJobKind, number>;
+/**
+ * The highest payload version this build reads of any kind (the claim's filter). A claimed row whose `v` is above its
+ * own kind's PAYLOAD_V_MAX_OF is released untouched by the runner (readJobPayload → `newer`).
+ */
+export const PAYLOAD_V_MAX = 2;
 
 /** P4 appends `import` (imported games: the batch writer's eager ranks and the backlog slices, phase-04 §8.8–8.9). */
 /**
@@ -240,6 +258,23 @@ export const AnalyzeGamePayloadV1 = z.object({
   evalHint: EvalHint.optional(),
 });
 export type AnalyzeGamePayloadV1 = z.infer<typeof AnalyzeGamePayloadV1>;
+
+/**
+ * P6 FIX-3 (D-P6-FIX3-2): the `weakness_lines` refresh of one game (dedupe key `weaklines:<gameId>`, no userId). Its
+ * own payload version, so a worker built before it never claims it (PAYLOAD_V_MAX_OF). A `v: 1` row with this reason
+ * (written by the FIX-2 build) is still read by AnalyzeGamePayloadV1. The optional P4 fields stay in the shape (never
+ * written here) so the handler reads one type.
+ */
+export const AnalyzeGamePayloadV2 = AnalyzeGamePayloadV1.extend({
+  v: z.literal(2),
+  reason: z.literal("weakness_lines"),
+});
+export type AnalyzeGamePayloadV2 = z.infer<typeof AnalyzeGamePayloadV2>;
+
+/** The payload of a `weakness_lines` row (@repo/db weaknessLinesSql writes exactly this shape). */
+export function weaknessLinesPayload(gameId: Id, gameRef: string): AnalyzeGamePayloadV2 {
+  return AnalyzeGamePayloadV2.parse({ v: 2, gameId: String(gameId), gameRef, reason: "weakness_lines" });
+}
 
 export const LegendComparePayloadV1 = z.object({
   v: z.literal(1),
@@ -324,7 +359,7 @@ export type RecomputeWeaknessPayloadV1 = z.infer<typeof RecomputeWeaknessPayload
 
 /** The payload schema of each kind a worker of this build runs (P3/P5 engine lane, P4/P6 I/O lane). */
 export const JOB_PAYLOADS = {
-  ANALYZE_GAME: AnalyzeGamePayloadV1,
+  ANALYZE_GAME: z.union([AnalyzeGamePayloadV1, AnalyzeGamePayloadV2]),
   LEGEND_COMPARE: LegendComparePayloadV1,
   HOUSEKEEPING: HousekeepingPayloadV1,
   IMPORT_SYNC: ImportSyncPayloadV1,
@@ -339,10 +374,10 @@ export type PayloadRead<K extends RunJobKind> =
   /** `newer`: a later build wrote it; the claimer releases the job untouched. `invalid`: fail the job. */
   | { ok: false; reason: "newer" | "invalid" };
 
-/** Reads a claimed job's payload: a version above PAYLOAD_V_MAX is `newer` (release it), anything else is parsed. */
+/** Reads a claimed job's payload: a version above its kind's PAYLOAD_V_MAX_OF is `newer` (release it), anything else is parsed. */
 export function readJobPayload<K extends RunJobKind>(kind: K, payload: unknown): PayloadRead<K> {
   const v = typeof payload === "object" && payload !== null ? (payload as { v?: unknown }).v : undefined;
-  if (typeof v === "number" && Number.isInteger(v) && v > PAYLOAD_V_MAX) return { ok: false, reason: "newer" };
+  if (typeof v === "number" && Number.isInteger(v) && v > PAYLOAD_V_MAX_OF[kind]) return { ok: false, reason: "newer" };
   const parsed = JOB_PAYLOADS[kind].safeParse(payload);
   if (!parsed.success) return { ok: false, reason: "invalid" };
   return { ok: true, payload: parsed.data as JobPayload<K> };

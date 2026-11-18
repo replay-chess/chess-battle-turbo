@@ -5,7 +5,7 @@
 // Rollback safety (FEA §9): a job whose payload `v` is above what this build reads (PAYLOAD_V_MAX) is never claimed;
 // it waits for the newer image. A non-numeric `v` counts as 1, so the claim is never broken by a bad row: that row
 // is claimed and failed as `invalid` by the runner.
-import type { JobKind } from "@repo/contracts/internal/jobs";
+import { PAYLOAD_V_MAX_OF, type JobKind } from "@repo/contracts/internal/jobs";
 import { idOrNull, idStr, num, stmt, type Db, type Statement } from "../db/client";
 
 /** `(now() AT TIME ZONE 'UTC')`: Prisma DateTime columns are timestamp(3) without zone, stored in UTC. */
@@ -13,6 +13,21 @@ export const NOW = `(now() AT TIME ZONE 'UTC')`;
 
 /** The payload version of a row; a non-number counts as 1 (the runner then fails the row as invalid). */
 export const PAYLOAD_V_SQL = `COALESCE(CASE WHEN jsonb_typeof(payload->'v') = 'number' THEN (payload->>'v')::numeric END, 1)`;
+
+/**
+ * P6 FIX-3 (D-P6-FIX3-2): the highest version this build reads of the row's own kind (contracts PAYLOAD_V_MAX_OF;
+ * ANALYZE_GAME 2 for the `weakness_lines` refresh, every other kind 1), so a newer build's v 2 of another kind is never
+ * claimed either. The claim's `payloadVMax` caps it (a test or an older-build simulation passes 1).
+ */
+export const KIND_V_MAX_SQL = `(CASE kind::text ${Object.entries(PAYLOAD_V_MAX_OF)
+  .filter(([, v]) => v !== 1)
+  .map(([k, v]) => `WHEN '${k}' THEN ${String(v)}`)
+  .join(" ")} ELSE 1 END)`;
+
+/** The claim's version filter: the row's `v` within its kind's max and the caller's cap ($n). */
+export function payloadVFilter(param: string): string {
+  return `${PAYLOAD_V_SQL} <= LEAST(${param}, ${KIND_V_MAX_SQL})`;
+}
 
 export interface ClaimedJob {
   /** jobs.id as a decimal string (int8). */
@@ -42,7 +57,7 @@ const CLAIM_NEXT = `UPDATE jobs
             "startedAt" = COALESCE("startedAt", ${NOW}), attempts = attempts + 1
       WHERE id = (SELECT id FROM jobs
                    WHERE status = 'QUEUED' AND "runAt" <= ${NOW} AND kind::text = ANY($2::text[])
-                     AND ${PAYLOAD_V_SQL} <= $3
+                     AND ${payloadVFilter("$3")}
                    ORDER BY priority DESC, "fairSeq", "runAt"
                    LIMIT 1
                    FOR UPDATE SKIP LOCKED)`;

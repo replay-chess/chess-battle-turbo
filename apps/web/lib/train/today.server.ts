@@ -90,7 +90,9 @@ export function topWeaknessOf(snapshot: SnapshotHead | undefined, bank: readonly
   const inBank = num(bank.find((b) => b.theme === top.pattern)?.n ?? 0);
   const focusTheme = rows.map((r) => weaknessMatchTheme(r.pattern)).find((t): t is string => t !== null) ?? null;
   const listMode = parseWeaknessMetrics(snapshot.metrics)?.listMode ?? null;
-  const focusIsTop = focusTheme !== null && listMode !== "most_frequent" && weaknessMatchTheme(top.pattern) === focusTheme;
+  // Only a band comparison (`vs_band`) makes the top row a "top weakness": an `own_only` list (no band) ranks the
+  // member's own losses and a `most_frequent` list says nothing stands out (FIX-3 review item 7).
+  const focusIsTop = focusTheme !== null && listMode === "vs_band" && weaknessMatchTheme(top.pattern) === focusTheme;
   return {
     pattern: top.pattern,
     label: top.label.slice(0, 40),

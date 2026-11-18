@@ -28,6 +28,7 @@ import { timeZoneOf } from "./day.server";
 import { asDate, at, NOW_UTC, trainDeps, type TrainDeps } from "./db.server";
 import { addMomentMistake } from "./momentMistake.server";
 import { readProfile } from "./profile.server";
+import { weaknessEnabled } from "./weakness.server";
 
 /** A6's 409 `not_bankable`: the stored analysis cannot make a bank position of this moment. */
 export const NOT_BANKABLE_MESSAGE = "This position can't be added to your Mistake Bank.";
@@ -86,6 +87,9 @@ export async function setMomentInBank(
   // Before the review exists P3's statement answers 409 analysis_not_done (below).
   if (first.hasReview && !first.isError) throw new DataError("not_found", { message: "That move is not a key mistake of this review." });
   const due = nextRelease(now, tz, profile.releaseHour);
+  // Switching a moment off hides its mistake, which re-arms the weakness recompute only with the `weakness` flag on
+  // (FIX-3 review item 12): evaluated here, before the transaction, as the weakness routes evaluate it.
+  const weakness = inBank ? false : await weaknessEnabled(viewer);
 
   return deps.tx(async (db) => {
     const rows = await db.$queryRaw<{ player: number; reviewed: number; updated: number }[]>(setMomentBankSql(viewer.id, ref, ply, inBank));
@@ -114,7 +118,7 @@ export async function setMomentInBank(
     }
 
     if (!inBank) {
-      await removeBankCard(db, viewer.id, { mistakeId }, now);
+      await removeBankCard(db, viewer.id, { mistakeId }, now, { weakness });
       return { ply, inBank, card: null };
     }
     await db.$executeRaw(Prisma.sql`UPDATE mistakes SET "hiddenAt" = NULL, "updatedAt" = ${NOW_UTC}

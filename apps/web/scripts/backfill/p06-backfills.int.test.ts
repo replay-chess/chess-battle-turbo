@@ -28,6 +28,7 @@ import { INITIAL_FEN } from "@repo/chess-analysis/board";
 import { CC0_CASES, cc0Game, cc0TimedIndexes, weaknessInputsGolden } from "@repo/chess-analysis/fixtures/weakness-inputs";
 import { WEAKNESS_INPUTS_VERSION, computeSideInputs } from "@repo/chess-analysis/weakness-inputs";
 import { JOB_PRIORITY } from "@repo/contracts/internal/jobs";
+import { weaknessLinesSql } from "@repo/db/weakness-jobs";
 import { addMomentMistake } from "../../lib/train/momentMistake.server";
 import type { BackfillDb } from "./p04-common";
 import { countInputCandidates, runWeaknessInputs, verifyStoredInputs } from "./backfill-weakness-inputs";
@@ -80,8 +81,8 @@ describe("Phase 6 backfills (Postgres, real games)", { skip: url && LOCAL.has(ne
     const n = users.length + 1;
     const ref = `cp6bf${RUN}${String(n).padStart(4, "0")}`.slice(0, 25).padEnd(21, "0");
     const [r] = await q<{ id: bigint }>(Prisma.sql`
-      INSERT INTO users ("referenceId", code, "googleId", email, name, "timeZone", "updatedAt")
-      VALUES (${ref}, ${`code-${RUN}-${n}`}, ${`g-${RUN}-${n}`}, ${`${label}-${RUN}@test.invalid`}, ${`${label}_${n}`}, ${zone}, now())
+      INSERT INTO users ("referenceId", code, "googleId", email, name, "timeZone", "subscriptionStatus", "updatedAt")
+      VALUES (${ref}, ${`code-${RUN}-${n}`}, ${`g-${RUN}-${n}`}, ${`${label}-${RUN}@test.invalid`}, ${`${label}_${n}`}, ${zone}, 'active', now())
       RETURNING id`);
     users.push(r!.id);
     return { id: r!.id, ref, name: `${label}_${n}`, rating };
@@ -238,6 +239,14 @@ describe("Phase 6 backfills (Postgres, real games)", { skip: url && LOCAL.has(ne
       lines.every((j) => j.status === "QUEUED" && j.priority === JOB_PRIORITY.HOUSEKEEPING && j.userId === null && j.dedupeKey === `weaklines:${j.gameId}` && j.analysisStatus === "DONE"),
       JSON.stringify(lines[0], (_k, v) => (typeof v === "bigint" ? String(v) : v)),
     );
+    // FIX-3 (D-P6-FIX3-10): only games a profile can be built for: with every side's member lapsed, nothing is armed.
+    const one = lines[0]!;
+    await prisma.$executeRaw(Prisma.sql`DELETE FROM jobs WHERE "dedupeKey" = ${one.dedupeKey}`);
+    await prisma.$executeRaw(Prisma.sql`UPDATE users SET "subscriptionStatus" = NULL WHERE id IN (SELECT "userId" FROM game_players WHERE "gameId" = ${one.gameId})`);
+    const ref1 = (await q<{ ref: string }>(Prisma.sql`SELECT "referenceId" AS ref FROM games WHERE id = ${one.gameId}`))[0]!.ref;
+    const [none] = await q<{ armed: number }>(weaknessLinesSql([{ gameId: one.gameId, gameRef: ref1 }]));
+    assert.equal(Number(none?.armed), 0, "a game of non-entitled members arms no lines refresh");
+    await prisma.$executeRaw(Prisma.sql`UPDATE users SET "subscriptionStatus" = 'active' WHERE id IN (SELECT "userId" FROM game_players WHERE "gameId" = ${one.gameId})`);
     // Every written side equals computeSideInputs over its stored rows, read back independently.
     const rows = await q<{
       startingFen: string;

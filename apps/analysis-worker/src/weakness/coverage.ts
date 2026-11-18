@@ -3,8 +3,10 @@
 // IMPORT_SYNC finishes. ONE statement:
 //
 //   analysed = the rows the recompute counts (FIX-2, D-P6-FIX2-7; TR-5 and the progress probe count the same set):
-//              accuracy set and inputs usable (weaknessInputsV ≥ 1) or healable (0, analysis DONE); a −1 row (its
-//              heal failed) does not count, so J4 queues a replacement for it inside the budget
+//              accuracy set and inputs usable (weaknessInputsV ≥ 1) or healable (0, its analysis finished:
+//              `game_analyses."completedAt"` set, FIX-3: the column the heal, TR-5 and the progress probe read, not
+//              `games."analysisStatus"`, which a queued regrade moves off DONE while the analysis stays complete); a −1
+//              row (its heal failed) does not count, so J4 queues a replacement for it inside the budget
 //
 //   target  = trialist ? WEAKNESS_ANALYSE_CAP_TRIAL (20) : WEAKNESS_ANALYSE_CAP (100)   in-scope analysed games wanted
 //   want    = target − analysed in scope                                                   picks, newest first
@@ -19,6 +21,7 @@
 // (priority, fairSeq, a fresh job's runAt pulled to now: P4's backlog slices wait days), never lowered; RUNNING,
 // DONE and FAILED jobs are left alone. A new job flips its game NONE → QUEUED and bumps the members' gamesVersion (the
 // archive ETag), as enqueueAnalysisSql does. Idempotent: a resend finds every pick already queued.
+import { inputsHealableSql } from "@repo/chess-analysis/weakness-inputs";
 import { ANALYSIS_MIN_PLIES, JOB_MAX_ATTEMPTS, JOB_PRIORITY } from "@repo/contracts/internal/jobs";
 import { GAMES_REQUIRED } from "@repo/chess-training/weakness/constants";
 import type { WeaknessScope } from "@repo/chess-training/weakness/types";
@@ -63,7 +66,8 @@ export function coverageStatement(i: CoverageInput): Statement {
    ORDER BY gp."endedAt" DESC, gp."gameId" DESC
    LIMIT $4
 ), c AS (
-  SELECT count(*) FILTER (WHERE accuracy IS NOT NULL AND (v >= 1 OR (v = 0 AND "analysisStatus" = 'DONE')))::int AS analysed,
+  SELECT count(*) FILTER (WHERE accuracy IS NOT NULL AND (v >= 1 OR (${inputsHealableSql("v")} AND EXISTS (
+           SELECT 1 FROM game_analyses ga WHERE ga."gameId" = s."gameId" AND ga."completedAt" IS NOT NULL))))::int AS analysed,
          count(*)::int AS "inScope" FROM s
 ), b AS (
   SELECT count(*)::int AS used FROM game_players gp JOIN games g ON g.id = gp."gameId"

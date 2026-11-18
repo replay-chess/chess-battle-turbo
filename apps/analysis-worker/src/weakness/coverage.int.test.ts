@@ -26,6 +26,7 @@ import { DAY_MS, WeaknessWorld, worldTag } from "../testing/weakness-world";
 import { isWeaknessTrialing, loadWeaknessContext, scopeOf } from "./context";
 import { ensureWeaknessCoverage } from "./coverage";
 import { loadWeaknessInputs } from "./load";
+import { probeStatement, toProbe } from "./progressEmitter";
 
 const HOUR = 3_600_000;
 
@@ -206,6 +207,20 @@ describe("J4 coverage and the progress emitter on imported games (Postgres)", { 
     const g = (await scopeRows(m.id)).find((r) => r.accuracy !== null)!;
     const ref = (await world.q<{ ref: string }>(`SELECT "referenceId" AS ref FROM games WHERE id = $1`, [g.gameId]))[0]!.ref;
     await world.db.query(fromPrisma(enqueueAnalysisSql({ gameId: BigInt(g.gameId), gameRef: ref, priority: JOB_PRIORITY.HOUSEKEEPING, reason: "regrade" })));
+    // regression: j4-analysed-column (FIX-3, review item 1) — J4 counts "analysed" by the column the heal, the progress
+    // probe and TR-5 read (`game_analyses."completedAt"`), not `games."analysisStatus"`, which the queued regrade just
+    // moved DONE → QUEUED while the analysis stays complete. The regraded side's inputs as a game analysed before P6
+    // holds them (weaknessInputsV 0, the M6 default the heal fills): healable, so counted by every reader alike.
+    assert.equal((await world.q<{ s: string }>(`SELECT "analysisStatus"::text AS s FROM games WHERE id = $1`, [g.gameId]))[0]!.s, "QUEUED");
+    await world.q(`UPDATE game_players SET "weaknessInputsV" = 0 WHERE "gameId" = $1 AND "userId" = $2`, [g.gameId, m.id]);
+    {
+      const c = (await loadWeaknessContext(world.db, m.id))!;
+      const { scope, since } = scopeOf(c, new Date(world.clock.now()));
+      const probe = toProbe((await world.db.query(probeStatement(m.id, since, scope)))[0]);
+      const j4 = await cover(m.id);
+      assert.equal(j4.analysed, probe.analysed, "J4 and the progress probe count the same analysed games");
+      assert.equal(j4.inScope, probe.inScope);
+    }
     await world.due(["ANALYZE_GAME"], m.id);
     assert.equal(await world.drainAnalysesOf(m.id), 1);
     assert.equal(world.weaknessEvents("weakness:progress", m.ref).length, framesAtReady);

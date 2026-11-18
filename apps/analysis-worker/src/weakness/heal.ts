@@ -17,6 +17,7 @@
 import type { StoredLine } from "@repo/chess-analysis/analysis";
 import type { Color } from "@repo/chess-analysis/codec";
 import { weaknessLinesSql } from "@repo/db/weakness-jobs";
+import { inputsFailedMarker, inputsHealable, inputsHealableSql } from "@repo/chess-analysis/weakness-inputs";
 import { fromPrisma, idStr, num, numOrNull, stmt, type Db, type Row, type Statement } from "../db/client";
 import { sideInputsOf, WEAKNESS_INPUTS_VERSION, type SideInputsRow } from "./inputs";
 import type { LoadedInput } from "./load";
@@ -38,7 +39,7 @@ export function healReadStatement(gameIds: readonly string[], limit: number = HE
 )
 SELECT g.id::text AS "gameId", g."referenceId" AS ref, g."startingFen", g."startPly", g.moves, g."moveClocksMs", g."initialTimeSeconds",
         g."timeClass"::text AS "timeClass", a.evals, a.best, a.judgements, a.lines, a."middlegamePly", a."endgamePly",
-        true AS done, (SELECT count(*) FROM c)::int AS total
+        a."completedAt"::text AS "completedAtText", true AS done, (SELECT count(*) FROM c)::int AS total
    FROM pick JOIN games g ON g.id = pick."gameId" JOIN game_analyses a ON a."gameId" = g.id
   ORDER BY pick.pos`,
     [[...gameIds], Math.max(1, limit)],
@@ -47,30 +48,35 @@ SELECT g.id::text AS "gameId", g."referenceId" AS ref, g."startingFen", g."start
 
 /**
  * `weaknessInputsV` of a row whose finished analysis could not be read into inputs (FIX-2): left out of the profile, as
- * at 0, but no longer a heal candidate (`rowsToHeal` takes 0 only), so a heal never picks the same failing rows again.
- * A later analysis or regrade of the game writes real inputs over it; B-W1 selects 0 only.
+ * at 0, but no longer a heal candidate under this version, so a heal never picks the same failing rows again. A later
+ * analysis or regrade of the game writes real inputs over it; B-W1 selects 0 only. FIX-3 (D-P6-FIX3-8): the marker is
+ * −WEAKNESS_INPUTS_VERSION, so a build with a fixed tagger (a higher version) retries the row once
+ * (CA inputsHealable), and the daily heal sweep arms the members who have such rows.
  */
-export const WEAKNESS_INPUTS_HEAL_FAILED = -1;
+export const WEAKNESS_INPUTS_HEAL_FAILED = inputsFailedMarker();
 
-/** Marks rows the heal could not compute (guarded by `= 0`: an analysis that wrote real inputs meanwhile wins). */
-export function healFailedStatement(sides: readonly { gameId: string; color: string }[]): Statement {
+/**
+ * Marks rows the heal could not compute with `−version` (guarded by "still healable": an analysis that wrote real
+ * inputs meanwhile wins).
+ */
+export function healFailedStatement(sides: readonly { gameId: string; color: string }[], version: number = WEAKNESS_INPUTS_VERSION): Statement {
   return stmt(
     `WITH u AS (
   UPDATE game_players gp SET "weaknessInputsV" = $2::smallint
     FROM jsonb_to_recordset($1::jsonb) AS v("gameId" bigint, color text)
-   WHERE gp."gameId" = v."gameId" AND gp.color = v.color AND gp."weaknessInputsV" = 0
+   WHERE gp."gameId" = v."gameId" AND gp.color = v.color AND ${inputsHealableSql(`gp."weaknessInputsV"`, version)}
   RETURNING 1
 )
 SELECT count(*)::int AS marked FROM u`,
-    [JSON.stringify(sides.map((x) => ({ gameId: x.gameId, color: x.color }))), WEAKNESS_INPUTS_HEAL_FAILED],
+    [JSON.stringify(sides.map((x) => ({ gameId: x.gameId, color: x.color }))), inputsFailedMarker(version)],
   );
 }
 
 const numbers = (v: unknown): number[] => (Array.isArray(v) ? v.map((x) => num(x)) : []);
 
-/** The rows a heal must compute: analysed, inputs missing. */
-export function rowsToHeal(inputs: readonly LoadedInput[]): LoadedInput[] {
-  return inputs.filter((g) => g.accuracy !== null && g.weaknessInputsV === 0);
+/** The rows a heal must compute: analysed, inputs missing (or failed under an earlier inputs version, FIX-3). */
+export function rowsToHeal(inputs: readonly LoadedInput[], version: number = WEAKNESS_INPUTS_VERSION): LoadedInput[] {
+  return inputs.filter((g) => g.accuracy !== null && inputsHealable(g.weaknessInputsV, version));
 }
 
 /** Rows one run heals by default (WEAKNESS_HEAL_MAX_ROWS). */
@@ -142,7 +148,7 @@ export function healRows(toHeal: readonly LoadedInput[], stored: readonly Row[],
 }
 
 /** Applies a heal's rows to the in-memory inputs (the profile is computed from the healed values in the same run). */
-export function applyHeal(inputs: LoadedInput[], rows: readonly SideInputsRow[]): void {
+export function applyHeal(inputs: LoadedInput[], rows: readonly SideInputsRow[], version: number = WEAKNESS_INPUTS_VERSION): void {
   const key = (id: string, c: string) => `${id}:${c}`;
   const healed = new Map(rows.map((r) => [key(r.gameId, r.color), r]));
   for (const g of inputs) {
@@ -152,7 +158,7 @@ export function applyHeal(inputs: LoadedInput[], rows: readonly SideInputsRow[])
     g.errorLog = h.errorLog;
     g.errorThemeN = h.errorThemeN;
     g.errorThemes = h.errorThemes;
-    g.weaknessInputsV = WEAKNESS_INPUTS_VERSION;
+    g.weaknessInputsV = version;
   }
 }
 
@@ -170,8 +176,9 @@ export async function planHeal(
   onError?: (error: unknown) => void,
   maxRows: number = HEAL_MAX_ROWS,
   budgetMs: number = HEAL_BUDGET_MS,
+  version: number = WEAKNESS_INPUTS_VERSION,
 ): Promise<HealPlan> {
-  const all = rowsToHeal(inputs);
+  const all = rowsToHeal(inputs, version);
   if (all.length === 0) return { rows: [], failed: 0, failedSides: [], remaining: 0, partialGames: [] };
   const cap = Math.max(1, maxRows);
   // FIX-2: the read picks the newest finished analyses itself, so rows whose analysis is being redone never occupy

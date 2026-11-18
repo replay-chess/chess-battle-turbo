@@ -21,6 +21,10 @@ import {
   WEAKNESS_TRIGGERS,
   readJobPayload,
   weaknessDedupeKey,
+  AnalyzeGamePayloadV2,
+  PAYLOAD_V_MAX,
+  PAYLOAD_V_MAX_OF,
+  weaknessLinesPayload,
 } from "../jobs";
 import { KICK_BODY_MAX_BYTES, KICK_REASONS, KickBodyV1 } from "../kick";
 
@@ -76,5 +80,20 @@ describe("P6 job kinds", () => {
     assert.equal(weaknessLinesDedupeKey(42n), "weaklines:42");
     assert.notEqual(weaknessLinesDedupeKey(42n), analyzeDedupeKey(42n), "never the game's analysis row");
     assert.equal(AnalyzeGamePayloadV1.safeParse({ v: 1, gameId: "42", gameRef: "abc", reason: "weakness_lines" }).success, true);
+  });
+
+  it("FIX-3: the lines refresh is payload v 2, read by ANALYZE_GAME only; every other kind still releases a v 2", () => {
+    const p = weaknessLinesPayload(42n, "abc");
+    assert.deepEqual(p, { v: 2, gameId: "42", gameRef: "abc", reason: "weakness_lines" });
+    assert.deepEqual(readJobPayload("ANALYZE_GAME", p), { ok: true, payload: p });
+    assert.equal(AnalyzeGamePayloadV2.safeParse({ ...p, reason: "regrade" }).success, false, "v 2 is the lines refresh only");
+    assert.equal(PAYLOAD_V_MAX_OF.ANALYZE_GAME, 2);
+    assert.equal(PAYLOAD_V_MAX, 2);
+    assert.deepEqual(readJobPayload("ANALYZE_GAME", { ...p, v: 3 }), { ok: false, reason: "newer" });
+    for (const kind of Object.keys(PAYLOAD_V_MAX_OF).filter((k) => k !== "ANALYZE_GAME") as (keyof typeof PAYLOAD_V_MAX_OF)[]) {
+      assert.equal(PAYLOAD_V_MAX_OF[kind], 1);
+      assert.deepEqual(readJobPayload(kind, { v: 2 }), { ok: false, reason: "newer" }, kind);
+    }
+    assert.throws(() => weaknessLinesPayload(42n, ""));
   });
 });

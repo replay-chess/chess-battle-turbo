@@ -9,10 +9,12 @@
 // | WEAKNESS_DEBOUNCE_SEC       | 240                                  | coalescing window; must stay below 300 (Neon's suspend) |
 // | WEAKNESS_SEED_FREEZE        | off                                  | test hook (persona `weakcompute`): the worker's triggers leave a seeded far-future job alone; refused with APP_ENV=production |
 // | WEAKNESS_HEAL_MAX_ROWS      | 40                                   | FIX-1: rows one RECOMPUTE_WEAKNESS heals (1..300); more → it heals these, re-queues itself and writes no snapshot yet, so one run stays inside the heal SLO (≤ 4 s) on the 1-OCPU worker |
+// | WEAKNESS_LINES_BUDGET_MS    | 20000                                | FIX-3: the weakness-only engine searches of one analysis, regrade or lines refresh start no new search after this long (1000..120000); the rest is left to a `weakness_lines` refresh |
 import { ANALYSE_CAP, ANALYSE_CAP_TRIAL } from "@repo/chess-training/weakness/constants";
 import { WEAKNESS_DEBOUNCE_MAX_SEC, WEAKNESS_DEBOUNCE_SEC } from "@repo/db/weakness-jobs";
 import { EnvError, type AppEnvName } from "../config/env";
 import { HEAL_MAX_ROWS } from "./heal";
+import { WEAKNESS_INPUTS_VERSION } from "./inputs";
 
 export interface WeaknessSettings {
   /** WEAKNESS_JOBS_ENABLED. */
@@ -27,7 +29,17 @@ export interface WeaknessSettings {
   seedFreeze: boolean;
   /** WEAKNESS_HEAL_MAX_ROWS: rows healed per run (FIX-1); the rest in the next run. */
   healMaxRows: number;
+  /** WEAKNESS_LINES_BUDGET_MS (FIX-3): the weakness-only searches of one job start no new search after this long. */
+  linesBudgetMs: number;
+  /**
+   * FIX-3 (D-P6-FIX3-8): the inputs/tagger version this build writes (CA WEAKNESS_INPUTS_VERSION). A test of a later
+   * build sets it to show a version bump retries rows an earlier version could not compute (once). Not an env var.
+   */
+  inputsVersion: number;
 }
+
+/** FIX-3 (D-P6-FIX3-9): WEAKNESS_LINES_BUDGET_MS's default: ≈ 40 pass-1 searches on the 1-OCPU dev worker. */
+export const WEAKNESS_LINES_BUDGET_MS = 20_000;
 
 type RawEnv = Readonly<Record<string, string | undefined>>;
 
@@ -68,6 +80,8 @@ export function parseWeaknessSettings(raw: RawEnv, appEnv: AppEnvName): Weakness
     debounceSec: int(raw, "WEAKNESS_DEBOUNCE_SEC", 0, WEAKNESS_DEBOUNCE_MAX_SEC, WEAKNESS_DEBOUNCE_SEC),
     seedFreeze,
     healMaxRows: int(raw, "WEAKNESS_HEAL_MAX_ROWS", 1, 300, HEAL_MAX_ROWS),
+    linesBudgetMs: int(raw, "WEAKNESS_LINES_BUDGET_MS", 1_000, 120_000, WEAKNESS_LINES_BUDGET_MS),
+    inputsVersion: WEAKNESS_INPUTS_VERSION,
   };
 }
 

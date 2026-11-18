@@ -208,7 +208,7 @@ describe("P6 weakness routes (Postgres, real games)", { skip: url && LOCAL.has(n
       const [mk] = await w.db.$queryRaw<{ id: bigint }[]>(Prisma.sql`
         SELECT m.id FROM mistakes m JOIN training_cards c ON c."mistakeId" = m.id AND c.deck = 'BANK'
          WHERE m."userId" = ${A.id} AND m."hiddenAt" IS NULL AND ${row.pattern} = ANY(m.themes) ORDER BY m.id DESC LIMIT 1`);
-      assert.ok(await removeBankCard(w.db, A.id, { mistakeId: mk!.id }, WORLD_NOW));
+      assert.ok(await removeBankCard(w.db, A.id, { mistakeId: mk!.id }, WORLD_NOW, { weakness: true }));
       // regression: weakness-hidden-example (FIX-1): the removal re-arms A's recompute (`removed`, now), so a profile
       // whose example was this mistake moves to a visible one.
       const [job] = await w.db.$queryRaw<{ status: string; trigger: string }[]>(Prisma.sql`
