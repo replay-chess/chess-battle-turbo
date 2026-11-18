@@ -71,16 +71,27 @@ for (const device of ["desktop-1440", "iphone"] as const) {
 
         await gotoOk(page, `/game/${ref}`);
         await expect(container(page)).toHaveAttribute("data-phase", "bot", { timeout: 120_000 });
-        // Morphy's 10.Nxb5 and 11.Bxb5+, then the member's 12.Ba4 (Morphy played 12.O-O-O). The bot may leave the line
-        // earlier (the "opponent left" variant of the block); the member then resigns there.
+        // Morphy's 10.Nxb5, then the member leaves his path at once: 11.Qxb5+ (Morphy played 11.Bxb5+), and resigns.
+        // The member's own divergence is what gives the block its Replay link (replayHref is null when the opponent left
+        // first). The old line (11.Bxb5+, then 12.Ba4) waited for the 1200 bot to answer 11…Nbd7 as Morphy's opponent did;
+        // it answered 11…Kd8 in 4 of 4 runs, so the block said "before the game left Morphy’s path" and had no Replay
+        // link (REGRESSION-6 full run; regression: legend-replay-bot-left). If the bot ever leaves at move 10 instead
+        // (11.Qxb5+ is then not on the board), that variant's block is checked: no Replay link.
         expect(await playIfOffered(page, "c3b5"), "10.Nxb5 is legal from the Opera position").toBe(true);
-        if (await playIfOffered(page, "c4b5")) await playIfOffered(page, "b5a4");
+        const memberLeft = await playIfOffered(page, "b3b5");
         await resign(page);
 
         const block = page.getByTestId("review-legend").filter({ visible: true }).first();
         await expect(block).toBeVisible({ timeout: 120_000 });
-        await expect(block).toContainText(/You matched Morphy for \d+ of \d+ moves(, then left Morphy’s path| before the game left Morphy’s path)/);
         const replay = block.getByTestId("legend-replay");
+        if (!memberLeft) {
+          await expect(block).toContainText(/You matched Morphy for \d+ of \d+ moves before the game left Morphy’s path/);
+          await expect(replay, "no Replay link when the opponent left first").toHaveCount(0);
+          test.info().annotations.push({ type: "variant", description: "the bot left Morphy's path at move 10" });
+          await expect(block.getByTestId("legend-compare")).toHaveText(/Compare with Morphy/);
+          return;
+        }
+        await expect(block).toContainText(/You matched Morphy for \d+ of \d+ moves, then left Morphy’s path/);
         await expect(replay).toHaveText(/Replay from Move \d+/);
         const href = (await replay.getAttribute("href"))!;
         const m = /^\/practice\?game=([a-z0-9]+)&ply=(\d+)/.exec(href);

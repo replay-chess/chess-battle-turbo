@@ -31,7 +31,15 @@ describe("@repo/chess-training package", () => {
   });
 
   it("exports the server barrel, the src subpaths and the committed puzzle manifest folder", () => {
-    assert.deepEqual(pkg.exports, { ".": "./src/index.ts", "./puzzles/*": "./puzzles/*", "./*": "./src/*.ts" });
+    // P6 (phase-06 plan §7.4.5, §13 WP1): the baseline loader and schema (`./baselines/*`, the worker and the seeds)
+    // and the committed weakness fixtures (`./fixtures/*` → test/fixtures, the web's demo payloads).
+    assert.deepEqual(pkg.exports, {
+      ".": "./src/index.ts",
+      "./puzzles/*": "./puzzles/*",
+      "./baselines/*": "./baselines/*.ts",
+      "./fixtures/*": "./test/fixtures/*",
+      "./*": "./src/*.ts",
+    });
   });
 
   it("pins ts-fsrs to 5.4.2 (D-7: Node 22 on Vercel and the worker; v6 needs Node 24)", () => {

@@ -60,6 +60,15 @@ for (const device of ["desktop-1440", "ipad-portrait", "iphone"] as const) {
       await expect(list).not.toHaveAttribute("aria-activedescendant", first!);
       await page.keyboard.press("ArrowUp");
       await expect(list).toHaveAttribute("aria-activedescendant", first!);
+      // aria-activedescendant names an option that exists in this listbox (regression: games-list-stable-ids: the
+      // listbox kept the server's useId while the client wrote another, so the active option's id matched nothing).
+      expect(
+        await list.evaluate((el) => {
+          const opt = document.getElementById(el.getAttribute("aria-activedescendant") ?? "");
+          return opt !== null && opt.getAttribute("role") === "option" && el.contains(opt);
+        }),
+        "the active option is an option of this listbox",
+      ).toBe(true);
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/review\/c[a-z0-9]+\?from=archive$/, { timeout: 60_000 });
       await telemetry.expect("games_archive_game_opened", { target: "review" }, { source: "client" });

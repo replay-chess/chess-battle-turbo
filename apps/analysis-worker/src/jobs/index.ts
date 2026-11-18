@@ -8,6 +8,8 @@ import { housekeepingHandler } from "./housekeeping";
 import { importPurgeHandler } from "./import-purge";
 import { importSyncHandler, type ImportDeps } from "./import-sync";
 import { legendCompareHandler } from "./legend-compare";
+import { weaknessRecomputeHandler } from "./weakness-recompute";
+import { defaultImportSettings } from "../import/settings";
 import type { HandlerMap } from "./runner";
 
 export interface HandlerDeps extends AnalyzeDeps {
@@ -25,7 +27,7 @@ export function defaultHandlers(deps: HandlerDeps): HandlerMap {
   return {
     ANALYZE_GAME: analyzeGameHandler(deps),
     LEGEND_COMPARE: legendCompareHandler({ store: deps.store }),
-    HOUSEKEEPING: housekeepingHandler(),
+    HOUSEKEEPING: housekeepingHandler(undefined, undefined, deps.weakness ? { weakness: deps.weakness.settings } : {}),
     ...(deps.bank?.enabled && deps.mistakesAdded
       ? {
           EXTRACT_MISTAKES: extractMistakesHandler({
@@ -38,7 +40,27 @@ export function defaultHandlers(deps: HandlerDeps): HandlerMap {
     ...(deps.imports
       ? {
           IMPORT_SYNC: importSyncHandler({ ...deps.imports, events: deps.imports.events ?? deps.events }),
-          IMPORT_PURGE: importPurgeHandler({ events: deps.imports.events ?? deps.events }),
+          IMPORT_PURGE: importPurgeHandler({
+            events: deps.imports.events ?? deps.events,
+            ...(deps.weakness ? { weakness: deps.weakness.settings } : {}),
+          }),
+        }
+      : {}),
+    // P6 (phase-06 plan §7.4.2): RECOMPUTE_WEAKNESS on the I/O lane. Registered whenever the weakness deps exist; with
+    // WEAKNESS_JOBS_ENABLED off the handler ends each row DONE `skipped: "disabled"` (the kill switch).
+    ...(deps.weakness
+      ? {
+          RECOMPUTE_WEAKNESS: weaknessRecomputeHandler({
+            settings: deps.weakness.settings,
+            paywall: (deps.imports?.settings ?? defaultImportSettings()).paywall,
+            eager: {
+              cap: (deps.imports?.settings ?? defaultImportSettings()).cap,
+              eagerTrial: (deps.imports?.settings ?? defaultImportSettings()).eagerTrial,
+            },
+            events: deps.events,
+            progress: deps.weakness.progress,
+            ...(deps.weakness.baselineId ? { baselineId: deps.weakness.baselineId } : {}),
+          }),
         }
       : {}),
   };

@@ -21,17 +21,21 @@ export function isFork(ctx: ThemeContext): boolean {
   for (const step of solverMoves.slice(0, -1)) {
     const after = chessAt(step.fenAfter);
     const to = sqIndex(step.move.to);
-    if (see(step.fenAfter, step.move.to) > 0) continue;
     const board = boardOf(after);
     const mover = board[to];
     if (!mover) continue;
-    let targets = 0;
-    for (const sq of attacksFrom(board, to)) {
+    // The candidate targets (board geometry only) first: with fewer than two there is no fork, whatever the static
+    // exchange on the mover's square says (FIX-1: the exchange search is the expensive part; same result).
+    const candidates = attacksFrom(board, to).filter((sq) => {
       const p = board[sq];
-      if (!p || p.color !== ctx.defender || p.type === "p") continue;
-      const valuable = WORTH[p.type] > WORTH[mover.type];
-      const hanging = attackersOf(board, sq, ctx.defender).length === 0;
-      if (!valuable && !hanging) continue;
+      if (!p || p.color !== ctx.defender || p.type === "p") return false;
+      return WORTH[p.type] > WORTH[mover.type] || attackersOf(board, sq, ctx.defender).length === 0;
+    });
+    if (candidates.length < 2) continue;
+    if (see(step.fenAfter, step.move.to) > 0) continue;
+    let targets = 0;
+    for (const sq of candidates) {
+      const p = board[sq]!;
       if (p.type !== "k" && attacksFrom(board, sq).includes(to)) {
         // It guards the forker's square: it answers the fork only when taking the forker does not lose material.
         const back = exchangeGain(step.fenAfter, `${sqName(sq)}${step.move.to}`);

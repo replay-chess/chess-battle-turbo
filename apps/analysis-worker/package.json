@@ -15,6 +15,7 @@
     "lint": "eslint src scripts --no-error-on-unmatched-pattern --max-warnings 0",
     "bench": "tsx scripts/bench.ts",
     "bench:import": "tsx scripts/bench-import.ts",
+    "bench:weakness": "tsx scripts/bench-weakness.ts",
     "seed:evalcache": "tsx scripts/seed-evalcache.ts",
     "upload:evalcache": "tsx scripts/upload-evalcache-seed.ts"
   },

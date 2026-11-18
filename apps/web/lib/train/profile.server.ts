@@ -124,16 +124,37 @@ export function profileOfRow(row: ProfileDbRow): TrainingProfile {
  */
 export async function readProfile(db: TrainDb, viewer: Pick<Viewer, "id" | "onboarding">): Promise<TrainingProfile> {
   const rows = await db.$queryRaw<ProfileDbRow[]>(profileSql(viewer.id));
-  if (rows[0]) return profileOfRow(rows[0]);
+  if (rows[0] && !unseededRow(rows[0])) return profileOfRow(rows[0]);
   const accounts = await db.$queryRaw<RatingSource[]>(ratingsSql(viewer.id));
-  return defaultProfile(seedOf(viewer, accounts));
+  return seededProfile(rows[0], seedOf(viewer, accounts));
 }
 
-/** Creates the row with the seed applied (`ON CONFLICT DO NOTHING`: a concurrent first write keeps its row). */
+/**
+ * A row another writer created before the member's first training write (P6: the worker's `weaknessVersion` bump),
+ * so P5's seed was never applied: not seeded and no rated puzzle yet. Readers treat it like a missing row (the seed in
+ * memory, `exists: false`), and the first write applies the seed through `insertProfileSql`.
+ */
+export function unseededRow(row: Pick<ProfileDbRow, "ratingSeeded" | "puzzleAttempts">): boolean {
+  return !row.ratingSeeded && Number(row.puzzleAttempts) === 0;
+}
+
+/** The profile for a missing or unseeded row: the row's own settings (or the defaults) with the seed's rating. */
+export function seededProfile(row: ProfileDbRow | undefined, seed: { r: number; rd: number; vol: number }): TrainingProfile {
+  const base = defaultProfile(seed);
+  if (!row) return base;
+  return { ...profileOfRow(row), exists: false, puzzleRating: base.puzzleRating, puzzleRd: base.puzzleRd, puzzleVol: base.puzzleVol, ratingSeeded: false };
+}
+
+/**
+ * Creates the row with the seed applied. A concurrent first write keeps its row; an unseeded row another writer made
+ * (`unseededRow`) gets the seed and `ratingSeeded`, nothing else.
+ */
 export function insertProfileSql(userId: bigint, p: TrainingProfile): Prisma.Sql {
   return Prisma.sql`INSERT INTO training_profiles ("userId", "puzzleRating", "puzzleRd", "puzzleVol", "ratingSeeded", "updatedAt")
     VALUES (${userId}, ${p.puzzleRating}::real, ${p.puzzleRd}::real, ${p.puzzleVol}::real, true, ${NOW_UTC})
-    ON CONFLICT ("userId") DO NOTHING`;
+    ON CONFLICT ("userId") DO UPDATE SET "puzzleRating" = EXCLUDED."puzzleRating", "puzzleRd" = EXCLUDED."puzzleRd",
+      "puzzleVol" = EXCLUDED."puzzleVol", "ratingSeeded" = true, "updatedAt" = EXCLUDED."updatedAt"
+    WHERE training_profiles."ratingSeeded" = false AND training_profiles."puzzleAttempts" = 0`;
 }
 
 /** The rating chip ("1512", provisional below 20 rated puzzles). */

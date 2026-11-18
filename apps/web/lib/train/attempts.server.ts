@@ -36,7 +36,7 @@ import { capOf, readDueSummary, ZERO_DAY } from "./badges.server";
 import { timeZoneOf, trainClock } from "./day.server";
 import { asDate, dayParam, LOCK_TRAIN_ATTEMPTS, memberLockSql, NOW_UTC, num, trainDeps, type TrainDb, type TrainDeps } from "./db.server";
 import { CARD_COLUMNS, MISTAKE_COLUMNS, cardRowOf, gradeDb, itemKindDb, positionAfter, type CardRowDb } from "./dto.server";
-import { defaultProfile, insertProfileSql, profileOfRow, ratingsSql, seedOf, type RatingSource, type TrainingProfile } from "./profile.server";
+import { defaultProfile, insertProfileSql, profileOfRow, ratingsSql, seedOf, unseededRow, type RatingSource, type TrainingProfile } from "./profile.server";
 import { storedItemsOf, type SessionRow, type StoredItem } from "./sessions.server";
 
 const DAY_MS = 86_400_000;
@@ -468,8 +468,9 @@ async function applyInTx(
   await db.$queryRaw(memberLockSql(LOCK_TRAIN_ATTEMPTS, userId));
   const raw = await read();
   let profileRow = parseJson<ReadRow["profile"]>(raw.profile);
-  if (!profileRow) {
-    // A member's first write: the row with the seed, then its lock (the other locks were taken by the read above).
+  if (!profileRow || unseededRow(profileRow)) {
+    // A member's first write: the row with the seed (also over a row the worker created unseeded), then its lock (the
+    // other locks were taken by the read above).
     const accounts = await db.$queryRaw<RatingSource[]>(ratingsSql(userId));
     await db.$executeRaw(insertProfileSql(userId, defaultProfile(seedOf(viewer, accounts))));
     profileRow = (await db.$queryRaw<NonNullable<ReadRow["profile"]>[]>(lockProfileSql(userId)))[0] ?? null;

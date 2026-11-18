@@ -504,14 +504,18 @@ export async function setAutoImport(input: {
 }): Promise<LinkedAccountView> {
   const { viewer, provider, autoImport, now } = input;
   await deps.transaction(async (db) => {
-    const rows = await db.$queryRaw<{ id: bigint; lastSyncOkAt: Date | null; timeZone: string }[]>(Prisma.sql`WITH tz AS (
-        UPDATE users SET "timeZone" = COALESCE(${input.timeZone ?? null}::varchar(64), "timeZone")
-         WHERE id = ${viewer.id}::bigint RETURNING "timeZone")
-      SELECT la.id, la."lastSyncOkAt", (SELECT "timeZone" FROM tz) AS "timeZone"
+    // Lock order (regression: autoimport-analysis-deadlock): the account row first, the users row second, as the
+    // worker's ANALYZE_GAME final batch does (the game's links FOR KEY SHARE, then users."gamesVersion"). FOR NO KEY
+    // UPDATE is the lock the UPDATE below takes anyway, and a batch's KEY SHARE does not block it. Updating the users
+    // row (the zone) first, then asking for the account FOR UPDATE, deadlocked with a batch in between (40P01 → 500).
+    const locked = await db.$queryRaw<{ id: bigint; lastSyncOkAt: Date | null }[]>(Prisma.sql`SELECT la.id, la."lastSyncOkAt"
         FROM linked_accounts la WHERE la."userId" = ${viewer.id}::bigint AND la.provider = ${providerToDb(provider)}::"ChessProvider"
-        FOR UPDATE OF la`);
-    const row = rows[0];
-    if (!row) throw new DataError("not_found");
+        FOR NO KEY UPDATE OF la`);
+    const account = locked[0];
+    if (!account) throw new DataError("not_found");
+    const zone = await db.$queryRaw<{ timeZone: string }[]>(Prisma.sql`UPDATE users SET "timeZone" = COALESCE(${input.timeZone ?? null}::varchar(64), "timeZone")
+         WHERE id = ${viewer.id}::bigint RETURNING "timeZone"`);
+    const row = { ...account, timeZone: zone[0]!.timeZone };
     const id = BigInt(row.id);
     const next = autoImport ? nextAutoSyncAt(row.timeZone, now, row.lastSyncOkAt ? new Date(row.lastSyncOkAt) : null, id) : null;
     await db.$executeRaw(Prisma.sql`UPDATE linked_accounts SET "autoImport" = ${autoImport}, "nextAutoSyncAt" = ${next ? UTC(next) : null},

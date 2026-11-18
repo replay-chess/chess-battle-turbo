@@ -58,9 +58,12 @@ import { fileURLToPath } from "url";
 import { BASE_DEVICES, MOTION_PROJECTS, UI_PROJECTS, ZOOMS, baseDevice, projectName, zoomed } from "./e2e/devices/matrix";
 import { PUZZLE_SHARDS_PORT, puzzleShardEnv } from "./e2e/mocks/puzzle-shards-client";
 import { loggedCommand } from "./e2e/fixtures/server-logs";
+import { WORKER_PORT, WORKER_SERVER_COMMAND, devicesWorkerEnv } from "./e2e/fixtures/analysis-worker";
 
 // E2E_ENV_FILE: another env file (outside the repo), as in playwright.config.ts.
-loadEnv({ path: process.env.E2E_ENV_FILE || path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env.test"), override: true });
+/** apps/web: every artifact path below is anchored here, whatever the working directory. */
+const WEB_ROOT = path.dirname(fileURLToPath(import.meta.url));
+loadEnv({ path: process.env.E2E_ENV_FILE || path.resolve(WEB_ROOT, ".env.test"), override: true });
 
 const PR_TIER = new Set(["desktop-1440@100", "desktop-1280@125", "iphone@100", "ipad-portrait@100"]);
 const tier = process.env.DEVICES_TIER === "pr" ? "pr" : "full";
@@ -85,7 +88,8 @@ const layoutProjects: Project[] = BASE_DEVICES.flatMap((d) =>
 /** The lab timing gates alone (header): desktop-1440@100 settings, the @lab tests of layout/train.spec.ts. */
 const labDesktop = zoomed(baseDevice("desktop-1440"), 1);
 const labProjects: Project[] = [
-  { name: "lab-desktop-1440@100", testMatch: "layout/train.spec.ts", grep: LAB_TAG, use: labDesktop.use, metadata: { ...labDesktop.metadata, lab: true } },
+  // P6: the Weakness Profile's interaction budget (layout/weakness.lab.spec.ts; regression: weakness-tab-lab-in-suite).
+  { name: "lab-desktop-1440@100", testMatch: ["layout/train.spec.ts", "layout/weakness.lab.spec.ts"], grep: LAB_TAG, use: labDesktop.use, metadata: { ...labDesktop.metadata, lab: true } },
 ];
 
 const uiProjects: Project[] = UI_PROJECTS.map(({ name, device }) => ({
@@ -118,8 +122,10 @@ export default defineConfig({
   // CI: the HTML report, the list and GitHub annotations in the job log, and the JSON results (ci.yml uploads them).
   reporter: process.env.CI
     ? [
-        ["html", { open: "never", outputFolder: lab === "only" ? "playwright-report-devices-lab" : "playwright-report-devices" }],
-        ["json", { outputFile: lab === "only" ? "test-results-devices-lab/results.json" : "test-results-devices/results.json" }],
+        // Anchored to apps/web (FIX-1): a run started from another directory (e2e/devices/game) wrote these into the
+        // source tree, outside the ignore rules.
+        ["html", { open: "never", outputFolder: path.join(WEB_ROOT, lab === "only" ? "playwright-report-devices-lab" : "playwright-report-devices") }],
+        ["json", { outputFile: path.join(WEB_ROOT, lab === "only" ? "test-results-devices-lab/results.json" : "test-results-devices/results.json") }],
         ["list"],
         ["github"],
       ]
@@ -132,7 +138,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   // DEVICES_LAB=only: a run of its own; its artifacts must not clean away the first step's (Playwright empties outputDir).
-  ...(lab === "only" ? { outputDir: "test-results-lab" } : {}),
+  ...(lab === "only" ? { outputDir: path.join(WEB_ROOT, "test-results-lab") } : {}),
   projects: lab === "only" ? labProjects : lab === "skip" ? [...layoutProjects, ...uiProjects, ...motionProjects] : [...layoutProjects, ...labProjects, ...uiProjects, ...motionProjects],
   webServer: process.env.DEVICES_BASE_URL
     ? undefined
@@ -166,5 +172,19 @@ export default defineConfig({
           reuseExistingServer: true,
           timeout: 15_000,
         },
+        // P6 (phase-06 plan §12.4 real-route layer): DEVICES_WORKER=1 starts the e2e analysis worker (fake engine, local
+        // Postgres only: e2e/fixtures/analysis-worker.ts), which grades the leased `weak-member` persona's real games and
+        // builds its profile (packages/db/seed/p06-personas.ts). The persona tool reaches it through ANALYSIS_WORKER_URL.
+        ...(process.env.DEVICES_WORKER === "1"
+          ? [
+              {
+                command: loggedCommand("analysis-worker", WORKER_SERVER_COMMAND),
+                url: `http://127.0.0.1:${WORKER_PORT}/ready`,
+                env: devicesWorkerEnv(),
+                reuseExistingServer: !process.env.CI,
+                timeout: 120_000,
+              },
+            ]
+          : []),
       ],
 });

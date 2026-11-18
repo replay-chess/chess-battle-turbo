@@ -5,7 +5,9 @@
     {
       "name": "games_referenceId_key",
       "table": "games",
-      "columns": ["referenceId"],
+      "columns": [
+        "referenceId"
+      ],
       "unique": true,
       "phase": "P0",
       "query": "getGameSnapshot (RSC, every game page load); socket loadLiveGame (once per session); POST /api/games/[ref]/*",
@@ -14,7 +16,9 @@
     {
       "name": "games_pkey",
       "table": "games",
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "unique": true,
       "phase": "P0",
       "query": "socket checkpoint UPDATE … WHERE id = $1 (≤ 10 per game), finish CTE, abort",
@@ -23,7 +27,9 @@
     {
       "name": "games_open_idx",
       "table": "games",
-      "columns": ["status"],
+      "columns": [
+        "status"
+      ],
       "partial": "status IN ('WAITING_FOR_OPPONENT','IN_PROGRESS')",
       "protected": true,
       "phase": "P2",
@@ -33,7 +39,10 @@
     {
       "name": "games_source_externalId_key",
       "table": "games",
-      "columns": ["source", "externalId"],
+      "columns": [
+        "source",
+        "externalId"
+      ],
       "unique": true,
       "phase": "P2",
       "query": "P4 import upsert ON CONFLICT (source, \"externalId\")",
@@ -42,7 +51,9 @@
     {
       "name": "games_white_player_idx",
       "table": "games",
-      "columns": ["whitePlayerId"],
+      "columns": [
+        "whitePlayerId"
+      ],
       "partial": "\"whitePlayerId\" IS NOT NULL",
       "protected": true,
       "phase": "P2",
@@ -52,7 +63,9 @@
     {
       "name": "games_black_player_idx",
       "table": "games",
-      "columns": ["blackPlayerId"],
+      "columns": [
+        "blackPlayerId"
+      ],
       "partial": "\"blackPlayerId\" IS NOT NULL",
       "protected": true,
       "phase": "P2",
@@ -62,7 +75,9 @@
     {
       "name": "games_rematch_of_idx",
       "table": "games",
-      "columns": ["rematchOfId"],
+      "columns": [
+        "rematchOfId"
+      ],
       "partial": "\"rematchOfId\" IS NOT NULL",
       "protected": true,
       "phase": "P2",
@@ -72,7 +87,10 @@
     {
       "name": "game_players_pkey",
       "table": "game_players",
-      "columns": ["gameId", "userId"],
+      "columns": [
+        "gameId",
+        "userId"
+      ],
       "unique": true,
       "phase": "P2",
       "query": "participant check on GET /api/games/[ref], checkpoint, complete, PGN (≤ 2 rows); finish CTE join",
@@ -81,7 +99,10 @@
     {
       "name": "game_players_gameId_color_key",
       "table": "game_players",
-      "columns": ["gameId", "color"],
+      "columns": [
+        "gameId",
+        "color"
+      ],
       "unique": true,
       "phase": "P2",
       "query": "one row per side (a join race inserts the second row → unique violation → 409)",
@@ -90,7 +111,11 @@
     {
       "name": "game_players_userId_endedAt_gameId_idx",
       "table": "game_players",
-      "columns": ["userId", "endedAt DESC", "gameId DESC"],
+      "columns": [
+        "userId",
+        "endedAt DESC",
+        "gameId DESC"
+      ],
       "phase": "P2",
       "query": "my live games WHERE \"userId\" = $1 AND \"endedAt\" IS NULL; P3 archive keyset ORDER BY \"endedAt\" DESC, \"gameId\" DESC; user-delete cascade",
       "explain": "Index Scan using game_players_userId_endedAt_gameId_idx; no Sort over game_players"
@@ -98,7 +123,10 @@
     {
       "name": "idempotency_keys_pkey",
       "table": "idempotency_keys",
-      "columns": ["userId", "key"],
+      "columns": [
+        "userId",
+        "key"
+      ],
       "unique": true,
       "phase": "P2",
       "query": "POST /api/games Idempotency-Key insert ON CONFLICT (\"userId\", key) DO NOTHING",
@@ -107,7 +135,9 @@
     {
       "name": "idempotency_keys_createdAt_idx",
       "table": "idempotency_keys",
-      "columns": ["createdAt"],
+      "columns": [
+        "createdAt"
+      ],
       "phase": "P2",
       "query": "daily prune DELETE … WHERE \"createdAt\" < now() - interval '24 hours'",
       "explain": "Index Scan using idempotency_keys_createdAt_idx"
@@ -115,7 +145,11 @@
     {
       "name": "jobs_ready_idx",
       "table": "jobs",
-      "columns": ["priority DESC", "fairSeq", "runAt"],
+      "columns": [
+        "priority DESC",
+        "fairSeq",
+        "runAt"
+      ],
       "partial": "status = 'QUEUED'",
       "protected": true,
       "phase": "P3",
@@ -125,7 +159,9 @@
     {
       "name": "jobs_running_idx",
       "table": "jobs",
-      "columns": ["heartbeatAt"],
+      "columns": [
+        "heartbeatAt"
+      ],
       "partial": "status = 'RUNNING'",
       "protected": true,
       "phase": "P3",
@@ -135,7 +171,9 @@
     {
       "name": "jobs_finished_idx",
       "table": "jobs",
-      "columns": ["finishedAt"],
+      "columns": [
+        "finishedAt"
+      ],
       "partial": "status IN ('DONE','FAILED','CANCELLED')",
       "protected": true,
       "phase": "P3",
@@ -145,7 +183,9 @@
     {
       "name": "jobs_dedupeKey_key",
       "table": "jobs",
-      "columns": ["dedupeKey"],
+      "columns": [
+        "dedupeKey"
+      ],
       "unique": true,
       "phase": "P3",
       "query": "enqueue INSERT … ON CONFLICT (\"dedupeKey\") (packages/db/src/jobs.ts); A1/A2 probe LEFT JOIN jobs ON \"dedupeKey\" = 'analyze:' || g.id; healKick CAS UPDATE … WHERE \"dedupeKey\" = $k",
@@ -154,7 +194,9 @@
     {
       "name": "game_analyses_pkey",
       "table": "game_analyses",
-      "columns": ["gameId"],
+      "columns": [
+        "gameId"
+      ],
       "unique": true,
       "phase": "P3",
       "query": "A1 review load and probe; worker checkpoint upsert",
@@ -163,7 +205,10 @@
     {
       "name": "player_reviews_pkey",
       "table": "player_reviews",
-      "columns": ["gameId", "color"],
+      "columns": [
+        "gameId",
+        "color"
+      ],
       "unique": true,
       "phase": "P3",
       "query": "A1 review load and probe; A5 progress UPDATE … WHERE \"gameId\" = $g AND color = $c",
@@ -172,7 +217,10 @@
     {
       "name": "legend_comparisons_pkey",
       "table": "legend_comparisons",
-      "columns": ["gameId", "userId"],
+      "columns": [
+        "gameId",
+        "userId"
+      ],
       "unique": true,
       "phase": "P3",
       "query": "A2/A9 reads, the lazy facts insert ON CONFLICT DO NOTHING, A9b attempts CTE, worker READY update",
@@ -181,7 +229,9 @@
     {
       "name": "openings_epd_idx",
       "table": "openings",
-      "columns": ["epd"],
+      "columns": [
+        "epd"
+      ],
       "partial": "epd IS NOT NULL",
       "protected": true,
       "phase": "P3",
@@ -191,7 +241,9 @@
     {
       "name": "shares_code_key",
       "table": "shares",
-      "columns": ["code"],
+      "columns": [
+        "code"
+      ],
       "unique": true,
       "phase": "P3",
       "query": "/r/[code] page and image route (ISR miss only); A11 by code",
@@ -200,7 +252,10 @@
     {
       "name": "shares_owner_idx",
       "table": "shares",
-      "columns": ["ownerId", "createdAt DESC"],
+      "columns": [
+        "ownerId",
+        "createdAt DESC"
+      ],
       "partial": "kind = 'REVIEW'",
       "protected": true,
       "phase": "P3",
@@ -210,7 +265,9 @@
     {
       "name": "shares_expires_idx",
       "table": "shares",
-      "columns": ["expiresAt"],
+      "columns": [
+        "expiresAt"
+      ],
       "partial": "\"expiresAt\" IS NOT NULL",
       "protected": true,
       "phase": "P3",
@@ -220,7 +277,9 @@
     {
       "name": "shares_game_idx",
       "table": "shares",
-      "columns": ["gameId"],
+      "columns": [
+        "gameId"
+      ],
       "partial": "\"gameId\" IS NOT NULL",
       "protected": true,
       "phase": "P3",
@@ -230,7 +289,10 @@
     {
       "name": "linked_accounts_userId_provider_key",
       "table": "linked_accounts",
-      "columns": ["userId", "provider"],
+      "columns": [
+        "userId",
+        "provider"
+      ],
       "unique": true,
       "phase": "P4",
       "query": "GET /api/me (viewer LATERAL over the member's ≤ 2 links); ACC-1/ACC-3/ACC-6; the link transaction's FOR UPDATE",
@@ -239,7 +301,10 @@
     {
       "name": "import_runs_userId_createdAt_idx",
       "table": "import_runs",
-      "columns": ["userId", "createdAt DESC"],
+      "columns": [
+        "userId",
+        "createdAt DESC"
+      ],
       "phase": "P4",
       "query": "GET /api/me (newest active-or-recent run), ACC-7 GET /api/import/status (≤ 5 runs)",
       "explain": "Index Scan using import_runs_userId_createdAt_idx"
@@ -247,7 +312,9 @@
     {
       "name": "import_runs_one_active",
       "table": "import_runs",
-      "columns": ["linkedAccountId"],
+      "columns": [
+        "linkedAccountId"
+      ],
       "unique": true,
       "partial": "status IN ('WAITING_FOR_MEMBERSHIP', 'QUEUED', 'RUNNING')",
       "protected": true,
@@ -258,7 +325,9 @@
     {
       "name": "import_runs_waiting_idx",
       "table": "import_runs",
-      "columns": ["userId"],
+      "columns": [
+        "userId"
+      ],
       "partial": "status = 'WAITING_FOR_MEMBERSHIP'",
       "protected": true,
       "phase": "P4",
@@ -268,7 +337,10 @@
     {
       "name": "linked_accounts_verified_key",
       "table": "linked_accounts",
-      "columns": ["provider", "externalId"],
+      "columns": [
+        "provider",
+        "externalId"
+      ],
       "unique": true,
       "partial": "\"verifiedAt\" IS NOT NULL",
       "protected": true,
@@ -279,7 +351,9 @@
     {
       "name": "linked_accounts_autosync_idx",
       "table": "linked_accounts",
-      "columns": ["nextAutoSyncAt"],
+      "columns": [
+        "nextAutoSyncAt"
+      ],
       "partial": "\"autoImport\" AND status = 'ACTIVE'",
       "protected": true,
       "phase": "P4",
@@ -289,7 +363,9 @@
     {
       "name": "game_players_linked_account_idx",
       "table": "game_players",
-      "columns": ["linkedAccountId"],
+      "columns": [
+        "linkedAccountId"
+      ],
       "partial": "\"linkedAccountId\" IS NOT NULL",
       "protected": true,
       "phase": "P4",
@@ -299,7 +375,9 @@
     {
       "name": "import_cursors_pkey",
       "table": "import_cursors",
-      "columns": ["linkedAccountId"],
+      "columns": [
+        "linkedAccountId"
+      ],
       "unique": true,
       "phase": "P4",
       "query": "the worker's import context and finish",
@@ -308,7 +386,9 @@
     {
       "name": "mistakes_referenceId_key",
       "table": "mistakes",
-      "columns": ["referenceId"],
+      "columns": [
+        "referenceId"
+      ],
       "unique": true,
       "phase": "P5",
       "query": "report target check (W7), bank detail links, P7 coach subject: WHERE \"referenceId\" = $1 AND \"userId\" = $u",
@@ -317,7 +397,10 @@
     {
       "name": "mistakes_userId_epdHash_key",
       "table": "mistakes",
-      "columns": ["userId", "epdHash"],
+      "columns": [
+        "userId",
+        "epdHash"
+      ],
       "unique": true,
       "phase": "P5",
       "query": "J1 mistakes upsert ON CONFLICT (\"userId\",\"epdHash\"); every later J1 statement joins back on this natural key",
@@ -326,7 +409,10 @@
     {
       "name": "mistakes_userId_createdAt_idx",
       "table": "mistakes",
-      "columns": ["userId", "createdAt DESC"],
+      "columns": [
+        "userId",
+        "createdAt DESC"
+      ],
       "phase": "P5",
       "query": "NEW-card intake order fallback (W2), user-delete cascade, P6 scope scans",
       "explain": "Index Scan using mistakes_userId_createdAt_idx"
@@ -334,7 +420,10 @@
     {
       "name": "mistake_occurrences_pkey",
       "table": "mistake_occurrences",
-      "columns": ["gameId", "ply"],
+      "columns": [
+        "gameId",
+        "ply"
+      ],
       "unique": true,
       "phase": "P5",
       "query": "J1 idempotent insert; the moment ↔ mistake link WHERE \"gameId\" = $g AND ply = ANY($momentPlies) (A1/A2 bank fields, A6, the game-over count)",
@@ -343,7 +432,9 @@
     {
       "name": "mistake_occurrences_mistakeId_idx",
       "table": "mistake_occurrences",
-      "columns": ["mistakeId"],
+      "columns": [
+        "mistakeId"
+      ],
       "phase": "P5",
       "query": "J1 occurrence recount; \"seen in 3 games\"; cascade from mistakes",
       "explain": "Index Only Scan using mistake_occurrences_mistakeId_idx"
@@ -351,7 +442,10 @@
     {
       "name": "training_cards_userId_itemKey_key",
       "table": "training_cards",
-      "columns": ["userId", "itemKey"],
+      "columns": [
+        "userId",
+        "itemKey"
+      ],
       "unique": true,
       "phase": "P5",
       "query": "W1/W5/W6/R3 card lookup by API ref (FOR UPDATE); J1 card insert ON CONFLICT (\"userId\",\"itemKey\") DO NOTHING",
@@ -360,7 +454,9 @@
     {
       "name": "training_cards_mistakeId_key",
       "table": "training_cards",
-      "columns": ["mistakeId"],
+      "columns": [
+        "mistakeId"
+      ],
       "unique": true,
       "phase": "P5",
       "query": "A6 toggle; review bank fields LEFT JOIN training_cards c ON c.\"mistakeId\" = m.id; cascade",
@@ -369,7 +465,11 @@
     {
       "name": "training_cards_userId_deck_due_idx",
       "table": "training_cards",
-      "columns": ["userId", "deck", "due"],
+      "columns": [
+        "userId",
+        "deck",
+        "due"
+      ],
       "phase": "P5",
       "query": "R1/R2/R8/W2/HOME-1/getMe(): due counts, due preview ORDER BY due LIMIT 4, session build due <= $now ORDER BY due, id, bank keyset (due, id), upcoming histogram",
       "explain": "Index Scan using training_cards_userId_deck_due_idx; never a Seq Scan on training_cards"
@@ -377,7 +477,9 @@
     {
       "name": "training_attempts_clientAttemptId_key",
       "table": "training_attempts",
-      "columns": ["clientAttemptId"],
+      "columns": [
+        "clientAttemptId"
+      ],
       "unique": true,
       "phase": "P5",
       "query": "W1 duplicate pre-check WHERE \"clientAttemptId\" = ANY($ids) and the INSERT … ON CONFLICT DO NOTHING race guard",
@@ -386,7 +488,10 @@
     {
       "name": "training_attempts_userId_reviewedAt_idx",
       "table": "training_attempts",
-      "columns": ["userId", "reviewedAt DESC"],
+      "columns": [
+        "userId",
+        "reviewedAt DESC"
+      ],
       "phase": "P5",
       "query": "today's attempts (plan-step completion), session summary, week puzzles count (HOME-1), streak audits",
       "explain": "Index Scan using training_attempts_userId_reviewedAt_idx"
@@ -394,7 +499,10 @@
     {
       "name": "training_attempts_puzzle_idx",
       "table": "training_attempts",
-      "columns": ["userId", "puzzleId"],
+      "columns": [
+        "userId",
+        "puzzleId"
+      ],
       "partial": "\"puzzleId\" IS NOT NULL",
       "protected": true,
       "phase": "P5",
@@ -404,7 +512,9 @@
     {
       "name": "training_sessions_referenceId_key",
       "table": "training_sessions",
-      "columns": ["referenceId"],
+      "columns": [
+        "referenceId"
+      ],
       "unique": true,
       "phase": "P5",
       "query": "runner ?s= resume, summary page, R3/W3/W4",
@@ -413,7 +523,10 @@
     {
       "name": "training_sessions_userId_startedAt_idx",
       "table": "training_sessions",
-      "columns": ["userId", "startedAt DESC"],
+      "columns": [
+        "userId",
+        "startedAt DESC"
+      ],
       "phase": "P5",
       "query": "W2 ACTIVE reuse and the durable train-session count in one statement (startedAt > $now - 2 h)",
       "explain": "Index Scan using training_sessions_userId_startedAt_idx"
@@ -421,7 +534,10 @@
     {
       "name": "training_days_pkey",
       "table": "training_days",
-      "columns": ["userId", "day"],
+      "columns": [
+        "userId",
+        "day"
+      ],
       "unique": true,
       "phase": "P5",
       "query": "R1/W1/HOME-1: week strip day >= $monday, today's caps upsert, frozen plan",
@@ -430,7 +546,10 @@
     {
       "name": "theme_mastery_pkey",
       "table": "theme_mastery",
-      "columns": ["userId", "theme"],
+      "columns": [
+        "userId",
+        "theme"
+      ],
       "unique": true,
       "phase": "P5",
       "query": "R1 mastery bars, R4 picker, W1 attempt upsert, J1 bankCount increments",
@@ -439,7 +558,9 @@
     {
       "name": "training_profiles_pkey",
       "table": "training_profiles",
-      "columns": ["userId"],
+      "columns": [
+        "userId"
+      ],
       "unique": true,
       "phase": "P5",
       "query": "rating, streaks, prefs (one PK read in R1/W1/W2; the J1 job-load LEFT JOIN)",
@@ -448,7 +569,10 @@
     {
       "name": "reports_status_createdAt_idx",
       "table": "reports",
-      "columns": ["status", "createdAt"],
+      "columns": [
+        "status",
+        "createdAt"
+      ],
       "phase": "P5",
       "query": "P12 admin queue",
       "explain": "Index Scan using reports_status_createdAt_idx"
@@ -456,7 +580,10 @@
     {
       "name": "reports_targetType_targetRef_idx",
       "table": "reports",
-      "columns": ["targetType", "targetRef"],
+      "columns": [
+        "targetType",
+        "targetRef"
+      ],
       "phase": "P5",
       "query": "W7 \"already reported in the last 24 h\" check",
       "explain": "Index Scan using reports_targetType_targetRef_idx"
@@ -464,10 +591,37 @@
     {
       "name": "reports_reporterId_createdAt_idx",
       "table": "reports",
-      "columns": ["reporterId", "createdAt DESC"],
+      "columns": [
+        "reporterId",
+        "createdAt DESC"
+      ],
       "phase": "P5",
       "query": "W7 durable limit: count(*) WHERE \"reporterId\" = $u AND \"createdAt\" > $now - 1 day (≤ 20 rows; P10's player reports too)",
       "explain": "Index Only Scan using reports_reporterId_createdAt_idx"
+    },
+    {
+      "name": "weakness_snapshots_pkey",
+      "table": "weakness_snapshots",
+      "columns": [
+        "userId",
+        "weekStart"
+      ],
+      "unique": true,
+      "phase": "P6",
+      "query": "Q-W1 latest snapshot (TR-5, the hub, Home: ORDER BY \"weekStart\" DESC LIMIT 1), Q-W10 snapshot upsert (worker), Q-W13 prune to 12 weeks",
+      "explain": "Index Scan Backward using weakness_snapshots_pkey"
+    },
+    {
+      "name": "jobs_user_active_idx",
+      "table": "jobs",
+      "columns": [
+        "userId",
+        "kind"
+      ],
+      "unique": false,
+      "phase": "P6",
+      "query": "Q-W3 jobs part (TR-5): the member's QUEUED/RUNNING ANALYZE_GAME, RECOMPUTE_WEAKNESS and IMPORT_SYNC rows (partial: status IN ('QUEUED','RUNNING'))",
+      "explain": "Index Scan using jobs_user_active_idx"
     }
   ]
 }

@@ -626,6 +626,9 @@
           },
           "trainDot": {
             "type": "boolean"
+          },
+          "weaknessReady": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -4115,6 +4118,13 @@
                     "maximum": 9007199254740991,
                     "minimum": 0,
                     "type": "integer"
+                  },
+                  "source": {
+                    "enum": [
+                      "weakness",
+                      "bank"
+                    ],
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -8492,7 +8502,8 @@
           "solve_one",
           "home",
           "picker",
-          "deeplink"
+          "deeplink",
+          "weakness"
         ],
         "type": "string"
       },
@@ -9478,6 +9489,37 @@
                   "themes"
                 ],
                 "type": "object"
+              },
+              "weakness": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "href": {
+                        "maxLength": 120,
+                        "pattern": "^\\/.*",
+                        "type": "string"
+                      },
+                      "inBank": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "label": {
+                        "maxLength": 40,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "inBank",
+                      "href"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "required": [
@@ -18384,7 +18426,8 @@
                           "solve_one",
                           "home",
                           "picker",
-                          "deeplink"
+                          "deeplink",
+                          "weakness"
                         ],
                         "type": "string"
                       }
@@ -18454,7 +18497,8 @@
                           "solve_one",
                           "home",
                           "picker",
-                          "deeplink"
+                          "deeplink",
+                          "weakness"
                         ],
                         "type": "string"
                       }
@@ -18488,7 +18532,8 @@
                           "solve_one",
                           "home",
                           "picker",
-                          "deeplink"
+                          "deeplink",
+                          "weakness"
                         ],
                         "type": "string"
                       },
@@ -18518,6 +18563,58 @@
                     "required": [
                       "kind",
                       "fromSessionRef"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "weakness",
+                        "type": "string"
+                      },
+                      "mix": {
+                        "type": "boolean"
+                      },
+                      "pattern": {
+                        "pattern": "^(rc:)?[a-z][A-Za-z0-9]{1,31}$",
+                        "type": "string"
+                      },
+                      "size": {
+                        "anyOf": [
+                          {
+                            "const": 10,
+                            "type": "number"
+                          },
+                          {
+                            "const": 20,
+                            "type": "number"
+                          }
+                        ]
+                      },
+                      "source": {
+                        "default": "weakness",
+                        "enum": [
+                          "hub",
+                          "plan",
+                          "bank",
+                          "review_complete",
+                          "summary",
+                          "nav",
+                          "solve_one",
+                          "home",
+                          "picker",
+                          "deeplink",
+                          "weakness"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "pattern",
+                      "size",
+                      "mix"
                     ],
                     "type": "object"
                   }
@@ -19443,6 +19540,1558 @@
         "x-class": "R1",
         "x-side-effects": [
           "daily_plan"
+        ]
+      }
+    },
+    "/api/train/weakness": {
+      "get": {
+        "operationId": "train.weakness.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "algoVersion": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "band": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "label": {
+                                  "maxLength": 20,
+                                  "type": "string"
+                                },
+                                "max": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer"
+                                },
+                                "min": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer"
+                                },
+                                "source": {
+                                  "enum": [
+                                    "lichess",
+                                    "chesscom",
+                                    "replay",
+                                    "onboarding"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "min",
+                                "max",
+                                "label",
+                                "source"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "breakdown": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "clock": {
+                                  "anyOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "ariaLabel": {
+                                          "maxLength": 200,
+                                          "type": "string"
+                                        },
+                                        "buckets": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "key": {
+                                                "enum": [
+                                                  "gt5",
+                                                  "2to5",
+                                                  "1to2",
+                                                  "lt1"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              "label": {
+                                                "maxLength": 20,
+                                                "type": "string"
+                                              },
+                                              "moves": {
+                                                "maximum": 9007199254740991,
+                                                "minimum": -9007199254740991,
+                                                "type": "integer"
+                                              },
+                                              "per100": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "number"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "key",
+                                              "label",
+                                              "per100",
+                                              "moves"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 4,
+                                          "minItems": 4,
+                                          "type": "array"
+                                        },
+                                        "sentence": {
+                                          "maxLength": 160,
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "sentence",
+                                        "ariaLabel",
+                                        "buckets"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "openings": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "ecoRange": {
+                                        "maxLength": 16,
+                                        "type": "string"
+                                      },
+                                      "family": {
+                                        "maxLength": 60,
+                                        "type": "string"
+                                      },
+                                      "games": {
+                                        "maximum": 9007199254740991,
+                                        "minimum": -9007199254740991,
+                                        "type": "integer"
+                                      },
+                                      "note": {
+                                        "anyOf": [
+                                          {
+                                            "enum": [
+                                              "most_played",
+                                              "most_points_lost",
+                                              "best_score"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "scorePct": {
+                                        "maximum": 100,
+                                        "minimum": 0,
+                                        "type": "integer"
+                                      }
+                                    },
+                                    "required": [
+                                      "family",
+                                      "ecoRange",
+                                      "games",
+                                      "scorePct",
+                                      "note"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "maxItems": 4,
+                                  "type": "array"
+                                },
+                                "phase": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "rows": {
+                                      "items": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "band": {
+                                            "anyOf": [
+                                              {
+                                                "maximum": 9007199254740991,
+                                                "minimum": -9007199254740991,
+                                                "type": "integer"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "label": {
+                                            "maxLength": 20,
+                                            "type": "string"
+                                          },
+                                          "phase": {
+                                            "enum": [
+                                              "opening",
+                                              "middlegame",
+                                              "endgame"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "you": {
+                                            "anyOf": [
+                                              {
+                                                "maximum": 9007199254740991,
+                                                "minimum": -9007199254740991,
+                                                "type": "integer"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "phase",
+                                          "label",
+                                          "you",
+                                          "band"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "maxItems": 3,
+                                      "minItems": 3,
+                                      "type": "array"
+                                    },
+                                    "sentence": {
+                                      "maxLength": 160,
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "sentence",
+                                    "rows"
+                                  ],
+                                  "type": "object"
+                                },
+                                "strengths": {
+                                  "items": {
+                                    "maxLength": 160,
+                                    "type": "string"
+                                  },
+                                  "maxItems": 2,
+                                  "type": "array"
+                                }
+                              },
+                              "required": [
+                                "phase",
+                                "clock",
+                                "openings",
+                                "strengths"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "computedAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "failure": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "code": {
+                                  "maxLength": 40,
+                                  "type": "string"
+                                },
+                                "retryable": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "code",
+                                "retryable"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "games": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "analysed": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
+                            },
+                            "inScope": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
+                            },
+                            "pending": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
+                            },
+                            "preliminaryFrom": {
+                              "const": 5,
+                              "type": "number"
+                            },
+                            "required": {
+                              "const": 20,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "analysed",
+                            "inScope",
+                            "pending",
+                            "required",
+                            "preliminaryFrom"
+                          ],
+                          "type": "object"
+                        },
+                        "headline": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "short": {
+                                  "maxLength": 120,
+                                  "type": "string"
+                                },
+                                "text": {
+                                  "maxLength": 200,
+                                  "type": "string"
+                                },
+                                "verified": {
+                                  "const": true,
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "text",
+                                "short",
+                                "verified"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "listMode": {
+                          "enum": [
+                            "vs_band",
+                            "own_only",
+                            "most_frequent"
+                          ],
+                          "type": "string"
+                        },
+                        "more": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "band": {
+                                "anyOf": [
+                                  {
+                                    "maximum": 100,
+                                    "minimum": 0,
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "events": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "example": {
+                                "anyOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "fen": {
+                                        "maxLength": 100,
+                                        "type": "string"
+                                      },
+                                      "mistakeRef": {
+                                        "maxLength": 32,
+                                        "type": "string"
+                                      },
+                                      "orient": {
+                                        "enum": [
+                                          "w",
+                                          "b"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "fen",
+                                      "orient",
+                                      "mistakeRef"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "inBank": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "label": {
+                                "maxLength": 40,
+                                "type": "string"
+                              },
+                              "lesson": {
+                                "anyOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "slug": {
+                                        "maxLength": 80,
+                                        "type": "string"
+                                      },
+                                      "sub": {
+                                        "maxLength": 100,
+                                        "type": "string"
+                                      },
+                                      "title": {
+                                        "maxLength": 80,
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "slug",
+                                      "title",
+                                      "sub"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "matchable": {
+                                "type": "boolean"
+                              },
+                              "pattern": {
+                                "pattern": "^(rc:)?[a-z][A-Za-z0-9]{1,31}$",
+                                "type": "string"
+                              },
+                              "rank": {
+                                "maximum": 5,
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "slug": {
+                                "maxLength": 40,
+                                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                                "type": "string"
+                              },
+                              "trend": {
+                                "enum": [
+                                  "worse",
+                                  "same",
+                                  "better",
+                                  "unknown"
+                                ],
+                                "type": "string"
+                              },
+                              "trendLabel": {
+                                "maxLength": 60,
+                                "type": "string"
+                              },
+                              "unit": {
+                                "enum": [
+                                  "per100",
+                                  "per100_under1min"
+                                ],
+                                "type": "string"
+                              },
+                              "where": {
+                                "maxLength": 80,
+                                "type": "string"
+                              },
+                              "you": {
+                                "maximum": 100,
+                                "minimum": 0,
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "rank",
+                              "pattern",
+                              "slug",
+                              "label",
+                              "unit",
+                              "you",
+                              "band",
+                              "trend",
+                              "trendLabel",
+                              "events",
+                              "where",
+                              "example",
+                              "inBank",
+                              "matchable",
+                              "lesson"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 2,
+                          "type": "array"
+                        },
+                        "offers": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "includeBullet": {
+                              "anyOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "bulletGames": {
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "bulletGames"
+                                  ],
+                                  "type": "object"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "includeBullet"
+                          ],
+                          "type": "object"
+                        },
+                        "preliminary": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "label": {
+                                "maxLength": 40,
+                                "type": "string"
+                              },
+                              "of": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "pattern": {
+                                "pattern": "^(rc:)?[a-z][A-Za-z0-9]{1,31}$",
+                                "type": "string"
+                              },
+                              "seenIn": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "pattern",
+                              "label",
+                              "seenIn",
+                              "of"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 3,
+                          "type": "array"
+                        },
+                        "progress": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "analysed": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                "etaSec": {
+                                  "anyOf": [
+                                    {
+                                      "maximum": 86400,
+                                      "minimum": 0,
+                                      "type": "integer"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "orphaned": {
+                                  "type": "boolean"
+                                },
+                                "pct": {
+                                  "maximum": 100,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                "stalled": {
+                                  "type": "boolean"
+                                },
+                                "steps": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "key": {
+                                        "enum": [
+                                          "import",
+                                          "grade",
+                                          "patterns",
+                                          "compare"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "maxLength": 80,
+                                        "type": "string"
+                                      },
+                                      "pct": {
+                                        "maximum": 100,
+                                        "minimum": 0,
+                                        "type": "integer"
+                                      },
+                                      "state": {
+                                        "enum": [
+                                          "done",
+                                          "run",
+                                          "wait"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "label",
+                                      "pct",
+                                      "state"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "maxItems": 4,
+                                  "minItems": 4,
+                                  "type": "array"
+                                },
+                                "target": {
+                                  "maximum": 300,
+                                  "minimum": 1,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "pct",
+                                "etaSec",
+                                "stalled",
+                                "orphaned",
+                                "analysed",
+                                "target",
+                                "steps"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "rating": {
+                          "anyOf": [
+                            {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "scope": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "maxGames": {
+                              "const": 300,
+                              "type": "number"
+                            },
+                            "months": {
+                              "anyOf": [
+                                {
+                                  "const": 3,
+                                  "type": "number"
+                                },
+                                {
+                                  "const": 6,
+                                  "type": "number"
+                                },
+                                {
+                                  "const": 12,
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            "since": {
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                              "type": "string"
+                            },
+                            "timeClasses": {
+                              "items": {
+                                "enum": [
+                                  "BULLET",
+                                  "BLITZ",
+                                  "RAPID",
+                                  "CLASSICAL"
+                                ],
+                                "type": "string"
+                              },
+                              "minItems": 1,
+                              "type": "array"
+                            }
+                          },
+                          "required": [
+                            "timeClasses",
+                            "since",
+                            "months",
+                            "maxGames"
+                          ],
+                          "type": "object"
+                        },
+                        "scopeLabel": {
+                          "maxLength": 80,
+                          "type": "string"
+                        },
+                        "scopeLabelShort": {
+                          "maxLength": 60,
+                          "type": "string"
+                        },
+                        "seenVersion": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "snapshotKey": {
+                          "anyOf": [
+                            {
+                              "maxLength": 40,
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "enum": [
+                            "insufficient",
+                            "computing",
+                            "ready",
+                            "failed"
+                          ],
+                          "type": "string"
+                        },
+                        "top": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "band": {
+                                "anyOf": [
+                                  {
+                                    "maximum": 100,
+                                    "minimum": 0,
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "events": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "example": {
+                                "anyOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "fen": {
+                                        "maxLength": 100,
+                                        "type": "string"
+                                      },
+                                      "mistakeRef": {
+                                        "maxLength": 32,
+                                        "type": "string"
+                                      },
+                                      "orient": {
+                                        "enum": [
+                                          "w",
+                                          "b"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "fen",
+                                      "orient",
+                                      "mistakeRef"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "inBank": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "label": {
+                                "maxLength": 40,
+                                "type": "string"
+                              },
+                              "lesson": {
+                                "anyOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "slug": {
+                                        "maxLength": 80,
+                                        "type": "string"
+                                      },
+                                      "sub": {
+                                        "maxLength": 100,
+                                        "type": "string"
+                                      },
+                                      "title": {
+                                        "maxLength": 80,
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "slug",
+                                      "title",
+                                      "sub"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "matchable": {
+                                "type": "boolean"
+                              },
+                              "pattern": {
+                                "pattern": "^(rc:)?[a-z][A-Za-z0-9]{1,31}$",
+                                "type": "string"
+                              },
+                              "rank": {
+                                "maximum": 5,
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "slug": {
+                                "maxLength": 40,
+                                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                                "type": "string"
+                              },
+                              "trend": {
+                                "enum": [
+                                  "worse",
+                                  "same",
+                                  "better",
+                                  "unknown"
+                                ],
+                                "type": "string"
+                              },
+                              "trendLabel": {
+                                "maxLength": 60,
+                                "type": "string"
+                              },
+                              "unit": {
+                                "enum": [
+                                  "per100",
+                                  "per100_under1min"
+                                ],
+                                "type": "string"
+                              },
+                              "where": {
+                                "maxLength": 80,
+                                "type": "string"
+                              },
+                              "you": {
+                                "maximum": 100,
+                                "minimum": 0,
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "rank",
+                              "pattern",
+                              "slug",
+                              "label",
+                              "unit",
+                              "you",
+                              "band",
+                              "trend",
+                              "trendLabel",
+                              "events",
+                              "where",
+                              "example",
+                              "inBank",
+                              "matchable",
+                              "lesson"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 3,
+                          "type": "array"
+                        },
+                        "updating": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "newGames": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "newGames"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "v": {
+                          "const": 1,
+                          "type": "number"
+                        },
+                        "version": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "weekPlan": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "href": {
+                                "maxLength": 120,
+                                "pattern": "^\\/.*",
+                                "type": "string"
+                              },
+                              "kind": {
+                                "enum": [
+                                  "drill",
+                                  "puzzles",
+                                  "lesson"
+                                ],
+                                "type": "string"
+                              },
+                              "label": {
+                                "maxLength": 60,
+                                "type": "string"
+                              },
+                              "sub": {
+                                "maxLength": 100,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "label",
+                              "sub",
+                              "href"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 3,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "v",
+                        "status",
+                        "scope",
+                        "scopeLabel",
+                        "scopeLabelShort",
+                        "games",
+                        "progress",
+                        "updating",
+                        "band",
+                        "rating",
+                        "headline",
+                        "listMode",
+                        "top",
+                        "more",
+                        "preliminary",
+                        "weekPlan",
+                        "breakdown",
+                        "offers",
+                        "failure",
+                        "version",
+                        "seenVersion",
+                        "algoVersion",
+                        "computedAt",
+                        "snapshotKey"
+                      ],
+                      "type": "object"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified (If-None-Match matched the ETag)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "The viewer's weakness profile (status, patterns, breakdowns, progress)",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "private-etag",
+        "x-class": "R2",
+        "x-side-effects": [
+          "kick_cas"
+        ]
+      }
+    },
+    "/api/train/weakness/recompute": {
+      "post": {
+        "operationId": "train.weakness.recompute",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "months": {
+                    "anyOf": [
+                      {
+                        "const": 3,
+                        "type": "number"
+                      },
+                      {
+                        "const": 6,
+                        "type": "number"
+                      },
+                      {
+                        "const": 12,
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "timeClasses": {
+                    "items": {
+                      "enum": [
+                        "BULLET",
+                        "BLITZ",
+                        "RAPID",
+                        "CLASSICAL"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 4,
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "queuedAt": {
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                          "type": "string"
+                        },
+                        "scopeChanged": {
+                          "type": "boolean"
+                        },
+                        "status": {
+                          "const": "computing",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "queuedAt",
+                        "scopeChanged"
+                      ],
+                      "type": "object"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/OkMeta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Accepted",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Requests a weakness profile rebuild (optionally with a new scope)",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 1024,
+        "x-rate-limit": [
+          {
+            "bucket": "weakness-recompute-burst",
+            "by": "user",
+            "limit": 5,
+            "store": "burst",
+            "windowSec": 60
+          }
+        ]
+      }
+    },
+    "/api/train/weakness/seen": {
+      "post": {
+        "operationId": "train.weakness.seen",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "version": {
+                    "maximum": 2147483647,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "version"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request: `invalid_json`, `validation_failed`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized: `unauthorized`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payment Required: `subscription_required`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found: `not_found`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload Too Large: `payload_too_large`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests: `rate_limited`",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error: `internal`",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clerkSession": []
+          }
+        ],
+        "summary": "Marks the viewer's current weakness profile version as seen",
+        "tags": [
+          "train"
+        ],
+        "x-auth": "member",
+        "x-cache": "no-store",
+        "x-class": "W1",
+        "x-max-body-bytes": 256,
+        "x-rate-limit": [
+          {
+            "bucket": "train-write",
+            "by": "user",
+            "limit": 120,
+            "store": "burst",
+            "windowSec": 60
+          }
         ]
       }
     },

@@ -20,7 +20,7 @@ describe("puzzle shard server", () => {
     const health = (await (await fetch(`${s.origin}/__health`)).json()) as { ok: boolean; versions: string[]; files: number };
     assert.equal(health.ok, true);
     assert.deepEqual(health.versions, ["v1"]);
-    assert.equal(health.files, 43); // 6 themes × 7 bands + the manifest
+    assert.equal(health.files, 26 * 7 + 1); // 26 themes (P5 6, P6 WP8 the weakness drills' 20) × 7 bands + the manifest
   });
 
   it("answers a shard and the manifest with R2's headers, HEAD without a body", async () => {

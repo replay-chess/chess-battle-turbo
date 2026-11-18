@@ -15,6 +15,12 @@
  *    in `due` order and break ties on `id` with an Incremental Sort over the rows of one `due` instant (presorted key
  *    `due`): that node is allowed for the queries that declare `tieBreak`, a full Sort never is.
  *
+ * P6 (phase-06 plan §9.1, Q-W1…Q-W13): `p6HotQueries()` plans the Weakness Profile statements the same way, from their
+ * own builders: the web's (TR-5, TR-7's own-card pick, TR-12, TR-13, the hub/Home reads, the kick CAS) and the worker's
+ * (the recompute's inputs and examples, coverage, the progress probe, the final-batch trigger, the HOUSEKEEPING slice).
+ * Each also refuses a Seq Scan over `weakness_snapshots`, `jobs` and `import_runs`; the slice's three sweeps (one
+ * bounded batch over every member, Q-W13) may scan `users` and `weakness_snapshots`, never `game_players` or `jobs`.
+ *
  * Plain EXPLAIN (never executed), so the writes are planned safely; still, only a local or CI Postgres is accepted.
  * Exit 0 = pass; 1 = a missing index or a bad plan (printed); 2 = setup error.
  */
@@ -43,6 +49,30 @@ import {
   sessionSql,
 } from "@/lib/train/sessions.server";
 import { duePreviewSql, todaysAttemptsSql } from "@/lib/train/today.server";
+import { requestRecomputeSql, weaknessKickCasSql } from "@repo/db/weakness-jobs";
+import { JOB_PRIORITY } from "@repo/contracts/internal/jobs";
+import {
+  activeImportsSql,
+  bankThemeCountsSql,
+  lastAnalysedSql,
+  latestSnapshotSql,
+  scopeCountsSql,
+  weaknessJobsSql,
+  weaknessProfileSql,
+} from "@/lib/train/weakness.server";
+import { markSeenSql, upsertScopeSql } from "@/lib/train/weakness-write.server";
+import { weaknessOwnCardsSql } from "@/lib/train/sessions.server";
+// The worker's weakness statements themselves, not copies (as packages/db/scripts/explain-hot.ts reads the worker's queue SQL).
+import { weaknessInputsStatement } from "../../analysis-worker/src/weakness/load";
+import { examplesStatement } from "../../analysis-worker/src/weakness/examples";
+import { coverageStatement } from "../../analysis-worker/src/weakness/coverage";
+import { probeStatement } from "../../analysis-worker/src/weakness/progressEmitter";
+import { weaknessContextStatement } from "../../analysis-worker/src/weakness/context";
+import { analysisTriggerStatement } from "../../analysis-worker/src/weakness/triggers";
+import { bumpVersionStatement, snapshotUpsertStatement } from "../../analysis-worker/src/weakness/write";
+import { defaultWeaknessSettings } from "../../analysis-worker/src/weakness/settings";
+import { failedMetrics } from "@repo/chess-training/weakness/compute";
+import { healSweepStatement, pruneSnapshotsStatement, weeklyRollStatement } from "../../analysis-worker/src/scheduler/recurring/weakness";
 
 const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ROOT = path.resolve(WEB, "../..");
@@ -65,7 +95,9 @@ const NO_SORT = ["training_cards", "training_attempts", "mistakes", "mistake_occ
 
 export type P5HotQuery = {
   name: string;
-  sql: Prisma.Sql | string;
+  sql: Prisma.Sql | string | { text: string; values: readonly unknown[] };
+  /** More tables this statement may never Seq Scan (P6). */
+  noSeq?: readonly string[];
   tieBreak?: boolean;
   /** Tables whose Sort this statement may keep (P3's own rules for its reads; see the entries). */
   allowSort?: string[];
@@ -149,6 +181,91 @@ export function p5HotQueries(): P5HotQuery[] {
     { name: "W7 puzzle target visible to the viewer", sql: reportTargetSql(U, { targetType: "puzzle", targetRef: "00abc" }) },
     // m5c: the import purge's Mistake Bank step (import_purge_bank, once per purge batch).
     ...purgeBankQueries(),
+  ];
+}
+
+/** P6 tables a Weakness Profile statement may never Seq Scan. */
+const P6_NO_SEQ = ["weakness_snapshots", "jobs", "import_runs"] as const;
+/** The HOUSEKEEPING sweeps' (Q-W13) rule: one bounded batch over every member may scan these two, never the rest. */
+const P6_SWEEP_NO_SEQ = ["jobs", "import_runs"] as const;
+const SINCE = new Date("2026-05-12T00:00:00.000Z");
+const WK_USER = "1";
+const TCS = ["BLITZ", "RAPID"];
+
+/** Every P6 hot statement (§9.1, Q-W1…Q-W13), from the web's and the worker's own builders with sample binds. */
+export function p6HotQueries(): P5HotQuery[] {
+  const s = defaultWeaknessSettings();
+  const scope = { timeClasses: TCS as never, maxGames: 300 as const };
+  const trigger = analysisTriggerStatement([WK_USER, "2"], s);
+  return [
+    // TR-5 (and the hub / Home reads: Q-W1 ‖ Q-W2)
+    { name: "P6 Q-W1 latest snapshot (weakness_snapshots_pkey, newest week)", sql: latestSnapshotSql(U), noSeq: P6_NO_SEQ },
+    { name: "P6 Q-W2 bank theme counts (training_cards_userId_*)", sql: bankThemeCountsSql(U, NOW), noSeq: P6_NO_SEQ },
+    { name: "P6 Q-W4 profile: version, seen, scope (training_profiles_pkey)", sql: weaknessProfileSql(U), noSeq: P6_NO_SEQ },
+    { name: "P6 Q-W3 jobs: active analyses / recompute / imports + the FAILED row (jobs_user_active_idx, dedupeKey)", sql: weaknessJobsSql(U), noSeq: P6_NO_SEQ },
+    { name: "P6 Q-W3 in-scope counts (game_players_userId_endedAt_gameId_idx)", sql: scopeCountsSql(U, SINCE), noSeq: P6_NO_SEQ },
+    { name: "P6 TR-5 running imports (import_runs_one_active)", sql: activeImportsSql(U), noSeq: P6_NO_SEQ },
+    { name: "P6 Q-W3b last analysed in scope", sql: lastAnalysedSql(U, SINCE), noSeq: P6_NO_SEQ },
+    // TR-7 weakness drill, TR-12, TR-13, the kick CAS
+    { name: "P6 Q-W7 own cards of a pattern (training_cards due idx + mistakes_pkey)", sql: weaknessOwnCardsSql(U, NOW, "fork"), noSeq: P6_NO_SEQ,
+      // Plan §9.1: an index scan of the member's BANK cards, then a Sort of the pattern's ≤ bank-size rows (the order is
+      // computed: due-now first, mastery, recency), never a Seq Scan.
+      allowSort: ["training_cards", "mistakes"] },
+    {
+      name: "P6 TR-12 recompute request (jobs_dedupeKey_key upsert)",
+      sql: requestRecomputeSql({ userId: U, trigger: "user", priority: JOB_PRIORITY.USER_OPENED, runAt: NOW, debounceSec: 0, now: NOW }),
+      noSeq: P6_NO_SEQ,
+    },
+    {
+      name: "P6 TR-12 scope upsert (training_profiles_pkey)",
+      sql: upsertScopeSql(U, { timeClasses: ["BLITZ"] as never, months: 6, maxGames: 300 }, { puzzleRating: 1500, puzzleRd: 350, puzzleVol: 0.06 }),
+      noSeq: P6_NO_SEQ,
+    },
+    { name: "P6 Q-W9 mark seen (training_profiles_pkey)", sql: markSeenSql(U, 2), noSeq: P6_NO_SEQ },
+    { name: "P6 Q-W12 kick CAS (jobs_dedupeKey_key)", sql: weaknessKickCasSql(U, NOW), noSeq: P6_NO_SEQ },
+    // The worker: RECOMPUTE_WEAKNESS, J4 coverage, progress, the final-batch trigger
+    { name: "P6 worker context: member, entitlement, profile scope (PKs)", sql: weaknessContextStatement(WK_USER), noSeq: P6_NO_SEQ },
+    { name: "P6 Q-W5 recompute inputs ≤ 300 sides (game_players_userId_endedAt_gameId_idx + games_pkey)", sql: weaknessInputsStatement(WK_USER, SINCE, TCS), noSeq: P6_NO_SEQ },
+    { name: "P6 Q-W6 examples from the bank (training_cards + mistakes)", sql: examplesStatement(WK_USER, ["fork", "rc:timePressure"]), noSeq: P6_NO_SEQ,
+      // Plan §9.1: the member's mistakes by the userId prefix → Unique/Sort per theme.
+      allowSort: ["mistakes"] },
+    {
+      name: "P6 Q-W10 snapshot upsert (weakness_snapshots_pkey)",
+      sql: snapshotUpsertStatement({
+        userId: WK_USER,
+        weekStart: "2026-11-09",
+        status: "INSUFFICIENT",
+        timeClasses: ["BLITZ", "RAPID"],
+        since: SINCE,
+        gamesInScope: 12,
+        gamesAnalysed: 12,
+        ratingBandMin: null,
+        ratingBandMax: null,
+        metrics: failedMetrics({
+          code: "explain",
+          at: NOW,
+          scope: { timeClasses: ["BLITZ", "RAPID"], months: 6, maxGames: 300 },
+          since: SINCE,
+          inScope: 12,
+          analysed: 12,
+          baseline: { id: "v1", profile: "sf18-v1" },
+        }),
+        headline: null,
+      }),
+      noSeq: P6_NO_SEQ,
+    },
+    { name: "P6 Q-W10 version bump (training_profiles_pkey)", sql: bumpVersionStatement(WK_USER), noSeq: P6_NO_SEQ },
+    {
+      name: "P6 J4 coverage picks + enqueue (game_players idx, jobs_dedupeKey_key)",
+      sql: coverageStatement({ userId: WK_USER, scope, since: SINCE, trialing: false, caps: { member: 100, trial: 20 }, eager: { cap: 200, eagerTrial: 20 }, snapshot: false } as never),
+      noSeq: P6_NO_SEQ,
+    },
+    { name: "P6 progress probe (game_players idx, jobs_user_active_idx, import_runs)", sql: probeStatement(WK_USER, SINCE, scope), noSeq: P6_NO_SEQ },
+    ...(trigger ? [{ name: "P6 final-batch `analysis` trigger (weakness_snapshots_pkey, jobs_dedupeKey_key)", sql: trigger, noSeq: P6_NO_SEQ }] : []),
+    // HOUSEKEEPING slice (Q-W13): bounded sweeps
+    { name: "P6 Q-W13 weekly roll (sweep)", sql: weeklyRollStatement(s), noSeq: P6_SWEEP_NO_SEQ, allowSort: ["game_players"] },
+    { name: "P6 Q-W13 heal sweep (sweep)", sql: healSweepStatement(s), noSeq: P6_SWEEP_NO_SEQ, allowSort: ["game_players"] },
+    { name: "P6 Q-W13 prune to 12 weeks (sweep)", sql: pruneSnapshotsStatement(), noSeq: P6_SWEEP_NO_SEQ },
   ];
 }
 
@@ -250,12 +367,13 @@ function walk(node: PlanNode, out: { type: string; relations: string[]; presorte
 }
 
 /** The plan problems of one P5 query (empty = fine). Exported for the unit test. */
-export function p5PlanProblems(plan: PlanNode, q: Pick<P5HotQuery, "tieBreak" | "allowSort">): string[] {
+export function p5PlanProblems(plan: PlanNode, q: Pick<P5HotQuery, "tieBreak" | "allowSort" | "noSeq">): string[] {
   const nodes: { type: string; relations: string[]; presorted: string[] }[] = [];
   walk(plan, nodes);
   const problems: string[] = [];
+  const noSeq: readonly string[] = q.noSeq === P6_SWEEP_NO_SEQ ? [...P6_SWEEP_NO_SEQ, "game_players", "training_cards", "training_attempts"] : [...NO_SEQ, ...(q.noSeq ?? [])];
   for (const n of nodes) {
-    if (n.type === "Seq Scan" && NO_SEQ.includes(n.relations[0] ?? "")) problems.push(`Seq Scan on ${n.relations[0]}`);
+    if (n.type === "Seq Scan" && noSeq.includes(n.relations[0] ?? "")) problems.push(`Seq Scan on ${n.relations[0]}`);
     const sorted = n.relations.filter((r) => NO_SORT.includes(r) && !(q.allowSort ?? []).includes(r));
     if (!sorted.length) continue;
     if (n.type === "Sort") problems.push(`Sort over ${sorted.join(", ")}`);
@@ -266,10 +384,20 @@ export function p5PlanProblems(plan: PlanNode, q: Pick<P5HotQuery, "tieBreak" | 
   return problems;
 }
 
+/** The index names of docs/indexes.json one phase added. */
+export function indexNamesOf(phase: "P5" | "P6"): string[] {
+  const doc = JSON.parse(readFileSync(path.join(ROOT, "docs/indexes.json"), "utf8")) as { indexes: { name: string; phase?: string }[] };
+  return doc.indexes.filter((i) => i.phase === phase).map((i) => i.name);
+}
+
 /** The P5 index names of docs/indexes.json. */
 export function p5IndexNames(): string[] {
-  const doc = JSON.parse(readFileSync(path.join(ROOT, "docs/indexes.json"), "utf8")) as { indexes: { name: string; phase?: string }[] };
-  return doc.indexes.filter((i) => i.phase === "P5").map((i) => i.name);
+  return indexNamesOf("P5");
+}
+
+/** The P6 index names of docs/indexes.json (phase-06 plan §6.5, §9.1: checked before any plan is read). */
+export function p6IndexNames(): string[] {
+  return indexNamesOf("P6");
 }
 
 function localUrl(): string {
@@ -291,16 +419,17 @@ async function main(argv: readonly string[]): Promise<number> {
   const db = createPrismaClient({ datasourceUrl: url });
   let failed = false;
   try {
-    const names = p5IndexNames();
     const rows = await db.$queryRawUnsafe<{ n: string }[]>(`SELECT indexname AS n FROM pg_indexes WHERE schemaname = 'public'`);
     const have = new Set(rows.map((r) => r.n));
-    const missing = names.filter((n) => !have.has(n));
-    for (const n of missing) console.error(`MISSING index ${n} (docs/indexes.json, phase P5)`);
-    if (missing.length || names.length === 0) failed = true;
-    else console.log(`P5 indexes: ${names.length} listed, all present`);
+    for (const [phase, names] of [["P5", p5IndexNames()], ["P6", p6IndexNames()]] as const) {
+      const missing = names.filter((n) => !have.has(n));
+      for (const n of missing) console.error(`MISSING index ${n} (docs/indexes.json, phase ${phase})`);
+      if (missing.length || names.length === 0) failed = true;
+      else console.log(`${phase} indexes: ${names.length} listed, all present`);
+    }
     if (argv.includes("--check-indexes")) return failed ? 1 : 0;
 
-    for (const q of p5HotQueries()) {
+    for (const q of [...p5HotQueries(), ...p6HotQueries()]) {
       const plan = await db.$transaction(async (tx) => {
         await tx.$executeRawUnsafe("SET LOCAL enable_seqscan = off");
         await tx.$executeRawUnsafe("SET LOCAL enable_sort = off");

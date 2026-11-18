@@ -1,6 +1,6 @@
 // Command palette rows and filtering (SPEC 8.2 CommandPalette). Pure: the
 // component maps ids to icons and runs the actions.
-import { destination, destinationHref, membershipHref, type Me } from "../nav/destinations";
+import { destination, destinationHref, isEnabled, membershipHref, type Me, type NavFlags } from "../nav/destinations";
 
 export type PaletteGroup = "goto" | "actions" | "legends";
 export type PaletteAction = "shortcuts" | "theme" | "signout";
@@ -24,21 +24,28 @@ export const PALETTE_GROUPS: { id: PaletteGroup; heading: string }[] = [
 
 export const QUICK_MATCH_HREF = "/queue?time=300&increment=3";
 
+/** The Weakness Profile row's target: `?from=palette` feeds `weakness_viewed.entry` (phase-06 plan §10.1). */
+export const WEAKNESS_PALETTE_HREF = "/train/weakness?from=palette";
+
 /**
  * The Phase 1 rows, in curated order. No Home, My Games, Mistake Bank, Review
- * or Ask-the-Coach rows: those destinations don't exist yet.
+ * or Ask-the-Coach rows: those destinations don't exist yet. P6 (phase-06 plan §7.8) adds "Weakness Profile"
+ * (G then W) while the viewer has `train` and `weakness` on; hidden otherwise ("no dead links").
  */
 export function buildPaletteRows({
   me,
   isAdmin,
   theme,
   demo = false,
+  flags,
 }: {
   me: Me;
   isAdmin: boolean;
   /** The resolved theme now; the row offers the other one. */
   theme: "light" | "dark";
   demo?: boolean;
+  /** The shell's destination flags (P6: the Weakness Profile row). */
+  flags?: NavFlags;
 }): PaletteRow[] {
   const go = (key: "play" | "tournaments" | "legends" | "openings" | "profile", hint?: string): PaletteRow => {
     const d = destination(key);
@@ -49,6 +56,9 @@ export function buildPaletteRows({
     go("tournaments"),
     go("legends", "G then L"),
     go("openings"),
+    ...(isEnabled(destination("weakness"), flags)
+      ? [{ id: "weakness", group: "goto" as const, title: destination("weakness").label, hint: "G then W", href: demo ? "#weakness" : WEAKNESS_PALETTE_HREF }]
+      : []),
     go("profile"),
     { id: "membership", group: "goto", title: "Membership", href: membershipHref(me, demo) },
     { id: "find-opponent", group: "actions", title: "Find an Opponent · 5+3", href: QUICK_MATCH_HREF },

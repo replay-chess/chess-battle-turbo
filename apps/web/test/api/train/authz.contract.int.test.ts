@@ -1,5 +1,5 @@
 /**
- * The auth matrix of every P5 route on a real Postgres (phase-05 plan §12.2 "auth matrix", §11): signed out → 401; a
+ * The auth matrix of every P5 route (and P6's weakness routes, which share the train registry) on a real Postgres (phase-05 plan §12.2 "auth matrix", §11): signed out → 401; a
  * non-member → 402 `subscription_required` with each `details.reason`; another member's session / card / mistake /
  * moment ref → 404 (never 403); malformed JSON → 400 `invalid_json`; an unknown body field → 400; oversize → 413; a
  * route limiter's 429 carries `Retry-After`. Every route in the registry's train / home / reports areas is covered.
@@ -64,6 +64,10 @@ describe("P5 auth matrix (Postgres)", { skip: url ? false : "TEST_DATABASE_URL n
       { id: "home.get", name: "home", method: "GET", path: "/api/home", params: {} },
       { id: "me.badges", name: "badges", method: "GET", path: "/api/me/badges", params: {} },
       { id: "reports.create", name: "reports", method: "POST", path: "/api/reports", params: {}, body: { targetType: "mistake", targetRef: mistakeRef, reason: "other", fen }, maxBody: 4_096 },
+      // P6 (phase-06 plan §12.2 "Registry"): auth, the body rules and the limiters run before the `weakness` flag (404).
+      { id: "train.weakness.get", name: "weakness", method: "GET", path: "/api/train/weakness", params: {} },
+      { id: "train.weakness.recompute", name: "weaknessRecompute", method: "POST", path: "/api/train/weakness/recompute", params: {}, body: {}, maxBody: 1_024 },
+      { id: "train.weakness.seen", name: "weaknessSeen", method: "POST", path: "/api/train/weakness/seen", params: {}, body: { version: 0 }, maxBody: 256 },
     );
   });
   after(() => w.teardown());
@@ -142,13 +146,26 @@ describe("P5 auth matrix (Postgres)", { skip: url ? false : "TEST_DATABASE_URL n
       "train.prefs",
       "train.sessions.create",
       "train.sessions.extend",
+      "train.weakness.recompute",
+      "train.weakness.seen",
     ]);
     for (const c of limited) {
       const r = await w.call(c.name, c.method, c.path, owner, {
         params: c.params,
         headers: headers(c),
         body: c.body,
-        rateLimit: { allowed: false, retryAfterSec: 17, bucket: c.name === "reports" ? "report-burst" : c.id === "train.sessions.create" ? "train-session-burst" : "train-write" },
+        rateLimit: {
+          allowed: false,
+          retryAfterSec: 17,
+          bucket:
+            c.name === "reports"
+              ? "report-burst"
+              : c.id === "train.sessions.create"
+                ? "train-session-burst"
+                : c.id === "train.weakness.recompute"
+                  ? "weakness-recompute-burst"
+                  : "train-write",
+        },
       });
       assert.equal(r.res.status, 429, c.id);
       assert.equal(r.res.headers.get("retry-after"), "17", c.id);

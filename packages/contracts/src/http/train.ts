@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { Color, CursorParam, FenLoose, IsoDateTime, Limit, Ref, Uci } from "./common";
 import { TimeZone } from "./onboarding";
+import { PatternKey } from "./weakness";
 
 // ── Limits shared by the routes, the size tests and the clients ────────────────────────────────────────────────
 /** A bank this small is sent whole on page 1 (`meta.complete = true`) and filtered on the client (§5.2 S3). */
@@ -97,6 +98,8 @@ export const SESSION_SOURCES = [
   "home",
   "picker",
   "deeplink",
+  // P6 (phase-06 plan §5.4): a weakness drill started from the profile, its sheet or the hub row.
+  "weakness",
 ] as const;
 export const SessionSource = z.enum(SESSION_SOURCES);
 export type SessionSource = z.infer<typeof SessionSource>;
@@ -206,6 +209,14 @@ export const TrainToday = z.object({
     puzzles: z.object({
       themes: z.array(z.object({ key: ThemeKey, label: z.string().max(40), pct: z.number().int().min(0).max(100).nullable() })).max(3),
     }),
+    /**
+     * P6 (phase-06 plan §7.1.5): "Weakness drills · Missed forks · 12 in your bank". Absent (or null) unless the
+     * `weakness` flag is on and the latest snapshot is READY, so a P5 payload stays byte-identical.
+     */
+    weakness: z
+      .object({ label: z.string().max(40), inBank: z.number().int().min(0), href: z.string().startsWith("/").max(120) })
+      .nullable()
+      .optional(),
   }),
   mastery: z.array(z.object({ key: ThemeKey, label: z.string().max(40), pct: z.number().int().min(0).max(100) })).max(4),
   keepGoing: z.object({ href: z.string().startsWith("/").max(200), label: z.string().max(60) }).nullable(),
@@ -321,7 +332,17 @@ export const SessionCreate = z.discriminatedUnion("kind", [
     count: z.number().int().min(1).max(EXTEND_ITEMS).optional(),
   }),
   z.strictObject({ kind: z.literal("practice"), fromSessionRef: Ref }),
-  // { kind: "weakness", pattern, size: 10 | 20, mix } is added by P6.
+  // P6 (phase-06 plan §7.1.4, §8.11): a weakness drill. `pattern` must be a weakness candidate of the taxonomy
+  // (400 `validation_failed {reason: "unknown_pattern"}` otherwise); `mix` fills with matched Lichess puzzles.
+  // `source` is optional (the plan's body `{kind, pattern, size, mix}` stays valid): it defaults to "weakness" and is
+  // what `training_sessions.source` and `train_session_started.source` record, like every other kind's.
+  z.strictObject({
+    kind: z.literal("weakness"),
+    source: SessionSource.default("weakness"),
+    pattern: PatternKey,
+    size: z.union([z.literal(10), z.literal(20)]),
+    mix: z.boolean(),
+  }),
 ]);
 export type SessionCreate = z.infer<typeof SessionCreate>;
 export type SessionCreateInput = z.input<typeof SessionCreate>;
@@ -600,8 +621,11 @@ export type TrainPrefs = z.infer<typeof TrainPrefs>;
 export const ThemesResult = z.object({ options: z.array(ThemeOption), rating: z.number().int() });
 export type ThemesResult = z.infer<typeof ThemesResult>;
 
-/** `GET /api/me/badges`. P6 adds weaknessReady, P10 notificationsUnread (both optional when added). */
-export const Badges = z.object({ bankDue: z.number().int().min(0), trainDot: z.boolean() });
+/**
+ * `GET /api/me/badges`. P6 adds `weaknessReady` (optional: present only while the `weakness` flag is on;
+ * `trainDot ||= weaknessReady`), P10 notificationsUnread (optional when added).
+ */
+export const Badges = z.object({ bankDue: z.number().int().min(0), trainDot: z.boolean(), weaknessReady: z.boolean().optional() });
 export type Badges = z.infer<typeof Badges>;
 
 // ── Review bank fields (P3's reserved slots, filled from P5: A1 MomentDTO, A2 ReviewStatusDTO, A6, complete) ─────

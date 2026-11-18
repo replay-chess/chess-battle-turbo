@@ -4,6 +4,10 @@
 // the workspace module they share (`@repo/game-core/rating`). `/labels`, `/grade` and `/items` also stay free of
 // chess.js (the non-board routes' budget). The barrel is the server's: it does reach ts-fsrs, which shows the walk
 // sees through re-exports. The graph is read with the TypeScript pre-processor, so a dynamic `import("…")` counts too.
+//
+// P6 (phase-06 plan §8 intro): the weakness modules the client imports (`weakness/labels`, `slug`, `progress`,
+// `status`, `drill`, `constants`) are browser subpaths too: no ts-fsrs, no session.ts, no Node built-in, no Prisma, no
+// database package, and no chess.js (the weakness route has no board component; plan §9.3).
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { builtinModules, createRequire } from "node:module";
@@ -51,6 +55,11 @@ function walk(entry: string): Graph {
         queue.push(resolveRelative(file, spec));
       } else if (spec === "@repo/game-core/rating") {
         queue.push(resolve(GAME_CORE, "rating/index.ts"));
+      } else if (spec.startsWith("@repo/contracts/")) {
+        // Type-only contract imports (the payload shapes) are erased from the browser bundle; walk them anyway so a
+        // value import of a forbidden package through them would be seen.
+        packages.add(spec);
+        queue.push(resolve(SRC, "../../contracts/src", `${spec.slice("@repo/contracts/".length)}.ts`));
       } else if (spec === "sqids") {
         packages.add(spec);
         // Walk the ESM build the browser bundle would include.
@@ -80,6 +89,24 @@ describe("browser subpaths", () => {
       assert.ok(!walk(resolve(SRC, `${sub}.ts`)).packages.has("chess.js"));
     });
   }
+
+  for (const sub of ["weakness/labels", "weakness/slug", "weakness/progress", "weakness/status", "weakness/drill", "weakness/constants"]) {
+    it(`@repo/chess-training/${sub} reaches no ts-fsrs, session.ts, Node built-in, Prisma, database package or chess.js`, () => {
+      const g = walk(resolve(SRC, `${sub}.ts`));
+      const bad = [...g.packages].filter((p) => forbidden(p) || p === "chess.js");
+      assert.deepEqual(bad, [], `${sub} imports ${bad.join(", ")}`);
+      for (const f of g.files) assert.ok(!f.endsWith("/fsrs.ts") && !f.endsWith("/session.ts"), `${sub} reaches ${f}`);
+    });
+  }
+
+  it("the weakness browser subpaths load and work", async () => {
+    const drill = await import("./weakness/drill");
+    const slug = await import("./weakness/slug");
+    const progress = await import("./weakness/progress");
+    assert.equal(drill.previewWeaknessDrill({ pattern: "fork", inBank: 12, size: 10, mix: true, rating: 1512 }).cta, "Start drill · 10 positions · ~5 min");
+    assert.equal(slug.patternFromSlug("time-pressure"), "rc:timePressure");
+    assert.equal(progress.etaText(600), "about 10 minutes left");
+  });
 
   it("the walk does see ts-fsrs through the server barrel (the check is not vacuous)", () => {
     const g = walk(resolve(SRC, "index.ts"));

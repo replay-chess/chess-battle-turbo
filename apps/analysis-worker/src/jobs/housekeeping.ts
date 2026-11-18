@@ -22,6 +22,7 @@ import { RECURRING_SLICES, type HousekeepingCtx, type RecurringSlice } from "../
 import { doneByMeStatement, doneStatement, isLockLost, lockGuardStatement } from "../queue/outcome";
 import { wasRetried, type Row, type Statement } from "../db/client";
 import { JobError, throwIfAborted, type JobHandler } from "./types";
+import type { WeaknessSettings } from "../weakness/settings";
 
 /** Each slice's `run()` gets this long (§7.7). */
 export const SLICE_TIMEOUT_MS = 60_000;
@@ -52,6 +53,8 @@ function withTimeout<T>(clock: Clock, id: string, work: Promise<T>, ms: number):
 export function housekeepingHandler(
   slices: readonly RecurringSlice[] = RECURRING_SLICES,
   sliceTimeoutMs = SLICE_TIMEOUT_MS,
+  /** P6: the weakness settings the `weakness` slice reads (absent = it arms nothing, only prunes). */
+  opts: { weakness?: WeaknessSettings } = {},
 ): JobHandler<"HOUSEKEEPING"> {
   return {
     kind: "HOUSEKEEPING",
@@ -63,10 +66,13 @@ export function housekeepingHandler(
         clock: ctx.clock,
         log: ctx.log,
         metrics: ctx.metrics,
+        telemetry: ctx.telemetry,
         signal: ctx.signal,
         now: new Date(startedMs),
         evalCache: ctx.evalCache,
         evalCacheMaxBytes: ctx.evalCacheMaxBytes,
+        ...(opts.weakness ? { weakness: opts.weakness } : {}),
+        ...(ctx.wakeIo ? { wakeIo: () => ctx.wakeIo?.() } : {}),
       };
       const failed: string[] = [];
       for (const slice of slices) {

@@ -108,3 +108,25 @@ test("parseLegendSearch reads data.legends and tolerates junk", () => {
   assert.deepEqual(parseLegendSearch({ data: { legends: [null, { name: 3 }] } }), []);
   assert.equal(legendSearchUrl(" morphy "), "/api/legends/search?name=morphy");
 });
+
+// P6 (phase-06 plan §7.8, §12.4 lights-up): "Weakness Profile" (G then W) only with `train` and `weakness` on.
+test("the Weakness Profile row: only with train and weakness on, after Openings, ?from=palette", () => {
+  for (const flags of [undefined, { train: true }, { weakness: true }, { train: true, weakness: false }, { train: false, weakness: true }]) {
+    assert.equal(rows({ flags }).some((r) => r.id === "weakness"), false, JSON.stringify(flags ?? {}));
+  }
+  const on = rows({ flags: { train: true, weakness: true } });
+  const ids = on.map((r) => r.id);
+  assert.equal(ids.indexOf("weakness"), ids.indexOf("openings") + 1);
+  assert.deepEqual(on.find((r) => r.id === "weakness"), {
+    id: "weakness",
+    group: "goto",
+    title: "Weakness Profile",
+    hint: "G then W",
+    href: "/train/weakness?from=palette",
+  });
+  assert.deepEqual(
+    filterRows(on, "weakness").map((r) => r.id),
+    ["weakness"],
+  );
+  assert.equal(rows({ flags: { train: true, weakness: true }, demo: true }).find((r) => r.id === "weakness")?.href, "#weakness");
+});

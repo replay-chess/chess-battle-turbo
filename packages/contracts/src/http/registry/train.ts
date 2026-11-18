@@ -27,9 +27,19 @@ import {
   TrainPrefsPatch,
   TrainToday,
 } from "../train";
+import {
+  RECOMPUTE_MAX_BODY_BYTES,
+  RecomputeBody,
+  RecomputeResponse,
+  SEEN_MAX_BODY_BYTES,
+  SeenBody,
+  WEAKNESS_RECOMPUTE_BURST_LIMIT,
+  WeaknessPayload,
+} from "../weakness";
 
 /**
- * Phase-05 plan §7.2 R1–R4, W1–W6, W8. Handlers: WEB/app/api/train/** (WP-E). Every route is `auth: "member"`,
+ * Phase-05 plan §7.2 R1–R4, W1–W6, W8, and phase-06 plan §7.1 TR-5, TR-12, TR-13 (the weakness profile, at the end).
+ * Handlers: WEB/app/api/train/** (WP-E; P6 WP5). Every route is `auth: "member"`,
  * `no-store` (due counts must never be stale across tabs) and takes `ctx.now` (services never read the clock).
  * Owner-scoped refs answer 404 for another member's session or card. The `train` flag never gates authorisation.
  *
@@ -197,5 +207,58 @@ export const trainEndpoints = {
     response: TrainPrefs,
     maxBodyBytes: 1_024,
     summary: "Updates the viewer's training preferences (time zone, day start, release hour, caps)",
+  }),
+  // ── P6 Weakness Profile (phase-06 plan §7.1, §7.2). The `weakness` flag off answers 404 `not_found`. ──
+  /**
+   * TR-5. Reads the latest snapshot plus live bank counts and the progress probe; never enqueues (AP-09). Its only
+   * write is the kick compare-and-set on a stale QUEUED recompute (Q-W12, at most one kick per 30 s), declared as
+   * `kick_cas` so the GET-purity check passes. Strong ETag from versions (no body hash), 304 on a match.
+   */
+  weaknessGet: defineEndpoint({
+    id: "train.weakness.get",
+    method: "GET",
+    path: "/api/train/weakness",
+    auth: "member",
+    class: "R2",
+    cache: "private-etag",
+    sideEffects: ["kick_cas"],
+    response: WeaknessPayload,
+    errors: ["not_found"],
+    summary: "The viewer's weakness profile (status, patterns, breakdowns, progress)",
+  }),
+  /**
+   * TR-12. 202. Retry, "Include bullet games" and the orphaned auto-build. A durable 1 per 600 s per member is read
+   * from the member's job row inside the enqueue statement (429 `rate_limited` + `Retry-After`); the burst bucket
+   * in front stops hammering. A scope change updates `training_profiles` in the same batch (never on a 429).
+   */
+  weaknessRecompute: defineEndpoint({
+    id: "train.weakness.recompute",
+    method: "POST",
+    path: "/api/train/weakness/recompute",
+    auth: "member",
+    class: "W1",
+    cache: "no-store",
+    rateLimit: WEAKNESS_RECOMPUTE_BURST_LIMIT,
+    body: RecomputeBody,
+    response: RecomputeResponse,
+    status: 202,
+    errors: ["validation_failed", "rate_limited", "not_found", "payload_too_large"],
+    maxBodyBytes: RECOMPUTE_MAX_BODY_BYTES,
+    summary: "Requests a weakness profile rebuild (optionally with a new scope)",
+  }),
+  /** TR-13. 204. Clears the Train dot: `lastWeaknessSeenVersion = GREATEST(seen, LEAST(version, weaknessVersion))`. */
+  weaknessSeen: defineEndpoint({
+    id: "train.weakness.seen",
+    method: "POST",
+    path: "/api/train/weakness/seen",
+    auth: "member",
+    class: "W1",
+    cache: "no-store",
+    rateLimit: TRAIN_WRITE_LIMIT,
+    body: SeenBody,
+    status: 204,
+    errors: ["validation_failed", "not_found"],
+    maxBodyBytes: SEEN_MAX_BODY_BYTES,
+    summary: "Marks the viewer's current weakness profile version as seen",
   }),
 } as const;

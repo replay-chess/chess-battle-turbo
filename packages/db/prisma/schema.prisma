@@ -109,6 +109,8 @@ model User {
   themeMastery             ThemeMastery[]
   trainingProfile          TrainingProfile?
   reportsMade              Report[]         @relation("ReportsMade")
+  // ── M6 (Phase 6): back-relation only. Every weekly profile snapshot cascades from User.
+  weaknessSnapshots        WeaknessSnapshot[]
 
   @@index([googleId])
   @@index([email])
@@ -570,6 +572,20 @@ model GamePlayer {
   /// M5 (P5): the Mistake Bank extraction version this side was extracted with (0 = never; EXTRACT_VERSION = 1). The
   /// backfill predicate and a rules re-extraction read it without scanning jobs (phase-05 plan 6.4).
   bankVersion     Int            @default(0) @db.SmallInt
+  // ── M6 (Phase 6): the per-side weakness inputs (phase-06 plan 6.1, 6.4), written with the analysis by the worker's
+  // final batch, the B-W1 backfill and the weakness heal (@repo/chess-analysis/weakness-inputs computeSideInputs).
+  /// STATS_V1 (@repo/chess-analysis/codec), 30 slots. Empty = not computed
+  stats           Int[]          @default([]) @db.SmallInt
+  /// One entry per (error, theme) over ALL errors of this side, in error order; errorThemeN says how many belong to
+  /// each error. Never rc:timePressure (derived from errorLog's clock bucket)
+  errorThemes     String[]       @default([])
+  /// ERROR_LOG_V1: one smallint per MISTAKE/BLUNDER/MISS ply of this side, in ply order:
+  /// (judgement2 << 12) | (phase2 << 10) | (clockBucket3 << 7) | winLoss7
+  errorLog        Int[]          @default([]) @db.SmallInt
+  /// For error i, how many consecutive entries of errorThemes belong to it (0..8). Σ errorThemeN = cardinality(errorThemes)
+  errorThemeN     Int[]          @default([]) @db.SmallInt
+  /// 0 = the four arrays above are not computed for this row yet; 1 = STATS_V1 + ERROR_LOG_V1 + ordered errorThemes
+  weaknessInputsV Int            @default(0) @db.SmallInt
 
   @@id([gameId, userId])
   @@unique([gameId, color])
@@ -1596,6 +1612,14 @@ model TrainingProfile {
   autoGrade               Boolean   @default(false)
   updatedAt               DateTime  @updatedAt
   user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // ── M6 (Phase 6, phase-06 plan 6.1)
+  /// Bumped by the worker on a material profile change (plan 8.16); nav dot = weaknessVersion > lastWeaknessSeenVersion
+  weaknessVersion         Int         @default(0)
+  /// Weakness scope. Empty = default (RAPID, BLITZ). UserSettings arrives only in P9, so the scope lives here next to
+  /// P5's other training prefs; P10 may move it with a contract step
+  weaknessTimeClasses     TimeClass[] @default([])
+  /// 0 = default (6). Allowed 3 | 6 | 12
+  weaknessMonths          Int         @default(0) @db.SmallInt
 
   @@map("training_profiles")
 }
@@ -1624,4 +1648,43 @@ model Report {
   /// durable "20 a day" count (api-perf AP-11)
   @@index([reporterId, createdAt(sort: Desc)])
   @@map("reports")
+}
+
+// ══ M6 (Phase 6): Weakness Profile (phase-06 plan 6.1-6.5) ═════════════════════════════════════════════════════════════
+// Expand-only: one enum, one table, five defaulted game_players columns and three defaulted training_profiles columns.
+// RECOMPUTE_WEAKNESS was already in M3's JobKind (no m6a). Raw SQL Prisma does not model (the lz4 setting on
+// weakness_snapshots.metrics and the partial index jobs_user_active_idx) lives in the migration and in
+// prisma/protected-indexes.txt; role grants live in scripts/roles/*.p6.sql.
+
+/// READY | INSUFFICIENT | FAILED are written; COMPUTING is derived at read time (plan 8.14) and never stored in v1.
+enum WeaknessStatus {
+  INSUFFICIENT
+  COMPUTING
+  READY
+  FAILED
+}
+
+/// M6 (Phase 6). One weekly snapshot per member; the latest is a backward scan of the primary key. Keep 12 weeks
+/// (data-model 5.7; the daily slice prunes older rows).
+model WeaknessSnapshot {
+  userId        BigInt
+  /// Monday of the ISO week in User.timeZone (local calendar date)
+  weekStart     DateTime       @db.Date
+  algoVersion   Int            @db.SmallInt
+  status        WeaknessStatus
+  timeClasses   TimeClass[]    @default([])
+  since         DateTime?
+  gamesInScope  Int            @db.SmallInt
+  gamesAnalysed Int            @db.SmallInt
+  ratingBandMin Int?           @db.SmallInt
+  ratingBandMax Int?           @db.SmallInt
+  /// WeaknessMetricsV1 (@repo/db/json weakness.ts): rows, preliminary, breakdown, headline claims, topKeys, band,
+  /// inputs watermark. lz4 (raw SQL in the migration)
+  metrics       Json
+  headline      String?        @db.VarChar(200)
+  computedAt    DateTime       @default(now())
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, weekStart])
+  @@map("weakness_snapshots")
 }

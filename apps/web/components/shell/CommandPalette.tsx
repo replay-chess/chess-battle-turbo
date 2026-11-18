@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Sun,
   Swords,
+  Target,
   Trophy,
   UserPlus,
   UserRound,
@@ -38,6 +39,7 @@ import {
   parseLegendSearch,
   type PaletteRow,
 } from "@/lib/shell/palette";
+import type { NavFlags } from "@/lib/nav/destinations";
 import type { ShellUser } from "@/lib/shell/types";
 import { useOnline } from "./OnlineChip";
 import { runSignOut } from "./useAccountActions";
@@ -48,6 +50,7 @@ const ICONS: Record<string, LucideIcon> = {
   tournaments: Trophy,
   legends: Crown,
   openings: BookOpen,
+  weakness: Target,
   profile: UserRound,
   membership: CreditCard,
   "find-opponent": Swords,
@@ -71,12 +74,15 @@ export function CommandPalette({
   open,
   onOpenChange,
   user,
+  navFlags,
   demo = false,
   onOpenShortcuts,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: ShellUser;
+  /** The shell's destination flags (P6: the Weakness Profile row with `train` and `weakness`). */
+  navFlags?: NavFlags;
   demo?: boolean;
   onOpenShortcuts: () => void;
 }) {
@@ -95,7 +101,7 @@ export function CommandPalette({
   const q = query.trim();
   const theme = resolvedTheme === "dark" ? "dark" : "light";
   const rows = filterRows(
-    buildPaletteRows({ me: { referenceId: user.referenceId }, isAdmin: user.isAdmin, theme, demo }),
+    buildPaletteRows({ me: { referenceId: user.referenceId }, isAdmin: user.isAdmin, theme, demo, flags: navFlags }),
     query,
   );
 

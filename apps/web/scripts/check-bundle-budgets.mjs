@@ -12,7 +12,8 @@
 //      DoD: `/game/[ref]` ≤ 600 kB gz, owner-approved 2026-11-06, and no engine chunk on the PvP path; the bot screen
 //      and the engine stay lazy chunks; phase-03 plan §9.6 for the review, archive, practice, share and How we grade
 //      routes; phase-04 plan §9.6 for onboarding, activation and Connected accounts; phase-05 plan §9.5 for Home,
-//      Train, the Mistake Bank, the runners and the summary, which also cap the page-specific JS and refuse ts-fsrs);
+//      Train, the Mistake Bank, the runners and the summary, which also cap the page-specific JS and refuse ts-fsrs;
+//      phase-06 plan §9.3 for the Weakness Profile);
 //   5. a lazily loaded client chunk carries CSS (webpack's runtime has a CSS chunk map, `miniCssF`). Next inserts such a
 //      stylesheet at runtime as a React 19 stylesheet resource whose load promise nothing awaits; a navigation that cuts
 //      the load makes WebKit reject it with the link's error Event, an uncaught "[object Event]" on the page being left
@@ -98,6 +99,17 @@ const P5_ROUTE_BUDGETS = [
   { route: "/(app)/train/bank/session/page", label: "/train/bank/session", maxKB: P5_RUNNER_TOTAL_KB, maxPageKB: P5_RUNNER_PAGE_KB, noEngine: true, noFsrs: true },
   { route: "/(app)/train/puzzles/page", label: "/train/puzzles", maxKB: P5_RUNNER_TOTAL_KB, maxPageKB: P5_RUNNER_PAGE_KB, noEngine: true, noFsrs: true },
 ];
+/**
+ * Phase 6 rows (phase-06 plan §9.3): the Weakness Profile and its drill route (the same page component with the
+ * pattern selected) ≤ 90 kB page-specific (rct-b §5.4: no chess.js, no Stockfish, no board component — MiniBoard is
+ * plain SVG; the drill sheet is a lazy chunk; the zod schemas stay out through the NODE_ENV-guarded schema imports)
+ * and ≤ 260 kB in all (P5's total), no engine, no ts-fsrs. Zod is refused in every client chunk by check 2.
+ */
+const P6_PAGE_KB = 90;
+const P6_ROUTE_BUDGETS = [
+  { route: "/(app)/train/weakness/page", label: "/train/weakness", maxKB: P5_TOTAL_KB, maxPageKB: P6_PAGE_KB, noEngine: true, noFsrs: true },
+  { route: "/(app)/train/weakness/[pattern]/page", label: "/train/weakness/[pattern]", maxKB: P5_TOTAL_KB, maxPageKB: P6_PAGE_KB, noEngine: true, noFsrs: true },
+];
 /** ts-fsrs in a chunk: its parameter names survive minification (property keys), and both appear in its defaults. */
 const isFsrs = (text) => text.includes("request_retention") && text.includes("enable_short_term");
 /** Per-route First Load budgets (app-build-manifest page entries). regression: REGRESSION-2 (the P2 row was missing). */
@@ -123,6 +135,8 @@ const ROUTE_BUDGETS = [
   ...P4_ROUTE_BUDGETS,
   // Phase 5 (phase-05 plan §9.5): Home, Train, the Mistake Bank, the runners and the summary.
   ...P5_ROUTE_BUDGETS,
+  // Phase 6 (phase-06 plan §9.3): the Weakness Profile and its drill route.
+  ...P6_ROUTE_BUDGETS,
 ];
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);

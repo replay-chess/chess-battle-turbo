@@ -30,3 +30,6 @@ import_runs_waiting_idx
 
 # M5 (P5, phase-05 plan 6.5). The other M5 indexes are Prisma @@unique / @@index rows, so they are not listed.
 training_attempts_puzzle_idx
+
+# M6 (P6, phase-06 plan 6.2): the member's active jobs (partial, so raw SQL).
+jobs_user_active_idx

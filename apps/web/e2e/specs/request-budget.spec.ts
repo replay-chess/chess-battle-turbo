@@ -8,8 +8,12 @@
 //   a 10-item drill  leased `bank-member`, an explicit 10-card drill solved first try: from opening the runner to its
 //                 done block the app makes at most 5 function invocations (the page render, ≤ 3 attempt batches, the
 //                 end call); no `/api` read at all.
+//
+// P6 (phase-06 plan §12.4 `request-budget.spec.ts` "the weakness step", §5.7, §9.3, §9.4): the leased `weak-member`
+// (54 real CC0 games graded by the e2e worker, its READY profile): 0 `/api/*` reads during the first paint of
+// /train/weakness, at most one POST per view (TR-13, the profile seen once), and its RSC flight ≤ 12 KB. @p6
 import type { Page, Request } from "@playwright/test";
-import { DEVICES, expect, gotoOk, itemsById, poolUserEmail, sessionPayload, solveAndGradeAll, test, trainDb, waitForSession } from "./train/_lib/train";
+import { DEVICES, expect, gotoOk, itemsById, poolUserEmail, sessionPayload, solveAndGradeAll, test, trainDb, waitForSession } from "./weakness/_lib/weakness";
 
 // The drill leases `bank-member`, which bank.spec.ts also leases: both files run serially.
 test.describe.configure({ mode: "serial" });
@@ -120,5 +124,51 @@ test.describe("P5 request budgets", { tag: ["@p5"] }, () => {
     expect(reads, "no /api read during the drill").toEqual([]);
     expect(calls.length, `function invocations: ${calls.join(", ")}`).toBeLessThanOrEqual(5);
     testInfo.annotations.push({ type: "invocations", description: calls.join(", ") });
+  });
+});
+
+test.describe("P6 request budgets", { tag: ["@p6"] }, () => {
+  test.use({ serviceWorkers: "block" });
+
+  test("/train/weakness: 0 /api reads at first paint, ≤ 1 POST per view, RSC flight ≤ 12 KB", async ({ weak, page, baseURL }) => {
+    test.setTimeout(600_000);
+    await weak("weak-member");
+    const origin = new URL(baseURL!).origin;
+    const reads: string[] = [];
+    const posts: string[] = [];
+    const onReq = (r: Request) => {
+      const u = new URL(r.url());
+      if (u.origin !== origin || !u.pathname.startsWith("/api/") || u.pathname === "/api/socket-token") return;
+      if (r.method() === "GET") reads.push(u.pathname);
+      else posts.push(`${r.method()} ${u.pathname}`);
+    };
+    page.on("request", onReq);
+    await gotoOk(page, "/train/weakness");
+    await expect(page.locator('[data-testid="weakness"][data-status="ready"]')).toBeVisible({ timeout: 120_000 });
+    await settle(page);
+    page.off("request", onReq);
+    expect(reads, "the first paint is seeded").toEqual([]);
+    expect(posts.length, `≤ 1 POST per view: ${posts.join(", ")}`).toBeLessThanOrEqual(1);
+    for (const p of posts) expect(p).toBe("POST /api/train/weakness/seen");
+
+    let flight = 0;
+    await page.route(
+      (url) => url.origin === origin && url.pathname === "/train/weakness" && url.searchParams.has("_rsc"),
+      async (route) => {
+        const req = route.request();
+        if (req.headers()["rsc"] !== "1" || req.headers()["next-router-prefetch"] === "1") return route.continue();
+        const res = await route.fetch();
+        const body = await res.body();
+        flight = body.length;
+        await route.fulfill({ response: res, body });
+      },
+    );
+    await gotoOk(page, "/train");
+    await settle(page);
+    await page.getByTestId("nav-item-weakness").click();
+    await expect(page.locator('[data-testid="weakness"][data-status="ready"]')).toBeVisible({ timeout: 120_000 });
+    await expect.poll(() => flight, { timeout: 60_000, message: "/train/weakness: its RSC flight was fetched" }).toBeGreaterThan(0);
+    expect(flight, `/train/weakness flight ${flight} B`).toBeLessThanOrEqual(12 * 1024);
+    test.info().annotations.push({ type: "rsc-flight", description: `/train/weakness ${flight} B` });
   });
 });

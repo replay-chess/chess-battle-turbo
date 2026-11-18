@@ -9,6 +9,8 @@
 // only without the engine: a scored puzzle keeps its first move as the line, exactly as the worker keeps it when a line
 // search fails. `bankVersion` stays 0, so the backfill still runs for the side later and refreshes the row with its
 // engine line (its upsert overwrites the solution, accept, themes and puzzle fields; ON CONFLICT on the position).
+// P6 (phase-06 plan §8.12): the game's clocks go into the extraction, so a moment played with under a minute on the
+// clock carries `rc:timePressure`, and an existing row of the same position gains the tag (a union, never removed).
 //
 // Only the toggled moment is written: the member asked for one position, not for the game's other key moments.
 // A moment the extraction cannot bank (no stored best move, a legacy game whose sides are unknown, an analysis that is
@@ -25,6 +27,7 @@ import { NOW_UTC, type TrainDb } from "./db.server";
 export function momentExtractSql(gameId: bigint, userId: bigint): Prisma.Sql {
   return Prisma.sql`SELECT g."startingFen", g."startPly", g.moves, g."analysisStatus"::text AS "analysisStatus",
       (extract(epoch FROM g."completedAt") * 1000)::float8 AS "completedAtMs", g."ecoCode", g."timeClass"::text AS "timeClass",
+      g."moveClocksMs", g."initialTimeSeconds",
       COALESCE(g.meta ? 'colorUnknown', false) AS "colorUnknown",
       a.evals, a.second, a.best, a.judgements, a.lines, a."middlegamePly", a."endgamePly", (a."completedAt" IS NOT NULL) AS "analysisDone",
       gp.color, u."referenceId" AS "userRef", (extract(epoch FROM gp."endedAt") * 1000)::float8 AS "endedAtMs", gp."opponentName",
@@ -45,6 +48,9 @@ type ExtractRow = {
   completedAtMs: number | null;
   ecoCode: string | null;
   timeClass: string | null;
+  /** P6 (phase-06 plan §8.12): the clocks behind `rc:timePressure`. */
+  moveClocksMs: number[] | null;
+  initialTimeSeconds: number | null;
   colorUnknown: boolean;
   evals: number[] | null;
   second: number[] | null;
@@ -113,6 +119,8 @@ export async function momentRowsOf(
       timeClass: row.timeClass,
       ecoCode: row.ecoCode,
       colorUnknown: false,
+      moveClocksMs: nums(row.moveClocksMs),
+      initialTimeSeconds: typeof row.initialTimeSeconds === "number" ? row.initialTimeSeconds : null,
       now: input.now,
     },
     { search: null, reply: null, newRef: newGameRef },
@@ -142,6 +150,8 @@ export async function writeMomentMistake(db: TrainDb, rows: MomentRows): Promise
       ${m.lastPlayedAt}::timestamp(3), ${m.lastOpponentName}, ${NOW_UTC}, ${NOW_UTC})
     ON CONFLICT ("userId", "epdHash") DO UPDATE
       SET "hiddenAt" = NULL, "updatedAt" = EXCLUDED."updatedAt",
+          themes = CASE WHEN 'rc:timePressure' = ANY(EXCLUDED.themes) AND NOT ('rc:timePressure' = ANY(mistakes.themes))
+                        THEN array_append(mistakes.themes, 'rc:timePressure') ELSE mistakes.themes END,
           "lastGameId" = CASE WHEN EXCLUDED."lastPlayedAt" >= mistakes."lastPlayedAt" THEN EXCLUDED."lastGameId" ELSE mistakes."lastGameId" END,
           "lastPly" = CASE WHEN EXCLUDED."lastPlayedAt" >= mistakes."lastPlayedAt" THEN EXCLUDED."lastPly" ELSE mistakes."lastPly" END,
           "lastOpponentName" = CASE WHEN EXCLUDED."lastPlayedAt" >= mistakes."lastPlayedAt" THEN EXCLUDED."lastOpponentName" ELSE mistakes."lastOpponentName" END,

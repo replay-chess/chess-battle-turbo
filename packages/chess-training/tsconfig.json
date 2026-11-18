@@ -8,6 +8,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "baselines/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"],
   "exclude": ["node_modules"]
 }

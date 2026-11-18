@@ -24,7 +24,12 @@ describe("P5 job kinds", () => {
   it("EXTRACT_MISTAKES is appended to JobKind and run by this build with 3 attempts", () => {
     assert.deepEqual([...P5_JOB_KINDS], ["EXTRACT_MISTAKES"]);
     assert.equal(JOB_KINDS.at(-1), "EXTRACT_MISTAKES");
-    assert.deepEqual([...RUN_JOB_KINDS], [...P3_JOB_KINDS, ...P4_JOB_KINDS, ...P5_JOB_KINDS]);
+    // P6 appends RECOMPUTE_WEAKNESS after the P5 kinds (jobs.p6.test.ts).
+    assert.deepEqual([...RUN_JOB_KINDS].slice(0, P3_JOB_KINDS.length + P4_JOB_KINDS.length + P5_JOB_KINDS.length), [
+      ...P3_JOB_KINDS,
+      ...P4_JOB_KINDS,
+      ...P5_JOB_KINDS,
+    ]);
     assert.equal(JOB_MAX_ATTEMPTS.EXTRACT_MISTAKES, 3);
     assert.equal(JOB_PAYLOADS.EXTRACT_MISTAKES, ExtractMistakesPayloadV1);
   });

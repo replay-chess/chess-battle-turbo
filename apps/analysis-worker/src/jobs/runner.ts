@@ -59,6 +59,8 @@ export interface RunnerDeps {
   takeFault(gameRef: string): Fault | null;
   /** JobContext.wakeEngine (D1). */
   wakeEngine?(): void;
+  /** JobContext.wakeIo (P6). */
+  wakeIo?(runAtMs?: number): void;
   heartbeatEveryMs?: number;
 }
 
@@ -138,6 +140,7 @@ export async function runJob(job: ClaimedJob, deps: RunnerDeps): Promise<RunResu
     isWatched: deps.isWatched,
     takeFault: deps.takeFault,
     ...(deps.wakeEngine ? { wakeEngine: deps.wakeEngine } : {}),
+    ...(deps.wakeIo ? { wakeIo: deps.wakeIo } : {}),
   };
 
   heartbeat.start();

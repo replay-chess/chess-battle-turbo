@@ -63,7 +63,9 @@ const FLAGS_OFF_PORT = Number(process.env.FLAGS_OFF_PORT ?? 3110 + E2E_PORT_OFFS
 const FLAGS_OFF_OVERRIDE =
   "shell-v3:off,live-protocol-v2:off,game-v3:off,review-v3:off,review-share:off,onboarding-v3:off,import-v3:off," +
   // P5 (phase-05 plan 7.9): Train, Home and the bank's Remove are off with the earlier phases' flags.
-  "train:off,home:off,bank-remove:off";
+  "train:off,home:off,bank-remove:off," +
+  // P6 (phase-06 plan 7.8): the Weakness Profile and its lit slots (hub row, Home line, nav, ⌘K, g w, the Train dot).
+  "weakness:off";
 // Phase 0 has no @smoke tags, so its specs are listed by file. tournament (≈ 10 min) stays in the main run; the
 // bot and friend games cover the game flow here. P2 plan 12.10: with live-protocol-v2 and game-v3 off, the legacy
 // play-with-friend and quick-match specs pass over protocol v1 until the parity gate.
@@ -194,11 +196,12 @@ const blankTelemetry = {
 // import fault table (`IMPORT_FAULTS_ALLOWED=1`, refused by a production worker).
 /**
  * FLAGS_OVERRIDE with the P4 flags on (unless the env already decides them). P5 (phase-05 plan 7.9) adds `train`,
- * `home` and `bank-remove`: on for every e2e member as on dev, off in the flags-off project.
+ * `home` and `bank-remove`, P6 (phase-06 plan 7.8) `weakness`: on for every e2e member as on dev, off in the flags-off
+ * project.
  */
 function withP4Flags(override: string | undefined): string {
   const entries = (override ?? "").split(",").map((e) => e.trim()).filter(Boolean);
-  for (const flag of ["onboarding-v3", "import-v3", "train", "home", "bank-remove"]) {
+  for (const flag of ["onboarding-v3", "import-v3", "train", "home", "bank-remove", "weakness"]) {
     if (!entries.some((e) => e.startsWith(`${flag}:`))) entries.push(`${flag}:on`);
   }
   return entries.join(",");

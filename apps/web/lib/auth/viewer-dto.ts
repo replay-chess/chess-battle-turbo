@@ -98,6 +98,19 @@ export function onboardingViewOf(o: MeOnboardingSource): OnboardingView {
   };
 }
 
+/**
+ * The served badges for the viewer's `weakness` flag (phase-06 §7.1.5, §8.16): off → P5's `{bankDue, trainDot}` exactly
+ * (no key added; the dot is the bank's); on → `weaknessReady` added and `trainDot ||= weaknessReady`. /api/me (below)
+ * and R8 (lib/train/badges.server.ts) both serve through it. A badge object without `weaknessReady` (a P5 record or
+ * fixture) keeps its own `trainDot` while the flag is off.
+ */
+export function badgesFor(b: Badges, weaknessOn: boolean): Badges {
+  const bankDot = b.bankDue > 0;
+  if (!weaknessOn) return { bankDue: b.bankDue, trainDot: b.weaknessReady === undefined ? b.trainDot : bankDot };
+  const ready = b.weaknessReady === true;
+  return { bankDue: b.bankDue, trainDot: bankDot || ready, weaknessReady: ready };
+}
+
 /** MeData from a viewer (copies only the contract's keys, so nothing server-only can leak into the body). */
 export function meDataOf(viewer: MeSource, flags: Record<string, boolean>, buildId: string): MeData {
   const e = viewer.entitlement;
@@ -127,7 +140,9 @@ export function meDataOf(viewer: MeSource, flags: Record<string, boolean>, build
     ...(viewer.accounts ? { accounts: viewer.accounts.map((a) => ({ ...a })) } : {}),
     ...(viewer.importRun !== undefined ? { import: viewer.importRun ? { ...viewer.importRun } : null } : {}),
     // P5 (phase-05 §7.3 R8): the nav badges, only while the `train` flag is on (nothing reads them otherwise).
-    ...(viewer.badges && flags.train === true ? { badges: { bankDue: viewer.badges.bankDue, trainDot: viewer.badges.trainDot } } : {}),
+    // P6 (phase-06 §7.1.5 ME-2): `weaknessReady` only while `weakness` is on too (and then `trainDot ||= weaknessReady`);
+    // off, the badges are P5's byte for byte.
+    ...(viewer.badges && flags.train === true ? { badges: badgesFor(viewer.badges, flags.weakness === true) } : {}),
   };
 }
 

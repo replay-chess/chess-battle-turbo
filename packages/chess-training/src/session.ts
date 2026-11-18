@@ -20,11 +20,12 @@ import {
   PUZZLE_WINDOW_BELOW,
 } from "./constants";
 import { retrievability, type CardRow } from "./fsrs";
+import { composeWeaknessDrill, type DrillSize } from "./weakness/drill";
 
 export { requeueAfterAgain, requeueIndex } from "./grade";
 
-/** `training_sessions.kind` values P5 builds (WEAKNESS is P6's). */
-export type SessionKind = "daily" | "bank" | "puzzles" | "practice";
+/** `training_sessions.kind` values (P5's four, and P6's weakness drill). */
+export type SessionKind = "daily" | "bank" | "puzzles" | "practice" | "weakness";
 /** `TrainingItemKind` (the session item JSON's `kind`, `SESSION_ITEM_KINDS_DB`). */
 export type SessionItemKindDb = "MISTAKE" | "REVIEW_POSITION" | "LICHESS_PUZZLE" | "OPENING_LINE";
 
@@ -378,6 +379,20 @@ export type BuildSessionInputs =
       /** "Start Again": the keys of `fromSessionRef`, no previews, never reschedules. */
       kind: "practice";
       from: readonly { key: string; kind: SessionItemKindDb; pass: 1 | 2; puzzle?: PuzzleTuple }[];
+    }
+  | {
+      /**
+       * P6 (phase-06 plan §8.11): a weakness drill. `own` = the BANK cards carrying the pattern in Q-W7 order (due
+       * first, lowest mastery, newest); `puzzles` = the matched shard puzzles (`planWeaknessDrill().puzTarget` asked
+       * for, null when the drill is own-only). Own items keep their FSRS behaviour; the session never counts toward
+       * the daily cap. An invalid plan (unknown pattern, nothing to drill) is refused before this point (TR-7 400).
+       */
+      kind: "weakness";
+      pattern: string;
+      size: DrillSize;
+      mix: boolean;
+      own: readonly BankCardIn[];
+      puzzles: PuzzlePick | null;
     };
 
 function bankItems(cards: readonly BankCardIn[], ids: string[], previews: boolean): PlannedItem[] {
@@ -456,6 +471,32 @@ function compose(inputs: BuildSessionInputs): SessionPlan {
         targetCount: inputs.count ?? null,
         theme: inputs.pick.theme,
         widened: inputs.pick.widened,
+      };
+    }
+    case "weakness": {
+      const drill = composeWeaknessDrill<BankCardIn, PuzzlePickItem>({
+        pattern: inputs.pattern,
+        size: inputs.size,
+        mix: inputs.mix,
+        own: inputs.own,
+        puzzles: inputs.puzzles?.items ?? [],
+      });
+      const all = ids(drill.entries.length);
+      const items: PlannedItem[] = drill.entries.map((e, i) => {
+        if (e.source === "own") return { itemId: all[i]!, key: e.item.key, kind: e.item.kind, pass: 1, previews: true };
+        const p = e.item;
+        return p.source === "shard"
+          ? { itemId: all[i]!, key: `p_${p.puzzle[0]}`, kind: "LICHESS_PUZZLE", pass: 1, puzzle: p.puzzle, previews: true }
+          : { itemId: all[i]!, key: p.card.key, kind: "LICHESS_PUZZLE", pass: 1, previews: true };
+      });
+      return {
+        ...base,
+        kind: "weakness",
+        countsTowardCap: false,
+        items,
+        empty: items.length === 0 ? "nothing_matches" : null,
+        theme: inputs.pattern,
+        widened: drill.puzzles > 0 ? (inputs.puzzles?.widened ?? null) : null,
       };
     }
     case "practice": {

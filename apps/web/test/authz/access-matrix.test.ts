@@ -83,6 +83,11 @@ const REGISTRY_ROWS: [string, AuthMode][] = [
   ["GET /api/home", "member"],
   ["GET /api/me/badges", "member"],
   ["POST /api/reports", "member"],
+  // Phase 6 (§7.1, §11 of the P6 plan): the weakness profile routes are member (402 subscription_required with
+  // details.reason for a non-member; 404 while the `weakness` flag is off).
+  ["GET /api/train/weakness", "member"],
+  ["POST /api/train/weakness/recompute", "member"],
+  ["POST /api/train/weakness/seen", "member"],
 ];
 
 /** §11.1 rows still served by legacy handlers: file + method → signed out / signed in non-admin. */

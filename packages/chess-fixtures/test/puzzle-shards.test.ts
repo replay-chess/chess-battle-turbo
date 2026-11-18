@@ -29,12 +29,20 @@ type Shard = { v: number; version: string; theme: string; band: number; p: Tuple
 const manifest = JSON.parse(readFileSync(path.join(ROOT, "manifest.json"), "utf8")) as Manifest;
 const UCI = /^[a-h][1-8][a-h][1-8][qrbn]?$/;
 
-test("the subset is 6 themes × 7 bands (fork, pin, hangingPiece, backRankMate, mateIn2, mix × 12-18)", () => {
+/** P5's themes, then (P6 WP8) every Lichess theme a weakness drill fills with (chess-training themes.ts `lichess`). */
+const P5_THEMES = ["fork", "pin", "hangingPiece", "backRankMate", "mateIn2", "mix"];
+const P6_THEMES = [
+  "skewer", "discoveredAttack", "doubleCheck", "sacrifice", "exposedKing", "kingsideAttack", "queensideAttack", "trappedPiece",
+  "smotheredMate", "mateIn1", "mateIn3", "promotion", "advancedPawn", "rookEndgame", "pawnEndgame", "bishopEndgame",
+  "knightEndgame", "queenEndgame", "queenRookEndgame", "defensiveMove",
+];
+
+test("the subset is 26 themes × 7 bands (P5's six, then the weakness drills' matched themes × 12-18)", () => {
   assert.equal(manifest.version, "v1");
   assert.equal(manifest.format, 1);
-  assert.deepEqual(Object.keys(manifest.themes), ["fork", "pin", "hangingPiece", "backRankMate", "mateIn2", "mix"]);
+  assert.deepEqual(Object.keys(manifest.themes), [...P5_THEMES, ...P6_THEMES]);
   for (const bands of Object.values(manifest.themes)) assert.deepEqual(Object.keys(bands), ["12", "13", "14", "15", "16", "17", "18"]);
-  assert.equal(manifest.files, 42);
+  assert.equal(manifest.files, 26 * 7);
 });
 
 test("files on disk are exactly the manifest's, with its counts", () => {

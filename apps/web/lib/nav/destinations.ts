@@ -19,7 +19,10 @@ export type Destination = {
   match: (pathname: string, me: Me) => boolean;
   /** Phase 1: static. Hidden destinations appear nowhere. */
   enabled: boolean;
-  /** A destination behind a feature flag is enabled when the flag is on for the viewer (P3: Review, `review-v3`). */
+  /**
+   * A destination behind a feature flag is enabled when the flag is on for the viewer (P3: Review, `review-v3`). A sub
+   * is also off while its parent is off (P6: the Weakness Profile needs `weakness` and its parent Train's `train`).
+   */
   flag?: FlagKey;
   showInTabBar: boolean;
 };
@@ -27,9 +30,15 @@ export type Destination = {
 /** The viewer's flags that switch destinations on (the shell reads them with useFlag()). */
 export type NavFlags = Partial<Record<FlagKey, boolean>>;
 
-/** A destination is on when it is enabled, or when its flag is on for this viewer. */
+/**
+ * A destination is on when it is enabled, or when its flag is on for this viewer, and (a sub) when its parent is on:
+ * a section never shows under a hidden parent (P6: `weakness` without `train` shows nothing, "no dead links").
+ */
 export function isEnabled(d: Destination, flags?: NavFlags): boolean {
-  return d.enabled || (d.flag !== undefined && flags?.[d.flag] === true);
+  const own = d.enabled || (d.flag !== undefined && flags?.[d.flag] === true);
+  if (!own || !d.parent) return own;
+  const parent = BY_KEY.get(d.parent);
+  return parent !== undefined && isEnabled(parent, flags);
 }
 
 export type ShellMode = "sidebar" | "rail" | "tabbar";
@@ -102,8 +111,8 @@ export const DESTINATIONS: Destination[] = [
   },
   {
     // P5 (phase-05 plan §3.2, §4.8): Train and its sections (Today, Mistake Bank, Puzzles), behind `train`. The P1 table
-    // bound G then M to Train; P5 moves it to the Mistake Bank as V3Shortcuts says ("Go to Mistake Bank G M"). The
-    // Weakness Profile section is P6's and stays out until then.
+    // bound G then M to Train; P5 moves it to the Mistake Bank as V3Shortcuts says ("Go to Mistake Bank G M"). P6 adds
+    // the Weakness Profile section behind `weakness` (V3Nav `sub=weak`).
     key: "train",
     label: "Train",
     href: () => "/train",
@@ -143,6 +152,19 @@ export const DESTINATIONS: Destination[] = [
     match: (p) => under(p, "/train/puzzles"),
     enabled: false,
     flag: "train",
+    showInTabBar: false,
+  },
+  {
+    // P6 (phase-06 plan §7.8, WP7): the Weakness Profile, a Train section behind `weakness` (and, as a sub, `train`).
+    // G then W. Its drill pages (`/train/weakness/<pattern>`) are the same section.
+    key: "weakness",
+    label: "Weakness Profile",
+    href: () => "/train/weakness",
+    parent: "train",
+    chord: "g w",
+    match: (p) => under(p, "/train/weakness"),
+    enabled: false,
+    flag: "weakness",
     showInTabBar: false,
   },
   {
@@ -206,6 +228,7 @@ export const DESTINATIONS: Destination[] = [
   },
 ];
 
+// Read lazily by isEnabled (a sub checks its parent), so it is defined before any call.
 const BY_KEY = new Map(DESTINATIONS.map((d) => [d.key, d]));
 
 export function destination(key: DestinationKey): Destination {
@@ -256,16 +279,21 @@ export function currentFromKey(key: DestinationKey | null, flags?: NavFlags): Se
 
 export type SubnavGroup = { group: "play" | "learn" | "train"; label: string; items: Destination[] };
 
-/** The Train sections (Today, Mistake Bank, Puzzles). Train is current only while `train` is on, and so are they. */
-function trainSections(): Destination[] {
-  return DESTINATIONS.filter((d) => d.parent === "train");
+/**
+ * The Train sections (Today, Mistake Bank, Puzzles; P6 Weakness Profile with `weakness`). Train is current only while
+ * `train` is on, and so are the P5 sections; the Weakness Profile also needs its own flag.
+ */
+function trainSections(flags?: NavFlags): Destination[] {
+  // Train is current, so it is on: only the sections' own flags decide.
+  return childrenOf("train", { ...flags, train: true });
 }
 
-export function subnavFor(current: Set<DestinationKey>): SubnavGroup | null {
+/** The SubNav group of the current destination. `flags`: the viewer's (P6: the Weakness Profile item needs `weakness`). */
+export function subnavFor(current: Set<DestinationKey>, flags?: NavFlags): SubnavGroup | null {
   if (current.has("play"))
     return { group: "play", label: "Play sections", items: [destination("play"), ...childrenOf("play")] };
   if (current.has("learn")) return { group: "learn", label: "Learn sections", items: childrenOf("learn") };
-  if (current.has("train")) return { group: "train", label: "Train sections", items: trainSections() };
+  if (current.has("train")) return { group: "train", label: "Train sections", items: trainSections(flags) };
   return null;
 }
 
@@ -309,6 +337,10 @@ export function backTarget(pathname: string, me: Me): BackTarget | null {
   if (under(p, "/practice")) return MY_GAMES_BACK;
   // P5 (phase-05 plan §3.2): the runners and a session's summary go back to Train (the hub).
   if (under(p, "/train/bank/session") || under(p, "/train/puzzles") || detailOf(p, "/train/session")) return backFor("train", me);
+  // P6 (phase-06 plan §4.4 "‹ Train"; FIX-1): the Weakness Profile and its drill config go back to Train. Known from the
+  // path, so the server render already has it: the page's client-only ShellBackOverride arrived after hydration and
+  // hid the phone SubNav then, a 45 px layout shift of the whole page (CLS 0.04–0.07 on phones and iPad portrait).
+  if (under(p, "/train/weakness")) return backFor("train", me);
   return null;
 }
 
@@ -344,7 +376,7 @@ export function visibleKeys(mode: ShellMode, current: Set<DestinationKey>, isDet
     if (current.has("train")) for (const d of childrenOf("train", flags)) out.add(d.key);
     return out;
   }
-  const sub = subnavFor(current);
+  const sub = subnavFor(current, flags);
   if (sub && !(mode === "tabbar" && isDetail)) for (const d of sub.items) out.add(d.key);
   return out;
 }
@@ -358,7 +390,8 @@ export function brandHref(flags?: NavFlags): string {
 
 /**
  * The G chords of the enabled destinations, as the chord machine takes them (`{ KeyH: "/home" }`): G then P and G then
- * L always; G then R with `review-v3`; G then H and G then M (Mistake Bank) with `home` / `train` (P5, V3Shortcuts).
+ * L always; G then R with `review-v3`; G then H and G then M (Mistake Bank) with `home` / `train` (P5, V3Shortcuts);
+ * G then W (Weakness Profile) with `train` and `weakness` (P6).
  */
 export function destinationChords(flags?: NavFlags): Record<string, string> {
   const out: Record<string, string> = {};

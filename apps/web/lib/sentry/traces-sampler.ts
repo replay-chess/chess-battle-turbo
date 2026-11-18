@@ -10,6 +10,9 @@
 //                                                          dropNotModifiedPoll: the status is known only then)
 //   /api/me                                                0.1
 //   /api/train/attempts                                    0.05 (volume: every outbox flush; phase-05 plan §10.2)
+//   GET /api/train/weakness with If-None-Match             0 (phase-06 plan §10.2: the TR-5 polling fallback while
+//                                                          computing and every revalidation; its 304s are also dropped
+//                                                          after the response, dropNotModifiedPoll)
 //   other /api/train/*                                     0.1 (phase-05 plan §10.2)
 //   other /api/*                                           0.1
 //   pages                                                  1.0 when NEXT_PUBLIC_APP_ENV=dev, else 0.1
@@ -23,12 +26,14 @@ export const ACCOUNTS_TRACE_RATE = 0.2;
 /** `POST /api/train/attempts`, the outbox flush: the busiest P5 route (phase-05 plan §10.2 "train.attempts 0.05"). */
 export const TRAIN_ATTEMPTS_TRACE_RATE = 0.05;
 /** Polled routes whose 304 answers are never kept (phase-04 plan §10.2: "0 for import.status 304s"). */
-const NOT_MODIFIED_DROPPED = ["/api/import/status"] as const;
+const NOT_MODIFIED_DROPPED = ["/api/import/status", "/api/train/weakness"] as const;
+/** Conditional GETs of these paths are polls (phase-06 plan §10.2 "0 for the polling fallback"): never sampled. */
+const CONDITIONAL_POLLS = ["/api/train/weakness"] as const;
 
 export type SamplerContext = {
   name?: string;
   attributes?: Record<string, unknown>;
-  normalizedRequest?: { url?: string };
+  normalizedRequest?: { url?: string; headers?: Record<string, string | string[] | undefined> };
   inheritOrSampleWith?: (fallbackSampleRate: number) => number;
 };
 
@@ -81,8 +86,18 @@ export function sampleRateForPath(path: string | null, appEnv: string | undefine
   return appEnv === "dev" ? 1 : DEFAULT_TRACE_RATE;
 }
 
+/** A conditional request (If-None-Match) to a polled route: the polling fallback, never sampled. */
+export function isConditionalPoll(ctx: SamplerContext, path: string | null): boolean {
+  if (path === null || !(CONDITIONAL_POLLS as readonly string[]).includes(path)) return false;
+  const headers = ctx.normalizedRequest?.headers ?? {};
+  const fromAttrs = ctx.attributes?.["http.request.header.if_none_match"];
+  return Object.keys(headers).some((k) => k.toLowerCase() === "if-none-match" && headers[k]) || (fromAttrs !== undefined && fromAttrs !== "");
+}
+
 export function tracesSampler(ctx: SamplerContext, appEnv: string | undefined = process.env.NEXT_PUBLIC_APP_ENV): number {
-  const rate = sampleRateForPath(samplingPath(ctx), appEnv);
+  const path = samplingPath(ctx);
+  if (isConditionalPoll(ctx, path)) return 0;
+  const rate = sampleRateForPath(path, appEnv);
   if (rate === 0) return 0;
   return ctx.inheritOrSampleWith ? ctx.inheritOrSampleWith(rate) : rate;
 }
@@ -103,7 +118,8 @@ function responseStatus(event: TransactionLike): number | null {
 
 /**
  * True for a finished transaction the sampler would have given 0 had it known the status: a 304 answer of a polled
- * route (`GET /api/import/status`, phase-04 plan §10.2). `beforeSendTransaction` drops it (lib/sentry/scrub.ts).
+ * route (`GET /api/import/status`, phase-04 plan §10.2; `GET /api/train/weakness`, phase-06 plan §10.2).
+ * `beforeSendTransaction` drops it (lib/sentry/scrub.ts).
  */
 export function dropNotModifiedPoll(event: TransactionLike): boolean {
   if (responseStatus(event) !== 304) return false;

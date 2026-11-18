@@ -4,8 +4,12 @@
 //
 // Every link to a session-creating URL (`/train/bank/session?…`, `/train/puzzles?…`) is `prefetch={false}`: a router
 // prefetch must never render a page that creates a session (§5.1).
+//
+// P6 lights up (phase-06 plan §7.1.5; DR/V3TrainHub "Weakness drills" row and the Theme mastery "Weakness profile"
+// link): the row renders only when R1 carries `allTraining.weakness` (flag on and a READY profile); the link only when
+// the screen passes `weaknessHref` (flag on). Without them the markup is P5's.
 import Link from "next/link";
-import { ArrowRight, BookOpen, Check, Flame, Landmark, Puzzle } from "lucide-react";
+import { ArrowRight, BookOpen, Check, Flame, Landmark, Puzzle, Target } from "lucide-react";
 import type { DuePreview, LastMove, PlanStep, TrainToday } from "@repo/contracts/http/train";
 import { MiniBoard } from "@/components/board/MiniBoard";
 import type { Sq } from "@/components/board/types";
@@ -198,7 +202,13 @@ export function DueStrip({
 }
 
 // ── All training ─────────────────────────────────────────────────────────────────────────────────────────────────
+/** "Missed forks · 12 in your bank" (P6, the "Weakness drills" row). */
+export function weaknessRowSub(w: NonNullable<TrainToday["allTraining"]["weakness"]>): string {
+  return `${w.label} · ${w.inBank} in your bank`;
+}
+
 export function AllTrainingList({ today, onFollow }: { today: TrainToday; onFollow?: (target: "bank" | "puzzles") => void }) {
+  const weakness = today.allTraining.weakness;
   return (
     <section aria-labelledby="train-all-h" className={CARD} data-testid="train-all">
       <h2 id="train-all-h" className="m-0 px-4 pt-3.5 pb-1.5 text-overline">
@@ -220,18 +230,47 @@ export function AllTrainingList({ today, onFollow }: { today: TrainToday; onFoll
         </span>
         <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
       </Link>
+      {weakness ? (
+        <Link href={weakness.href} className={ROW} data-testid="train-all-weakness">
+          <Target aria-hidden="true" className="size-5 shrink-0" strokeWidth={1.75} />
+          <span className="flex min-w-0 flex-auto flex-col">
+            <span className="font-medium">Weakness drills</span>
+            <span className="truncate text-ui text-cb-text-soft" data-testid="train-all-weakness-sub">
+              {weaknessRowSub(weakness)}
+            </span>
+          </span>
+          <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
+        </Link>
+      ) : null}
     </section>
   );
 }
 
 // ── Theme mastery ────────────────────────────────────────────────────────────────────────────────────────────────
-export function ThemeMasteryBars({ mastery }: { mastery: TrainToday["mastery"] }) {
+/** `weaknessHref` (P6, flag on): the header's "Weakness profile" link (DR/V3TrainHub). */
+export function ThemeMasteryBars({ mastery, weaknessHref }: { mastery: TrainToday["mastery"]; weaknessHref?: string | null }) {
   if (!mastery.length) return null;
+  const heading = (
+    <h2 id="train-mastery-h" className="m-0 text-overline">
+      Theme mastery
+    </h2>
+  );
   return (
     <section aria-labelledby="train-mastery-h" className={cn(CARD, "flex flex-col gap-2.5 px-4 py-3.5")} data-testid="train-mastery">
-      <h2 id="train-mastery-h" className="m-0 text-overline">
-        Theme mastery
-      </h2>
+      {weaknessHref ? (
+        <div className="flex items-center justify-between gap-3">
+          {heading}
+          <Link
+            href={weaknessHref}
+            className="-my-3 inline-flex min-h-11 items-center text-ui text-cb-text underline decoration-cb-text/30 underline-offset-3 hover:decoration-cb-text"
+            data-testid="train-mastery-weakness"
+          >
+            Weakness profile
+          </Link>
+        </div>
+      ) : (
+        heading
+      )}
       {mastery.map((m) => (
         <div key={m.key} className="grid grid-cols-[110px_minmax(0,1fr)_40px] items-center gap-2.5 text-sm">
           <span className="truncate">{m.label}</span>

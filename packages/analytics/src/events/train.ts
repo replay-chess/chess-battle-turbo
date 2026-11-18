@@ -20,6 +20,8 @@ export const TRAIN_SESSION_SOURCES = [
   "home",
   "picker",
   "deeplink",
+  // P6 (phase-06 plan §5.4): a weakness drill (drift-tested against the contracts' SESSION_SOURCES).
+  "weakness",
 ] as const;
 export const TRAIN_GRADES = ["again", "hard", "good", "easy"] as const;
 export const TRAIN_REPORT_REASONS = ["wrong_solution", "better_move", "illegal_move", "text_wrong", "other"] as const;

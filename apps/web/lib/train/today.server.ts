@@ -6,8 +6,14 @@
 // attempts) and frozen with ONE write batch: the plan upsert (`COALESCE` keeps the first plan when two tabs race) and
 // the lazy profile row with the puzzle-rating seed. Those two statements are R1's registered GET side effect
 // (`sideEffects: ["daily_plan"]`); a second read of the day writes nothing.
+//
+// P6 lights up (phase-06 plan §7.1.5, §1.1; WP7). With the viewer's `weakness` flag on, the batch also reads Q-W1 (the
+// latest snapshot, PK) ‖ Q-W2 (bank cards per theme). When that snapshot is READY: `allTraining.weakness` (the hub's
+// "Weakness drills · Missed forks · 12 in your bank" row, linking the top pattern's drill) and, for a plan built today,
+// `basis: "games20"` ("Built from your last 20 games.") with step 2's focus on the first matchable row's Lichess theme.
+// Flag off, or no READY snapshot: the P5 statements and the P5 payload, byte for byte (no key added).
 import { Prisma } from "@repo/db";
-import { buildDailyPlan as validatePlan, parseDailyPlan, type DailyPlanV1 } from "@repo/db/json";
+import { buildDailyPlan as validatePlan, parseDailyPlan, parseWeaknessMetrics, type DailyPlanV1 } from "@repo/db/json";
 import type { DuePreview, PlanStep, TrainToday } from "@repo/contracts/http/train";
 import { waitingLine } from "@repo/chess-training/caps";
 import { weekdayLabel } from "@repo/chess-training/labels";
@@ -29,6 +35,8 @@ import {
 import { orderDueQueue } from "@repo/chess-training/session";
 import { displayedStreak, streakAria, streakWeek } from "@repo/chess-training/streak";
 import { PICKER_THEMES, themeLabel, themePluralLabel } from "@repo/chess-training/themes";
+import { weaknessMatchTheme } from "@repo/chess-training/weakness/drill";
+import { patternSlug } from "@repo/chess-training/weakness/slug";
 import type { Viewer } from "@/lib/auth/viewer";
 import { capOf } from "./badges.server";
 import {
@@ -47,6 +55,71 @@ import { asDate, at, dayParam, NOW_UTC, num, trainDeps, type TrainDeps } from ".
 import { lastMoveOf, positionAfter } from "./dto.server";
 import { insertProfileSql, ratingView } from "./profile.server";
 import { puzzlesEnabled } from "./puzzles.server";
+import { bankThemeCountsSql, latestSnapshotSql, weaknessEnabled } from "./weakness.server";
+
+// ── P6: the READY profile's top weakness (Q-W1 ‖ Q-W2) ───────────────────────────────────────────────────────────
+/** What the lit slots read from a READY weakness profile. */
+export type TopWeakness = {
+  /** The top row's pattern key ("fork", "rc:timePressure"). */
+  pattern: string;
+  /** "Missed forks" (≤ 40). */
+  label: string;
+  /** Live BANK cards carrying the pattern (Q-W2, hidden mistakes excluded): "12 in your bank". */
+  inBank: number;
+  /** `/train/weakness/fork?from=hub`: the top row's drill. */
+  href: string;
+  /** The first matchable row's Lichess theme (the plan's focus, rct-b §3.5 rule 1), or null. */
+  focusTheme: string | null;
+  /**
+   * FIX-2 (D-P6-FIX2-10): the focus theme is the TOP row's match in a band comparison (the plan may then say "Your top
+   * weakness"); otherwise it comes from a lower row or a most-frequent list ("From your Weakness Profile").
+   */
+  focusIsTop: boolean;
+};
+
+type SnapshotHead = { status: string; metrics: unknown };
+
+/** The top weakness from the latest snapshot and the bank counts, or null unless the snapshot is READY with rows. */
+export function topWeaknessOf(snapshot: SnapshotHead | undefined, bank: readonly { theme: string; n: number }[]): TopWeakness | null {
+  if (!snapshot || snapshot.status !== "READY") return null;
+  // A document an older or newer build wrote reads as "no profile" (the page's own reader does the same).
+  const rows = parseWeaknessMetrics(snapshot.metrics)?.rows ?? [];
+  const top = rows[0];
+  if (!top) return null;
+  const inBank = num(bank.find((b) => b.theme === top.pattern)?.n ?? 0);
+  const focusTheme = rows.map((r) => weaknessMatchTheme(r.pattern)).find((t): t is string => t !== null) ?? null;
+  const listMode = parseWeaknessMetrics(snapshot.metrics)?.listMode ?? null;
+  const focusIsTop = focusTheme !== null && listMode !== "most_frequent" && weaknessMatchTheme(top.pattern) === focusTheme;
+  return {
+    pattern: top.pattern,
+    label: top.label.slice(0, 40),
+    inBank: Math.max(0, inBank),
+    href: `/train/weakness/${patternSlug(top.pattern)}?from=hub`,
+    focusTheme,
+    focusIsTop,
+  };
+}
+
+/** Q-W1 ‖ Q-W2 for the lit slots (`weakness_snapshots_pkey` backward, `training_cards_userId_deck_due_idx` prefix). */
+export async function readTopWeakness(db: TrainDeps["db"], userId: bigint, now: Date): Promise<TopWeakness | null> {
+  const [snapshots, bank] = await Promise.all([
+    db.$queryRaw<SnapshotHead[]>(latestSnapshotSql(userId)),
+    db.$queryRaw<{ theme: string; n: number }[]>(bankThemeCountsSql(userId, now)),
+  ]);
+  return topWeaknessOf(snapshots[0], bank);
+}
+
+/**
+ * The lit-slot read for a viewer: null with the `weakness` flag off (no statement runs, so the P5 batch is unchanged).
+ * `weakness` overrides the flag (tests and callers that already evaluated it).
+ */
+export async function topWeaknessFor(db: TrainDeps["db"], viewer: Viewer, now: Date, weakness?: boolean): Promise<TopWeakness | null> {
+  const on = weakness ?? (await weaknessEnabled(viewer));
+  return on ? readTopWeakness(db, viewer.id, now) : null;
+}
+
+/** Options of the lit reads: `weakness` = the viewer's flag when the caller already knows it (else it is evaluated). */
+export type LightsUpOptions = { weakness?: boolean };
 
 // ── Statement (c): the due preview ──────────────────────────────────────────────────────────────────────────────
 export function duePreviewSql(userId: bigint, now: Date, limit = 4): Prisma.Sql {
@@ -114,6 +187,7 @@ async function freezePlan(
   viewer: Pick<Viewer, "id">,
   state: TrainState,
   themes: readonly ThemeMasteryRow[],
+  weakness: TopWeakness | null,
 ): Promise<{ plan: DailyPlanV1; planDone: number }> {
   const { db } = deps;
   const { clock, due, profile } = state;
@@ -143,6 +217,8 @@ async function freezePlan(
     lastGame: lg ? { ref: lg.ref, opponent: (lg.opponent ?? "").slice(0, 40), reviewed: Boolean(lg.reviewed), moments: num(lg.moments) } : null,
     themes: planThemesOf(themes),
     puzzleRating: profile.puzzleRating,
+    // P6: a READY profile focuses step 2 on its first matchable row and says the plan is built from the games.
+    ...(weakness ? { weaknessTheme: weakness.focusTheme, weaknessThemeTop: weakness.focusIsTop, basis: "games20" as const } : {}),
   });
   // The puzzle kill switch (PUZZLES_ENABLED=off) omits the step before the plan is frozen (step indices are bits).
   const plan = validatePlan(puzzlesEnabled() ? built : { ...built, steps: built.steps.filter((s) => s.kind !== "puzzles") });
@@ -213,16 +289,17 @@ function masteryBars(themes: readonly ThemeMasteryRow[]): TrainToday["mastery"] 
 }
 
 /** R1 (and the hub's first paint): today's frozen plan, streak, due counts and mastery at `now`. */
-export async function getTrainToday(viewer: Viewer, now: Date, deps: TrainDeps = trainDeps()): Promise<TrainToday> {
+export async function getTrainToday(viewer: Viewer, now: Date, deps: TrainDeps = trainDeps(), opts: LightsUpOptions = {}): Promise<TrainToday> {
   const { db } = deps;
-  const [state, previews, themes] = await Promise.all([
+  const [state, previews, themes, weakness] = await Promise.all([
     loadTrainState(db, viewer, now),
     db.$queryRaw<PreviewRow[]>(duePreviewSql(viewer.id, now)),
     db.$queryRaw<ThemeMasteryRow[]>(themeMasterySql(viewer.id)),
+    topWeaknessFor(db, viewer, now, opts.weakness),
   ]);
   const { clock, profile, due } = state;
   const stored = parseDailyPlan(state.today?.plan);
-  const frozen = stored ? { plan: stored, planDone: state.counters.planDone } : await freezePlan(deps, viewer, state, themes);
+  const frozen = stored ? { plan: stored, planDone: state.counters.planDone } : await freezePlan(deps, viewer, state, themes, weakness);
   const { plan, planDone } = await withLiveEmptySteps(db, viewer.id, frozen);
 
   const cap = capOf(due, profile, state.counters);
@@ -266,7 +343,12 @@ export async function getTrainToday(viewer: Viewer, now: Date, deps: TrainDeps =
       preview: previews.slice(0, Math.min(4, cap.dueShown)).map(duePreviewOf),
     },
     nextBatch: nextBatchOf(due, clock.timeZone, clock.now, clock.dayStartHour),
-    allTraining: { bank: { due: cap.dueShown, total: due.total }, puzzles: { themes: trainedPickerThemes(themes) } },
+    allTraining: {
+      bank: { due: cap.dueShown, total: due.total },
+      puzzles: { themes: trainedPickerThemes(themes) },
+      // P6: only with a READY profile (flag on); absent otherwise, so the P5 body is unchanged.
+      ...(weakness ? { weakness: { label: weakness.label, inBank: weakness.inBank, href: weakness.href } } : {}),
+    },
     mastery: masteryBars(themes),
     keepGoing: allDone ? { href: keepGoingHref, label: keepGoingLabel(plan.focusTheme) } : null,
     puzzleRating: ratingView(profile),

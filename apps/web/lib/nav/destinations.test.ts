@@ -105,6 +105,8 @@ test("backTarget for every detail pattern", () => {
   for (const p of ["/play", "/legends", "/openings", "/tournaments", "/profile/ref", "/dev/ui/shell"]) {
     assert.equal(back(p), null, p);
   }
+  // regression: weakness-phone-layout-shift (P6 FIX-1): known from the path, so the first render hides the SubNav.
+  for (const p of ["/train/weakness", "/train/weakness/fork"]) assert.deepEqual(back(p), { key: "train", href: "/train", label: "Train" }, p);
 });
 
 test("hidesTabBar: only a game route", () => {
@@ -249,7 +251,7 @@ test("a review's own screens go back to that review; the label names the target"
 
 // ── P5 (phase-05 plan §3.2, §4.8; WP-H): Home and Train ───────────────────────────────────────────────────────────
 
-const ALL_ON = { "review-v3": true, home: true, train: true } as const;
+const ALL_ON = { "review-v3": true, home: true, train: true, weakness: true } as const;
 const P5_ON = { home: true, train: true } as const;
 
 test("Home and Train are off without their flags (no item, no tab, never current)", () => {
@@ -286,12 +288,49 @@ test("with home and train on: the six phone tabs in order, the Train sections as
   assert.ok(!enabledDestinations({ train: true }).some((d) => d.key === "home"));
 });
 
-test("Weakness (P6) stays hidden: no destination, no section, no chord", () => {
-  for (const d of DESTINATIONS) {
-    assert.doesNotMatch(d.href(me), /weakness/i, d.key);
-    assert.doesNotMatch(d.label, /weakness/i, d.key);
+// P6 (phase-06 plan §7.8; interface check §4.1): the P5 assertion "Weakness stays hidden" now holds with `weakness` off,
+// and the section appears only with both `weakness` and its parent's `train` on.
+test("Weakness (P6) stays hidden with `weakness` off: no destination, no section, no chord", () => {
+  const p5All = { "review-v3": true, home: true, train: true } as const;
+  for (const flags of [undefined, P5_ON, p5All, { ...ALL_ON, weakness: false }, { weakness: true }, { home: true, weakness: true }]) {
+    const label = JSON.stringify(flags ?? {});
+    for (const d of enabledDestinations(flags)) {
+      assert.doesNotMatch(d.href(me), /weakness/i, `${label} ${d.key}`);
+      assert.doesNotMatch(d.label, /weakness/i, `${label} ${d.key}`);
+    }
+    assert.equal(subnavFor(currentDestinations("/train", me, flags), flags)?.items.some((d) => /weakness/i.test(d.label)) ?? false, false, label);
+    assert.equal(Object.values(destinationChords(flags)).some((h) => /weakness/.test(h)), false, label);
+    assert.deepEqual(keys(currentDestinations("/train/weakness", me, flags)).includes("weakness"), false, label);
   }
-  assert.equal(subnavFor(currentDestinations("/train", me, P5_ON))?.items.some((d) => /weakness/i.test(d.label)), false);
+  // `weakness` alone (Train off) shows nothing, not even a dangling sub.
+  assert.deepEqual(childrenOf("train", { weakness: true }), []);
+  assert.deepEqual(keys(currentFromKey("weakness", { weakness: true })), []);
+});
+
+test("Weakness (P6) with `train` and `weakness` on: the fourth Train section, G then W, current on its pages", () => {
+  const on = { ...P5_ON, weakness: true } as const;
+  const d = destination("weakness");
+  assert.deepEqual([d.label, d.href(me), d.parent, d.chord, d.showInTabBar], ["Weakness Profile", "/train/weakness", "train", "g w", false]);
+  assert.deepEqual(
+    childrenOf("train", on).map((x) => x.key),
+    ["train-today", "bank", "puzzles", "weakness"],
+  );
+  assert.deepEqual(
+    subnavFor(currentDestinations("/train/weakness", me, on), on)?.items.map((x) => x.key),
+    ["train-today", "bank", "puzzles", "weakness"],
+  );
+  const cur = (p: string) => keys(currentDestinations(p, me, on));
+  assert.deepEqual(cur("/train/weakness"), ["train", "weakness"]);
+  assert.deepEqual(cur("/train/weakness/fork"), ["train", "weakness"]);
+  assert.deepEqual(cur("/train/weakness/time-pressure?tab=clock"), ["train", "weakness"]);
+  assert.deepEqual(cur("/train/weaknesses"), ["train"], "only the section's own segment");
+  // Today's match does not swallow the profile, and the profile's does not swallow the hub.
+  assert.equal(isSubnavItemCurrent("train-today", currentDestinations("/train/weakness", me, on)), false);
+  assert.equal(isSubnavItemCurrent("weakness", currentDestinations("/train", me, on)), false);
+  assert.deepEqual(keys(currentFromKey("weakness", on)), ["train", "weakness"]);
+  assert.equal(destinationChords(on).KeyW, "/train/weakness");
+  assert.ok(!tabBarDestinations(on).some((x) => x.key === "weakness"), "a section, never a phone tab");
+  assert.deepEqual(backTarget("/train/weakness", me), { key: "train", href: "/train", label: "Train" }, "known from the path (FIX-1: no post-hydration shift)");
 });
 
 test("Home and Train matching: sections by path segment, the hub owns its sessions", () => {
@@ -343,7 +382,15 @@ test("the runners and a summary go back to Train and hide the phone tab bar; the
 test("chords: G P and G L always; G R with review-v3; G H → /home and G M → the Mistake Bank with home / train", () => {
   assert.deepEqual(destinationChords(), { KeyP: "/play", KeyL: "/legends" });
   assert.deepEqual(destinationChords({ "review-v3": true }), { KeyP: "/play", KeyL: "/legends", KeyR: "/games" });
-  assert.deepEqual(destinationChords(ALL_ON), { KeyH: "/home", KeyP: "/play", KeyM: "/train/bank", KeyL: "/legends", KeyR: "/games" });
+  assert.deepEqual(destinationChords(ALL_ON), {
+    KeyH: "/home",
+    KeyP: "/play",
+    KeyM: "/train/bank",
+    KeyW: "/train/weakness",
+    KeyL: "/legends",
+    KeyR: "/games",
+  });
+  assert.deepEqual(destinationChords({ ...ALL_ON, weakness: false }), { KeyH: "/home", KeyP: "/play", KeyM: "/train/bank", KeyL: "/legends", KeyR: "/games" });
   assert.equal(destination("bank").chord, "g m", "V3Shortcuts: Go to Mistake Bank G M");
   assert.equal(destination("home").chord, "g h");
   assert.equal(destination("train").chord, undefined, "P5 moved G M from Train to the Mistake Bank");

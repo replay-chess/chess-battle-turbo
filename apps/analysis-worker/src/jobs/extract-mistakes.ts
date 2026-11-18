@@ -3,7 +3,7 @@
 // first); payload `ExtractMistakesPayloadV1 {v:1, gameId, userId}` (a newer `v` is released by the runner).
 //
 //   load (1 statement: the game, the stored analysis, the member with its zone and training prefs, the side's
-//   key-moment plies) → the same extraction as J1 (extract/extractMistakes.ts; no pass 1: the stored arrays) → ONE
+//   key-moment plies, P6: the game's clocks for `rc:timePressure`) → the same extraction as J1 (extract/extractMistakes.ts; no pass 1: the stored arrays) → ONE
 //   batch: lock guard → the game's game_analyses and games rows (FOR KEY SHARE, m4t's order) → the §7.6 statements →
 //   DONE → `mistakes:added`, coalesced per user (extract/coalesce.ts), and `mistakes_extracted`.
 //
@@ -56,6 +56,7 @@ export function extractLoadStatement(gameId: string, userId: string): Statement 
     `SELECT g.id::text AS id, g."referenceId" AS ref, g."startingFen", g."startPly", g.moves,
        g."analysisStatus"::text AS "analysisStatus", (extract(epoch FROM g."completedAt") * 1000)::float8 AS "completedAtMs",
        g."ecoCode", g."timeClass"::text AS "timeClass", COALESCE(g.meta ? 'colorUnknown', false) AS "colorUnknown",
+       g."moveClocksMs", g."initialTimeSeconds",
        (SELECT json_build_object('evals', a.evals, 'second', a.second, 'best', a.best, 'judgements', a.judgements,
                                  'lines', a.lines, 'middlegamePly', a."middlegamePly", 'endgamePly', a."endgamePly",
                                  'totalPlies', a."totalPlies", 'completed', a."completedAt" IS NOT NULL)
@@ -98,6 +99,9 @@ interface Loaded {
   timeClass: string | null;
   colorUnknown: boolean;
   gameRef: string;
+  /** P6 (phase-06 plan §8.12): the clocks behind the bank's `rc:timePressure` tag. */
+  moveClocksMs: number[];
+  initialTimeSeconds: number | null;
 }
 
 const nums = (v: unknown): number[] => (Array.isArray(v) ? v.map((x) => Number(x)) : []);
@@ -139,6 +143,8 @@ export function readLoaded(row: Record<string, unknown> | undefined): Loaded | {
     timeClass: typeof row.timeClass === "string" ? row.timeClass : null,
     colorUnknown: row.colorUnknown === true,
     gameRef: String(row.ref),
+    moveClocksMs: nums(row.moveClocksMs),
+    initialTimeSeconds: typeof row.initialTimeSeconds === "number" ? row.initialTimeSeconds : null,
   };
 }
 
@@ -187,6 +193,8 @@ async function run(ctx: JobContext<"EXTRACT_MISTAKES">, deps: ExtractJobDeps): P
       timeClass: loaded.timeClass,
       ecoCode: loaded.ecoCode,
       colorUnknown: loaded.colorUnknown,
+      moveClocksMs: loaded.moveClocksMs,
+      initialTimeSeconds: loaded.initialTimeSeconds,
       now: new Date(ctx.clock.now()),
     },
     {

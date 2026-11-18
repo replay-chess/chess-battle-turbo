@@ -15,7 +15,9 @@
 //   with a `web` or `ops` key (the socket accepts those; a worker must never hold them: CT/internal/auth.ts);
 // - WS_INTERNAL_URL missing in dev/production;
 // - P4: IMPORT_FAULTS_ALLOWED on with APP_ENV=production (the provider fault table is a test hook, dev/faults.ts), and
-//   CHESSCOM_API_BASE / LICHESS_BASE_URL other than the real providers with APP_ENV=production (import/settings.ts).
+//   CHESSCOM_API_BASE / LICHESS_BASE_URL other than the real providers with APP_ENV=production (import/settings.ts);
+// - P6: WEAKNESS_SEED_FREEZE with APP_ENV=production, WEAKNESS_DEBOUNCE_SEC ≥ 300, a trial cap above the member cap
+//   (weakness/settings.ts).
 import {
   parseKeyRing,
   restrictKeyRing,
@@ -30,6 +32,7 @@ import { BANK_LINE_NODES } from "@repo/chess-analysis/puzzle/line";
 import { isDevHost } from "@repo/db/seed-guards";
 import { hostname } from "node:os";
 import { parseImportSettings, type ImportSettings } from "../import/settings";
+import { parseWeaknessSettings, type WeaknessSettings } from "../weakness/settings";
 import { FaultsAllowedError, parseFaultsAllowed } from "../dev/faults";
 import { parseFault, type Fault } from "./faults";
 
@@ -78,6 +81,11 @@ export interface WorkerEnv {
    * default 500000).
    */
   bank: { enabled: boolean; lineNodes: number };
+  /**
+   * P6 (phase-06 plan §7.7): WEAKNESS_JOBS_ENABLED (the kill switch; default off in production until P13),
+   * WEAKNESS_ANALYSE_CAP(_TRIAL) (J4's targets), WEAKNESS_DEBOUNCE_SEC (< 300) and the WEAKNESS_SEED_FREEZE test hook.
+   */
+  weakness: WeaknessSettings;
 }
 
 export class EnvError extends Error {
@@ -294,6 +302,7 @@ export function loadEnv(raw: RawEnv = process.env): WorkerEnv {
       enabled: flag(raw, "BANK_EXTRACT_ENABLED", true),
       lineNodes: int(raw, "BANK_LINE_NODES", BANK_LINE_NODES_MIN, BANK_LINE_NODES_MAX) ?? BANK_LINE_NODES,
     },
+    weakness: parseWeaknessSettings(raw, appEnv),
   };
 }
 

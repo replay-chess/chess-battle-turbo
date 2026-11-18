@@ -6,9 +6,10 @@
 // 24 hours, drops ANY plan older than 7 days and deletes ANY session older than 90 days, while other suites
 // (packages/db's jobs.int and seeds.int, the other worker files, and apps/web's int tests: `pnpm -r test:int` runs
 // them at the same time on the same database) write those tables. So each test file gets its own copies of `jobs`,
-// `shares`, `rate_limit_buckets`, `rate_limit_windows`, `game_analyses`, `training_sessions` and `training_days` in a
+// `shares`, `rate_limit_buckets`, `rate_limit_windows`, `game_analyses`, `training_sessions`, `training_days` and (P6)
+// `weakness_snapshots` and `training_profiles` in a
 // private schema (`CREATE TABLE … (LIKE public.x INCLUDING ALL)`: same columns, defaults, partial indexes, unique keys;
-// no foreign keys), and the worker connects with `search_path = <that schema>, public`: those seven are private,
+// no foreign keys), and the worker connects with `search_path = <that schema>, public`: those nine are private,
 // everything else (games, users, game_players, player_reviews, legend_comparisons, the enums) is the real public table.
 //
 // regression: worker-hygiene-abandons-web-sessions (CI 43637337703 integration: the worker's training-hygiene test
@@ -46,6 +47,12 @@ export const PRIVATE_TABLES = {
   // (plan, "updatedAt") on training_days.
   training_sessions: `SELECT, DELETE, UPDATE (status, "endedAt")`,
   training_days: `SELECT, UPDATE (plan, "updatedAt")`,
+  // P6 (phase-06 plan §12.3): the daily slice rolls, heals and prunes ANY member's snapshots, and the web's TR-5/12/13
+  // and B-W3 suites write them and the weakness columns of training_profiles at the same time. replay_worker.p6.sql:
+  // S/I/U/D on weakness_snapshots; SELECT, INSERT ("userId", "weaknessVersion", "updatedAt") and UPDATE
+  // ("weaknessVersion", "updatedAt") on training_profiles (P5's SELECT included).
+  weakness_snapshots: "SELECT, INSERT, UPDATE, DELETE",
+  training_profiles: `SELECT, INSERT ("userId", "weaknessVersion", "updatedAt"), UPDATE ("weaknessVersion", "updatedAt")`,
 } as const;
 
 export interface IntEnv {

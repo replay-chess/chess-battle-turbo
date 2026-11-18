@@ -8,8 +8,12 @@ import { after, before, beforeEach, describe, it } from "node:test";
 import { JOB_PRIORITY } from "@repo/contracts/internal/jobs";
 import { CountingDb, pgDriver, type Driver, type Row, type Statement } from "../db/client";
 import { insertJob, jobRow, setupInt, skipInt, type IntEnv } from "../testing/pg";
-import { claimJob } from "./claim";
-import { bootLockIds } from "./lanes";
+import { silentLogger } from "../obs/log";
+import { Metrics } from "../obs/metrics";
+import { realClock } from "../scheduler/clock";
+import { RecordingEmitter } from "../socket/emit";
+import { claimJob, type ClaimedJob } from "./claim";
+import { bootLockIds, IO_KINDS, IoLane } from "./lanes";
 import { ORPHAN_STALE_SEC, outcomeByMeStatement, reapStatement, rescheduleStatement, rescheduleToken } from "./outcome";
 
 const WORKER = "dev-worker";
@@ -120,5 +124,68 @@ describe("I/O lane lock identity (Postgres)", { skip: skipInt }, () => {
     const retry = rescheduleStatement({ jobId: held, me: SLOT1, runAt, priority: JOB_PRIORITY.IMPORT_SYNC_DAILY, payload, token: "x" }).retry;
     assert.ok(retry && retry !== "never");
     assert.deepEqual(await env.db.query(retry), []);
+  });
+
+  // regression: io-lane-weakness-fills-both-slots (plan §12.6 "an IMPORT_SYNC waits behind at most one weakness job").
+  it("two slots, two due weakness jobs and an import: the import starts while the first weakness job runs", async () => {
+    const weak = async (n: number, runAtSec: number) =>
+      insertJob(env, {
+        kind: "RECOMPUTE_WEAKNESS",
+        priority: JOB_PRIORITY.WEAKNESS,
+        runAtSec,
+        payload: { v: 1, trigger: "weekly" },
+        dedupeKey: `weakness:lane${n}`,
+        maxAttempts: 3,
+      });
+    const w1 = await weak(1, -120);
+    const w2 = await weak(2, -110);
+    const imp = await importJob(env, -10, 7);
+    const started: string[] = [];
+    const finish = new Map<string, () => void>();
+    const clock = realClock();
+    const lane = new IoLane({
+      db: env.db,
+      clock,
+      log: silentLogger,
+      metrics: new Metrics({ workerId: WORKER, bootId: "abcd1234", version: "0", profile: "sf18-v1" }, clock.now()),
+      emitter: new RecordingEmitter(),
+      me: ME,
+      workerId: WORKER,
+      kinds: IO_KINDS,
+      payloadVMax: 1,
+      // A weakness job holds its slot until released (a long heal); an import finishes at once.
+      runJob: (job: ClaimedJob, slotMe: string) =>
+        new Promise<void>((resolve) => {
+          started.push(job.kind);
+          const done = async () => {
+            await env.owner.query(`UPDATE ${env.schema}.jobs SET status = 'DONE', "finishedAt" = (now() AT TIME ZONE 'UTC') WHERE id = $1 AND "lockedBy" = $2`, [job.id, slotMe]);
+            resolve();
+          };
+          if (job.kind === "RECOMPUTE_WEAKNESS") finish.set(job.id, () => void done());
+          else void done();
+        }),
+    });
+    const until = async (check: () => boolean | Promise<boolean>, ms = 10_000) => {
+      const end = Date.now() + ms;
+      while (Date.now() < end) {
+        if (await check()) return;
+        await new Promise((r) => setTimeout(r, 25));
+      }
+      throw new Error(`timed out; started ${started.join(",")}`);
+    };
+    try {
+      lane.start();
+      await until(async () => (await jobRow(env, imp)).status === "DONE");
+      assert.deepEqual([...started].sort(), ["IMPORT_SYNC", "RECOMPUTE_WEAKNESS"], "the import ran while one weakness job held a slot");
+      assert.equal((await jobRow(env, w2)).status, "QUEUED", "the second weakness job waits for the first, not the import");
+      finish.get(w1)!();
+      await until(() => finish.has(w2));
+      assert.deepEqual([...started].sort(), ["IMPORT_SYNC", "RECOMPUTE_WEAKNESS", "RECOMPUTE_WEAKNESS"]);
+      finish.get(w2)!();
+      await until(async () => (await jobRow(env, w2)).status === "DONE");
+    } finally {
+      for (const f of finish.values()) f();
+      await lane.stop(2_000);
+    }
   });
 });

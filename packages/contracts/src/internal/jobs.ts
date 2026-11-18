@@ -78,9 +78,17 @@ export type P4JobKind = (typeof P4_JOB_KINDS)[number];
 export const P5_JOB_KINDS = ["EXTRACT_MISTAKES"] as const satisfies readonly JobKind[];
 export type P5JobKind = (typeof P5_JOB_KINDS)[number];
 
-/** Every kind a worker of this build runs (the engine lane's P3 and P5 kinds plus the I/O lane's P4 kinds). */
-export const RUN_JOB_KINDS = [...P3_JOB_KINDS, ...P4_JOB_KINDS, ...P5_JOB_KINDS] as const;
-export type RunJobKind = P3JobKind | P4JobKind | P5JobKind;
+/**
+ * The kind P6 makes runnable (phase-06 plan §7.4; interface check §0.5): RECOMPUTE_WEAKNESS is already in M3's
+ * `JobKind` (no m6a migration). It runs on P4's I/O lane (CPU only, no engine), one coalescing row per member
+ * (`weaknessDedupeKey`). A build without the handler leaves the rows queued for the build that has one.
+ */
+export const P6_JOB_KINDS = ["RECOMPUTE_WEAKNESS"] as const satisfies readonly JobKind[];
+export type P6JobKind = (typeof P6_JOB_KINDS)[number];
+
+/** Every kind a worker of this build runs (the engine lane's P3 and P5 kinds plus the I/O lane's P4 and P6 kinds). */
+export const RUN_JOB_KINDS = [...P3_JOB_KINDS, ...P4_JOB_KINDS, ...P5_JOB_KINDS, ...P6_JOB_KINDS] as const;
+export type RunJobKind = P3JobKind | P4JobKind | P5JobKind | P6JobKind;
 
 export const JOB_STATUSES = ["QUEUED", "RUNNING", "DONE", "FAILED", "CANCELLED"] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];
@@ -88,7 +96,8 @@ export type JobStatus = (typeof JOB_STATUSES)[number];
 /**
  * `jobs."maxAttempts"` written at insert (§7.7): ANALYZE_GAME 4, LEGEND_COMPARE 3, HOUSEKEEPING 2; P4 (phase-04
  * §7.7.1) IMPORT_SYNC 5, IMPORT_PURGE 5; P5 EXTRACT_MISTAKES 3 (a deterministic re-run of stored analysis: a third
- * failure is a bug to look at, not a transient).
+ * failure is a bug to look at, not a transient); P6 RECOMPUTE_WEAKNESS 3 (back-off 30 s / 2 min / 10 min, the
+ * worker's BACKOFF_SEC; the upsert writes "maxAttempts" explicitly, the column default is 4).
  */
 export const JOB_MAX_ATTEMPTS = {
   ANALYZE_GAME: 4,
@@ -97,6 +106,7 @@ export const JOB_MAX_ATTEMPTS = {
   IMPORT_SYNC: 5,
   IMPORT_PURGE: 5,
   EXTRACT_MISTAKES: 3,
+  RECOMPUTE_WEAKNESS: 3,
 } as const satisfies Record<RunJobKind, number>;
 
 /**
@@ -124,6 +134,11 @@ type Id = bigint | number | string;
 /** `analyze:<gameId>`: one ANALYZE_GAME job per game, ever (a regrade resets the DONE row). */
 export function analyzeDedupeKey(gameId: Id): string {
   return `analyze:${String(gameId)}`;
+}
+
+/** P6 FIX-2: the weakness lines refresh of one game (an ANALYZE_GAME row of its own, reason `weakness_lines`). */
+export function weaknessLinesDedupeKey(gameId: Id): string {
+  return `weaklines:${String(gameId)}`;
 }
 
 /** `legend:<gameId>:<userId>`: one LEGEND_COMPARE job per member side of a legend game. */
@@ -166,6 +181,17 @@ export function regradeExtractDedupeKey(gameId: Id, userId: Id, analysisVersion:
   return `${extractMistakesDedupeKey(gameId, userId, version)}:a${analysisVersion}`;
 }
 
+/**
+ * `weakness:<userId>`: the ONE RECOMPUTE_WEAKNESS row per member, ever (phase-06 plan §7.4.1). Every trigger
+ * upserts it: a QUEUED row keeps its earliest runAt, a RUNNING row is flagged `rerun`, a finished row is re-armed
+ * after the debounce. It also carries the durable TR-12 limit (`payload.userAt`).
+ */
+export function weaknessDedupeKey(userId: Id): string {
+  const s = String(userId);
+  if (!/^[1-9][0-9]{0,18}$/.test(s)) throw new Error(`weaknessDedupeKey: "${s}" is not a user id`);
+  return `weakness:${s}`;
+}
+
 /** `housekeeping:<yyyy-mm-dd>`: one HOUSEKEEPING row per UTC day, planned by DAILY_PLAN. */
 export function housekeepingDedupeKey(day: string): string {
   if (!IsoDay.safeParse(day).success) throw new Error(`housekeepingDedupeKey: "${day}" is not yyyy-mm-dd`);
@@ -177,7 +203,12 @@ export function housekeepingDedupeKey(day: string): string {
 export const PAYLOAD_V_MAX = 1;
 
 /** P4 appends `import` (imported games: the batch writer's eager ranks and the backlog slices, phase-04 §8.8–8.9). */
-export const ANALYZE_REASONS = ["live_end", "bot_end", "opened", "retry", "regrade", "backfill", "smoke", "import"] as const;
+/**
+ * P6 FIX-2 appends `weakness_lines` (docs/decisions.md D-P6-FIX2-8): a finished analysis's member errors searched for
+ * their pass-1 lines and refutations and the five weakness input columns rewritten, nothing else (its own dedupe key
+ * `weaklines:<gameId>`, no userId: the game's analysis status, review and job row are never touched).
+ */
+export const ANALYZE_REASONS = ["live_end", "bot_end", "opened", "retry", "regrade", "backfill", "smoke", "import", "weakness_lines"] as const;
 export type AnalyzeReason = (typeof ANALYZE_REASONS)[number];
 
 /** The longest game an `evalHint` may describe (games."plyCount" is a smallint; Lichess games stay far below). */
@@ -264,7 +295,34 @@ export const ExtractMistakesPayloadV1 = z.object({
 });
 export type ExtractMistakesPayloadV1 = z.infer<typeof ExtractMistakesPayloadV1>;
 
-/** The payload schema of each kind a worker of this build runs (P3/P5 engine lane, P4 I/O lane). */
+/**
+ * Why a RECOMPUTE_WEAKNESS row was (re)armed (phase-06 plan §7.4.1 triggers): `analysis` an in-scope ANALYZE_GAME
+ * finished with a READY profile; `first_build` the analysed count reached 5, 10, 15, 20+; `import` an IMPORT_SYNC
+ * finished; `user` / `scope` TR-12 (Retry, auto-build / Include bullet); `heal` / `algo` / `weekly` the daily slice
+ * and B-W3.
+ */
+/**
+ * `removed` (FIX-1): the member's games were purged (IMPORT_PURGE: an unlink or a source purge) or a Mistake Bank card
+ * was removed, so the profile's counts or its example positions may name rows that are gone.
+ */
+export const WEAKNESS_TRIGGERS = ["analysis", "first_build", "import", "user", "scope", "heal", "algo", "weekly", "removed"] as const;
+export type WeaknessTrigger = (typeof WEAKNESS_TRIGGERS)[number];
+
+/**
+ * RECOMPUTE_WEAKNESS (phase-06 plan §7.4.2). Every enqueue MERGES its payload into the row (`payload || $new`), so
+ * `userAt` (the last TR-12 request, the durable 600 s limit) survives later triggers, and the upsert adds `rerun:
+ * true` to a RUNNING row (completion re-queues it). `z.object`: keys a newer build adds to the merged document are
+ * stripped, never a failure.
+ */
+export const RecomputeWeaknessPayloadV1 = z.object({
+  v: z.literal(1),
+  trigger: z.enum(WEAKNESS_TRIGGERS),
+  userAt: z.iso.datetime().optional(),
+  rerun: z.boolean().optional(),
+});
+export type RecomputeWeaknessPayloadV1 = z.infer<typeof RecomputeWeaknessPayloadV1>;
+
+/** The payload schema of each kind a worker of this build runs (P3/P5 engine lane, P4/P6 I/O lane). */
 export const JOB_PAYLOADS = {
   ANALYZE_GAME: AnalyzeGamePayloadV1,
   LEGEND_COMPARE: LegendComparePayloadV1,
@@ -272,6 +330,7 @@ export const JOB_PAYLOADS = {
   IMPORT_SYNC: ImportSyncPayloadV1,
   IMPORT_PURGE: ImportPurgePayloadV1,
   EXTRACT_MISTAKES: ExtractMistakesPayloadV1,
+  RECOMPUTE_WEAKNESS: RecomputeWeaknessPayloadV1,
 } as const satisfies Record<RunJobKind, z.ZodType>;
 export type JobPayload<K extends RunJobKind> = z.infer<(typeof JOB_PAYLOADS)[K]>;
 

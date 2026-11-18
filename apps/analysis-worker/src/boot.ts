@@ -9,7 +9,7 @@
 import { randomBytes } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { P3_JOB_KINDS, P4_JOB_KINDS, P5_JOB_KINDS, PAYLOAD_V_MAX, type JobKind } from "@repo/contracts/internal/jobs";
+import { P3_JOB_KINDS, P4_JOB_KINDS, P5_JOB_KINDS, P6_JOB_KINDS, PAYLOAD_V_MAX, type JobKind } from "@repo/contracts/internal/jobs";
 import type { WorkerReadyResponse } from "@repo/contracts/internal/kick";
 import { ENGINE_PROFILE } from "@repo/chess-analysis/version";
 import { EvalCache } from "./cache/evalcache";
@@ -20,6 +20,7 @@ import { engineFactory, EnginePool, type Engine } from "./engine";
 import { createHttpServer } from "./http/server";
 import { defaultHandlers, type HandlerMap } from "./jobs";
 import { failReapedImports } from "./jobs/import-sync";
+import { failReapedWeakness } from "./jobs/weakness-recompute";
 import { FaultTable, faultingFetch } from "./dev/faults";
 import { devFaultRoute } from "./http/routes/dev-fault";
 import { ProviderLookup } from "./http/routes/provider-lookup";
@@ -27,6 +28,7 @@ import { createProviders, type FetchLike, type ImportProviders } from "./provide
 import { measuredFetch } from "./providers/measure";
 import { importMetric } from "./import/metrics";
 import { IoLane, routeKick } from "./queue/lanes";
+import type { FailedJob } from "./queue/outcome";
 import { BatchAccumulator } from "./pipeline/batch-events";
 import { MistakesAddedCoalescer } from "./extract/coalesce";
 import { OpeningBook } from "./pipeline/openings";
@@ -43,6 +45,7 @@ import { RECURRING_SLICES } from "./scheduler/recurring";
 import { importBackstopStatement, releaseParkedImportsStatement } from "./scheduler/recurring/import-backstop";
 import { Scheduler } from "./scheduler/scheduler";
 import { Emitter, type EmitSink } from "./socket/emit";
+import { WeaknessProgressEmitter } from "./weakness/progressEmitter";
 import { LagPause, LoadProbe } from "./socket/load";
 
 /** The scheduler waits this long for the running job to release itself on SIGTERM (compose grace is 30 s). */
@@ -178,7 +181,7 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
     createProductEvents(env.posthog, env.appEnv, log.child({ component: "posthog" }), {
       untraced: telemetry.untraced?.bind(telemetry),
     });
-  const store = new SqlAnalysisStore(db, { training: env.bank.enabled });
+  const store = new SqlAnalysisStore(db, { training: env.bank.enabled, weakness: env.weakness.enabled });
   const batch = new BatchAccumulator({
     emitter,
     clock,
@@ -208,6 +211,20 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
   });
   // P5: `mistakes:added` frames of the EXTRACT_MISTAKES backfill, coalesced per user (≤ 1 per 60 s).
   const mistakesAdded = new MistakesAddedCoalescer({ emitter, clock, log: log.child({ component: "mistakes-added" }) });
+  // P6: a RECOMPUTE_WEAKNESS armed by another lane (an analysis's trigger, first_build, the daily slice) wakes the I/O
+  // lane in-process with its runAt (the lane re-arms its one sleep; no timer is added). The lane exists below.
+  let wakeIoLane: (runAtMs?: number) => void = () => undefined;
+  const wakeIo = (runAtMs?: number) => wakeIoLane(runAtMs);
+  const weaknessProgress = new WeaknessProgressEmitter({
+    db,
+    emitter,
+    clock,
+    log: log.child({ component: "weakness-progress" }),
+    settings: env.weakness,
+    wakeIo,
+    telemetry,
+  });
+  const weakness = { settings: env.weakness, progress: weaknessProgress };
   const handlers =
     o.handlers ??
     defaultHandlers({
@@ -215,14 +232,19 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
       book,
       batch,
       events,
-      imports: { providers, settings: env.imports },
+      imports: { providers, settings: env.imports, weakness },
       bank: env.bank,
       mistakesAdded,
+      weakness,
     });
   // The engine lane: the analysis kinds and P5's EXTRACT_MISTAKES (its line searches use the engine).
   const kinds: JobKind[] = [...P3_JOB_KINDS, ...P5_JOB_KINDS].filter((k) => handlers[k] !== undefined);
-  // The I/O lane claims the import kinds this build handles; IMPORT_PAUSED leaves it without kinds (claims nothing).
-  const ioKinds: JobKind[] = env.imports.paused ? [] : P4_JOB_KINDS.filter((k) => handlers[k] !== undefined);
+  // The I/O lane claims the import kinds this build handles (none with IMPORT_PAUSED) and P6's RECOMPUTE_WEAKNESS, which
+  // IMPORT_PAUSED never switches off (interface check §0.8).
+  const ioKinds: JobKind[] = [
+    ...(env.imports.paused ? [] : P4_JOB_KINDS.filter((k) => handlers[k] !== undefined)),
+    ...P6_JOB_KINDS.filter((k) => handlers[k] !== undefined),
+  ];
   const evalCacheMaxBytes = env.evalCache.maxGb * 1024 ** 3;
 
   const runnerDeps = (runAs: string, stopSignal: AbortSignal) => ({
@@ -244,7 +266,13 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
     takeFault: (ref: string) => scheduler.takeFault(ref),
     // D1: an import (I/O lane) queues ANALYZE_GAME jobs for the engine lane, which sleeps without polling.
     wakeEngine: () => scheduler.wake(),
+    wakeIo,
   });
+  /** A row a reaper failed for good (its worker stopped on the last attempt): the kind's own failure write. */
+  const onReaped = async (jobs: readonly FailedJob[]): Promise<void> => {
+    await failReapedImports({ db, emitter, clock, log }, jobs);
+    await failReapedWeakness({ db, clock, emitter, telemetry, events }, jobs);
+  };
   const lane = new IoLane({
     db,
     clock,
@@ -263,8 +291,12 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
       });
       return runJob(job, runnerDeps(slotMe, stopSignal));
     },
-    onReaped: (jobs) => failReapedImports({ db, emitter, clock, log }, jobs),
+    onReaped: (jobs) => onReaped(jobs),
   });
+  wakeIoLane = (runAtMs) => {
+    const ahead = runAtMs !== undefined && runAtMs > clock.now() + 1_000;
+    lane.kick({ v: 1, reason: "weakness", kinds: ["RECOMPUTE_WEAKNESS"], ...(ahead ? { runAt: new Date(runAtMs).toISOString() } : {}) });
+  };
 
   // The runner's closures call back into the scheduler only after it exists (jobs run after start()).
   const scheduler: Scheduler = new Scheduler({
@@ -294,6 +326,8 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
         : []),
     ],
     siblingIds: lane.bootIds.filter((id) => id !== me),
+    // The boot and drain-end reapers take stale rows of every kind: the same follow-up as the I/O lane's.
+    onReaped: (jobs) => onReaped(jobs),
     runJob: (job, stopSignal) => runJob(job, runnerDeps(me, stopSignal)),
   });
 
@@ -308,7 +342,11 @@ export async function bootWorker(env: WorkerEnv, o: WorkerOverrides = {}): Promi
     acceptKeys: env.acceptKeys,
     nowMs: () => clock.now(),
     log: log.child({ component: "http" }),
-    kick: (body) => routeKick(body, scheduler, lane),
+    kick: (body) => {
+      // §10.2 `worker.weakness.kick_cas_hits`: a TR-5 poll won the web's kick compare-and-set (Q-W12) and kicked.
+      if (body.reason === "weakness") telemetry.metric("count", "worker.weakness.kick_cas_hits", 1);
+      return routeKick(body, scheduler, lane);
+    },
     metrics: () => metrics.snapshot(clock.now(), scheduler.view()),
     ready,
     lookup: (body) => lookup.lookup(body),

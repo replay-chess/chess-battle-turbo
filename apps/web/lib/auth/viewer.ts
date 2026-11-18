@@ -435,7 +435,8 @@ export function toViewer(record: ViewerSource, options: MembershipOptions): View
     },
     gamesVersion: record.gamesVersion ?? 0,
     ...p4ViewerFields(record, options.now),
-    ...(record.badgeFacts !== undefined ? { badges: badgesFrom(record.badgeFacts, record.timeZone ?? "UTC", options.now) } : {}),
+    // P6: read with the weakness fact; meDataOf serves it only while the `weakness` flag is on (badgesFor).
+    ...(record.badgeFacts !== undefined ? { badges: badgesFrom(record.badgeFacts, record.timeZone ?? "UTC", options.now, { weakness: true }) } : {}),
   };
 }
 

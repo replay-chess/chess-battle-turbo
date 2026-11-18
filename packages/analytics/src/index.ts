@@ -19,6 +19,7 @@ import { reviewClientEvents, reviewEvents, reviewServerEvents } from "./events/r
 import { shellEvents } from "./events/shell";
 import { systemClientEvents, systemEvents, systemServerEvents } from "./events/system";
 import { trainClientEvents, trainEvents, trainServerEvents } from "./events/train";
+import { weaknessClientEvents, weaknessEvents, weaknessServerEvents } from "./events/weakness";
 
 export { shellEvents, DESTINATION_KEYS, NAV_SURFACES, ACCOUNT_ACTIONS } from "./events/shell";
 export { systemEvents, systemClientEvents, systemServerEvents } from "./events/system";
@@ -41,6 +42,24 @@ export {
   EXTRACT_SOURCES,
 } from "./events/train";
 export { homeEvents, homeClientEvents, HOME_VIEW_STATES } from "./events/home";
+export {
+  weaknessEvents,
+  weaknessClientEvents,
+  weaknessServerEvents,
+  WEAKNESS_EVENT_STATUSES,
+  WEAKNESS_LIST_MODES,
+  WEAKNESS_ENTRIES,
+  WEAKNESS_TABS,
+  WEAKNESS_DEVICES,
+  WEAKNESS_ZOOM_BUCKETS,
+  WEAKNESS_RECOMPUTE_FROM,
+  WEAKNESS_RECOMPUTE_RESULTS,
+  WEAKNESS_PLAN_KINDS,
+  WEAKNESS_DRILL_SURFACES,
+  WEAKNESS_DRILL_ENTRIES,
+  WEAKNESS_DRILL_RESULTS,
+  WEAKNESS_EVENT_TRIGGERS,
+} from "./events/weakness";
 export { FORBIDDEN_PROPERTY_NAMES, PII_PATTERNS, findPii, type PiiFinding } from "./pii";
 
 export const EVENTS = {
@@ -54,6 +73,7 @@ export const EVENTS = {
   ...importEvents,
   ...trainEvents,
   ...homeEvents,
+  ...weaknessEvents,
 } as const;
 
 export type Events = typeof EVENTS;
@@ -76,6 +96,8 @@ export type AccountsServerEventName = keyof typeof accountsServerEvents;
 export type ImportServerEventName = keyof typeof importServerEvents;
 export type TrainClientEventName = keyof typeof trainClientEvents | keyof typeof homeClientEvents;
 export type TrainServerEventName = keyof typeof trainServerEvents;
+export type WeaknessClientEventName = keyof typeof weaknessClientEvents;
+export type WeaknessServerEventName = keyof typeof weaknessServerEvents;
 
 /** Super properties PostHog adds to every event (set from NEXT_PUBLIC_APP_ENV). */
 export const COMMON_PROPERTIES = z

@@ -170,11 +170,14 @@ model LichessPuzzle { id String @id, fen, moves String[], rating Int, themes Str
 
 ### Phase 6: Weakness Profile (≈1 week)
 
-- A nightly job, plus a run after each import batch, aggregates `MoveEval` and `Mistake` per user.
-- Breakdowns: by theme, by phase (opening, middlegame, endgame accuracy), by clock bucket (<10% of time left), by opening (ECO), and by piece.
-- Results are stored in `WeaknessSnapshot { userId, weekOf, metrics Json }`.
-- Rates are compared against a rating-band baseline. The baseline is a static table computed once from a Lichess CC0 monthly dump (only the games with `%eval`) and stored as JSON in the repo.
-- States: computing; insufficient (fewer than 10 analysed games); profile; drill, which starts a session filtered to that theme.
+The binding spec is [`docs/plan/phase-06-weakness-profile.md`](plan/phase-06-weakness-profile.md) (screens, M6 data model, API, worker job, domain rules, tests, work packages). What changed from the outline that stood here:
+
+- **Threshold:** a profile needs 20 analysed games in scope (rapid and blitz, last 6 months, up to 300), not 10. From 5 games the insufficient state lists preliminary patterns (D8 / X15 / R-WK-04).
+- **Inputs:** no `MoveEval` aggregation. The worker packs per-game inputs into `game_players` (`STATS_V1`, `ERROR_LOG_V1`, clock buckets; data-model D10) when it analyses a game, and the profile is computed from those rows and the Mistake Bank.
+- **No nightly job and no Vercel cron:** the `RECOMPUTE_WEAKNESS` job is enqueued (coalesced, 240 s) after analyses and imports, and on request (at most every 10 minutes). Only the daily housekeeping slice rolls the week, heals missed builds and prunes old snapshots (12 weeks kept).
+- **Comparison:** rates per 100 moves against players within ±100 rating points, from a baseline table built once from a Lichess CC0 monthly dump with the same engine profile and tagger, committed as JSON.
+- **States:** insufficient, computing (real progress and ETA), profile, failed (Retry); drills mix own positions with matched Lichess puzzles (6 + 4 of 10).
+- **Lights up:** the Train hub's "Weakness drills" row, plan focus and "Built from your last 20 games." footnote, the Home bank card's top-weakness line, the Train nav dot, `g w` and the ⌘K entry, `/how-we-grade#weakness`, and the `/weakness` redirect (307 until production). All behind the `weakness` flag.
 
 ### Phase 7: AI coach (≈2 weeks)
 

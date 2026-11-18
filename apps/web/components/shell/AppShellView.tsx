@@ -28,6 +28,7 @@ import { SubNav } from "./SubNav";
 import { TabBar } from "./TabBar";
 import { TopBar } from "./TopBar";
 import { useShellKeys } from "./useShellKeys";
+import { useTrainDot } from "./useTrainDot";
 
 // The `?` list loads on first open (its tables are lib/shell/shortcuts.ts): no route pays for it on first load.
 const ShortcutsDialog = dynamic(() => import("./ShortcutsDialog").then((m) => m.ShortcutsDialog), { ssr: false });
@@ -81,7 +82,10 @@ export function AppShellView({
   // P5: Home and Train (with its sections) are flag-gated destinations too.
   const home = useFlag("home");
   const train = useFlag("train");
-  const navFlags: NavFlags = navFlagsOverride ?? { "review-v3": reviewV3, home, train };
+  // P6: the Weakness Profile section (with `train`), its chord and palette row, and the Train dot.
+  const weakness = useFlag("weakness");
+  const navFlags: NavFlags = navFlagsOverride ?? { "review-v3": reviewV3, home, train, weakness };
+  const trainDot = useTrainDot(navFlags.train === true && navFlags.weakness === true);
   const me = { referenceId: user.referenceId };
   const current = currentKey !== undefined ? currentFromKey(currentKey, navFlags) : currentDestinations(pathname, me, navFlags);
   const backOverride = useBackOverride();
@@ -93,7 +97,7 @@ export function AppShellView({
           ? backFor(backTo, me)
           : backTo
       : (backOverride ?? backTarget(pathname, me));
-  const subnav = subnavFor(current);
+  const subnav = subnavFor(current, navFlags);
 
   useShellKeys({
     paletteOpen,
@@ -118,6 +122,7 @@ export function AppShellView({
             user={user}
             current={current}
             navFlags={navFlags}
+            trainDot={trainDot}
             demo={demo}
             onSearch={() => {
               setPaletteOpen(true);
@@ -127,7 +132,7 @@ export function AppShellView({
           />
         }
         topbar={<TopBar user={user} back={back} demo={demo} onBack={() => back && track("back")(back.key)} />}
-        tabbar={hideTabBar || hidesTabBar(pathname) ? undefined : <TabBar me={me} current={current} navFlags={navFlags} demo={demo} onNavigate={track("tabbar")} />}
+        tabbar={hideTabBar || hidesTabBar(pathname) ? undefined : <TabBar me={me} current={current} navFlags={navFlags} trainDot={trainDot} demo={demo} onNavigate={track("tabbar")} />}
         banner={
           <>
             <SubNav
@@ -150,6 +155,7 @@ export function AppShellView({
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
         user={user}
+        navFlags={navFlags}
         demo={demo}
         onOpenShortcuts={() => setShortcutsOpen(true)}
       />

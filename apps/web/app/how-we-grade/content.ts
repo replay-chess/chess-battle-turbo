@@ -8,17 +8,20 @@ import { ENGINE_PROFILE, GRADING_CHANGED_AT, GRADING_VERSION } from "@repo/chess
 import { WIN_CP_CLAMP, WIN_K } from "@repo/chess-analysis/winpct";
 import { JOB_MAX_ATTEMPTS } from "@repo/contracts/internal/jobs";
 
-export const HWG_TABS = ["labels", "acc"] as const;
+// P6 (phase-06 plan §2.1, WP7): the Weakness Profile tab, `#weakness` (components/marketing/HowWeGradeWeakness.tsx).
+export const HWG_TABS = ["labels", "acc", "weakness"] as const;
 export type HwgTab = (typeof HWG_TABS)[number];
 
-export const TAB_LABEL: Record<HwgTab, string> = { labels: "Move Labels", acc: "Accuracy" };
+export const TAB_LABEL: Record<HwgTab, string> = { labels: "Move Labels", acc: "Accuracy", weakness: "Weakness Profile" };
 
-/** Hash anchors and the tab that holds them (`#blunder` → Move Labels, `#failures` → Accuracy). */
+/** Hash anchors and the tab that holds them (`#blunder` → Move Labels, `#failures` → Accuracy, `#weakness` → Weakness). */
 export const FAILURES_ANCHOR = "failures";
 
 export function tabOfAnchor(anchor: string): HwgTab | null {
   if ((JUDGEMENT_KEYS as readonly string[]).includes(anchor)) return "labels";
   if (anchor === FAILURES_ANCHOR || anchor === "accuracy" || anchor === "win-percent") return "acc";
+  // The profile's "How this is calculated" link and ⓘ (`/how-we-grade#weakness`), and the section anchors inside it.
+  if (anchor === "weakness" || anchor.startsWith("weakness-")) return "weakness";
   return null;
 }
 

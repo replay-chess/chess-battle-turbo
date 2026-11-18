@@ -156,7 +156,9 @@ test.describe("day rollover · America/New_York", { tag: ["@p5", "@local-only"] 
       delete (document as { visibilityState?: unknown }).visibilityState;
     });
     await expect(page.getByTestId("train-due-thumb")).toHaveCount(1, { timeout: 60_000 });
-    expect(await getJson<{ bankDue: number; trainDot: boolean }>(page, "/api/me/badges")).toEqual({ bankDue: 1, trainDot: true });
+    // P6 (phase-06 plan §7.1.5 ME-2): with the `weakness` flag on (every e2e member) the badges carry `weaknessReady`;
+    // this member has no profile, so the dot is the bank's alone (REGRESSION-6: the P5 shape failed on the P6 build).
+    expect(await getJson<{ bankDue: number; trainDot: boolean; weaknessReady?: boolean }>(page, "/api/me/badges")).toEqual({ bankDue: 1, trainDot: true, weaknessReady: false });
     await focusReads.settled();
 
     // Grading on Saturday: the streak +1, once.
@@ -193,7 +195,7 @@ test.describe("day rollover · America/New_York", { tag: ["@p5", "@local-only"] 
     await expect(page.getByTestId("train-due-thumb")).toHaveCount(0);
     await hubAt(page, clock, Z("2026-11-01T13:00:00Z"), "default");
     await expect(page.getByTestId("train-due-thumb")).toHaveCount(2);
-    expect(await getJson<{ bankDue: number; trainDot: boolean }>(page, "/api/me/badges")).toEqual({ bankDue: 2, trainDot: true });
+    expect(await getJson<{ bankDue: number; trainDot: boolean; weaknessReady?: boolean }>(page, "/api/me/badges")).toEqual({ bankDue: 2, trainDot: true, weaknessReady: false });
     expect(cut, "no hub read was cut by the spec's own navigation").toEqual([]);
   });
 });

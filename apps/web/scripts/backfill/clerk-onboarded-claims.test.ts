@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { computeClaims } from "../../lib/auth/claims";
-import { CLERK_API, CLERK_SPACING_MS, assertClerkKey, clerkHttpApi, planClaims } from "./clerk-onboarded-claims";
+import { CLERK_API, CLERK_GATEWAY_ATTEMPTS, CLERK_GATEWAY_PAUSE_MS, CLERK_SPACING_MS, assertClerkKey, clerkHttpApi, planClaims } from "./clerk-onboarded-claims";
 
 const NOW = new Date("2026-11-12T10:00:00Z");
 
@@ -95,5 +95,32 @@ describe("B12 Clerk HTTP client", () => {
       assert.equal(e.message, "Clerk PATCH /users/user_…/metadata: 429");
       return true;
     });
+  });
+
+  it("regression: clerk-metadata-502 — a gateway error is tried again (at most 3 in all); 4xx and 429 are not", async () => {
+    const statuses: number[] = [];
+    const waits: number[] = [];
+    const seq = (codes: number[]) =>
+      (async () => {
+        const status = codes.shift() ?? 200;
+        statuses.push(status);
+        return status === 200 ? new Response("{}", { status }) : new Response("bad gateway", { status });
+      }) as typeof fetch;
+    const once = clerkHttpApi({ key: "sk_test_k", fetchImpl: seq([502, 503]), sleepImpl: async (ms) => void waits.push(ms), spacingMs: 0 });
+    await once.mergePublicMetadata("user_x", { v: 1, onboarded: true, entitled: false, lapsed: false, trialUsed: false, role: "USER" });
+    assert.deepEqual(statuses, [502, 503, 200]);
+    assert.deepEqual(waits, [CLERK_GATEWAY_PAUSE_MS, 2 * CLERK_GATEWAY_PAUSE_MS]);
+
+    statuses.length = 0;
+    const down = clerkHttpApi({ key: "sk_test_k", fetchImpl: seq([502, 502, 502, 502]), sleepImpl: async () => {}, spacingMs: 0 });
+    await assert.rejects(down.mergePublicMetadata("user_x", {} as never), /Clerk PATCH \/users\/user_…\/metadata: 502/);
+    assert.equal(statuses.length, CLERK_GATEWAY_ATTEMPTS);
+
+    for (const status of [400, 404, 429]) {
+      statuses.length = 0;
+      const api = clerkHttpApi({ key: "sk_test_k", fetchImpl: seq([status]), sleepImpl: async () => {}, spacingMs: 0 });
+      await assert.rejects(api.listUsers(["user_x"]), new RegExp(`: ${status}$`));
+      assert.deepEqual(statuses, [status], `${status} is not tried again`);
+    }
   });
 });

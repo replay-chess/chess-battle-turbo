@@ -46,6 +46,8 @@ export type TrainHubViewProps = {
   /** The start mutation's 429 countdown (inline under the CTA). */
   startLimit?: RetryCountdownState;
   onFollow?: (target: HubLinkTarget) => void;
+  /** P6 (flag on): the Theme mastery header's "Weakness profile" link. Absent: P5's header. */
+  weaknessHref?: string | null;
 };
 
 function Cta({
@@ -99,7 +101,7 @@ function PlanSkeleton() {
   );
 }
 
-export function TrainHubView({ today, nextDay, planLoading = false, onStart, starting, startLimit, onFollow }: TrainHubViewProps) {
+export function TrainHubView({ today, nextDay, planLoading = false, onStart, starting, startLimit, onFollow, weaknessHref }: TrainHubViewProps) {
   const plan = planModel(today, nextDay);
   const cta = ctaOf(today);
   const strip = dueStripModel(today);
@@ -179,7 +181,7 @@ export function TrainHubView({ today, nextDay, planLoading = false, onStart, sta
             <div className="flex min-w-0 flex-col gap-5 tabbar:gap-4">
               <AllTrainingList today={today} onFollow={(t) => onFollow?.(t)} />
               <div className={"[@media(max-width:600px)]:hidden"}>
-                <ThemeMasteryBars mastery={today.mastery} />
+                <ThemeMasteryBars mastery={today.mastery} weaknessHref={weaknessHref} />
               </div>
             </div>
           </div>

@@ -75,7 +75,13 @@ test.describe("bot game resume without animation frames", { tag: p2("@smoke", "@
       }, STARVE_MS);
       const reloadedAt = Date.now();
       await page.reload({ timeout: 180_000, waitUntil: "commit" });
-      expect(proxy.held().at(-1)?.chunks ?? 0, "the stream was held back").toBeGreaterThan(0);
+      // "commit" comes with the document's first bytes; under load the server flushes the shell first and the streamed
+      // part (the first segment or the RSC payload) a moment later, which is when the proxy starts holding. Wait for
+      // that, inside the hold window, instead of reading the count at commit (regression: starved-frames-hold-race;
+      // webkit-iphone read 0 held chunks at commit, then failed on the cut stream's "Connection closed").
+      await expect
+        .poll(() => proxy.held().at(-1)?.chunks ?? 0, { message: "the stream was held back", timeout: 10_000, intervals: [25, 50, 100] })
+        .toBeGreaterThan(0);
 
       // While frames are still starved: the live board resumes from the journal, and from the first board on until
       // the stream is in (and a few seconds past it), the document holds exactly one game screen, React's, with no

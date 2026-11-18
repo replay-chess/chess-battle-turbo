@@ -28,7 +28,7 @@ export const COMPARISON_STATUSES = ["facts_ready", "narrating", "ready", "failed
 export const DEVICE_CLASSES = ["phone", "tablet", "desktop"] as const;
 export const REVIEW_SOURCES = ["game_over", "archive", "home", "deeplink", "share_owner"] as const;
 export const SHARE_FROM = ["review_menu", "complete"] as const;
-export const ANALYZE_REASONS = ["live_end", "bot_end", "opened", "retry", "regrade", "backfill", "smoke", "import"] as const;
+export const ANALYZE_REASONS = ["live_end", "bot_end", "opened", "retry", "regrade", "backfill", "smoke", "import", "weakness_lines"] as const;
 export const GAME_MODES = ["online", "friend", "bot", "legend_bot", "tournament", "imported"] as const;
 export const GAME_SOURCES = ["replay", "chesscom", "lichess"] as const;
 
@@ -94,7 +94,7 @@ export const reviewClientEvents = {
   analysis_retry_clicked: z.object({ code: z.enum(ANALYSIS_FAILURE_CODES), attempt: z.number().int().min(1).max(10) }).strict(),
   pgn_downloaded: z.object({ annotated: z.literal(true) }).strict(),
   how_we_grade_viewed: z
-    .object({ tab: z.enum(["labels", "acc", "coach"]), from: z.enum(["review", "game_over", "nav", "deeplink", "pricing"]) })
+    .object({ tab: z.enum(["labels", "acc", "coach", "weakness"]), from: z.enum(["review", "game_over", "nav", "deeplink", "pricing"]) })
     .strict(),
   share_opened: z.object({ from: z.enum(SHARE_FROM) }).strict(),
   share_link_copied: z.object({ from: z.enum(SHARE_FROM), show_username: z.boolean() }).strict(),

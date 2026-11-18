@@ -10,6 +10,8 @@
 // capturingDefender > other tactics > rc:* > endgame signatures > phase. Meta tags (length, eval) are never primary;
 // every position has a phase tag, so there is always a primary theme.
 import { backRankThemes } from "./backRank";
+import { ERROR_THEMES_MAX, evalFor, isMateEval, mateMoves } from "../codec";
+import { WIN_CP_CLAMP } from "../winpct";
 import { buildContext, type ThemeInput } from "./context";
 import { discoveredThemes } from "./discovered";
 import { endgameThemes } from "./endgame";
@@ -170,4 +172,60 @@ export function tagThemes(input: ThemeInput): Tagged {
     ...META_THEMES.filter((t) => found.has(t)),
   ];
   return { themes: ordered, primary: primaryOf(ordered) };
+}
+
+/* ------------------------------------------------------------------------------------------------------------ */
+/* One error ply of a member's game (phase-06 plan §8.3.2 step 3): the weakness profile's theme occurrences      */
+/* ------------------------------------------------------------------------------------------------------------ */
+
+// ERROR_THEMES_MAX (at most this many themes per error: game_players."errorThemeN" entries are 0…8) is a storage
+// limit of the per-side inputs, so it lives with the codec; re-exported here for the tagger's callers.
+export { ERROR_THEMES_MAX };
+
+/**
+ * Tags the weakness profile never counts: the meta tags (line length and eval band), the three phase tags (the phase
+ * is ERROR_LOG_V1's own field) and the generic `mate` (the mateInN / named mates carry the pattern).
+ */
+export const ERROR_THEMES_DROPPED: ReadonlySet<string> = new Set([...META_THEMES, "opening", "middlegame", "endgame", "mate"]);
+
+export interface ErrorPlyInput {
+  /** Position before the member's move. */
+  fenBefore: string;
+  /** The best line from `fenBefore` (UCI, the member's best move first): the stored pass-2 PV, else the best move. */
+  bestLine: readonly string[];
+  /** The move the member played. */
+  playedUci: string;
+  /** The opponent's best reply to the played move (feeds rc:missedThreat), when known. */
+  refuteUci?: string | null;
+  /** Stored eval of `fenBefore` (White POV, codec.ts encoding): the best play's score. */
+  evalBest?: number | null;
+  phase: "OPENING" | "MIDDLEGAME" | "ENDGAME";
+  /** The opponent's move into `fenBefore` and whether it captured (rc:recapture), when known. */
+  setupUci?: string | null;
+  setupCaptured?: boolean;
+}
+
+/**
+ * The themes of one error ply, for `game_players."errorThemes"`: the P5 tagger run exactly as the Mistake Bank runs it
+ * on a review position (TRN extract.ts: the same eval, mate and review inputs), so the profile's patterns and the bank
+ * filters name the same thing. Returns the tags in PRIMARY_ORDER without ERROR_THEMES_DROPPED, at most
+ * ERROR_THEMES_MAX. An error without a known best move has no line to tag and returns []. No detector changes: this
+ * is a thin wrapper over tagThemes.
+ */
+export function tagErrorPly(input: ErrorPlyInput): string[] {
+  const line = input.bestLine.filter((m) => m !== "");
+  if (line.length === 0) return [];
+  const solver = (input.fenBefore.trim().split(/\s+/)[1] === "b" ? "b" : "w") as "w" | "b";
+  const e = typeof input.evalBest === "number" && Number.isFinite(input.evalBest) ? evalFor(input.evalBest, solver) : null;
+  const mating = e !== null && isMateEval(e);
+  const tagged = tagThemes({
+    fen: input.fenBefore,
+    line,
+    setupUci: input.setupUci ?? null,
+    setupCaptured: input.setupCaptured ?? false,
+    cp: e === null || mating ? null : Math.max(-WIN_CP_CLAMP, Math.min(WIN_CP_CLAMP, e)),
+    mateIn: mating && e > 0 ? mateMoves(e) : null,
+    review: { playedUci: input.playedUci, refuteUci: input.refuteUci ?? null, pv: line, phase: input.phase },
+  });
+  return tagged.themes.filter((t) => !ERROR_THEMES_DROPPED.has(t)).slice(0, ERROR_THEMES_MAX);
 }

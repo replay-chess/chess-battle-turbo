@@ -10,7 +10,7 @@
 // P4 slots (phase-04 plan §4.11): the source tabs under the header (`sourceTabs`, null = no row), the
 // `import_running` banner across the top of the list card (`importBanner`), the per-source empty copy ("No Chess.com
 // games yet. They appear here as they import.") and the empty state's "Import from Chess.com" (`importHref`).
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Banner } from "@/components/ui/banner";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -83,9 +83,16 @@ export type GamesArchiveViewProps = {
   linkedProviders?: readonly ("chesscom" | "lichess")[];
 };
 
+/** The archive's listbox id (its options are `${GAMES_LIST_ID}-<ref>`, GameRow gameOptionId). */
+export const GAMES_LIST_ID = "games-list";
+
 export function GamesArchiveView(props: GamesArchiveViewProps) {
   const { filter, phase, rows, refreshing, selectedRef, onSelect, onOpen } = props;
-  const listId = `games-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  // One archive per page, so a fixed id: the listbox's id, its options' ids and aria-activedescendant must agree between
+  // the server's HTML and every client render. With React's useId they did not always (REGRESSION-6, games-archive.spec
+  // in the full run, also on the Phase 5 tip: the listbox kept the server's `games-_R_2nq…` while the client wrote
+  // `aria-activedescendant="games-_R_lu…-<ref>"`, an id no option had; regression: games-list-stable-ids).
+  const listId = GAMES_LIST_ID;
   const searchRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 

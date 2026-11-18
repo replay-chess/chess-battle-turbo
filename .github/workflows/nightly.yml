@@ -2,7 +2,7 @@
 #
 # Scheduled workflows run from the default branch, so this file is committed to
 # `main` (workflow-only commit) and to `dev`; every job checks out `ref: dev`.
-# Later phases append jobs (P3 arm64 goldens, P4 provider canary, P6 weakness recompute).
+# Later phases append jobs (P3 arm64 goldens, P4 provider canary, P6 weakness recompute: `weakness-recompute-check`).
 # P4 (phase-04 plan §12.4, §12.5b; WP-H): e2e-full runs the P4 specs against the upstream mock (:4010) with the
 # onboarding and import flags on; provider-canary reads one public Chess.com account and one Lichess user through the
 # chess-import clients in strict mode (never a database; two failures in a row open a `provider-drift` issue);
@@ -167,6 +167,7 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v wk_password="$WK_PW" -f packages/db/scripts/roles/replay_worker.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p4.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p5.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p6.sql
           echo "E2E_SOCKET_DATABASE_URL=postgresql://replay_realtime:$RT_PW@localhost:5432/replay" >> "$GITHUB_ENV"
           echo "E2E_WORKER_DATABASE_URL=postgresql://replay_worker:$WK_PW@localhost:5432/replay" >> "$GITHUB_ENV"
       - name: Build (test app env, hooks on, sinks on)
@@ -213,6 +214,13 @@ jobs:
       NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      # P5/P6 real routes (as ci.yml devices-p5): the flags are honoured only with the test hooks on; the P6 real routes
+      # lease `weak-member`, whose real games the e2e analysis worker (DEVICES_WORKER=1, ENGINE=fake) grades.
+      ALLOW_TEST_HOOKS: "1"
+      BILLING_PAYWALL: "on"
+      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on,review-v3:on,review-share:on,onboarding-v3:on,import-v3:on,train:on,home:on,bank-remove:on,weakness:on
+      DEVICES_WORKER: "1"
+      ANALYSIS_WORKER_URL: http://127.0.0.1:3003
     steps:
       - uses: actions/checkout@v5
         with: { ref: "${{ env.REF }}" }
@@ -227,6 +235,17 @@ jobs:
           pnpm --filter @repo/db migrate:deploy
           pnpm --filter @repo/db seed
           pnpm --filter @repo/db seed:openings
+      - name: Random keys for this run (the persona tool's pepper and kick, the worker's ring)
+        run: |
+          pepper="$(openssl rand -hex 32)"
+          cookie="$(openssl rand -base64 32)"
+          int="web:$(openssl rand -base64 32),ws:$(openssl rand -base64 32),wk:$(openssl rand -base64 32),webwk:$(openssl rand -base64 32)"
+          echo "::add-mask::$pepper"
+          echo "::add-mask::$cookie"
+          echo "::add-mask::$int"
+          echo "HASH_PEPPER=$pepper" >> "$GITHUB_ENV"
+          echo "SIGNED_COOKIE_SECRET=$cookie" >> "$GITHUB_ENV"
+          echo "INTERNAL_API_SECRET=$int" >> "$GITHUB_ENV"
       - name: All 40 layout projects + UI + motion (builds .next-devices, serves :3100)
         run: pnpm --filter web test:devices --shard=${{ matrix.shard }}/4
       - if: always()
@@ -870,3 +889,86 @@ jobs:
           path: apps/web/playwright-report/
           retention-days: 14
           if-no-files-found: ignore
+
+  weakness-recompute-check:
+    # P6 (phase-06 plan §12.4 "Nightly on dev", TE P6 / X2; WP8): pool user 24 is reset to `weak-member` on the Neon dev
+    # branch (real CC0 games, graded by the DEV worker: the first night re-grades them, later nights keep them while
+    # they are under 6 h old, else re-grade), TR-12 is called on the dev site as that user, and the snapshot the real dev
+    # worker writes within 2 minutes is compared with the one the repository's code computes from the same rows
+    # (apps/analysis-worker/scripts/nightly-weakness-check.ts: status, counts, headline, the metrics document without
+    # times; the baseline id). A difference fails the job and opens a `weakness-drift` issue. Never the production
+    # branch or site (the scripts refuse them). Secrets (owner; names only): DEV_DATABASE_URL (the persona tool),
+    # DEV_WORKER_DATABASE_URL (replay_worker on the dev branch: the check only reads), DEV_ANALYSIS_WORKER_URL and
+    # DEV_WEB_INTERNAL_API_SECRET (a ring holding ONLY the worker-only kid `webwk`, "webwk:<base64>": the persona
+    # tool's kick signs with it and nothing else; the web's `web` kid may emit every socket event to any room, so it
+    # never goes to this job; FIX-2, the step below refuses any other kid), DEV_HASH_PEPPER,
+    # CLERK_SECRET_KEY (development), VERCEL_AUTOMATION_BYPASS_SECRET.
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 45
+    concurrency: { group: e2e-dev-shared, cancel-in-progress: false }
+    env:
+      CI: "1"
+      DEV_URL: https://replay-chess-dev-replaychess007-1069.vercel.app
+      POOL: "24"
+      DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DEV_DATABASE_URL }}
+      WORKER_DATABASE_URL: ${{ secrets.DEV_WORKER_DATABASE_URL }}
+      ANALYSIS_WORKER_URL: ${{ secrets.DEV_ANALYSIS_WORKER_URL }}
+      INTERNAL_API_SECRET: ${{ secrets.DEV_WEB_INTERNAL_API_SECRET }}
+      HASH_PEPPER: ${{ secrets.DEV_HASH_PEPPER }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { ref: "${{ env.REF }}" }
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @repo/db generate
+      - name: The internal key ring holds only `webwk` (least privilege; prints kid names only, never a key)
+        run: |
+          kids="$(printf '%s' "$INTERNAL_API_SECRET" | tr ',' '\n' | cut -d: -f1 | sort -u | tr '\n' ' ')"
+          if [ "$kids" != "webwk " ]; then echo "DEV_WEB_INTERNAL_API_SECRET must hold only the kid webwk (found: $kids)"; exit 1; fi
+      - name: Reset pool user 24 to weak-member on the dev branch (the dev worker grades its games)
+        working-directory: apps/web
+        # The user's reference id goes to a runner-temp file (never the log): the check reads users by ref only, since
+        # replay_worker has no SELECT on users.email (FIX-1).
+        run: npx tsx scripts/dev/personas.ts --reset "$POOL" --persona weak-member --ref-out "$RUNNER_TEMP/weakness-check-user.ref"
+      - name: TR-12 on the dev site; the dev worker's snapshot against the repository's
+        working-directory: apps/analysis-worker
+        run: |
+          npx tsx scripts/nightly-weakness-check.ts --user "e2e-pool${POOL}+clerk_test@chessbattle.dev" \
+            --user-ref-file "$RUNNER_TEMP/weakness-check-user.ref" --base-url "$DEV_URL" \
+            --timeout-sec 120 --out "$GITHUB_WORKSPACE/weakness-check.json"
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: weakness-recompute-check
+          path: weakness-check.json
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: A difference opens a weakness-drift issue
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            let report = {};
+            try { report = JSON.parse(fs.readFileSync(`${process.env.GITHUB_WORKSPACE}/weakness-check.json`, "utf8")); } catch {}
+            const title = "weakness-drift: the dev worker's snapshot differs from the repository's";
+            const { data: open } = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:title "weakness-drift"`,
+            });
+            if (open.total_count) return;
+            await github.rest.issues.create({
+              ...context.repo,
+              title,
+              labels: ["weakness-drift"],
+              body: [
+                `Nightly run ${context.runId} (${process.env.REF}). See docs/runbooks/weakness.md "Drift".`,
+                "```json",
+                JSON.stringify({ tr12: report.tr12, status: report.status, games: report.games, baseline: report.baseline, error: report.error, diffs: report.diffs }, null, 2),
+                "```",
+              ].join("\n"),
+            });

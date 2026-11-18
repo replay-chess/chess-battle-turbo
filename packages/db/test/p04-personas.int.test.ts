@@ -296,6 +296,39 @@ describe("P4 persona writers (Postgres)", { skip: TEST_URL ? false : "TEST_DATAB
     await settle();
   });
 
+  // regression: p04-reset-lock-order (REGRESSION-6, the full e2e run: the onboarding happy-path's lease failed with 40P01).
+  // A final analysis batch of one of the previous persona's imported games, in the worker's order (the game's link FOR
+  // KEY SHARE, the game row, the users row last), held open while a reset of the same pool user starts: both commit.
+  it("regression: p04-reset-lock-order — a reset racing an analysis batch of the previous persona's game: no deadlock", async () => {
+    const u = await makeUser(db, "p4lock");
+    const email = await emailOf(db, u.id);
+    await writeP04Persona(db, email, "connected-both", OPTS);
+    const [g] = await db.$queryRaw<{ gameId: bigint; linkId: bigint }[]>(Prisma.sql`
+      SELECT gp."gameId", gp."linkedAccountId" AS "linkId" FROM game_players gp
+       WHERE gp."userId" = ${u.id} AND gp.source <> 'REPLAY' AND gp."linkedAccountId" IS NOT NULL ORDER BY gp."gameId" LIMIT 1`);
+    assert.ok(g, "an imported game with its link");
+    const batch = db.$transaction(
+      async (tx) => {
+        await tx.$queryRaw(Prisma.sql`SELECT count(*)::int FROM (SELECT 1 FROM linked_accounts WHERE id = ${g.linkId} FOR KEY SHARE) l`);
+        await tx.$executeRaw(Prisma.sql`UPDATE games SET "updatedAt" = now() WHERE id = ${g.gameId}`);
+        await new Promise((r) => setTimeout(r, 600));
+        await tx.$executeRaw(Prisma.sql`UPDATE users SET "gamesVersion" = "gamesVersion" + 1 WHERE id = ${u.id}`);
+        return "batch ok";
+      },
+      { timeout: 20_000 },
+    );
+    await new Promise((r) => setTimeout(r, 150));
+    const reset = writeP04Persona(db, email, "onboarding-fresh", OPTS).then(
+      () => "reset ok",
+      (e: unknown) => `reset failed: ${String((e as Error)?.message ?? e).slice(0, 200)}`,
+    );
+    const out = await Promise.all([batch.catch((e: unknown) => `batch failed: ${String((e as Error)?.message ?? e).slice(0, 200)}`), reset]);
+    assert.deepEqual(out, ["batch ok", "reset ok"], "no deadlock");
+    const s = await snapshot(db, u.id);
+    assert.deepEqual([s.links.length, s.counts.imported], [0, 0], "the reset still cleared the previous persona");
+    await settle();
+  });
+
   it("onbused writes the user's own ledger row; the next reset removes it", async () => {
     const u = await makeUser(db, "p4ledger");
     const email = await emailOf(db, u.id);

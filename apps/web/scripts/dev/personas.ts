@@ -35,8 +35,14 @@
  * (`writeP05Persona`: its analysed games, the bank built from their key moments, schedules relative to `now`, the
  * profile and streak). The domain functions come from their owners (./p05-deps.ts). `dev-trial` writes P4's
  * `import-trial` state first. The dev seed of the plan's names (`member`, `caughtup`, …) is e2e/scripts/seed-training.ts.
+ *
+ * Phase 6 (e2e/personas/p06.ts, phase-06 plan 6.8): every reset then removes the user's weakness snapshots and its
+ * RECOMPUTE_WEAKNESS row (@repo/db/seed/p06-personas `clearP06State`); a P6 persona writes real CC0 games and lets the
+ * RUNNING analysis worker grade them, extract the bank and build the profile (`writeP06Persona`, woken through the
+ * web's signed kick: ./p06-deps.ts). `--step weak-computing:ready` (or `weakfail:crash`) runs a persona step on a user
+ * already holding that persona. The dev seed of the plan's names is e2e/scripts/seed-weakness.ts.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parse as parseEnv } from "dotenv";
@@ -44,6 +50,7 @@ import { P01_PERSONAS, type BillingColumns, type Persona } from "../../e2e/perso
 import { P03_PERSONAS, isP03Persona } from "../../e2e/personas/p03";
 import { P04_PERSONAS, isP04Persona } from "../../e2e/personas/p04";
 import { P05_PERSONAS, isP05Persona } from "../../e2e/personas/p05";
+import { P06_PERSONAS, isP06Persona } from "../../e2e/personas/p06";
 import { PERSONA_LETTER, letterEmail, poolEmail, POOL_SIZE, roleOfEmail } from "../../e2e/fixtures/users";
 import { computeClaims, type ClaimsRecord } from "../../lib/auth/claims";
 import {
@@ -56,7 +63,7 @@ import {
   resolveEnvVar,
 } from "@repo/db/seed-guards";
 
-export const PERSONAS: Record<string, Persona> = { ...P01_PERSONAS, ...P03_PERSONAS, ...P04_PERSONAS, ...P05_PERSONAS };
+export const PERSONAS: Record<string, Persona> = { ...P01_PERSONAS, ...P03_PERSONAS, ...P04_PERSONAS, ...P05_PERSONAS, ...P06_PERSONAS };
 
 /** Plan §4 personas row: the user-count tripwire comes from prisma/seed-guards.ts (SPEC 11.2 guard 5, <= 60). */
 export const PERSONA_USER_TRIPWIRE = MAX_TARGET_USERS;
@@ -228,9 +235,44 @@ export async function resetPersona(target: string, personaName: string, opts: Re
     } else {
       await clearP05State(db, email, { log });
     }
+    // Phase 6: clear the user's weakness snapshots and recompute row (every reset), then build the P6 persona's
+    // profile through the running worker (after the billing UPDATE, so its analyses see the member's entitlement).
+    const { clearP06State, writeP06Persona } = await import("@repo/db/seed/p06-personas");
+    if (isP06Persona(persona)) {
+      const { loadWorkerKick } = await import("./p06-deps");
+      const p6 = await writeP06Persona(db, email, persona.p06, { now, kick: await loadWorkerKick(), log });
+      refs = { ...refs, ...Object.fromEntries(p6.gameRefs.map((r, i) => [`game-${String(i + 1).padStart(2, "0")}`, r])) };
+    } else {
+      await clearP06State(db, email, { log });
+    }
     await syncPersonaClaims(db, email, env.clerkKey, now, log);
     log(`[personas] applied ${persona.name} to ${email}`);
     return { email, persona: persona.name, row, applied: true, refs };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/**
+ * Runs a P6 persona step (packages/db/seed/p06-personas.ts `runP06Step`) on a pool user or S that holds the persona:
+ * `weak-computing:ready` lets the frozen analyses run and the build finish; `weakfail:crash` makes the member's
+ * recompute die on its last attempt again. Same target guards as a reset.
+ */
+export async function runPersonaStep(target: string, step: string, opts: { databaseUrl?: string; log?: (line: string) => void } = {}) {
+  const log = opts.log ?? ((line: string) => console.log(line));
+  const email = resolvePersonaTarget(target);
+  const { url } = opts.databaseUrl ? { url: opts.databaseUrl } : resolveTargetUrl();
+  const host = assertPersonaTarget(url);
+  log(`[personas] target host ${host}; ${email} → step ${step}`);
+  const { PrismaClient } = await import("@repo/db");
+  const db = new PrismaClient({ datasourceUrl: url });
+  try {
+    const { runP06Step } = await import("@repo/db/seed/p06-personas");
+    const { loadWorkerKick } = await import("./p06-deps");
+    if (step !== "weak-computing:ready" && step !== "weakfail:crash" && step !== "weak-orphaned:again") throw new SeedGuardError(`unknown persona step ${step}`);
+    const snapshot = await runP06Step(db, email, step, { kick: await loadWorkerKick(), log });
+    log(`[personas] step ${step} done: snapshot ${snapshot ? `${snapshot.status} ${snapshot.gamesAnalysed}/${snapshot.gamesInScope}` : "none"}`);
+    return snapshot;
   } finally {
     await db.$disconnect();
   }
@@ -259,12 +301,33 @@ async function syncPersonaClaims(
   log("[personas] Clerk claims synced");
 }
 
+/**
+ * `--ref-out <file>` (FIX-1): the target user's reference id, written (0600) for a later step that may only read users
+ * by ref: the nightly weakness check connects as replay_worker, which has no SELECT on users.email.
+ */
+export async function writePersonaRef(target: string, file: string, opts: { databaseUrl?: string } = {}): Promise<void> {
+  const email = resolvePersonaTarget(target);
+  const { url } = opts.databaseUrl ? { url: opts.databaseUrl } : resolveTargetUrl();
+  assertPersonaTarget(url);
+  const { PrismaClient } = await import("@repo/db");
+  const db = new PrismaClient({ datasourceUrl: url });
+  try {
+    const rows = await db.$queryRaw<{ ref: string }[]>`SELECT "referenceId" AS ref FROM users WHERE email = ${email}`;
+    if (!rows[0]) throw new SeedGuardError("the persona user has no row");
+    writeFileSync(file, `${rows[0].ref}\n`, { mode: 0o600 });
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 function parseArgs(argv: string[]) {
-  const out: { reset?: string; persona?: string; dryRun: boolean; list: boolean } = { dryRun: false, list: false };
+  const out: { reset?: string; persona?: string; step?: string; refOut?: string; dryRun: boolean; list: boolean } = { dryRun: false, list: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--reset") out.reset = argv[++i];
     else if (a === "--persona") out.persona = argv[++i];
+    else if (a === "--step") out.step = argv[++i];
+    else if (a === "--ref-out") out.refOut = argv[++i];
     else if (a === "--dry-run") out.dryRun = true;
     else if (a === "--list") out.list = true;
     else throw new SeedGuardError(`unknown argument ${a}`);
@@ -278,10 +341,15 @@ async function main() {
     for (const p of Object.values(PERSONAS)) console.log(`${p.name.padEnd(18)} p${p.phase}  ${p.description}`);
     return;
   }
+  if (args.reset && args.step) {
+    await runPersonaStep(args.reset, args.step);
+    return;
+  }
   if (!args.reset || !args.persona) {
-    throw new SeedGuardError("usage: personas.ts --reset <E2E_POOL_NN|S> --persona <name> [--dry-run] | --list");
+    throw new SeedGuardError("usage: personas.ts --reset <E2E_POOL_NN|S> --persona <name> [--ref-out <file>] [--dry-run] | --reset <…> --step <name> | --list");
   }
   await resetPersona(args.reset, args.persona, { dryRun: args.dryRun });
+  if (args.refOut && !args.dryRun) await writePersonaRef(args.reset, args.refOut);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

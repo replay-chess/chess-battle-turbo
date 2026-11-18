@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { p5HotQueries, p5IndexNames, p5PlanProblems, PURGE_BANK_MIGRATION, PURGE_BANK_STATEMENTS } from "./explain-hot-queries";
+import { p5HotQueries, p5IndexNames, p5PlanProblems, p6HotQueries, PURGE_BANK_MIGRATION, PURGE_BANK_STATEMENTS } from "./explain-hot-queries";
 
 const scan = (rel: string, type = "Index Scan") => ({ "Node Type": type, "Relation Name": rel });
 
@@ -46,5 +46,20 @@ describe("P5 explain gate", () => {
     for (const s of PURGE_BANK_STATEMENTS) assert.ok(migration.includes(flat(s.sql)), s.name);
     const names = p5HotQueries().map((q) => q.name);
     for (const s of PURGE_BANK_STATEMENTS) assert.ok(names.includes(s.name), s.name);
+  });
+
+  it("P6: plans every Weakness Profile statement (Q-W1…Q-W13) and refuses a Seq Scan over its tables", () => {
+    const qs = p6HotQueries();
+    const names = qs.map((q) => q.name);
+    for (const id of ["Q-W1", "Q-W2", "Q-W3", "Q-W3b", "Q-W4", "Q-W5", "Q-W6", "Q-W7", "Q-W9", "Q-W10", "Q-W12", "Q-W13", "TR-12", "J4 coverage", "progress probe", "`analysis` trigger"]) {
+      assert.ok(names.some((n) => n.includes(id)), id);
+    }
+    const point = qs.find((q) => q.name.includes("Q-W1 "))!;
+    assert.deepEqual(p5PlanProblems(scan("weakness_snapshots", "Seq Scan"), point), ["Seq Scan on weakness_snapshots"]);
+    assert.deepEqual(p5PlanProblems(scan("jobs", "Seq Scan"), point), ["Seq Scan on jobs"]);
+    const sweep = qs.find((q) => q.name.includes("weekly roll"))!;
+    assert.deepEqual(p5PlanProblems(scan("weakness_snapshots", "Seq Scan"), sweep), []);
+    assert.deepEqual(p5PlanProblems(scan("game_players", "Seq Scan"), sweep), ["Seq Scan on game_players"]);
+    assert.deepEqual(p5PlanProblems(scan("jobs", "Seq Scan"), sweep), ["Seq Scan on jobs"]);
   });
 });

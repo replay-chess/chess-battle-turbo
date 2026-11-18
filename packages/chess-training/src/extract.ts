@@ -24,6 +24,7 @@ import { epdHash } from "@repo/chess-analysis/epd";
 import { extendLine, type LineSearch, type ReplySearch } from "@repo/chess-analysis/puzzle/line";
 import { matesFor, puzzleVerdict, type PuzzleVerdict } from "@repo/chess-analysis/puzzle/validAttack";
 import type { Replay } from "@repo/chess-analysis/replay";
+import { isTimePressure } from "@repo/chess-analysis/clock";
 import { tagThemes } from "@repo/chess-analysis/themes/index";
 import { WIN_CP_CLAMP } from "@repo/chess-analysis/winpct";
 import { EXTRACT_VERSION } from "@repo/contracts/internal/jobs";
@@ -32,6 +33,7 @@ import { trainingDayAt, type DayAnchor } from "./day";
 import { mistakeItemKey } from "./items";
 import { matingMoves } from "./mates";
 import { nextRelease } from "./release";
+import { TIME_PRESSURE_THEME } from "./themes";
 
 /** One `mistakes` row (§6.2), as `$m`. */
 export interface MistakeRow {
@@ -79,6 +81,11 @@ export interface OccurrenceRow {
   due: string;
   /** A key-moment ply (it gets a card). Every new occurrence of a carded mistake is a recurrence, moment or not. */
   moment: boolean;
+  /**
+   * P6: the member had under a minute before this ply (§8.12). Every such occurrence adds `rc:timePressure` to its
+   * mistake, also when a newer occurrence without time pressure refreshed the row (the worker's recount statement).
+   */
+  timePressure?: boolean;
 }
 
 /** One BANK card to create for a key-moment ply, as `$c`. */
@@ -175,6 +182,13 @@ export interface ExtractInput {
   timeClass: string | null;
   ecoCode: string | null;
   colorUnknown: boolean;
+  /**
+   * P6 (phase-06 plan §8.12): games."moveClocksMs" (the mover's ms after each ply offset; empty when untimed) and
+   * "initialTimeSeconds". When the clock before the error ply is known and under one minute, the mistake's themes
+   * gain `rc:timePressure` (never primary: bank filters and mastery are unaffected). Absent = no clock tag.
+   */
+  moveClocksMs?: readonly number[];
+  initialTimeSeconds?: number | null;
   /** The job clock. */
   now: Date;
 }
@@ -292,6 +306,7 @@ async function extractSide(
       playedAt,
       due,
       moment: c.moment,
+      timePressure: row.themes.includes(TIME_PRESSURE_THEME),
     });
     // The same position twice in one game: one mistake row (the later ply's), two occurrences.
     const same = mistakes.findIndex((m) => m.epdHash === row.epdHash);
@@ -391,6 +406,12 @@ async function recordOf(
   });
   const judgement = JUDGEMENT_ENUM[c.code];
   if (!judgement) throw new RangeError(`ply ${i} has no judgement`);
+  // §8.12: the clock before the member's error ply (CA clock.ts, the same rule as STATS_V1 / ERROR_LOG_V1).
+  const pressured = isTimePressure(
+    { moveClocksMs: input.moveClocksMs ?? [], initialTimeSeconds: input.initialTimeSeconds ?? null, timeClass: input.timeClass },
+    i,
+  );
+  const themes = pressured && !tagged.themes.includes(TIME_PRESSURE_THEME) ? [...tagged.themes, TIME_PRESSURE_THEME] : tagged.themes;
   return {
     referenceId: deps.newRef(input.now.getTime()),
     userId: member.userId,
@@ -406,7 +427,7 @@ async function recordOf(
     source: c.source,
     isPuzzle: verdict.isPuzzle,
     uniquenessGap: verdict.gap,
-    themes: tagged.themes,
+    themes,
     primaryTheme: tagged.primary,
     phase,
     winBefore: c.winBefore,

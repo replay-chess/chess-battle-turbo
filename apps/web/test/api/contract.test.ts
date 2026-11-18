@@ -119,6 +119,11 @@ const HAPPY_PATH_ELSEWHERE: Record<string, string> = {
   "train.prefs": "test/api/train/cards.contract.int.test.ts",
   "reports.create": "test/api/train/cards.contract.int.test.ts",
   "home.get": "test/api/home.contract.int.test.ts",
+  // P6 Weakness Profile (phase-06 plan §12.2): real SQL on Docker Postgres (real games, the A6 bank, computeWeakness
+  // snapshots), behind the `weakness` flag.
+  "train.weakness.get": "test/api/train-weakness.int.test.ts",
+  "train.weakness.recompute": "test/api/train-weakness.int.test.ts",
+  "train.weakness.seen": "test/api/train-weakness.int.test.ts",
 };
 
 /**

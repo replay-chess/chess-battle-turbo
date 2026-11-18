@@ -178,9 +178,29 @@ function refuseShared(email: string): void {
   }
 }
 
+/**
+ * The reset's locks, in the order the worker's batches take theirs: the user's linked accounts (an analysis's final batch
+ * holds them FOR KEY SHARE first), the imported games' analyses and games, and only then the users row (the batch bumps
+ * `gamesVersion` last; J1's mistakes reference it). Locking the users row first deadlocked against a final batch of one
+ * of the previous persona's games that the worker was still grading: the batch waited for the users row, the reset for
+ * the game (40P01 in the persona reset, onboarding happy-path in the full e2e run; regression: p04-reset-lock-order).
+ */
 async function lockUser(tx: Tx, email: string): Promise<TargetUser> {
+  const found = await tx.$queryRaw<{ id: bigint }[]>(Prisma.sql`SELECT id FROM users WHERE email = ${email}`);
+  if (!found[0]) throw new SeedGuardError(`no users row for ${email}; provision it first`);
+  const id = found[0].id;
+  await tx.$queryRaw(Prisma.sql`
+    SELECT 1 FROM linked_accounts la WHERE la."userId" = ${id} ORDER BY la.id FOR UPDATE`);
+  await tx.$queryRaw(Prisma.sql`
+    SELECT 1 FROM game_analyses a
+     WHERE a."gameId" IN (SELECT gp."gameId" FROM game_players gp WHERE gp."userId" = ${id} AND gp.source <> 'REPLAY')
+     ORDER BY a."gameId" FOR UPDATE`);
+  await tx.$queryRaw(Prisma.sql`
+    SELECT 1 FROM games g
+     WHERE g.id IN (SELECT gp."gameId" FROM game_players gp WHERE gp."userId" = ${id} AND gp.source <> 'REPLAY')
+     ORDER BY g.id FOR UPDATE`);
   const rows = await tx.$queryRaw<{ id: bigint; ref: string }[]>(Prisma.sql`
-    SELECT id, "referenceId" AS ref FROM users WHERE email = ${email} FOR UPDATE`);
+    SELECT id, "referenceId" AS ref FROM users WHERE id = ${id} FOR UPDATE`);
   const row = rows[0];
   if (!row) throw new SeedGuardError(`no users row for ${email}; provision it first`);
   return { id: row.id, ref: row.ref };

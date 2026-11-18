@@ -70,11 +70,34 @@ export async function refreshSessionClaims(page: Page): Promise<void> {
 }
 
 /**
+ * Signs `email` in again on a clean context (no Clerk cookies): the new session's token is minted from the claims Clerk
+ * holds now. The persona fixtures call it after a reset, which rewrote the pool user's claims (onboarded, membership)
+ * while the first sign-in's token still carried the previous lease's for up to 60 s (regression: lease-stale-claims).
+ * Not refreshSessionClaims(): see provisionLetterOnboarded (regression: webkit-claims-refresh-signed-out).
+ */
+export async function signInFresh(page: Page, email: string): Promise<void> {
+  // Leave the app first: a live clerk-js writes its session cookies back from memory, so cookies cleared under it came
+  // back before the next document and the ticket sign-in failed "You're already signed in" (REGRESSION-6 r3,
+  // drill-sheet.spec). The page is idle here (the sign-in and the reset have settled their reads).
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+  await page.goto("about:blank");
+  await page.context().clearCookies();
+  await signIn(page, email, "");
+}
+
+/**
  * A registered fixture user (letters A–S, the admin, a pool user) whose row says "not onboarded" (a fresh database:
  * the first sign-in just created it) is provisioned onboarded the way provision-test-users.ts does it (the row's
- * onboarding columns and the Clerk claims; `ensureUnentitledRow` creates pool rows onboarded too), then the session
- * reloads its claims. A P4 persona leased afterwards writes its own onboarding state over it. Throwaway users are
- * refused: they walk the real onboarding (fresh-user fixture) or a spec provisions them explicitly.
+ * onboarding columns and the Clerk claims; `ensureUnentitledRow` creates pool rows onboarded too), then signed in
+ * again so the session's token carries the new claims. A P4 persona leased afterwards writes its own onboarding state
+ * over it. Throwaway users are refused: they walk the real onboarding (fresh-user fixture) or a spec provisions them
+ * explicitly.
+ *
+ * A new sign-in, not refreshSessionClaims(): on WebKit the in-page getToken({skipCache}) right after a ticket sign-in
+ * was answered 401 "signed_out" by Clerk's development FAPI once a run under the full suite's load (REGRESSION-6 r2
+ * after a persona lease, r3 here: a pool user whose last persona was `onboarding-fresh`), failing the fixture (and its
+ * teardown then hung to the test timeout). The ticket sign-in is the path every spec takes hundreds of times a run
+ * (regression: webkit-claims-refresh-signed-out).
  */
 async function provisionLetterOnboarded(page: Page, email: string): Promise<void> {
   const { roleOfEmail } = await import("./users");
@@ -83,7 +106,7 @@ async function provisionLetterOnboarded(page: Page, email: string): Promise<void
     throw new Error(`${email} is not onboarded and is not a registered fixture user: use the fresh-user fixture`);
   }
   await markOnboardedForE2E(email);
-  await refreshSessionClaims(page);
+  await signInFresh(page, email);
 }
 
 /**

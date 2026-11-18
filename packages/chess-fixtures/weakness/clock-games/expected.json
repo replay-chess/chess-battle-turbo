@@ -1,0 +1,350 @@
+{
+ "v": 1,
+ "about": "FIX-1 (phase-06 plan §12.5 clock-games): 6 CC0 Lichess games of FX baseline-sample.json with %clk and %eval; per error of the side: the judgement and phase (the pinned grading), and the clock bucket and Win% loss read from the movetext independently of the code under test.",
+ "games": {
+  "01-blitz-180plus2-w": {
+   "sampleId": "s17",
+   "color": "w",
+   "timeControl": "180+2",
+   "increment": 2,
+   "errors": [
+    {
+     "ply": 18,
+     "judgement": "MISTAKE",
+     "phase": "opening",
+     "clockBucket": 2,
+     "clockSec": 154,
+     "winLossFromEval": 11
+    },
+    {
+     "ply": 22,
+     "judgement": "BLUNDER",
+     "phase": "middlegame",
+     "clockBucket": 3,
+     "clockSec": 93,
+     "winLossFromEval": 31
+    },
+    {
+     "ply": 24,
+     "judgement": "MISTAKE",
+     "phase": "middlegame",
+     "clockBucket": 3,
+     "clockSec": 63,
+     "winLossFromEval": 13
+    },
+    {
+     "ply": 46,
+     "judgement": "MISTAKE",
+     "phase": "endgame",
+     "clockBucket": 4,
+     "clockSec": 9,
+     "winLossFromEval": 13
+    },
+    {
+     "ply": 48,
+     "judgement": "MISTAKE",
+     "phase": "endgame",
+     "clockBucket": 4,
+     "clockSec": 8,
+     "winLossFromEval": 13
+    },
+    {
+     "ply": 56,
+     "judgement": "BLUNDER",
+     "phase": "endgame",
+     "clockBucket": 4,
+     "clockSec": 6,
+     "winLossFromEval": 24
+    },
+    {
+     "ply": 62,
+     "judgement": "BLUNDER",
+     "phase": "endgame",
+     "clockBucket": 4,
+     "clockSec": 7,
+     "winLossFromEval": 16
+    }
+   ]
+  },
+  "02-blitz-180plus0-w": {
+   "sampleId": "s23",
+   "color": "w",
+   "timeControl": "180+0",
+   "increment": 0,
+   "errors": [
+    {
+     "ply": 10,
+     "judgement": "BLUNDER",
+     "phase": "opening",
+     "clockBucket": 2,
+     "clockSec": 178,
+     "winLossFromEval": 17
+    },
+    {
+     "ply": 12,
+     "judgement": "MISTAKE",
+     "phase": "opening",
+     "clockBucket": 2,
+     "clockSec": 177,
+     "winLossFromEval": 12
+    },
+    {
+     "ply": 14,
+     "judgement": "MISTAKE",
+     "phase": "opening",
+     "clockBucket": 2,
+     "clockSec": 172,
+     "winLossFromEval": 11
+    }
+   ]
+  },
+  "03-blitz-300plus0-w": {
+   "sampleId": "s02",
+   "color": "w",
+   "timeControl": "300+0",
+   "increment": 0,
+   "errors": [
+    {
+     "ply": 16,
+     "judgement": "BLUNDER",
+     "phase": "opening",
+     "clockBucket": 2,
+     "clockSec": 261,
+     "winLossFromEval": 16
+    },
+    {
+     "ply": 18,
+     "judgement": "MISTAKE",
+     "phase": "opening",
+     "clockBucket": 2,
+     "clockSec": 259,
+     "winLossFromEval": 14
+    },
+    {
+     "ply": 22,
+     "judgement": "BLUNDER",
+     "phase": "middlegame",
+     "clockBucket": 2,
+     "clockSec": 241,
+     "winLossFromEval": 43
+    }
+   ]
+  },
+  "04-blitz-300plus3-b": {
+   "sampleId": "s32",
+   "color": "b",
+   "timeControl": "300+3",
+   "increment": 3,
+   "errors": [
+    {
+     "ply": 27,
+     "judgement": "MISTAKE",
+     "phase": "middlegame",
+     "clockBucket": 2,
+     "clockSec": 260,
+     "winLossFromEval": 12
+    },
+    {
+     "ply": 29,
+     "judgement": "MISS",
+     "phase": "middlegame",
+     "clockBucket": 2,
+     "clockSec": 259,
+     "winLossFromEval": 31
+    },
+    {
+     "ply": 31,
+     "judgement": "MISTAKE",
+     "phase": "middlegame",
+     "clockBucket": 2,
+     "clockSec": 243,
+     "winLossFromEval": 15
+    },
+    {
+     "ply": 41,
+     "judgement": "MISTAKE",
+     "phase": "middlegame",
+     "clockBucket": 2,
+     "clockSec": 229,
+     "winLossFromEval": 13
+    },
+    {
+     "ply": 53,
+     "judgement": "BLUNDER",
+     "phase": "middlegame",
+     "clockBucket": 2,
+     "clockSec": 179,
+     "winLossFromEval": 31
+    },
+    {
+     "ply": 63,
+     "judgement": "MISS",
+     "phase": "endgame",
+     "clockBucket": 2,
+     "clockSec": 151,
+     "winLossFromEval": 34
+    }
+   ]
+  },
+  "05-rapid-600plus5-w": {
+   "sampleId": "s04",
+   "color": "w",
+   "timeControl": "600+5",
+   "increment": 5,
+   "errors": [
+    {
+     "ply": 18,
+     "judgement": "MISTAKE",
+     "phase": "opening",
+     "clockBucket": 1,
+     "clockSec": 523,
+     "winLossFromEval": 13
+    },
+    {
+     "ply": 20,
+     "judgement": "BLUNDER",
+     "phase": "opening",
+     "clockBucket": 1,
+     "clockSec": 524,
+     "winLossFromEval": 28
+    },
+    {
+     "ply": 22,
+     "judgement": "BLUNDER",
+     "phase": "opening",
+     "clockBucket": 1,
+     "clockSec": 503,
+     "winLossFromEval": 18
+    },
+    {
+     "ply": 28,
+     "judgement": "MISTAKE",
+     "phase": "middlegame",
+     "clockBucket": 1,
+     "clockSec": 503,
+     "winLossFromEval": 10
+    },
+    {
+     "ply": 34,
+     "judgement": "BLUNDER",
+     "phase": "middlegame",
+     "clockBucket": 1,
+     "clockSec": 506,
+     "winLossFromEval": 34
+    },
+    {
+     "ply": 36,
+     "judgement": "BLUNDER",
+     "phase": "middlegame",
+     "clockBucket": 1,
+     "clockSec": 509,
+     "winLossFromEval": 22
+    },
+    {
+     "ply": 42,
+     "judgement": "BLUNDER",
+     "phase": "middlegame",
+     "clockBucket": 1,
+     "clockSec": 493,
+     "winLossFromEval": 40
+    },
+    {
+     "ply": 46,
+     "judgement": "BLUNDER",
+     "phase": "middlegame",
+     "clockBucket": 1,
+     "clockSec": 492,
+     "winLossFromEval": 47
+    },
+    {
+     "ply": 50,
+     "judgement": "BLUNDER",
+     "phase": "middlegame",
+     "clockBucket": 1,
+     "clockSec": 495,
+     "winLossFromEval": 38
+    },
+    {
+     "ply": 70,
+     "judgement": "BLUNDER",
+     "phase": "middlegame",
+     "clockBucket": 1,
+     "clockSec": 421,
+     "winLossFromEval": 41
+    },
+    {
+     "ply": 92,
+     "judgement": "BLUNDER",
+     "phase": "endgame",
+     "clockBucket": 1,
+     "clockSec": 369,
+     "winLossFromEval": 49
+    }
+   ]
+  },
+  "06-rapid-600plus0-b": {
+   "sampleId": "s06",
+   "color": "b",
+   "timeControl": "600+0",
+   "increment": 0,
+   "errors": [
+    {
+     "ply": 3,
+     "judgement": "BLUNDER",
+     "phase": "opening",
+     "clockBucket": 1,
+     "clockSec": 600,
+     "winLossFromEval": 17
+    },
+    {
+     "ply": 7,
+     "judgement": "MISTAKE",
+     "phase": "opening",
+     "clockBucket": 1,
+     "clockSec": 574,
+     "winLossFromEval": 12
+    },
+    {
+     "ply": 9,
+     "judgement": "BLUNDER",
+     "phase": "opening",
+     "clockBucket": 1,
+     "clockSec": 573,
+     "winLossFromEval": 15
+    },
+    {
+     "ply": 13,
+     "judgement": "BLUNDER",
+     "phase": "opening",
+     "clockBucket": 1,
+     "clockSec": 556,
+     "winLossFromEval": 20
+    },
+    {
+     "ply": 19,
+     "judgement": "BLUNDER",
+     "phase": "opening",
+     "clockBucket": 1,
+     "clockSec": 544,
+     "winLossFromEval": 20
+    },
+    {
+     "ply": 21,
+     "judgement": "MISS",
+     "phase": "opening",
+     "clockBucket": 1,
+     "clockSec": 542,
+     "winLossFromEval": 31
+    },
+    {
+     "ply": 23,
+     "judgement": "MISTAKE",
+     "phase": "opening",
+     "clockBucket": 1,
+     "clockSec": 534,
+     "winLossFromEval": 12
+    }
+   ]
+  }
+ }
+}

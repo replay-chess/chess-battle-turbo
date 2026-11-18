@@ -1,0 +1,971 @@
+{
+ "v": 1,
+ "id": "v1",
+ "profile": "sf18-v1",
+ "algoVersion": 1,
+ "gradingVersion": 1,
+ "builtAt": "2026-11-17",
+ "engine": {
+  "engine": "Stockfish 18",
+  "tag": "sf_18",
+  "commit": "cb3d4ee9b47d0c5aae855b12379378ea1439675c",
+  "binarySha256": "f4a308b1b65544dfa43f52bceb8fed4980e01b3db7555804bcdb41f7520b586c",
+  "buildId": "sf18-armv8dp-c288c895",
+  "nets": {
+   "big": "c288c895ea924429ea9092e3f36b2b3c1f00f2a3a4c759ff7e57e79e3b43e4a7",
+   "small": "37f18f62d772f3107e1d6aaca3898c130c3c86f2ab63e6555fbbca20635a899d"
+  },
+  "benchNodes": 2050811,
+  "threads": 1,
+  "hashMb": 64,
+  "pass1": {
+   "nodes": 120000,
+   "multipv": 2
+  },
+  "runner": "docker linux/arm64 (rc-p6-stockfish-pin:local)"
+ },
+ "dump": {
+  "name": "lichess_db_standard_rated_2026-10.pgn.zst",
+  "url": "https://database.lichess.org/standard/lichess_db_standard_rated_2026-10.pgn.zst",
+  "sha256Published": "043906ebfade1bfeb7c00087590fac505370936c028525e4722e2dbd4986ae86",
+  "sha256Verified": false,
+  "size": 30982323881,
+  "mode": "chunks",
+  "seed": 20261017,
+  "chunkBytes": 100663296,
+  "chunks": [
+   237,
+   227,
+   266,
+   61,
+   20,
+   282,
+   82,
+   304,
+   13,
+   71,
+   254,
+   1,
+   123,
+   290,
+   289,
+   180,
+   193,
+   125,
+   157,
+   168,
+   18,
+   197,
+   35,
+   256,
+   31,
+   51,
+   135,
+   115,
+   265,
+   189,
+   261,
+   129,
+   245
+  ],
+  "compressedBytesDecoded": 3165657271,
+  "decompressedBytes": 22615687168,
+  "games": 9779879,
+  "analysed": 961204,
+  "eligible": 921054,
+  "offered": 235071,
+  "closedReason": "target"
+ },
+ "sampling": {
+  "samplePerCell": 1000,
+  "closeFactor": 2,
+  "closeMinChunks": 4,
+  "rules": [
+   "standard, rated, both Elo values, no BOT title on either side",
+   "%eval on every ply (one short when the game ends in mate) and %clk on every ply",
+   "at least 20 plies; not from a set-up position",
+   "time class from initial + 40 × increment: < 180 s bullet, < 480 blitz, < 1500 rapid (classical and correspondence skipped)",
+   "terminations skipped: Abandoned, Rules infraction, Unterminated",
+   "one side per game: the side whose cell has seen fewer offers (ties: a bit of the game id's FNV-1a hash)",
+   "per-cell Algorithm-R reservoirs over the chunks read, chunks in a seeded random order across the month",
+   "a cell closes once it has seen closeFactor × samplePerCell offers over ≥ closeMinChunks chunks"
+  ]
+ },
+ "cells": {
+  "600:BULLET": {
+   "sides": 1000,
+   "moves": 21514,
+   "offers": 1069,
+   "skipped": 0
+  },
+  "600:BLITZ": {
+   "sides": 1000,
+   "moves": 26343,
+   "offers": 4106,
+   "skipped": 0
+  },
+  "600:RAPID": {
+   "sides": 1000,
+   "moves": 26424,
+   "offers": 4021,
+   "skipped": 0
+  },
+  "700:BULLET": {
+   "sides": 1000,
+   "moves": 22221,
+   "offers": 2310,
+   "skipped": 0
+  },
+  "700:BLITZ": {
+   "sides": 1000,
+   "moves": 27092,
+   "offers": 4138,
+   "skipped": 0
+  },
+  "700:RAPID": {
+   "sides": 1000,
+   "moves": 27428,
+   "offers": 4161,
+   "skipped": 0
+  },
+  "800:BULLET": {
+   "sides": 1000,
+   "moves": 23388,
+   "offers": 4017,
+   "skipped": 0
+  },
+  "800:BLITZ": {
+   "sides": 1000,
+   "moves": 27933,
+   "offers": 4179,
+   "skipped": 0
+  },
+  "800:RAPID": {
+   "sides": 1000,
+   "moves": 26834,
+   "offers": 4148,
+   "skipped": 0
+  },
+  "900:BULLET": {
+   "sides": 1000,
+   "moves": 24569,
+   "offers": 4093,
+   "skipped": 0
+  },
+  "900:BLITZ": {
+   "sides": 1000,
+   "moves": 27654,
+   "offers": 4034,
+   "skipped": 0
+  },
+  "900:RAPID": {
+   "sides": 1000,
+   "moves": 27683,
+   "offers": 4133,
+   "skipped": 0
+  },
+  "1000:BULLET": {
+   "sides": 1000,
+   "moves": 25595,
+   "offers": 4162,
+   "skipped": 0
+  },
+  "1000:BLITZ": {
+   "sides": 1000,
+   "moves": 28050,
+   "offers": 4453,
+   "skipped": 0
+  },
+  "1000:RAPID": {
+   "sides": 1000,
+   "moves": 28667,
+   "offers": 4530,
+   "skipped": 0
+  },
+  "1100:BULLET": {
+   "sides": 1000,
+   "moves": 25909,
+   "offers": 4027,
+   "skipped": 0
+  },
+  "1100:BLITZ": {
+   "sides": 1000,
+   "moves": 28378,
+   "offers": 4451,
+   "skipped": 0
+  },
+  "1100:RAPID": {
+   "sides": 1000,
+   "moves": 29157,
+   "offers": 4466,
+   "skipped": 0
+  },
+  "1200:BULLET": {
+   "sides": 1000,
+   "moves": 26007,
+   "offers": 4065,
+   "skipped": 0
+  },
+  "1200:BLITZ": {
+   "sides": 1000,
+   "moves": 28959,
+   "offers": 4276,
+   "skipped": 0
+  },
+  "1200:RAPID": {
+   "sides": 1000,
+   "moves": 28918,
+   "offers": 4244,
+   "skipped": 0
+  },
+  "1300:BULLET": {
+   "sides": 1000,
+   "moves": 27038,
+   "offers": 4240,
+   "skipped": 0
+  },
+  "1300:BLITZ": {
+   "sides": 1000,
+   "moves": 29281,
+   "offers": 4601,
+   "skipped": 0
+  },
+  "1300:RAPID": {
+   "sides": 1000,
+   "moves": 29313,
+   "offers": 4247,
+   "skipped": 0
+  },
+  "1400:BULLET": {
+   "sides": 1000,
+   "moves": 27133,
+   "offers": 4277,
+   "skipped": 0
+  },
+  "1400:BLITZ": {
+   "sides": 1000,
+   "moves": 29655,
+   "offers": 4624,
+   "skipped": 0
+  },
+  "1400:RAPID": {
+   "sides": 1000,
+   "moves": 30305,
+   "offers": 4248,
+   "skipped": 0
+  },
+  "1500:BULLET": {
+   "sides": 1000,
+   "moves": 27579,
+   "offers": 4271,
+   "skipped": 0
+  },
+  "1500:BLITZ": {
+   "sides": 1000,
+   "moves": 30583,
+   "offers": 4635,
+   "skipped": 0
+  },
+  "1500:RAPID": {
+   "sides": 1000,
+   "moves": 30004,
+   "offers": 4251,
+   "skipped": 0
+  },
+  "1600:BULLET": {
+   "sides": 1000,
+   "moves": 28806,
+   "offers": 4269,
+   "skipped": 0
+  },
+  "1600:BLITZ": {
+   "sides": 1000,
+   "moves": 29935,
+   "offers": 4642,
+   "skipped": 0
+  },
+  "1600:RAPID": {
+   "sides": 1000,
+   "moves": 31116,
+   "offers": 4243,
+   "skipped": 0
+  },
+  "1700:BULLET": {
+   "sides": 1000,
+   "moves": 28869,
+   "offers": 4272,
+   "skipped": 0
+  },
+  "1700:BLITZ": {
+   "sides": 1000,
+   "moves": 30889,
+   "offers": 4633,
+   "skipped": 0
+  },
+  "1700:RAPID": {
+   "sides": 1000,
+   "moves": 31468,
+   "offers": 4238,
+   "skipped": 0
+  },
+  "1800:BULLET": {
+   "sides": 1000,
+   "moves": 29155,
+   "offers": 4270,
+   "skipped": 0
+  },
+  "1800:BLITZ": {
+   "sides": 1000,
+   "moves": 31256,
+   "offers": 4632,
+   "skipped": 0
+  },
+  "1800:RAPID": {
+   "sides": 1000,
+   "moves": 31838,
+   "offers": 4615,
+   "skipped": 0
+  },
+  "1900:BULLET": {
+   "sides": 1000,
+   "moves": 29060,
+   "offers": 4231,
+   "skipped": 0
+  },
+  "1900:BLITZ": {
+   "sides": 1000,
+   "moves": 31331,
+   "offers": 4546,
+   "skipped": 0
+  },
+  "1900:RAPID": {
+   "sides": 1000,
+   "moves": 32736,
+   "offers": 4185,
+   "skipped": 0
+  },
+  "2000:BULLET": {
+   "sides": 1000,
+   "moves": 29399,
+   "offers": 4160,
+   "skipped": 0
+  },
+  "2000:BLITZ": {
+   "sides": 1000,
+   "moves": 32359,
+   "offers": 4086,
+   "skipped": 0
+  },
+  "2000:RAPID": {
+   "sides": 1000,
+   "moves": 32385,
+   "offers": 4242,
+   "skipped": 0
+  },
+  "2100:BULLET": {
+   "sides": 1000,
+   "moves": 30658,
+   "offers": 4209,
+   "skipped": 0
+  },
+  "2100:BLITZ": {
+   "sides": 1000,
+   "moves": 33550,
+   "offers": 4562,
+   "skipped": 0
+  },
+  "2100:RAPID": {
+   "sides": 1000,
+   "moves": 32496,
+   "offers": 4114,
+   "skipped": 0
+  },
+  "2200:BULLET": {
+   "sides": 1000,
+   "moves": 31585,
+   "offers": 4195,
+   "skipped": 0
+  },
+  "2200:BLITZ": {
+   "sides": 1000,
+   "moves": 34943,
+   "offers": 4380,
+   "skipped": 0
+  },
+  "2200:RAPID": {
+   "sides": 1000,
+   "moves": 33700,
+   "offers": 4136,
+   "skipped": 0
+  },
+  "2300:BULLET": {
+   "sides": 1000,
+   "moves": 32598,
+   "offers": 4129,
+   "skipped": 0
+  },
+  "2300:BLITZ": {
+   "sides": 1000,
+   "moves": 35286,
+   "offers": 4092,
+   "skipped": 0
+  },
+  "2300:RAPID": {
+   "sides": 1000,
+   "moves": 35423,
+   "offers": 3519,
+   "skipped": 0
+  },
+  "2400:BULLET": {
+   "sides": 1000,
+   "moves": 33128,
+   "offers": 4013,
+   "skipped": 0
+  },
+  "2400:BLITZ": {
+   "sides": 1000,
+   "moves": 36786,
+   "offers": 4036,
+   "skipped": 0
+  },
+  "2400:RAPID": {
+   "sides": 1000,
+   "moves": 36061,
+   "offers": 1945,
+   "skipped": 0
+  }
+ },
+ "shortfalls": [],
+ "calibration": {
+  "timeClass": "BLITZ",
+  "sidesPerCell": 300,
+  "detail": {
+   "600": {
+    "sides": 300,
+    "moves": {
+     "eval": 7821,
+     "engine": 7821
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 407,
+      "engine": 573
+     },
+     "BLUNDER": {
+      "eval": 873,
+      "engine": 866
+     },
+     "MISS": {
+      "eval": 189,
+      "engine": 158
+     },
+     "ALL": {
+      "eval": 1469,
+      "engine": 1597
+     }
+    },
+    "pooled": []
+   },
+   "700": {
+    "sides": 300,
+    "moves": {
+     "eval": 8027,
+     "engine": 8027
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 449,
+      "engine": 519
+     },
+     "BLUNDER": {
+      "eval": 871,
+      "engine": 848
+     },
+     "MISS": {
+      "eval": 155,
+      "engine": 119
+     },
+     "ALL": {
+      "eval": 1475,
+      "engine": 1486
+     }
+    },
+    "pooled": []
+   },
+   "800": {
+    "sides": 300,
+    "moves": {
+     "eval": 8414,
+     "engine": 8414
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 417,
+      "engine": 487
+     },
+     "BLUNDER": {
+      "eval": 773,
+      "engine": 759
+     },
+     "MISS": {
+      "eval": 126,
+      "engine": 95
+     },
+     "ALL": {
+      "eval": 1316,
+      "engine": 1341
+     }
+    },
+    "pooled": []
+   },
+   "900": {
+    "sides": 300,
+    "moves": {
+     "eval": 8253,
+     "engine": 8253
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 452,
+      "engine": 501
+     },
+     "BLUNDER": {
+      "eval": 815,
+      "engine": 750
+     },
+     "MISS": {
+      "eval": 113,
+      "engine": 80
+     },
+     "ALL": {
+      "eval": 1380,
+      "engine": 1331
+     }
+    },
+    "pooled": []
+   },
+   "1000": {
+    "sides": 300,
+    "moves": {
+     "eval": 8310,
+     "engine": 8310
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 424,
+      "engine": 491
+     },
+     "BLUNDER": {
+      "eval": 799,
+      "engine": 740
+     },
+     "MISS": {
+      "eval": 125,
+      "engine": 86
+     },
+     "ALL": {
+      "eval": 1348,
+      "engine": 1317
+     }
+    },
+    "pooled": []
+   },
+   "1100": {
+    "sides": 300,
+    "moves": {
+     "eval": 8507,
+     "engine": 8507
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 469,
+      "engine": 521
+     },
+     "BLUNDER": {
+      "eval": 793,
+      "engine": 704
+     },
+     "MISS": {
+      "eval": 93,
+      "engine": 66
+     },
+     "ALL": {
+      "eval": 1355,
+      "engine": 1291
+     }
+    },
+    "pooled": []
+   },
+   "1200": {
+    "sides": 300,
+    "moves": {
+     "eval": 8614,
+     "engine": 8614
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 453,
+      "engine": 490
+     },
+     "BLUNDER": {
+      "eval": 781,
+      "engine": 701
+     },
+     "MISS": {
+      "eval": 82,
+      "engine": 57
+     },
+     "ALL": {
+      "eval": 1316,
+      "engine": 1248
+     }
+    },
+    "pooled": []
+   },
+   "1300": {
+    "sides": 300,
+    "moves": {
+     "eval": 8895,
+     "engine": 8895
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 450,
+      "engine": 522
+     },
+     "BLUNDER": {
+      "eval": 774,
+      "engine": 630
+     },
+     "MISS": {
+      "eval": 93,
+      "engine": 71
+     },
+     "ALL": {
+      "eval": 1317,
+      "engine": 1223
+     }
+    },
+    "pooled": []
+   },
+   "1400": {
+    "sides": 300,
+    "moves": {
+     "eval": 9023,
+     "engine": 9023
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 458,
+      "engine": 480
+     },
+     "BLUNDER": {
+      "eval": 701,
+      "engine": 608
+     },
+     "MISS": {
+      "eval": 66,
+      "engine": 38
+     },
+     "ALL": {
+      "eval": 1225,
+      "engine": 1126
+     }
+    },
+    "pooled": []
+   },
+   "1500": {
+    "sides": 300,
+    "moves": {
+     "eval": 9101,
+     "engine": 9101
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 434,
+      "engine": 442
+     },
+     "BLUNDER": {
+      "eval": 733,
+      "engine": 618
+     },
+     "MISS": {
+      "eval": 74,
+      "engine": 48
+     },
+     "ALL": {
+      "eval": 1241,
+      "engine": 1108
+     }
+    },
+    "pooled": []
+   },
+   "1600": {
+    "sides": 300,
+    "moves": {
+     "eval": 8664,
+     "engine": 8664
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 412,
+      "engine": 448
+     },
+     "BLUNDER": {
+      "eval": 646,
+      "engine": 533
+     },
+     "MISS": {
+      "eval": 54,
+      "engine": 37
+     },
+     "ALL": {
+      "eval": 1112,
+      "engine": 1018
+     }
+    },
+    "pooled": []
+   },
+   "1700": {
+    "sides": 300,
+    "moves": {
+     "eval": 9318,
+     "engine": 9318
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 415,
+      "engine": 464
+     },
+     "BLUNDER": {
+      "eval": 651,
+      "engine": 534
+     },
+     "MISS": {
+      "eval": 53,
+      "engine": 35
+     },
+     "ALL": {
+      "eval": 1119,
+      "engine": 1033
+     }
+    },
+    "pooled": []
+   },
+   "1800": {
+    "sides": 300,
+    "moves": {
+     "eval": 9328,
+     "engine": 9328
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 426,
+      "engine": 431
+     },
+     "BLUNDER": {
+      "eval": 645,
+      "engine": 542
+     },
+     "MISS": {
+      "eval": 80,
+      "engine": 57
+     },
+     "ALL": {
+      "eval": 1151,
+      "engine": 1030
+     }
+    },
+    "pooled": []
+   },
+   "1900": {
+    "sides": 300,
+    "moves": {
+     "eval": 9472,
+     "engine": 9472
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 414,
+      "engine": 432
+     },
+     "BLUNDER": {
+      "eval": 648,
+      "engine": 520
+     },
+     "MISS": {
+      "eval": 47,
+      "engine": 29
+     },
+     "ALL": {
+      "eval": 1109,
+      "engine": 981
+     }
+    },
+    "pooled": []
+   },
+   "2000": {
+    "sides": 300,
+    "moves": {
+     "eval": 9558,
+     "engine": 9558
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 369,
+      "engine": 396
+     },
+     "BLUNDER": {
+      "eval": 611,
+      "engine": 488
+     },
+     "MISS": {
+      "eval": 64,
+      "engine": 40
+     },
+     "ALL": {
+      "eval": 1044,
+      "engine": 924
+     }
+    },
+    "pooled": []
+   },
+   "2100": {
+    "sides": 300,
+    "moves": {
+     "eval": 9822,
+     "engine": 9822
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 368,
+      "engine": 406
+     },
+     "BLUNDER": {
+      "eval": 550,
+      "engine": 409
+     },
+     "MISS": {
+      "eval": 44,
+      "engine": 24
+     },
+     "ALL": {
+      "eval": 962,
+      "engine": 839
+     }
+    },
+    "pooled": []
+   },
+   "2200": {
+    "sides": 300,
+    "moves": {
+     "eval": 9717,
+     "engine": 9717
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 372,
+      "engine": 366
+     },
+     "BLUNDER": {
+      "eval": 523,
+      "engine": 430
+     },
+     "MISS": {
+      "eval": 27,
+      "engine": 23
+     },
+     "ALL": {
+      "eval": 922,
+      "engine": 819
+     }
+    },
+    "pooled": [
+     "MISS"
+    ]
+   },
+   "2300": {
+    "sides": 300,
+    "moves": {
+     "eval": 10762,
+     "engine": 10762
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 418,
+      "engine": 445
+     },
+     "BLUNDER": {
+      "eval": 611,
+      "engine": 449
+     },
+     "MISS": {
+      "eval": 44,
+      "engine": 22
+     },
+     "ALL": {
+      "eval": 1073,
+      "engine": 916
+     }
+    },
+    "pooled": []
+   },
+   "2400": {
+    "sides": 300,
+    "moves": {
+     "eval": 10720,
+     "engine": 10720
+    },
+    "events": {
+     "MISTAKE": {
+      "eval": 371,
+      "engine": 380
+     },
+     "BLUNDER": {
+      "eval": 513,
+      "engine": 405
+     },
+     "MISS": {
+      "eval": 38,
+      "engine": 27
+     },
+     "ALL": {
+      "eval": 922,
+      "engine": 812
+     }
+    },
+    "pooled": []
+   }
+  }
+ },
+ "notes": [
+  "Evals are Lichess's %eval (the worker's eval-hint path for imported Lichess games); position 0 is our engine's (start facts below).",
+  "Start position: eval 38, best e2e4 (sf18-v1 pass 1).",
+  "Each MISTAKE / BLUNDER / MISS position was searched with sf18-v1 pass 1 (120k nodes, MultiPV 2); its MultiPV-1 PV is the tagger's best line (the worker stores the pass-2 PV for its ≤ 6 pass-2 plies and the pass-1 best move elsewhere).",
+  "The position after each error was searched the same way: its best move is the refutation (rc:missedThreat), as the worker's pass 1 gives it.",
+  "Pass 2 (1M nodes on ≤ 6 key positions) is not re-run: the %eval values stand everywhere, so evalSource is LICHESS for every sampled side.",
+  "Calibration grades the calibration sides with sf18-v1 pass 1 on every position (no pass 2) and compares judgement rates per graded move with the %eval grading of the same sides.",
+  "ratingOffsets.CHESSCOM are 0 in v1 [V] (D-P6-5)."
+ ],
+ "runtime": {
+  "phases": {
+   "sample": {
+    "startedAt": "2026-11-17T16:22:57.388Z",
+    "finishedAt": "2026-11-17T17:21:27.757Z",
+    "hours": 0.98
+   },
+   "grade": {
+    "startedAt": "2026-11-17T17:10:39.534Z",
+    "finishedAt": "2026-11-17T20:00:52.829Z",
+    "hours": 2.84
+   },
+   "calibrate": {
+    "startedAt": "2026-11-17T19:52:41.831Z",
+    "finishedAt": "2026-11-17T21:27:28.223Z",
+    "hours": 1.58
+   }
+  },
+  "searches": 826453,
+  "threads": 10
+ }
+}

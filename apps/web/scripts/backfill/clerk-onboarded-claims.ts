@@ -57,6 +57,11 @@ export interface ClerkApi {
   mergePublicMetadata(id: string, publicMetadata: RcPublicMetadata): Promise<void>;
 }
 
+/** Clerk edge answers that are retried (idempotent calls only), how often in all, and the pause before attempt n + 1 (× n). */
+export const CLERK_GATEWAY_STATUSES: ReadonlySet<number> = new Set([502, 503, 504]);
+export const CLERK_GATEWAY_ATTEMPTS = 3;
+export const CLERK_GATEWAY_PAUSE_MS = 1_000;
+
 /** HTTP client over Clerk's Backend API, with every call (reads and writes) spaced by `spacingMs`. */
 export function clerkHttpApi(opts: {
   key: string;
@@ -71,13 +76,22 @@ export function clerkHttpApi(opts: {
   const wait = opts.sleepImpl ?? sleep;
   let last = 0;
   async function call<T>(pathAndQuery: string, init?: RequestInit): Promise<T> {
-    const gap = last + spacing - Date.now();
-    if (last > 0 && gap > 0) await wait(gap);
-    last = Date.now();
-    const res = await doFetch(`${base}${pathAndQuery}`, {
-      ...init,
-      headers: { Authorization: `Bearer ${opts.key}`, "Content-Type": "application/json" },
-    });
+    let res: Response;
+    for (let attempt = 1; ; attempt++) {
+      const gap = last + spacing - Date.now();
+      if (last > 0 && gap > 0) await wait(gap);
+      last = Date.now();
+      res = await doFetch(`${base}${pathAndQuery}`, {
+        ...init,
+        headers: { Authorization: `Bearer ${opts.key}`, "Content-Type": "application/json" },
+      });
+      // A gateway error (502/503/504) from Clerk's edge is transient and both calls are idempotent (a read; a merge of
+      // the same metadata): try again after a short pause, at most CLERK_GATEWAY_ATTEMPTS in all. Everything else
+      // (429 included: the spacing is the rate rule) fails at once (regression: clerk-metadata-502, a persona lease in
+      // REGRESSION-6 r5 failed on one 502).
+      if (!CLERK_GATEWAY_STATUSES.has(res.status) || attempt >= CLERK_GATEWAY_ATTEMPTS) break;
+      await wait(CLERK_GATEWAY_PAUSE_MS * attempt);
+    }
     if (!res.ok) {
       const where = (pathAndQuery.split("?")[0] ?? "").replace(/user_[A-Za-z0-9]+/, "user_…");
       throw new Error(`Clerk ${init?.method ?? "GET"} ${where}: ${res.status}`);

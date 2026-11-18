@@ -14,12 +14,19 @@ export type CronStatus = "in_progress" | "ok" | "error";
 export type MetricKind = "count" | "distribution" | "gauge";
 export type Attributes = Record<string, string | number | boolean>;
 
+/** The running span, for attributes known only once its work is done (FIX-1: RECOMPUTE_WEAKNESS's status, games). */
+export interface SpanHandle {
+  setAttributes(attributes: Attributes): void;
+}
+
+const noopSpan: SpanHandle = { setAttributes: () => undefined };
+
 export interface Telemetry {
   captureException(error: unknown, context?: Record<string, string | number | boolean | null | undefined>): void;
   /** Returns the check-in id to pass back with the closing status. */
   cronCheckIn(monitor: string, status: CronStatus, checkInId?: string): string | undefined;
-  /** Runs `fn` inside a span; the outermost span of a job is a transaction. */
-  span<T>(name: string, attributes: Attributes, fn: () => Promise<T>, options?: { transaction?: boolean }): Promise<T>;
+  /** Runs `fn` inside a span; the outermost span of a job is a transaction. `fn` may add attributes as it learns them. */
+  span<T>(name: string, attributes: Attributes, fn: (span: SpanHandle) => Promise<T>, options?: { transaction?: boolean }): Promise<T>;
   metric(kind: MetricKind, name: string, value: number, attributes?: Attributes): void;
   flush(timeoutMs: number): Promise<void>;
   /**
@@ -33,7 +40,7 @@ export interface Telemetry {
 export const noopTelemetry: Telemetry = {
   captureException: () => undefined,
   cronCheckIn: () => undefined,
-  span: (_name, _attributes, fn) => fn(),
+  span: (_name, _attributes, fn) => fn(noopSpan),
   metric: () => undefined,
   flush: async () => undefined,
 };
@@ -58,18 +65,19 @@ export class RecordingTelemetry implements Telemetry {
   async span<T>(
     name: string,
     attributes: Attributes,
-    fn: () => Promise<T>,
+    fn: (span: SpanHandle) => Promise<T>,
     options: { transaction?: boolean } = {},
   ): Promise<T> {
-    this.spans.push({
+    const rec = {
       name,
-      attributes,
+      attributes: { ...attributes },
       parent: this.stack[this.stack.length - 1] ?? null,
       transaction: options.transaction === true,
-    });
+    };
+    this.spans.push(rec);
     this.stack.push(name);
     try {
-      return await fn();
+      return await fn({ setAttributes: (a) => void Object.assign(rec.attributes, a) });
     } finally {
       this.stack.pop();
     }
@@ -122,8 +130,8 @@ export async function sentryTelemetry(opts: { dsn: string; environment: string; 
       return Sentry.captureCheckIn({ checkInId: checkInId ?? "", monitorSlug: monitor, status });
     },
     span(name, attributes, fn, options = {}) {
-      return Sentry.startSpan({ name, op: name, attributes, forceTransaction: options.transaction === true }, () =>
-        fn(),
+      return Sentry.startSpan({ name, op: name, attributes, forceTransaction: options.transaction === true }, (span) =>
+        fn({ setAttributes: (a) => void span.setAttributes(a) }),
       );
     },
     metric(kind, name, value, attributes) {

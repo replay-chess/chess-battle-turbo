@@ -20,8 +20,17 @@
 // `min("runAt")` is the next wake: a daily sync rescheduled to HH:05 (outcome.ts rescheduleStatement) needs no timer
 // of its own and no extra query (D4-27). A kick that names an import kind (or no kind) wakes it; IMPORT_PAUSED leaves
 // the lane without kinds, so it claims nothing and costs nothing.
+//
+// P6 (phase-06 plan §7.4; interface check §0.8): RECOMPUTE_WEAKNESS is an I/O kind too (CPU only, never behind
+// Stockfish). IMPORT_PAUSED takes only the import kinds off the lane; WEAKNESS_JOBS_ENABLED=off leaves the kind on it
+// and its handler ends each row DONE `skipped: "disabled"`. Another lane that arms a recompute wakes this one through
+// `kick()` with the row's runAt (boot.ts `wakeIo`): the lane re-arms its one sleep, no timer is added.
+//
+// FIX-1 (plan §12.6 "an IMPORT_SYNC waits behind at most one weakness job"): at most ONE slot runs a weakness job at a
+// time. The slot that holds the weakness turn claims every kind; the other slot claims the import kinds only, so a
+// weekly roll or a heal never fills both slots while an import waits.
 import type { KickBodyV1, KickResponse } from "@repo/contracts/internal/kick";
-import { P4_JOB_KINDS, type JobKind } from "@repo/contracts/internal/jobs";
+import { P4_JOB_KINDS, P6_JOB_KINDS, type JobKind } from "@repo/contracts/internal/jobs";
 import type { Db } from "../db/client";
 import type { Logger } from "../obs/log";
 import type { Metrics } from "../obs/metrics";
@@ -35,8 +44,12 @@ import { queueSummaryStatement } from "./summary";
 
 /** The I/O lane's concurrency (§7.7.1). */
 export const IO_LANE_CONCURRENCY = 2;
-/** The kinds the I/O lane claims; the engine lane never claims them. */
-export const IO_KINDS: readonly JobKind[] = P4_JOB_KINDS;
+/**
+ * The kinds the I/O lane claims; the engine lane never claims them. P6 (phase-06 plan §7.4, interface check §0.8):
+ * RECOMPUTE_WEAKNESS is CPU-only and runs here, never behind Stockfish; IMPORT_PAUSED takes only the import kinds off
+ * the lane (boot.ts), so the profile keeps computing while imports are paused.
+ */
+export const IO_KINDS: readonly JobKind[] = [...P4_JOB_KINDS, ...P6_JOB_KINDS];
 /** The longest sleep (same as the engine lane: DAILY_PLAN keeps a row inside every 24 h anyway). */
 export const IO_MAX_SLEEP_MS = 24 * 60 * 60 * 1000;
 /** After a database error in the lane's loop, try again after this long (a kick still wakes it). */
@@ -100,7 +113,10 @@ export interface IoLaneOptions {
   /** The engine lane's lock id of this boot (`<workerId>-<bootId>`). */
   me: string;
   workerId: string;
-  /** The import kinds that have a handler; empty (IMPORT_PAUSED) = the lane claims nothing. */
+  /**
+   * The I/O kinds that have a handler: the import kinds (none with IMPORT_PAUSED) and RECOMPUTE_WEAKNESS (P6); empty =
+   * the lane claims nothing.
+   */
   kinds: readonly JobKind[];
   payloadVMax: number;
   concurrency?: number;
@@ -111,6 +127,9 @@ export interface IoLaneOptions {
   /** After the drain-end reap: the kinds' own follow-up for reaped rows (an import run the reaper ended for good). */
   onReaped?(jobs: readonly FailedJob[]): Promise<void>;
 }
+
+/** The kinds of which at most one job runs on the lane at a time (FIX-1). */
+export const IO_ONE_AT_A_TIME: readonly JobKind[] = P6_JOB_KINDS;
 
 interface Slot {
   me: string;
@@ -138,6 +157,8 @@ export class IoLane {
   private dueFloorMs = DUE_FLOOR_MS;
   private claimedThisRound = 0;
   private timer: TimerHandle | null = null;
+  /** The slot that may claim (and run) the one-at-a-time kinds; null = free. */
+  private oneAtATimeSlot: Slot | null = null;
   private readonly stopController = new AbortController();
   private idle: Promise<void> = Promise.resolve();
   private resolveIdle: (() => void) | null = null;
@@ -163,7 +184,7 @@ export class IoLane {
   /** The first drain (picks up what is due at boot). A paused lane does nothing, ever. */
   start(): void {
     if (this.paused) {
-      this.opts.log.warn("I/O lane idle: no import kind to claim (IMPORT_PAUSED, or no import handler in this build)");
+      this.opts.log.warn("I/O lane idle: no I/O kind to claim (IMPORT_PAUSED and no weakness handler, or none in this build)");
       return;
     }
     this.started = true;
@@ -234,13 +255,32 @@ export class IoLane {
       });
   }
 
+  /** The kinds a slot claims now: every kind while it holds (or takes) the one-at-a-time turn, else the others. */
+  private claimKinds(slot: Slot): readonly JobKind[] {
+    if (this.oneAtATimeSlot === null) this.oneAtATimeSlot = slot;
+    if (this.oneAtATimeSlot === slot) return this.opts.kinds;
+    return this.opts.kinds.filter((k) => !IO_ONE_AT_A_TIME.includes(k));
+  }
+
+  private releaseTurn(slot: Slot): void {
+    if (this.oneAtATimeSlot === slot) this.oneAtATimeSlot = null;
+  }
+
   private async slotLoop(slot: Slot): Promise<void> {
-    while (!this.stopping) {
-      const job = await claimJob(this.opts.db, slot.me, this.opts.kinds, this.opts.payloadVMax, [...slot.handedOut]);
-      if (!job) return;
-      slot.handedOut.add(job.id);
-      this.claimedThisRound++;
-      await this.opts.runJob(job, slot.me, this.stopController.signal);
+    try {
+      while (!this.stopping) {
+        const kinds = this.claimKinds(slot);
+        const job = await claimJob(this.opts.db, slot.me, kinds, this.opts.payloadVMax, [...slot.handedOut]);
+        // Holding the turn without running a one-at-a-time job would starve nothing but blocks the sibling: give it back.
+        if (!job || !IO_ONE_AT_A_TIME.includes(job.kind)) this.releaseTurn(slot);
+        if (!job) return;
+        slot.handedOut.add(job.id);
+        this.claimedThisRound++;
+        await this.opts.runJob(job, slot.me, this.stopController.signal);
+        this.releaseTurn(slot);
+      }
+    } finally {
+      this.releaseTurn(slot);
     }
   }
 

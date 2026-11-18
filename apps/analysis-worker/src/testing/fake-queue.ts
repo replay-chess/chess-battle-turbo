@@ -4,7 +4,8 @@
 // heartbeat, and HOUSEKEEPING's set-based slice statements (the jobs prune runs on the fake rows; the shares and
 // rate-limit prunes delete nothing here; the regrade search returns `outdated`; P4's import backstop requeues nothing
 // and its parked-import release releases nothing: the fake has no linked accounts or import runs; P5's training
-// hygiene changes nothing: the fake has no training tables). Anything else throws, so a new
+// hygiene changes nothing: the fake has no training tables; P6's weakness slice arms and prunes nothing: the fake has no
+// snapshots). Anything else throws, so a new
 // statement cannot slip past the tests unnoticed.
 import type { Driver, Row, Statement } from "../db/client";
 
@@ -38,6 +39,8 @@ export class FakeQueue implements Driver {
   outdated: { id: string; ref: string }[] = [];
   /** What freshSiblingsStatement returns: RUNNING rows of another boot of this worker id still heart-beating. */
   siblings: { n: number; lastBeatMs: number | null } = { n: 0, lastBeatMs: null };
+  /** Rows the next reaper statements return, one entry per reap (the rows a stale heartbeat would give; set by a test). */
+  reapRows: Record<string, unknown>[][] = [];
   /**
    * The game side of an ANALYZE_GAME fail write (the SQL marks the game FAILED and returns the members): when set,
    * a failed ANALYZE_GAME row carries its game's ref, plies, graded plies and members, so `analysis:failed` goes out.
@@ -145,7 +148,7 @@ export class FakeQueue implements Driver {
     }
     if (t.includes(`"lockedBy" LIKE $1 ESCAPE`)) {
       this.log.push("reap");
-      return [];
+      return this.reapRows.shift() ?? [];
     }
     if (t.includes(`AS "nextRunAtMs"`)) {
       this.log.push("summary");
@@ -305,6 +308,19 @@ export class FakeQueue implements Driver {
     if (t.includes("DELETE FROM training_sessions")) {
       this.log.push("training-prune");
       return [{ deleted: 0 }];
+    }
+    // P6's weakness slice (recurring/weakness.ts): the fake has no snapshots, users or games.
+    if (t.includes("'weekly'::text AS trigger")) {
+      this.log.push("weakness-roll");
+      return [{ rolled: 0 }];
+    }
+    if (t.includes("THEN 'algo' ELSE 'heal' END")) {
+      this.log.push("weakness-heal");
+      return [{ healed: 0 }];
+    }
+    if (t.includes("DELETE FROM weakness_snapshots")) {
+      this.log.push("weakness-prune");
+      return [{ pruned: 0 }];
     }
     throw new Error(`FakeQueue: unexpected statement: ${t.slice(0, 80)}`);
   }

@@ -261,4 +261,60 @@ test.describe("real routes @p1", () => {
       await oneViewport("/checkout/activating", '[data-testid="activation-continue"]');
     });
   });
+
+  // P6 (phase-06 plan §12.4 "Real-route layer"): /train/weakness and the drill config of the member's first drillable row,
+  // signed in as the leased `weak-member` (54 real CC0 games graded by the analysis worker this config starts with
+  // DEVICES_WORKER=1, the bank and the READY profile; pool slot 1 of the worker). Each page: one viewport (only the
+  // content panels scroll), the header (or the tab-bar top bar's title) and the headline, the first row's header in
+  // the viewport, the tabs visible without scrolling on the desktop, the tab bar on phones, touch targets ≥ 44 px in
+  // the shell, and axe without serious violations. The `loading` boards are demo-only (no route skeleton under /train).
+  test("P6 pages: the Weakness Profile and its drill config @p6", async ({ page }, testInfo) => {
+    test.setTimeout(600_000);
+    const project = testInfo.project.name;
+    test.skip(!(REAL_ROUTE_PROJECTS as readonly string[]).includes(project), `real routes run on ${REAL_ROUTE_PROJECTS.join(", ")}`);
+    const { leasePersona } = await import("../../fixtures/lease");
+    const { poolEmail, poolSlot } = await import("../../fixtures/users");
+    const { expectTapTargets } = await import("../helpers");
+    const { expectNoAxeViolations } = await import("../a11y");
+    const email = poolEmail(poolSlot(testInfo.parallelIndex, 1));
+    await signIn(page, email, "");
+    await leasePersona("weak-member", testInfo, 1);
+    const res = await page.request.get("/api/train/weakness");
+    expect(res.status(), "TR-5").toBe(200);
+    const payload = ((await res.json()) as { data: { status: string; top: { slug: string; matchable: boolean; inBank: number }[] } }).data;
+    expect(payload.status).toBe("ready");
+    const row = payload.top.find((r) => r.matchable && r.inBank > 0) ?? payload.top[0]!;
+
+    for (const [path, ready] of [
+      ["/train/weakness", '[data-testid="weakness"][data-status="ready"]'],
+      [`/train/weakness/${row.slug}`, '[data-testid="weakness-drill-start"]'],
+    ] as const) {
+      await test.step(path, async () => {
+        await gotoReal(page, path);
+        await expect(page.locator(ready).filter({ visible: true }).first()).toBeVisible({ timeout: 60_000 });
+        await waitForStable(page);
+        const m = await page.evaluate(() => ({ sh: document.scrollingElement!.scrollHeight, ih: innerHeight, sw: document.scrollingElement!.scrollWidth, iw: document.documentElement.clientWidth }));
+        expect(m.sh, `${path}: no document scroll`).toBeLessThanOrEqual(m.ih + 1);
+        expect(m.sw, `${path}: no sideways scroll`).toBeLessThanOrEqual(m.iw + 1);
+        const mode = await shellModeFor(page);
+        if (mode === "tabbar") {
+          await expect(page.locator("[data-rc-tabbar]"), `${path}: tab bar`).toBeVisible();
+          await expect(page.getByTestId("shell-topbar-title")).toContainText(/weakness profile/i);
+        } else {
+          await expect(page.getByTestId("weakness-header")).toBeVisible();
+        }
+        await expect(page.getByTestId("weakness-headline").filter({ visible: true }).first()).toBeVisible();
+        const head = await page.getByTestId("weakness-row-head").filter({ visible: true }).first().boundingBox();
+        expect(head, `${path}: the first row's header`).not.toBeNull();
+        expect(head!.y + head!.height, `${path}: the first row's header inside the viewport`).toBeLessThanOrEqual(m.ih + 1);
+        if (mode === "sidebar") {
+          const tab = await page.getByTestId("weakness-tab-phase").boundingBox();
+          expect(tab, `${path}: the breakdown tabs`).not.toBeNull();
+          expect(tab!.y + tab!.height, `${path}: the tabs without scrolling the page`).toBeLessThanOrEqual(m.ih + 1);
+        }
+        await expectTapTargets(page);
+        if (Number(testInfo.project.metadata?.zoom ?? 1) === 1) await expectNoAxeViolations(page, { include: '[data-testid="weakness"]', theme: "light" });
+      });
+    }
+  });
 });

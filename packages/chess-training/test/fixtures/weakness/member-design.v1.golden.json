@@ -1,0 +1,311 @@
+{
+ "status": "READY",
+ "timeClasses": [
+  "RAPID",
+  "BLITZ"
+ ],
+ "since": "2026-08-02T10:00:00.000Z",
+ "gamesInScope": 212,
+ "gamesAnalysed": 212,
+ "ratingBandMin": 1100,
+ "ratingBandMax": 1300,
+ "metrics": {
+  "v": 1,
+  "scope": {
+   "timeClasses": [
+    "RAPID",
+    "BLITZ"
+   ],
+   "since": "2026-08-02T10:00:00.000Z",
+   "months": 6,
+   "maxGames": 300
+  },
+  "games": {
+   "inScope": 212,
+   "analysed": 212,
+   "excludedBot": 2
+  },
+  "band": {
+   "min": 1100,
+   "max": 1300,
+   "center": 1200,
+   "source": "lichess",
+   "rating": 1184,
+   "baselineBands": [
+    "1100",
+    "1200"
+   ]
+  },
+  "failure": null,
+  "inputs": {
+   "watermarkEndedAt": "2026-11-15T22:00:00.000Z",
+   "healed": 0,
+   "baseline": "v1",
+   "engineProfile": "sf18-v1"
+  },
+  "listMode": "vs_band",
+  "rows": [
+   {
+    "pattern": "fork",
+    "label": "Missed forks",
+    "unit": "per100",
+    "you": 3.10272536687631,
+    "band": 0.8150584650815549,
+    "events": 296,
+    "moves": 9540,
+    "gamesWith": 169,
+    "lossYou100": 56.0167714884696,
+    "lossBand100": 23.623832953028785,
+    "ratio": 3.3612144741065677,
+    "z": 19.278737473807794,
+    "score": 32.39293853544082,
+    "phaseMode": "middlegame",
+    "phaseCount": [
+     42,
+     222,
+     32
+    ],
+    "eventsLt1": 46,
+    "gamesWithLast20": 7,
+    "lastN": 20,
+    "trend": "worse",
+    "trendRecent": 3.740740740740741,
+    "trendPrior": 1.6666666666666667,
+    "example": null
+   },
+   {
+    "pattern": "hangingPiece",
+    "label": "Missed free pieces",
+    "unit": "per100",
+    "you": 2.40041928721174,
+    "band": 0.5117102587116339,
+    "events": 229,
+    "moves": 9540,
+    "gamesWith": 197,
+    "lossYou100": 47.9664570230608,
+    "lossBand100": 18.37325744778913,
+    "ratio": 4.844574090991336,
+    "z": 25.165817819623346,
+    "score": 29.59319957527167,
+    "phaseMode": "middlegame",
+    "phaseCount": [
+     39,
+     163,
+     27
+    ],
+    "eventsLt1": 0,
+    "gamesWithLast20": 5,
+    "lastN": 20,
+    "trend": "same",
+    "trendRecent": 2.4074074074074074,
+    "trendPrior": 2.4074074074074074,
+    "example": null
+   },
+   {
+    "pattern": "rookEndgame",
+    "label": "Rook endgames",
+    "unit": "per100",
+    "you": 0.48218029350104824,
+    "band": 0.36997516262574454,
+    "events": 46,
+    "moves": 9540,
+    "gamesWith": 46,
+    "lossYou100": 5.786163522012578,
+    "lossBand100": 8.4366669175048,
+    "ratio": 1.9876611700846532,
+    "z": 3.794759349513204,
+    "score": -2.6505033954922217,
+    "phaseMode": "endgame",
+    "phaseCount": [
+     0,
+     0,
+     46
+    ],
+    "eventsLt1": 0,
+    "gamesWithLast20": 0,
+    "lastN": 20,
+    "trend": "same",
+    "trendRecent": 0.3333333333333333,
+    "trendPrior": 0.5185185185185185,
+    "example": null
+   },
+   {
+    "pattern": "rc:development",
+    "label": "Slow development",
+    "unit": "per100",
+    "you": 0.9958071278825996,
+    "band": 0.5477395186536663,
+    "events": 95,
+    "moves": 9540,
+    "gamesWith": 95,
+    "lossYou100": 7.945492662473795,
+    "lossBand100": 10.682139297248787,
+    "ratio": 1.8700046374322101,
+    "z": 5.793813103897767,
+    "score": -2.736646634774992,
+    "phaseMode": "opening",
+    "phaseCount": [
+     95,
+     0,
+     0
+    ],
+    "eventsLt1": 0,
+    "gamesWithLast20": 0,
+    "lastN": 20,
+    "trend": "worse",
+    "trendRecent": 1.4814814814814814,
+    "trendPrior": 0.7407407407407407,
+    "example": null
+   }
+  ],
+  "topKeys": [
+   "fork",
+   "hangingPiece",
+   "rookEndgame"
+  ],
+  "preliminary": [],
+  "headline": {
+   "text": "You lose most points to missed forks in the middlegame, especially with under a minute on your clock.",
+   "short": "You lose most points to missed forks in the middlegame, especially under a minute.",
+   "claims": [
+    {
+     "k": "pattern",
+     "key": "fork"
+    },
+    {
+     "k": "phase",
+     "phase": "middlegame"
+    },
+    {
+     "k": "clock",
+     "bucket": "lt1"
+    }
+   ]
+  },
+  "breakdown": {
+   "phase": [
+    {
+     "phase": "opening",
+     "you": 88,
+     "band": 75,
+     "moves": 2544
+    },
+    {
+     "phase": "middlegame",
+     "you": 71,
+     "band": 67,
+     "moves": 5324
+    },
+    {
+     "phase": "endgame",
+     "you": 79,
+     "band": 80,
+     "moves": 1672
+    }
+   ],
+   "phaseSentence": "Accuracy by phase. Your openings and your middlegame are above your band; the rest is close to it.",
+   "clock": {
+    "buckets": [
+     {
+      "key": "gt5",
+      "moves": 2332,
+      "blunders": 19,
+      "per100": 0.8,
+      "band": 5.9
+     },
+     {
+      "key": "2to5",
+      "moves": 1590,
+      "blunders": 17,
+      "per100": 1.1,
+      "band": 7.5
+     },
+     {
+      "key": "1to2",
+      "moves": 4664,
+      "blunders": 120,
+      "per100": 2.6,
+      "band": 6.7
+     },
+     {
+      "key": "lt1",
+      "moves": 954,
+      "blunders": 38,
+      "per100": 4,
+      "band": 6.7
+     }
+    ],
+    "sentence": "Blunders per 100 moves, by time left on your clock. Below 2 minutes the rate triples."
+   },
+   "openings": [
+    {
+     "family": "Two Knights Defence",
+     "ecoRange": "C55–C59",
+     "games": 38,
+     "points": 18,
+     "scorePct": 47,
+     "note": "most_played"
+    },
+    {
+     "family": "Queen’s Gambit Declined",
+     "ecoRange": "D30–D69",
+     "games": 24,
+     "points": 9,
+     "scorePct": 38,
+     "note": "most_points_lost"
+    },
+    {
+     "family": "Sicilian, Alapin",
+     "ecoRange": "B22",
+     "games": 21,
+     "points": 12,
+     "scorePct": 57,
+     "note": null
+    },
+    {
+     "family": "London System",
+     "ecoRange": "D02",
+     "games": 19,
+     "points": 11.5,
+     "scorePct": 61,
+     "note": "best_score"
+    }
+   ],
+   "strengths": [
+    "You convert won positions: 9 of your last 10 games that reached +3 or better ended in a win.",
+    "Your opening accuracy is 88, above players at your level (75)."
+   ],
+   "strengthKeys": [
+    "conversion",
+    "phase_opening"
+   ],
+   "pieces": [
+    {
+     "piece": "p",
+     "per100": 7.9
+    },
+    {
+     "piece": "n",
+     "per100": 13.7
+    },
+    {
+     "piece": "b",
+     "per100": 9.2
+    },
+    {
+     "piece": "r",
+     "per100": 10.4
+    },
+    {
+     "piece": "q",
+     "per100": 7.4
+    },
+    {
+     "piece": "k",
+     "per100": 12.1
+    }
+   ]
+  }
+ },
+ "headline": "You lose most points to missed forks in the middlegame, especially with under a minute on your clock."
+}

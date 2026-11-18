@@ -12,6 +12,7 @@
 import type { Page } from "@playwright/test";
 import type { Match, Telemetry } from "../fixtures/telemetry";
 import { matchesProps } from "../fixtures/telemetry";
+import { pendingViewerReads } from "../fixtures/auth";
 import { DEVICES, expect, gotoOk, test, type DeviceName } from "./review/_lib/review";
 
 // Not serial: each test signs in or leases on its own, so a red T1 (the Clerk dev `md` claim, owner action) never hides the
@@ -203,8 +204,13 @@ test.describe("home document", { tag: ["@p5", "@smoke"] }, () => {
     const streamed = doc.segments.filter((s) => s.html.includes("data-testid=")).map((s) => s.id);
     expect(streamed, "no part of the screen streams as a hidden segment").toEqual([]);
 
+    // The page's own reads (the running import's events invalidate qk.home(); the badges; the viewer) must not be in
+    // flight when the reload leaves the page: WebKit reports a cut one as an uncaught "…/api/home due to access control
+    // checks." page error (regression: webkit-home-reload-cut; the WebKit-iPhone first-attempt failure of this test in CI).
+    const homeReads = pendingViewerReads(page, { paths: ["/api/home", "/api/me/badges", "/api/me"] });
     await gotoOk(page, "/home");
     await expect(page.getByTestId("home-import")).toBeVisible({ timeout: 120_000 });
+    await homeReads.settled();
     await page.reload();
     await expect(page.getByTestId("home-import")).toBeVisible({ timeout: 120_000 });
     await expect(page.locator('[data-testid="home-import"]'), "one import row after the reload").toHaveCount(1);

@@ -9,8 +9,14 @@
 // the shard loader's selectPuzzleBatch (WP-D) with the 90-day exclusion query; one write transaction inserts the
 // session (and abandons the member's other ACTIVE puzzle session: a theme switch replaces it).
 //
-// `size` stores the planned size: the item count for bank, daily and practice sessions; for a PUZZLES session the
-// fixed `count`, or 0 for a streaming session (extends by 10 while 2 remain).
+// `size` stores the planned size: the item count for bank, daily, practice and weakness sessions; for a PUZZLES session
+// the fixed `count`, or 0 for a streaming session (extends by 10 while 2 remain).
+//
+// P6 (phase-06 plan §7.1.4, §8.11, §8.12): the `weakness` kind. The member's own BANK cards carrying the pattern
+// (Q-W7: due first, lowest mastery, newest) interleaved with matched Lichess puzzles near the puzzle rating (the same
+// shard selector and 90-day exclusion), sized by TRN's `planWeaknessDrill`; time pressure is never matched (puzzles have
+// no clock). Never counts toward the bank's daily cap. Unknown pattern / nothing to drill → 400 `validation_failed`
+// with `details.reason`; the `weakness` flag off → 404.
 import { createHash } from "node:crypto";
 import { Prisma } from "@repo/db";
 import { newGameRef } from "@repo/db/games";
@@ -45,7 +51,9 @@ import {
   type PuzzlePick,
   type SessionPlan,
 } from "@repo/chess-training/session";
-import { themeLabel, themeNoun, themePluralLabel } from "@repo/chess-training/themes";
+import { isWeaknessCandidate, themeLabel, themeNoun, themePluralLabel, weaknessLabel } from "@repo/chess-training/themes";
+import { planWeaknessDrill, weaknessMatchTheme } from "@repo/chess-training/weakness/drill";
+import { weaknessDrillEyebrow } from "@repo/chess-training/weakness/labels";
 import { ApiError } from "@/lib/api/api-error";
 import { requestNow } from "@/lib/api/now";
 import type { Viewer } from "@/lib/auth/viewer";
@@ -65,6 +73,7 @@ import {
 } from "./puzzles.server";
 import { insertProfileSql } from "./profile.server";
 import { themeOptionsOf } from "./themes.server";
+import { assertWeaknessEnabled } from "./weakness.server";
 
 type SessionKindDb = "DAILY" | "BANK" | "PUZZLES" | "WEAKNESS" | "PRACTICE";
 type SessionStatusDb = "ACTIVE" | "COMPLETED" | "ABANDONED";
@@ -184,6 +193,23 @@ export function duePuzzleCardsSql(userId: bigint, now: Date, theme: string): Pri
 }
 
 /**
+ * Q-W7: the member's BANK cards whose mistake carries `pattern` anywhere in its themes (so `rc:timePressure` finds the
+ * cards tagged under a minute, of any judgement: D-P6-8), hidden and suspended ones left out; due first, then the
+ * lowest mastery, then the newest (`training_cards_userId_deck_due_idx` prefix + `mistakes_pkey`). ≤ 40 rows. FIX-2:
+ * `m."userId"` (always the card's) keeps the planner on the member's own mistakes (the §9.1 volume gate measured a Seq
+ * Scan on mistakes, 6.9 ms, at 20 members × 500).
+ */
+export function weaknessOwnCardsSql(userId: bigint, now: Date, pattern: string): Prisma.Sql {
+  return Prisma.sql`SELECT ${CARD_COLUMNS}, ${MISTAKE_COLUMNS} FROM training_cards c
+    JOIN mistakes m ON m.id = c."mistakeId" LEFT JOIN games g ON g.id = m."lastGameId"
+    WHERE c."userId" = ${userId} AND c.deck = 'BANK' AND m."userId" = ${userId} AND m."hiddenAt" IS NULL
+      AND (c."suspendedUntil" IS NULL OR c."suspendedUntil" <= ${at(now)})
+      AND m.themes @> ARRAY[${pattern}]::text[]
+    ORDER BY (c.due <= ${at(now)}) DESC, c.mastery ASC, m."lastPlayedAt" DESC, c.id
+    LIMIT 40`;
+}
+
+/**
  * Puzzle ids among `ids` that are not new to the member: attempted in the last 90 days (training_attempts_puzzle_idx),
  * or holding a PUZZLE card (training_cards_userId_itemKey_key, `p_<id>`; FIX-2): a carded puzzle comes back through
  * its card's schedule (as a due card of its theme), never again as a new puzzle whose grade W1 would refuse. ≤ 500 ids.
@@ -212,7 +238,15 @@ export function reuseSql(userId: bigint, now: Date, kind: SessionKindDb, filterK
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────────────────────────────────────
 const kindDbOf = (spec: SessionCreate): SessionKindDb =>
-  spec.kind === "daily" ? "DAILY" : spec.kind === "puzzles" ? "PUZZLES" : spec.kind === "practice" ? "PRACTICE" : "BANK";
+  spec.kind === "daily"
+    ? "DAILY"
+    : spec.kind === "puzzles"
+      ? "PUZZLES"
+      : spec.kind === "practice"
+        ? "PRACTICE"
+        : spec.kind === "weakness"
+          ? "WEAKNESS"
+          : "BANK";
 
 /** The ACTIVE-reuse key (§6.4): sha256 of the normalised spec and the training day, 32 hex characters. */
 export function filterKeyOf(spec: SessionCreate, day: string): string {
@@ -233,6 +267,14 @@ function sessionLimitError(oldestValue: unknown, now: Date): ApiError {
   const oldest = asDate(oldestValue) ?? now;
   const retryAfterSec = Math.max(1, Math.ceil((oldest.getTime() + TRAIN_SESSION_HOURLY.windowSec * 1000 - now.getTime()) / 1000));
   return new ApiError("rate_limited", { retryAfterSec, details: { reason: "session_limit" } });
+}
+
+/** 400 `validation_failed` for a weakness drill that cannot be built (plan §7.1.4). */
+function drillError(reason: "unknown_pattern" | "empty_drill"): ApiError {
+  return new ApiError("validation_failed", {
+    fields: { pattern: reason === "unknown_pattern" ? "Not a weakness pattern" : "Nothing to drill for this pattern" },
+    details: { reason },
+  });
 }
 
 /** 429 for the daily puzzle limit, retrying when the next local training day starts. */
@@ -302,7 +344,9 @@ function itemsOf(
       const label =
         build.source.kind === "bank"
           ? queueLabel((build.source.card.lastOpponentName ?? "").slice(0, 40), Math.max(1, num(build.source.card.moveNumber)), item.theme.label)
-          : `Lichess puzzle · ${item.rating ?? ""} · ${item.theme.label}`;
+          : kind === "WEAKNESS"
+            ? "Lichess puzzle · matched to your rating"
+            : `Lichess puzzle · ${item.rating ?? ""} · ${item.theme.label}`;
       labels.push({ itemId: item.itemId, label: label.slice(0, 80) });
     } catch {
       // A corrupt row (its stored solution is not legal): the item is skipped; the report flow covers it.
@@ -336,7 +380,7 @@ function payloadOf(
     ref: row.referenceId,
     kind: KIND_WIRE[row.kind],
     status: STATUS_WIRE[row.status],
-    theme: row.theme ? { key: row.theme, label: themePluralLabel(row.theme) } : null,
+    theme: row.theme ? { key: row.theme, label: row.kind === "WEAKNESS" ? weaknessLabel(row.theme) : themePluralLabel(row.theme) } : null,
     items: payload,
     resumeIndex: resumeIndexOf(
       payload.map((p) => ({ itemId: p.itemId, skipped: stored.find((s) => s.id === p.itemId)?.skipped })),
@@ -504,6 +548,36 @@ async function compose(
     return { plan: built, snapshots: snapshotsOfPick(pick, cards, theme), cards, themes, size: built.items.length, mix: pick ? pick.theme !== theme : false };
   }
 
+  if (spec.kind === "weakness") {
+    // Q-W7, then the plan (§8.11): how many own items, how many matched puzzles to ask the shards for.
+    const rows = await db.$queryRaw<CardRowDb[]>(weaknessOwnCardsSql(viewer.id, clock.now, spec.pattern));
+    const drill = planWeaknessDrill({ pattern: spec.pattern, size: spec.size, mix: spec.mix, ownCount: rows.length });
+    if (!drill.ok) throw drillError(drill.reason);
+    const cards = new Map<string, CardRowDb>(rows.map((r) => [r.itemKey, r]));
+    let pick: PuzzlePick | null = null;
+    if (drill.puzTarget > 0 && drill.matchTheme) {
+      const canFill = puzzlesEnabled() && !exceedsPuzzleLimit(state.counters.puzzlesDone, drill.puzTarget, limit);
+      if (canFill) {
+        const picked = await pickPuzzles(deps, viewer, state, drill.matchTheme, drill.puzTarget, new Set(), filterKey, shardDeps);
+        pick = picked.pick;
+        for (const [k, v] of picked.cards) cards.set(k, v);
+      } else if (drill.ownTake === 0) {
+        // Puzzles only, and none can be served: the same answers as a puzzle session.
+        if (!puzzlesEnabled()) throw new ApiError("upstream_unavailable", { details: { provider: "puzzles", kind: "disabled" } });
+        throw puzzleLimitError(state);
+      }
+    }
+    const plan = buildSession("weakness", { pattern: spec.pattern, size: spec.size, mix: spec.mix, own: rows.map(bankCardIn), puzzles: pick });
+    return {
+      plan,
+      snapshots: snapshotsOfPick(pick, cards, drill.matchTheme ?? spec.pattern),
+      cards,
+      themes: null,
+      size: plan.items.length,
+      mix: drill.mixEff,
+    };
+  }
+
   // BANK: explicit picks, the "nothing due" practice list, or the due queue (filtered).
   if (spec.cardRefs || spec.gameRef) {
     let rows: CardRowDb[];
@@ -553,6 +627,11 @@ export type OpenedSession = { payload: SessionPayload; created: boolean };
 export async function openSession(viewer: Viewer, spec: SessionCreate, now: Date, deps: TrainDeps = trainDeps(), shardDeps?: Partial<ShardDeps>): Promise<OpenedSession> {
   const { db } = deps;
   const kind = kindDbOf(spec);
+  if (spec.kind === "weakness") {
+    // The flag gates the kind (404 while off), then the pattern must be a weakness candidate of the taxonomy.
+    await assertWeaknessEnabled(viewer);
+    if (!isWeaknessCandidate(spec.pattern)) throw drillError("unknown_pattern");
+  }
   const [state, themes] = await Promise.all([loadTrainState(db, viewer, now), db.$queryRaw<ThemeMasteryRow[]>(themeMasterySql(viewer.id))]);
   const filterKey = filterKeyOf(spec, state.clock.today);
   const limitRows = await db.$queryRaw<{ n1h: number; oldest: unknown; reuse: string | null }[]>(reuseSql(viewer.id, now, kind, filterKey));
@@ -768,9 +847,12 @@ export function summaryOf(
   const topPlural = themePluralLabel(top);
   const cap = capOf(state.due, state.profile, state.counters);
   const bankKinds = row.kind === "BANK" || row.kind === "DAILY";
-  const puzzleTheme = row.theme ?? stored.find((s) => s.p)?.p?.[4] ?? null;
-  const eyebrow =
-    row.kind === "PUZZLES"
+  const weakness = row.kind === "WEAKNESS" && row.theme !== null;
+  // A weakness drill's "next" puzzles are its matched Lichess theme (never the time-pressure key: puzzles have no clock).
+  const puzzleTheme = weakness ? weaknessMatchTheme(row.theme!) : (row.theme ?? stored.find((s) => s.p)?.p?.[4] ?? null);
+  const eyebrow = weakness
+    ? weaknessDrillEyebrow(weaknessLabel(row.theme!), passOne.length)
+    : row.kind === "PUZZLES"
       ? `Session summary · ${row.theme ? themePluralLabel(row.theme) : "Puzzles"}`
       : row.kind === "PRACTICE"
         ? "Session summary · Practice"

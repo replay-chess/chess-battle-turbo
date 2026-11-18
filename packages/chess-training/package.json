@@ -7,12 +7,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./puzzles/*": "./puzzles/*",
+    "./baselines/*": "./baselines/*.ts",
+    "./fixtures/*": "./test/fixtures/*",
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "test": "TZ=UTC tsx --test \"src/**/*.test.ts\" && TZ=Asia/Kolkata tsx --test \"src/**/*.test.ts\"",
+    "test": "TZ=UTC tsx --test \"src/**/*.test.ts\" \"baselines/**/*.test.ts\" \"scripts/**/*.test.ts\" \"test/**/*.test.ts\" && TZ=Asia/Kolkata tsx --test \"src/**/*.test.ts\" \"baselines/**/*.test.ts\" \"scripts/**/*.test.ts\" \"test/**/*.test.ts\"",
     "check-types": "tsc --noEmit",
-    "lint": "eslint src --no-error-on-unmatched-pattern --max-warnings 0"
+    "lint": "eslint src baselines scripts test --no-error-on-unmatched-pattern --max-warnings 0"
   },
   "dependencies": {
     "@repo/chess-analysis": "workspace:*",

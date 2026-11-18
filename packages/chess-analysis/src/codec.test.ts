@@ -38,6 +38,23 @@ import {
   type PliesDelta,
   type PliesState,
   type ReviewStatus,
+  ERROR_LOG_JUDGEMENTS,
+  ERROR_LOG_V1,
+  STATS_V1,
+  STATS_V1_LENGTH,
+  WEAKNESS_PHASES,
+  decodeErrorLog,
+  decodeErrorLogs,
+  decodeStatsV1,
+  emptyStatsV1,
+  encodeErrorLog,
+  encodeStatsV1,
+  errorJudgementOf,
+  type ErrorLogClock,
+  type ErrorLogEntry,
+  type ErrorLogJudgement,
+  type ErrorLogPhase,
+  type StatsV1,
 } from "./codec";
 
 /** Deterministic PRNG (mulberry32), so the property test is reproducible. */
@@ -306,5 +323,138 @@ describe("mergePlies", () => {
     const f = mergePlies(failed, delta());
     assert.equal(f.status, "running");
     assert.equal(f.analysis?.failure, null);
+  });
+});
+
+// ── STATS_V1 and ERROR_LOG_V1 (phase-06 plan §6.4, §12.1) ──────────────────────────────────────────────────────────
+describe("ERROR_LOG_V1", () => {
+  const JUDGEMENTS: ErrorLogJudgement[] = [0, 1, 2];
+  const PHASES: ErrorLogPhase[] = [0, 1, 2];
+  const CLOCKS: ErrorLogClock[] = [0, 1, 2, 3, 4];
+
+  it("round-trips every field at its bounds", () => {
+    for (const judgement of JUDGEMENTS) {
+      for (const phase of PHASES) {
+        for (const clockBucket of CLOCKS) {
+          for (const winLoss of [0, 1, 50, 99, 100]) {
+            const e: ErrorLogEntry = { judgement, phase, clockBucket, winLoss };
+            const v = encodeErrorLog(e);
+            assert.ok(v >= 0 && v <= ERROR_LOG_V1.MAX_VALUE && v <= 32767, `${v} fits a smallint`);
+            assert.deepEqual(decodeErrorLog(v), e);
+          }
+        }
+      }
+    }
+    assert.deepEqual(ERROR_LOG_JUDGEMENTS, ["MISTAKE", "BLUNDER", "MISS"]);
+    assert.deepEqual(WEAKNESS_PHASES, ["opening", "middlegame", "endgame"]);
+  });
+
+  it("the largest value is 10852 and the smallest 0", () => {
+    assert.equal(encodeErrorLog({ judgement: 2, phase: 2, clockBucket: 4, winLoss: 100 }), 10852);
+    assert.equal(ERROR_LOG_V1.MAX_VALUE, (2 << 12) | (2 << 10) | (4 << 7) | 100);
+    assert.equal(encodeErrorLog({ judgement: 0, phase: 0, clockBucket: 0, winLoss: 0 }), 0);
+    // The bit layout itself: judgement 12–13, phase 10–11, clock 7–9, winLoss 0–6.
+    assert.equal(encodeErrorLog({ judgement: 1, phase: 1, clockBucket: 3, winLoss: 37 }), (1 << 12) | (1 << 10) | (3 << 7) | 37);
+  });
+
+  it("rejects out-of-range fields and values", () => {
+    const ok: ErrorLogEntry = { judgement: 0, phase: 0, clockBucket: 1, winLoss: 10 };
+    assert.throws(() => encodeErrorLog({ ...ok, winLoss: 101 }), RangeError);
+    assert.throws(() => encodeErrorLog({ ...ok, winLoss: -1 }), RangeError);
+    assert.throws(() => encodeErrorLog({ ...ok, winLoss: 2.5 }), RangeError);
+    assert.throws(() => encodeErrorLog({ ...ok, clockBucket: 5 as ErrorLogClock }), RangeError);
+    assert.throws(() => encodeErrorLog({ ...ok, judgement: 3 as ErrorLogJudgement }), RangeError);
+    assert.throws(() => encodeErrorLog({ ...ok, phase: 3 as ErrorLogPhase }), RangeError);
+    assert.throws(() => decodeErrorLog(10853), RangeError);
+    assert.throws(() => decodeErrorLog(-1), RangeError);
+    assert.throws(() => decodeErrorLog(1.5), RangeError);
+    assert.throws(() => decodeErrorLog(101), RangeError); // winLoss 101
+    assert.throws(() => decodeErrorLog(5 << 7), RangeError); // clock bucket 5
+    assert.throws(() => decodeErrorLog(3 << 10), RangeError); // phase 3
+    assert.throws(() => decodeErrorLog(3 << 12), RangeError); // judgement 3
+  });
+
+  it("decodes an array in order", () => {
+    const entries: ErrorLogEntry[] = [
+      { judgement: 1, phase: 0, clockBucket: 1, winLoss: 31 },
+      { judgement: 2, phase: 1, clockBucket: 4, winLoss: 12 },
+      { judgement: 0, phase: 2, clockBucket: 0, winLoss: 15 },
+    ];
+    const codes = entries.map(encodeErrorLog);
+    assert.deepEqual(decodeErrorLogs(codes), entries);
+    assert.deepEqual(decodeErrorLogs([]), []);
+    assert.throws(() => decodeErrorLogs([codes[0] as number, 99999]), RangeError);
+  });
+
+  it("logs MISTAKE, BLUNDER and MISS plies only", () => {
+    assert.equal(errorJudgementOf(J.MISTAKE), 0);
+    assert.equal(errorJudgementOf(J.BLUNDER), 1);
+    assert.equal(errorJudgementOf(J.MISS), 2);
+    for (const c of [J.UNGRADED, J.BRILLIANT, J.GREAT, J.BEST, J.EXCELLENT, J.GOOD, J.BOOK, J.FORCED, J.INTERESTING, J.INACCURACY]) {
+      assert.equal(errorJudgementOf(c), null);
+    }
+  });
+});
+
+describe("STATS_V1", () => {
+  const sample = (): StatsV1 => ({
+    moves: 31,
+    phaseMoves: [9, 17, 5],
+    phaseErrors: [0, 3, 1],
+    clockMoves: [12, 10, 4, 3],
+    clockErrors: [0, 1, 1, 2],
+    pieceMoves: [8, 5, 4, 6, 5, 3],
+    pieceErrors: [1, 1, 0, 1, 1, 0],
+    reachedPlus3: true,
+    converted: false,
+    bookExitWin: 47,
+  });
+
+  it("has 30 slots in the plan's order", () => {
+    const a = encodeStatsV1(sample());
+    assert.equal(a.length, 30);
+    assert.equal(STATS_V1_LENGTH, 30);
+    assert.deepEqual(a, [31, 9, 17, 5, 0, 3, 1, 12, 10, 4, 3, 0, 1, 1, 2, 8, 5, 4, 6, 5, 3, 1, 1, 0, 1, 1, 0, 1, 0, 47]);
+    assert.equal(a[STATS_V1.REACHED_PLUS3], 1);
+    assert.equal(a[STATS_V1.CLOCK_ERRORS + 3], 2);
+    assert.equal(a[STATS_V1.PIECE_MOVES + 5], 3);
+    assert.equal(a[STATS_V1.BOOK_EXIT_WIN], 47);
+  });
+
+  it("round-trips, with −1 for an unknown book exit", () => {
+    assert.deepEqual(decodeStatsV1(encodeStatsV1(sample())), sample());
+    const unknown = { ...sample(), bookExitWin: null, reachedPlus3: false };
+    const stored = encodeStatsV1(unknown);
+    assert.equal(stored[29], -1);
+    assert.deepEqual(decodeStatsV1(stored), unknown);
+    assert.deepEqual(decodeStatsV1(encodeStatsV1(emptyStatsV1())), emptyStatsV1());
+    const won = { ...sample(), converted: true, bookExitWin: 100 };
+    assert.deepEqual(decodeStatsV1(encodeStatsV1(won)), won);
+    assert.equal(encodeStatsV1({ ...sample(), bookExitWin: 0 })[29], 0);
+  });
+
+  it("an empty or older shorter array reads as unknown", () => {
+    assert.equal(decodeStatsV1([]), null);
+    assert.equal(decodeStatsV1(null), null);
+    assert.equal(decodeStatsV1(undefined), null);
+    assert.equal(decodeStatsV1(encodeStatsV1(sample()).slice(0, 27)), null);
+    assert.equal(decodeStatsV1([...encodeStatsV1(sample()), 0]), null);
+  });
+
+  it("rejects impossible values both ways", () => {
+    assert.throws(() => encodeStatsV1({ ...sample(), moves: -1 }), RangeError);
+    assert.throws(() => encodeStatsV1({ ...sample(), moves: 32768 }), RangeError);
+    assert.throws(() => encodeStatsV1({ ...sample(), moves: 1.5 }), RangeError);
+    assert.throws(() => encodeStatsV1({ ...sample(), bookExitWin: 101 }), RangeError);
+    assert.throws(() => encodeStatsV1({ ...sample(), reachedPlus3: false, converted: true }), RangeError);
+    const bad = encodeStatsV1(sample());
+    bad[27] = 2;
+    assert.throws(() => decodeStatsV1(bad), RangeError);
+    const bad2 = encodeStatsV1(sample());
+    bad2[29] = -2;
+    assert.throws(() => decodeStatsV1(bad2), RangeError);
+    const bad3 = encodeStatsV1(sample());
+    bad3[3] = -4;
+    assert.throws(() => decodeStatsV1(bad3), RangeError);
   });
 });

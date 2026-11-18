@@ -50,7 +50,7 @@ export interface PlanTheme {
 }
 
 /** Why the focus theme was picked (the puzzle step's subtitle says it). */
-export type FocusSource = "weakness" | "lowestMastery" | "bankCount" | "default";
+export type FocusSource = "weakness" | "weaknessRow" | "lowestMastery" | "bankCount" | "default";
 
 export interface PlanInputs {
   now: Date;
@@ -67,6 +67,11 @@ export interface PlanInputs {
   themes: readonly PlanTheme[];
   /** P6: the top weakness mapped to a Lichess theme. Null in P5. */
   weaknessTheme?: string | null;
+  /**
+   * P6 FIX-2: `weaknessTheme` is the TOP row's match in a band comparison. Otherwise (a lower row's match: the top row
+   * has no puzzles, as time pressure; or a most-frequent list) the step does not call it "your weakest theme".
+   */
+  weaknessThemeTop?: boolean;
   puzzleRating: number;
   /** P6 switches the basis to "games20"; P5 plans from the bank. */
   basis?: PlanBasis;
@@ -84,8 +89,8 @@ function isPuzzleTheme(key: string): boolean {
  * The focus theme (§8.10 step 2): P6's weakness → the lowest EWMA among themes with ≥ 5 attempts → the theme with the
  * most BANK cards → `fork`. Only themes the shards serve qualify.
  */
-export function focusTheme(themes: readonly PlanTheme[], weaknessTheme?: string | null): { key: string; source: FocusSource } {
-  if (weaknessTheme && isPuzzleTheme(weaknessTheme)) return { key: weaknessTheme, source: "weakness" };
+export function focusTheme(themes: readonly PlanTheme[], weaknessTheme?: string | null, weaknessThemeTop = true): { key: string; source: FocusSource } {
+  if (weaknessTheme && isPuzzleTheme(weaknessTheme)) return { key: weaknessTheme, source: weaknessThemeTop ? "weakness" : "weaknessRow" };
   const byKey = (a: PlanTheme, b: PlanTheme) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
   const rated = themes.filter((t) => t.attempts >= 5 && isPuzzleTheme(t.key)).sort((a, b) => a.ewma - b.ewma || byKey(a, b));
   if (rated[0]) return { key: rated[0].key, source: "lowestMastery" };
@@ -95,7 +100,8 @@ export function focusTheme(themes: readonly PlanTheme[], weaknessTheme?: string 
 }
 
 const FOCUS_REASON: Record<FocusSource, string> = {
-  weakness: "Your weakest theme",
+  weakness: "Your top weakness",
+  weaknessRow: "From your Weakness Profile",
   lowestMastery: "Your lowest-mastery theme",
   bankCount: "Most common in your bank",
   default: "Start here",
@@ -187,7 +193,7 @@ export function buildDailyPlan(i: PlanInputs): DailyPlan {
   const n = Math.min(i.dueShown, i.bankQueue.length, BANK_STEP_MAX);
   if (n > 0) steps.push(bankStep(i.bankQueue.slice(0, n), i.now, i.timeZone));
   else if (i.bankTotal === 0) steps.push(emptyBankStep(i.lastGame));
-  const focus = focusTheme(i.themes, i.weaknessTheme);
+  const focus = focusTheme(i.themes, i.weaknessTheme, i.weaknessThemeTop ?? true);
   steps.push(puzzleStep(focus.key, focus.source, i.puzzleRating));
   return {
     v: 1,

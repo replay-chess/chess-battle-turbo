@@ -35,6 +35,9 @@ const ROUTES = [
   "/(app)/train/session/[ref]/page",
   "/(app)/train/bank/session/page",
   "/(app)/train/puzzles/page",
+  // Phase 6 (§9.3)
+  "/(app)/train/weakness/page",
+  "/(app)/train/weakness/[pattern]/page",
 ];
 
 /**
@@ -157,6 +160,20 @@ describe("check-bundle-budgets", () => {
     const out = run(dir);
     assert.equal(out.status, 1, out.stdout);
     assert.ok(out.stdout.includes("/train/puzzles loads ts-fsrs in static/chunks/fsrs.js"), out.stdout);
+  });
+
+  it("fails the build for a P6 route over its page-specific budget (/train/weakness and its drill route ≤ 90)", () => {
+    // Under the limit: 65 kB of its own (≈ 76 kB gzipped as written).
+    const ok = run(dist({ "/(app)/train/weakness/page": 65, "/(app)/train/weakness/[pattern]/page": 65 }));
+    assert.equal(ok.status, 0, ok.stdout);
+    for (const [route, label] of [
+      ["/(app)/train/weakness/page", "/train/weakness"],
+      ["/(app)/train/weakness/[pattern]/page", "/train/weakness/[pattern]"],
+    ] as const) {
+      const out = run(dist({ [route]: 95 }));
+      assert.equal(out.status, 1, out.stdout);
+      assert.ok(out.stdout.includes(`- ${label} page-specific JS`) && out.stdout.includes("over its budget 90 kB"), out.stdout);
+    }
   });
 
   it("/r/[code] as a route handler has no client JS; missing altogether it fails", () => {

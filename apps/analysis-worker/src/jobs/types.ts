@@ -56,6 +56,12 @@ export interface JobContext<K extends RunJobKind = RunJobKind> {
    * engine lane does not poll; without this the jobs waited for an unrelated kick (D1). Absent in harnesses without one.
    */
   wakeEngine?(): void;
+  /**
+   * P6: work was queued for the I/O lane from another lane or job (a RECOMPUTE_WEAKNESS trigger): wake it in-process,
+   * with the job's runAt when it lies ahead (the lane re-arms its one sleep, no timer is added). Absent in harnesses
+   * without one.
+   */
+  wakeIo?(runAtMs?: number): void;
 }
 
 /** What the runner's fail write did, for the kind's own follow-up (telemetry, a failed comparison, a batch count). */

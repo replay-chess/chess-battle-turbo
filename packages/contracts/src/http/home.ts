@@ -57,8 +57,14 @@ export const HomeBank = z.object({
   total: z.number().int().min(0),
   /** "Review 4 · About 3 min": round(0.75 n), min 1. */
   estMin: z.number().int().min(0),
-  /** "Loose pieces is your most common theme (7 in bank)." */
-  topTheme: z.object({ label: z.string().max(40), n: z.number().int().min(0) }).nullable(),
+  /**
+   * "Loose pieces is your most common theme (7 in bank)." P6 (phase-06 plan §7.1.5) adds the optional `source`:
+   * `weakness` = the top row of a READY weakness profile ("Missed forks is your top weakness (12 in bank)."),
+   * `bank` = the P5 bank fallback. `n` is the in-bank count either way.
+   */
+  topTheme: z
+    .object({ label: z.string().max(40), n: z.number().int().min(0), source: z.enum(["weakness", "bank"]).optional() })
+    .nullable(),
   thumbs: z.array(HomeBankThumb).max(HOME_BANK_THUMBS),
   nextBatch: NextBatch.nullable(),
 });

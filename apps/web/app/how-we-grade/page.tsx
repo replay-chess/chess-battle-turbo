@@ -1,10 +1,12 @@
 // How we grade (phase-03 plan §4.5, §5.6; DR/V3HowWeGrade.dc.html). Public and static: every number comes from the
 // grader's own constants (content.ts), so the page changes only when the grading does (a deploy). One viewport: the
 // marketing top nav, the left column (title, lead, tabs, engine line) and the tab panel, which is the only part that
-// scrolls; a one-line footer. Tabs: Move Labels and Accuracy (the Verified Coach tab arrives with P7's `coach` flag).
+// scrolls; a one-line footer. Tabs: Move Labels, Accuracy and (P6) Weakness Profile, `#weakness` (the Verified Coach tab
+// arrives with P7's `coach` flag).
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Brand } from "@/components/shell/Brand";
+import { HowWeGradeWeakness } from "@/components/marketing/HowWeGradeWeakness";
 import { createMetadata } from "@/lib/seo";
 import {
   ATTRIBUTION,
@@ -172,7 +174,7 @@ export default function HowWeGradePage() {
               <p className="m-0">{ATTRIBUTION}</p>
             </div>
           }
-          panels={{ labels: <LabelsPanel />, acc: <AccuracyPanel /> }}
+          panels={{ labels: <LabelsPanel />, acc: <AccuracyPanel />, weakness: <HowWeGradeWeakness /> }}
         />
       </main>
       <footer className="flex h-10 shrink-0 items-center gap-4.5 border-t border-cb-border px-8 text-xs text-cb-text-soft vh700:hidden tabbar:hidden">

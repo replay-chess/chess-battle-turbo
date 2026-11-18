@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 // The plain .mjs registry next.config.js imports (typed through its JSDoc).
 import { allRedirects } from "../../config/redirects/index.mjs";
+import { redirects as p00 } from "../../config/redirects/p00-legacy.mjs";
 
 type Redirect = { source: string; destination: string; permanent: boolean };
 
@@ -17,7 +18,8 @@ describe("P3 redirects", () => {
 
   it("comes after the P0 rules and touches no /review/<ref> path", () => {
     const all = allRedirects({ APP_ENV: "production" }) as Redirect[];
-    assert.equal(all.at(-1)?.source, "/review");
+    // Right after the P0 rules (later phases append their own files after it: P6's /weakness).
+    assert.equal(all[p00({ APP_ENV: "production" }).length]?.source, "/review");
     assert.equal(all.some((r) => r.source.startsWith("/review/")), false);
   });
 });

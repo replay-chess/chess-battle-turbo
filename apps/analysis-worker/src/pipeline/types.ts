@@ -21,6 +21,17 @@ export interface GameMember {
    * opponent's display name (game_players). Optional: the in-memory store and older fixtures leave them out.
    */
   training?: MemberTraining;
+  /** P6: the member's weakness scope inputs (phase-06 plan §8.2), when the load read them (WEAKNESS_JOBS_ENABLED). */
+  weakness?: MemberWeakness;
+}
+
+/** A member's zone, weakness scope columns (training_profiles; empty / 0 = the defaults) and end time (P6). */
+export interface MemberWeakness {
+  timeZone: string;
+  weaknessTimeClasses: string[];
+  weaknessMonths: number;
+  /** game_players."endedAt" (epoch ms). */
+  endedAtMs: number | null;
 }
 
 /** A member's training inputs for the Mistake Bank extraction (phase-05 plan §6.2 TrainingProfile, §8.4, §8.5). */
@@ -106,6 +117,13 @@ export interface LoadedGame {
   timeClass?: string | null;
   /** P5: games.meta.colorUnknown (a legacy game whose sides are unknown: no bank extraction). */
   colorUnknown?: boolean;
+  /**
+   * P6: games."moveClocksMs" (the mover's ms after each ply offset; empty when untimed), "initialTimeSeconds" and
+   * "incrementSeconds": the clock before a move for STATS_V1 / ERROR_LOG_V1 and the bank's `rc:timePressure` tag.
+   */
+  moveClocksMs?: number[];
+  initialTimeSeconds?: number | null;
+  incrementSeconds?: number | null;
 }
 
 /** The arrays a checkpoint or the final write stores (index = position / ply offset). */

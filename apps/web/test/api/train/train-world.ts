@@ -36,6 +36,10 @@ export const ROUTE_FILES = {
   review: "app/api/review/[ref]/route",
   status: "app/api/review/[ref]/status/route",
   moment: "app/api/review/[ref]/moments/[ply]/route",
+  // P6 (phase-06 plan §7.1): the weakness routes share the train registry, so the P5 auth matrix covers them too.
+  weakness: "app/api/train/weakness/route",
+  weaknessRecompute: "app/api/train/weakness/recompute/route",
+  weaknessSeen: "app/api/train/weakness/seen/route",
 } as const;
 
 export type RouteName = keyof typeof ROUTE_FILES;

@@ -392,3 +392,234 @@ export function mergePlies<T extends { status: ReviewStatus; analysis: PliesStat
   // A frame proves the job is running (it may have been queued, or failed and retried).
   return { ...d, status: "running", analysis };
 }
+
+/* ------------------------------------------------------------------------------------------------------------ */
+/* Weakness inputs (phase-06 plan §6.4): STATS_V1 and ERROR_LOG_V1, append-only like the codes above            */
+/* ------------------------------------------------------------------------------------------------------------ */
+//
+// Both live in `game_players` smallint[] columns written by the worker's final analysis batch, the B-W1 backfill and
+// the weakness heal (`weakness-inputs.ts#computeSideInputs` builds them). "Error" means a MISTAKE, BLUNDER or MISS ply
+// of the side, the same set in both encodings. A slot's or a field's meaning never changes once stored: a new field
+// is a new version (STATS_V2, `weaknessInputsV` = 2), never a reinterpretation.
+
+/** STATS_V1 has 30 smallints per member side. */
+export const STATS_V1_LENGTH = 30;
+
+/**
+ * STATS_V1 slot offsets (data-model §3.10):
+ *
+ * | Slot  | Content                                                                                             |
+ * |-------|-----------------------------------------------------------------------------------------------------|
+ * | 0     | moves: this side's graded plies, excluding BOOK and FORCED                                          |
+ * | 1–3   | moves by phase: opening, middlegame, endgame (Divider plies)                                        |
+ * | 4–6   | errors by phase                                                                                     |
+ * | 7–10  | moves by the clock before the move: gt5, 2to5, 1to2, lt1 (unknown clocks count in none)             |
+ * | 11–14 | errors by clock bucket, same order                                                                  |
+ * | 15–20 | moves by the moved piece: p n b r q k                                                               |
+ * | 21–26 | errors by moved piece                                                                               |
+ * | 27    | reached +300 cp (side POV) after one of this side's moves: 0/1                                      |
+ * | 28    | converted: slot 27 = 1 and the result is WIN: 0/1                                                   |
+ * | 29    | Win% (side POV) after this side's first non-BOOK move, rounded; −1 = unknown (FEN start, no book)   |
+ */
+export const STATS_V1 = {
+  MOVES: 0,
+  PHASE_MOVES: 1,
+  PHASE_ERRORS: 4,
+  CLOCK_MOVES: 7,
+  CLOCK_ERRORS: 11,
+  PIECE_MOVES: 15,
+  PIECE_ERRORS: 21,
+  REACHED_PLUS3: 27,
+  CONVERTED: 28,
+  BOOK_EXIT_WIN: 29,
+} as const;
+
+/** The +300 cp threshold of STATS_V1 slot 27 (plan §8.1 CONVERSION_CP). */
+export const STATS_V1_REACHED_CP = 300;
+
+/** Piece order of STATS_V1 slots 15–20 and 21–26. */
+export const STATS_V1_PIECES = ["p", "n", "b", "r", "q", "k"] as const;
+export type StatsPiece = (typeof STATS_V1_PIECES)[number];
+
+/** Phase order of the STATS_V1 phase slots and of ERROR_LOG_V1's phase field (index = stored value). */
+export const WEAKNESS_PHASES = ["opening", "middlegame", "endgame"] as const;
+export type WeaknessPhase = (typeof WEAKNESS_PHASES)[number];
+
+/** The decoded STATS_V1 record. Tuples are in the slot order above. */
+export interface StatsV1 {
+  moves: number;
+  phaseMoves: [number, number, number];
+  phaseErrors: [number, number, number];
+  /** gt5, 2to5, 1to2, lt1 */
+  clockMoves: [number, number, number, number];
+  clockErrors: [number, number, number, number];
+  /** p n b r q k */
+  pieceMoves: [number, number, number, number, number, number];
+  pieceErrors: [number, number, number, number, number, number];
+  reachedPlus3: boolean;
+  converted: boolean;
+  /** Rounded Win% 0…100 after the side's first non-BOOK move; null = unknown (stored −1). */
+  bookExitWin: number | null;
+}
+
+const SMALLINT_MAX = 32767;
+
+function assertCount(v: number, what: string): void {
+  if (!Number.isInteger(v) || v < 0 || v > SMALLINT_MAX) throw new RangeError(`STATS_V1 ${what}: invalid count ${v}`);
+}
+
+/** A zeroed record (no moves). */
+export function emptyStatsV1(): StatsV1 {
+  return {
+    moves: 0,
+    phaseMoves: [0, 0, 0],
+    phaseErrors: [0, 0, 0],
+    clockMoves: [0, 0, 0, 0],
+    clockErrors: [0, 0, 0, 0],
+    pieceMoves: [0, 0, 0, 0, 0, 0],
+    pieceErrors: [0, 0, 0, 0, 0, 0],
+    reachedPlus3: false,
+    converted: false,
+    bookExitWin: null,
+  };
+}
+
+/** Record → the 30-slot smallint[]. Throws on a negative, fractional or out-of-range value. */
+export function encodeStatsV1(s: StatsV1): number[] {
+  const out: number[] = [s.moves, ...s.phaseMoves, ...s.phaseErrors, ...s.clockMoves, ...s.clockErrors, ...s.pieceMoves, ...s.pieceErrors];
+  out.forEach((v, i) => assertCount(v, `slot ${i}`));
+  if (s.converted && !s.reachedPlus3) throw new RangeError("STATS_V1: converted without reaching +300");
+  const exit = s.bookExitWin;
+  if (exit !== null && !(Number.isInteger(exit) && exit >= 0 && exit <= 100)) {
+    throw new RangeError(`STATS_V1 slot 29: invalid Win% ${exit}`);
+  }
+  out.push(s.reachedPlus3 ? 1 : 0, s.converted ? 1 : 0, exit ?? -1);
+  if (out.length !== STATS_V1_LENGTH) throw new RangeError(`STATS_V1: ${out.length} slots`);
+  return out;
+}
+
+function slots(a: readonly number[], from: number, n: number): number[] {
+  return a.slice(from, from + n);
+}
+
+/**
+ * The stored smallint[] → record. `null` for "not computed / unknown": an empty array, an older shorter array, or any
+ * other length (callers treat the row as missing inputs and heal it). Throws on a 30-slot array with an impossible
+ * value (a corrupt row must not be averaged in silently).
+ */
+export function decodeStatsV1(a: readonly number[] | null | undefined): StatsV1 | null {
+  if (!a || a.length !== STATS_V1_LENGTH) return null;
+  for (let i = 0; i < STATS_V1.REACHED_PLUS3; i++) assertCount(a[i] as number, `slot ${i}`);
+  const r = a[STATS_V1.REACHED_PLUS3];
+  const c = a[STATS_V1.CONVERTED];
+  const w = a[STATS_V1.BOOK_EXIT_WIN] as number;
+  if ((r !== 0 && r !== 1) || (c !== 0 && c !== 1) || (c === 1 && r !== 1)) throw new RangeError("STATS_V1: invalid conversion slots");
+  if (!(Number.isInteger(w) && w >= -1 && w <= 100)) throw new RangeError(`STATS_V1 slot 29: invalid Win% ${w}`);
+  return {
+    moves: a[STATS_V1.MOVES] as number,
+    phaseMoves: slots(a, STATS_V1.PHASE_MOVES, 3) as StatsV1["phaseMoves"],
+    phaseErrors: slots(a, STATS_V1.PHASE_ERRORS, 3) as StatsV1["phaseErrors"],
+    clockMoves: slots(a, STATS_V1.CLOCK_MOVES, 4) as StatsV1["clockMoves"],
+    clockErrors: slots(a, STATS_V1.CLOCK_ERRORS, 4) as StatsV1["clockErrors"],
+    pieceMoves: slots(a, STATS_V1.PIECE_MOVES, 6) as StatsV1["pieceMoves"],
+    pieceErrors: slots(a, STATS_V1.PIECE_ERRORS, 6) as StatsV1["pieceErrors"],
+    reachedPlus3: r === 1,
+    converted: c === 1,
+    bookExitWin: w === -1 ? null : w,
+  };
+}
+
+/**
+ * ERROR_LOG_V1: one smallint per error of the side, in ply order.
+ *
+ * | Bits  | Field        | Values                                                                                     |
+ * |-------|--------------|--------------------------------------------------------------------------------------------|
+ * | 0–6   | winLoss      | clamp(round(winBefore − winAfterPlayed), 0, 100), Win% points from the mover's side         |
+ * | 7–9   | clockBucket  | 0 unknown or untimed, 1 > 5 min, 2 2–5 min, 3 1–2 min, 4 < 1 min (clock.ts, before the move)|
+ * | 10–11 | phase        | 0 opening, 1 middlegame, 2 endgame (WEAKNESS_PHASES)                                       |
+ * | 12–13 | judgement    | 0 MISTAKE, 1 BLUNDER, 2 MISS (ERROR_LOG_JUDGEMENTS; inaccuracies are never logged)          |
+ */
+export const ERROR_LOG_V1 = {
+  CLOCK_SHIFT: 7,
+  PHASE_SHIFT: 10,
+  JUDGEMENT_SHIFT: 12,
+  WIN_LOSS_MAX: 100,
+  CLOCK_MAX: 4,
+  PHASE_MAX: 2,
+  JUDGEMENT_MAX: 2,
+  /** (2 << 12) | (2 << 10) | (4 << 7) | 100 */
+  MAX_VALUE: 10852,
+} as const;
+
+/** ERROR_LOG_V1 judgement names, index = the stored field value. */
+export const ERROR_LOG_JUDGEMENTS = ["MISTAKE", "BLUNDER", "MISS"] as const;
+
+/** 0 MISTAKE, 1 BLUNDER, 2 MISS */
+export type ErrorLogJudgement = 0 | 1 | 2;
+
+/** The stored judgement values by name (`ERROR_LOG_JUDGEMENTS[ERROR_LOG_J.BLUNDER] === "BLUNDER"`). */
+export const ERROR_LOG_J = { MISTAKE: 0, BLUNDER: 1, MISS: 2 } as const satisfies Record<(typeof ERROR_LOG_JUDGEMENTS)[number], ErrorLogJudgement>;
+
+/** At most this many themes are kept per error: each `game_players."errorThemeN"` entry is 0…ERROR_THEMES_MAX. */
+export const ERROR_THEMES_MAX = 8;
+/** 0 opening, 1 middlegame, 2 endgame */
+export type ErrorLogPhase = 0 | 1 | 2;
+/** 0 unknown, 1 gt5, 2 2to5, 3 1to2, 4 lt1 */
+export type ErrorLogClock = 0 | 1 | 2 | 3 | 4;
+
+export interface ErrorLogEntry {
+  judgement: ErrorLogJudgement;
+  phase: ErrorLogPhase;
+  clockBucket: ErrorLogClock;
+  /** Win% points lost by the move, integer 0…100 */
+  winLoss: number;
+}
+
+/** JudgementCode → the ERROR_LOG_V1 judgement, or null for a ply that is not an error (inaccuracies included). */
+export function errorJudgementOf(code: number): ErrorLogJudgement | null {
+  if (code === J.MISTAKE) return ERROR_LOG_J.MISTAKE;
+  if (code === J.BLUNDER) return ERROR_LOG_J.BLUNDER;
+  if (code === J.MISS) return ERROR_LOG_J.MISS;
+  return null;
+}
+
+function inRange(v: number, max: number): boolean {
+  return Number.isInteger(v) && v >= 0 && v <= max;
+}
+
+/** One error → its stored smallint. Throws on any field out of range. */
+export function encodeErrorLog(e: ErrorLogEntry): number {
+  if (!inRange(e.judgement, ERROR_LOG_V1.JUDGEMENT_MAX)) throw new RangeError(`ERROR_LOG_V1: invalid judgement ${e.judgement}`);
+  if (!inRange(e.phase, ERROR_LOG_V1.PHASE_MAX)) throw new RangeError(`ERROR_LOG_V1: invalid phase ${e.phase}`);
+  if (!inRange(e.clockBucket, ERROR_LOG_V1.CLOCK_MAX)) throw new RangeError(`ERROR_LOG_V1: invalid clock bucket ${e.clockBucket}`);
+  if (!inRange(e.winLoss, ERROR_LOG_V1.WIN_LOSS_MAX)) throw new RangeError(`ERROR_LOG_V1: invalid winLoss ${e.winLoss}`);
+  return (e.judgement << ERROR_LOG_V1.JUDGEMENT_SHIFT) | (e.phase << ERROR_LOG_V1.PHASE_SHIFT) | (e.clockBucket << ERROR_LOG_V1.CLOCK_SHIFT) | e.winLoss;
+}
+
+/** One stored smallint → the error. Throws on a value no entry encodes to. */
+export function decodeErrorLog(code: number): ErrorLogEntry {
+  if (!Number.isInteger(code) || code < 0 || code > ERROR_LOG_V1.MAX_VALUE) throw new RangeError(`ERROR_LOG_V1: invalid value ${code}`);
+  const winLoss = code & 0x7f;
+  const clockBucket = (code >> ERROR_LOG_V1.CLOCK_SHIFT) & 0x7;
+  const phase = (code >> ERROR_LOG_V1.PHASE_SHIFT) & 0x3;
+  const judgement = (code >> ERROR_LOG_V1.JUDGEMENT_SHIFT) & 0x3;
+  if (
+    winLoss > ERROR_LOG_V1.WIN_LOSS_MAX ||
+    clockBucket > ERROR_LOG_V1.CLOCK_MAX ||
+    phase > ERROR_LOG_V1.PHASE_MAX ||
+    judgement > ERROR_LOG_V1.JUDGEMENT_MAX
+  ) {
+    throw new RangeError(`ERROR_LOG_V1: invalid value ${code}`);
+  }
+  return {
+    judgement: judgement as ErrorLogJudgement,
+    phase: phase as ErrorLogPhase,
+    clockBucket: clockBucket as ErrorLogClock,
+    winLoss,
+  };
+}
+
+/** A stored `errorLog` array → its entries, in order. */
+export function decodeErrorLogs(codes: readonly number[]): ErrorLogEntry[] {
+  return codes.map(decodeErrorLog);
+}

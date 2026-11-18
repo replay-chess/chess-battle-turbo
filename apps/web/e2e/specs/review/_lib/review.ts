@@ -20,7 +20,7 @@
 // same seeded game's progress (GAME: review-walkthrough, CLEAN: review-clean, archive-05: review-share).
 import { mergeTests, type BrowserContext, type BrowserContextOptions, type Page, type TestInfo } from "@playwright/test";
 import type { PrismaClient } from "@repo/db";
-import { test as authTest, signIn } from "../../../fixtures/auth";
+import { test as authTest, signIn, signInFresh } from "../../../fixtures/auth";
 import { finishGuard, guardContext, type ConsoleProblem } from "../../../fixtures/console-guard";
 import { leasePersona, type LeasedPersona } from "../../../fixtures/lease";
 import { expect, test as telemetryTest } from "../../../fixtures/telemetry";
@@ -223,6 +223,11 @@ export const test = mergeTests(authTest, telemetryTest).extend<ReviewFixtures, R
       await signIn(page, email, "");
       const leased = await leasePersona(name, testInfo);
       expect(leased.email).toBe(email);
+      // The reset wrote the persona's Clerk claims (onboarded, membership); the session token minted at sign-in still
+      // carries the previous lease's for up to 60 s, so the next request was judged on stale claims: after
+      // `onboarding-fresh` on the same pool user, GET /home answered /onboarding's claim refresh (regression:
+      // lease-stale-claims; home.spec "home document"). Sign in again: the new session carries the persona's claims.
+      await signInFresh(page, email);
       return leased;
     });
   },

@@ -1,9 +1,38 @@
 // see.ts, board.ts and replay.ts: the board facts the classifier reads.
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { describe, it } from "node:test";
+import { Chess, type Move, type Square } from "chess.js";
+import { PIECE_VALUE, type PieceType } from "./board";
 import { INITIAL_FEN, epdOf, isInitialPosition, material, materialBalance, placement, sideToMove } from "./board";
 import { normalizeUci, replaySan, replayUci, sanOf, uciOf } from "./replay";
-import { see } from "./see";
+import { see, seeExchange } from "./see";
+
+/** The pre-FIX-1 SEE: every legal move of the position at each step (the reference the faster one must equal). */
+function referenceSee(fen: string, sq: string): { value: number; captures: string[] } {
+  const chess = new Chess(fen);
+  const lvc = (): Move | null => {
+    let best: Move | null = null;
+    for (const m of chess.moves({ verbose: true })) {
+      if (m.to !== sq || !m.captured || m.isEnPassant()) continue;
+      if (m.promotion && m.promotion !== "q") continue;
+      if (!best || PIECE_VALUE[m.piece as PieceType] < PIECE_VALUE[best.piece as PieceType]) best = m;
+    }
+    return best;
+  };
+  const on = (): { value: number; captures: string[] } => {
+    const m = lvc();
+    if (!m) return { value: 0, captures: [] };
+    const gain0 = PIECE_VALUE[m.captured as PieceType] + (m.promotion ? PIECE_VALUE.q - PIECE_VALUE.p : 0);
+    chess.move(m);
+    const reply = on();
+    chess.undo();
+    const gain = gain0 - reply.value;
+    return gain <= 0 ? { value: 0, captures: [] } : { value: gain, captures: [`${m.from}${m.to}`, ...reply.captures] };
+  };
+  return on();
+}
 
 describe("see", () => {
   it("wins a hanging piece outright", () => {
@@ -96,5 +125,38 @@ describe("replay", () => {
     assert.throws(() => replayUci(INITIAL_FEN, ["e2e5"]), RangeError);
     assert.throws(() => replaySan(INITIAL_FEN, ["Ke2"]), RangeError);
     assert.throws(() => uciOf(INITIAL_FEN, "Nf6"), RangeError);
+  });
+});
+
+describe("see: the attackers-only search equals the full-generation reference (FIX-1)", () => {
+  it("regression: see-attackers-only — every occupied square of every position of 12 real games (FX baseline-sample)", () => {
+    const require = createRequire(import.meta.url);
+    const sample = JSON.parse(readFileSync(require.resolve("@repo/chess-fixtures/weakness/baseline-sample.json"), "utf8")) as { sides: { item: { movetext: string } }[] };
+    let squares = 0;
+    let exchanges = 0;
+    for (const { item } of sample.sides.slice(0, 12)) {
+      const sans = item.movetext.replace(/\{[^}]*\}/g, " ").replace(/\d+\.(\.\.)?/g, " ").split(/\s+/).filter((t) => t && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t));
+      const game = new Chess();
+      for (const san of sans) {
+        const fen = game.fen();
+        for (const row of game.board()) {
+          for (const cell of row) {
+            if (!cell) continue;
+            const ref = referenceSee(fen, cell.square);
+            assert.equal(see(fen, cell.square), ref.value, `${fen} ${cell.square}`);
+            const ex = seeExchange(fen, cell.square as Square);
+            assert.equal(ex.value, ref.value);
+            squares++;
+            if (ref.value > 0) exchanges++;
+          }
+        }
+        try {
+          game.move(san.replace(/[?!]+$/, ""));
+        } catch {
+          break;
+        }
+      }
+    }
+    assert.ok(squares > 15_000 && exchanges > 150, `${squares} squares, ${exchanges} winning exchanges`);
   });
 });

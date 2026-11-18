@@ -6,9 +6,15 @@
 // Every event is checked against the registry (`@repo/analytics` reviewServerEvents / importServerEvents, strict schemas) before it is
 // queued: an event that would fail the e2e telemetry fixture is dropped and logged here instead, and the PII guard
 // (`findPii`) refuses FEN/PGN/SAN shapes. Unset POSTHOG_PROJECT_KEY (local runs, tests) → nothing is sent.
-import { findPii, parseEvent, type ImportServerEventName, type ReviewServerEventName } from "@repo/analytics";
+import {
+  findPii,
+  parseEvent,
+  type ImportServerEventName,
+  type ReviewServerEventName,
+  type WeaknessServerEventName,
+} from "@repo/analytics";
 import type { z } from "zod";
-import type { importServerEvents, reviewServerEvents, trainServerEvents } from "@repo/analytics";
+import type { importServerEvents, reviewServerEvents, trainServerEvents, weaknessServerEvents } from "@repo/analytics";
 import { PostHog } from "posthog-node";
 import type { AppEnvName } from "../config/env";
 import type { Logger } from "./log";
@@ -19,11 +25,16 @@ type WorkerReviewEventName = Extract<
 >;
 /** P5's worker event (phase-05 plan §10.1): `mistakes_extracted`, one per extracted member side. */
 type WorkerTrainEventName = "mistakes_extracted";
-/** P3's analysis events, P4's import events (phase-04 plan 10.1, `importServerEvents`) and P5's extraction event. */
-export type WorkerEventName = WorkerReviewEventName | ImportServerEventName | WorkerTrainEventName;
+/**
+ * P3's analysis events, P4's import events (phase-04 plan 10.1, `importServerEvents`), P5's extraction event and P6's
+ * recompute events (phase-06 plan §10.1: `weakness_snapshot_computed`, `weakness_first_ready`,
+ * `weakness_recompute_failed`).
+ */
+export type WorkerEventName = WorkerReviewEventName | ImportServerEventName | WorkerTrainEventName | WeaknessServerEventName;
 type WorkerEventSchemas = Pick<typeof reviewServerEvents, WorkerReviewEventName> &
   typeof importServerEvents &
-  Pick<typeof trainServerEvents, WorkerTrainEventName>;
+  Pick<typeof trainServerEvents, WorkerTrainEventName> &
+  typeof weaknessServerEvents;
 export type WorkerEventProps<N extends WorkerEventName> = z.input<WorkerEventSchemas[N]>;
 
 export interface ProductEvents {

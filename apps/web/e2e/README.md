@@ -69,3 +69,20 @@ checkout/activating.spec.ts; `upstream` drives the mock; `p4db` reads the e2e da
 | Devices | `devices/layout/{onboarding,settings-connected,activating}.spec.ts` (one viewport, tap targets, CLS), `devices/layout/routes.real.ts` (P4 pages), `devices/ui/onboarding.a11y.spec.ts`, `devices/layout/p04.visual.spec.ts` (baselines made in the official image through a loopback proxy, so the page origin is `http://localhost`: a secure context). |
 | Debugging | `E2E_SERVER_LOGS=1` prints the web and worker servers' stdout; `E2E_WORKER_LOG_LEVEL=info` the worker's claims. |
 
+
+## Phase 6: the Weakness Profile on real data
+
+`e2e/specs/weakness/**` (phase-06 plan §12.4) import `test`/`expect` from `specs/weakness/_lib/weakness.ts` (the P5 trainer
+fixtures plus `weak(name)`, `weakStep(step)`, `tr5`, `openWeakness`, `devEmit`, `weakDb`). Every persona is real data:
+`packages/db/seed/p06-personas.ts` writes CC0 Lichess games (`packages/chess-fixtures/weakness/persona-games.json`) as
+the leased user's finished games, the running analysis worker grades them (ANALYZE_GAME: the P6 input columns, J1's bank,
+the first-build triggers), and RECOMPUTE_WEAKNESS writes the snapshot; nothing about a profile is hand-written. A spec
+reads every number it asserts from the member's own TR-5 payload.
+
+| Piece | What |
+|---|---|
+| Personas | `e2e/personas/p06.ts` (states in `packages/db/seed/p06-persona-states.ts`): `weak-zero`, `weak-fresh`, `weak-few`, `weak-insufficient`, `bullet`, `weak-computing`, `weak-orphaned`, `weakfail`, `weak-member`, `noclock`; dev-seed twins `dev-weak-*` (`e2e/scripts/seed-weakness.ts`). A reset needs the worker (`ANALYSIS_WORKER_URL`, `INTERNAL_API_SECRET` with `webwk`). `weak-member` leases slot 1 of the Playwright worker, the others slot 0, so its 54 graded games are kept between leases (re-used when they are the same games, all graded and under 6 h old: the bank is extracted again by the worker's EXTRACT_MISTAKES). |
+| Steps | `weakStep("weak-computing:ready")` lets the frozen analyses run and the build finish (the worker's own `weakness:ready`); `"weakfail:crash"` makes the member's recompute die on its last attempt (the worker's reaper fails it); `"weak-orphaned:again"` removes the profile again, keeping the job row. CLI: `npx tsx scripts/dev/personas.ts --reset <pool> --step <name>`. |
+| `/api/dev/emit` | POST `{v:1, event, data}` with `x-e2e-token`: one user-room event to the caller's own room (progress milestones). 404 in production (prod-guard.spec.ts). |
+| Devices | `e2e/devices/layout/weakness-demo.spec.ts` (WP6: the demo states × zoom), `layout/routes.real.ts` "P6 pages" (real routes as `weak-member`: `DEVICES_WORKER=1` starts the worker in the devices config), `layout/p06.visual.spec.ts` (baselines from the official image). |
+| Determinism | `specs/weakness/personas.spec.ts`: two leases in a row leave the same rows (games, bank, cards, snapshot without times, queued work). |

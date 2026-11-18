@@ -1,7 +1,7 @@
 // The e2e analysis worker's environment (fixtures/analysis-worker.ts; phase-03 plan §12.3).
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { e2eDatabaseIsLocal, ringKids, ringSignedBy, workerFaultsHonoured, workerRing, workerServerEnv } from "./analysis-worker";
+import { devicesWorkerEnv, e2eDatabaseIsLocal, ringKids, ringSignedBy, workerFaultsHonoured, workerRing, workerServerEnv } from "./analysis-worker";
 
 const K = (c: string) => Buffer.alloc(32, c).toString("base64");
 const RING = `web:${K("a")},ws:${K("b")},wk:${K("c")},webwk:${K("d")}`;
@@ -33,6 +33,19 @@ describe("e2e analysis worker", () => {
     assert.equal(env.SENTRY_DSN, "");
     assert.equal(workerFaultsHonoured({ DATABASE_URL: LOCAL }), true);
     assert.equal(e2eDatabaseIsLocal({ DIRECT_URL: DEV, DATABASE_URL: LOCAL }), false, "DIRECT_URL wins, as in global setup");
+  });
+
+  // regression: devices-worker-dead-emits (REGRESSION-6): the devices config runs no socket and no sink, so its worker
+  // must not emit (each dead emit cost two attempts and a 1 s pause, and the weak-member persona missed its 10 min).
+  it("the devices config's worker emits nothing and sends no PostHog event, and is otherwise the e2e worker", () => {
+    const base = { INTERNAL_API_SECRET: RING, DATABASE_URL: LOCAL };
+    const env = devicesWorkerEnv(base);
+    assert.equal(env.WS_INTERNAL_URL, "", "no socket server in the devices config: the worker skips its emits");
+    assert.equal(env.POSTHOG_PROJECT_KEY, "", "no sink: nothing is sent");
+    assert.equal(env.BILLING_PAYWALL, "on");
+    const plain = workerServerEnv({ env: base });
+    const differs = Object.keys({ ...env, ...plain }).filter((k) => env[k] !== plain[k]).sort();
+    assert.deepEqual(differs, ["BILLING_PAYWALL", "POSTHOG_PROJECT_KEY", "WS_INTERNAL_URL"]);
   });
 
   it("is a dev worker (the real engine, no kick faults) against the Neon dev branch", () => {

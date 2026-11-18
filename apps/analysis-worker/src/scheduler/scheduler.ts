@@ -26,7 +26,7 @@ import type { Logger } from "../obs/log";
 import type { Metrics, SchedulerView } from "../obs/metrics";
 import { claimJob, type ClaimedJob } from "../queue/claim";
 import { queueSummaryStatement } from "../queue/summary";
-import { freshSiblingsStatement, ORPHAN_STALE_SEC, reapStatement } from "../queue/outcome";
+import { freshSiblingsStatement, ORPHAN_STALE_SEC, reapStatement, type FailedJob } from "../queue/outcome";
 import { handleReaped } from "../queue/reaper";
 import type { ProductEvents } from "../obs/posthog";
 import type { Telemetry } from "../obs/telemetry";
@@ -67,6 +67,13 @@ export interface SchedulerOptions {
   telemetry?: Telemetry;
   /** Runs at the end of every drain, before the reaper + summary batch: the `analysis:batch` flush (§8.12). */
   onDrainEnd?(): Promise<void>;
+  /**
+   * The kinds' own follow-up for rows this lane's reaper failed for good (boot and drain end), as the I/O lane's
+   * `onReaped`: an IMPORT_SYNC's run row, a RECOMPUTE_WEAKNESS's FAILED snapshot and its `weakness:ready` (P6). The boot
+   * reaper takes every stale row whatever its kind, so without it a worker that died on a recompute's last attempt
+   * left the member's page computing with no failure to show.
+   */
+  onReaped?(jobs: readonly FailedJob[]): Promise<void>;
   /** P4: this boot's other lock ids (the I/O lane slots, queue/lanes.ts): never reaped as another boot's orphans. */
   siblingIds?: readonly string[];
 }
@@ -105,6 +112,12 @@ export class Scheduler {
     this.maxSleepMs = opts.maxSleepMs ?? MAX_SLEEP_MS;
   }
 
+  /** The `onReaped` hook for the rows a reap failed for good; its errors are logged, never thrown into the loop. */
+  private async followUp(jobs: readonly FailedJob[]): Promise<void> {
+    if (jobs.length === 0 || !this.opts.onReaped) return;
+    await this.opts.onReaped(jobs).catch((error: unknown) => this.opts.log.error("reap hook failed", { error }));
+  }
+
   /** Boot: the reaper (orphans of an earlier boot, stale heartbeats) + DAILY_PLAN in one batch, then the loop. */
   async start(): Promise<void> {
     const [reaped, siblings] = await this.opts.db.batch([
@@ -112,7 +125,7 @@ export class Scheduler {
       freshSiblingsStatement({ workerId: this.opts.workerId, me: this.opts.me, alsoMine: this.opts.siblingIds }),
       ...this.opts.bootPlan(),
     ]);
-    await handleReaped(reaped ?? [], this.opts);
+    await this.followUp(await handleReaped(reaped ?? [], this.opts));
     const fresh = siblings?.[0];
     if (fresh && num(fresh.n) > 0) {
       const lastBeatMs = numOrNull(fresh.lastBeatMs) ?? this.opts.clock.now();
@@ -262,7 +275,7 @@ export class Scheduler {
         }
         // The drain-end reaper requeued every row this boot still held, so none of the rows handed out can be adopted.
         this.handedOut.clear();
-        await handleReaped(reaped ?? [], this.opts);
+        await this.followUp(await handleReaped(reaped ?? [], this.opts));
         this.applySummary(summary?.[0], summaryAtMs);
         if (!this.kickedDuringDrain || this.held || this.stopping) break;
       }

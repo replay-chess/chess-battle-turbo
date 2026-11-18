@@ -91,4 +91,7 @@ export const LEGACY_ROUTES: readonly LegacyRoute[] = [
   // P4 test hook (phase-04 plan §7.7.4, §11.1): 404 for everyone but an admin / the e2e runner, and always in production.
   { file: "app/api/dev/import-fault/route.ts", method: "GET", anonymous: 404, signedInNonAdmin: 404, owner: "P4 WP-E (test hook)" },
   { file: "app/api/dev/import-fault/route.ts", method: "POST", anonymous: 404, signedInNonAdmin: 404, owner: "P4 WP-E (test hook)" },
+  // P6 test hook (phase-06 plan §7.10): 404 without x-e2e-token (every walker request), and always in production.
+  { file: "app/api/dev/emit/route.ts", method: "GET", anonymous: 404, signedInNonAdmin: 404, owner: "P6 WP8 (test hook)" },
+  { file: "app/api/dev/emit/route.ts", method: "POST", anonymous: 404, signedInNonAdmin: 404, owner: "P6 WP8 (test hook)" },
 ];

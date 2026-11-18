@@ -33,6 +33,14 @@ function trappedOn(fen: string, sq: Square, ctx: ThemeContext): boolean {
   if (stay === null || see(stay, sq) <= 0) return false;
   const value = PIECE_VALUE[piece.type as PieceType];
   for (const m of chess.moves({ square: sq, verbose: true })) {
+    // FIX-1 (the tagger's cost): a quiet move to a square the solver does not attack once it is made keeps the
+    // material (exchangeGain = 0 − SEE of a square nobody can take on = 0): an escape, without the exchange's search.
+    if (!m.captured) {
+      chess.move(m);
+      const attacked = chess.isAttacked(m.to, ctx.solver);
+      chess.undo();
+      if (!attacked) return false;
+    }
     const gain = exchangeGain(fen, `${m.from}${m.to}${m.promotion ?? ""}`);
     // A move that keeps the material (gain ≥ 0) is an escape; capturing something worth the piece is one too.
     if (gain === null || gain >= 0 || (m.captured && PIECE_VALUE[m.captured as PieceType] >= value)) return false;
@@ -54,8 +62,9 @@ export function isTrappedPiece(ctx: ThemeContext): boolean {
       const sq = sqName(i);
       const p = chess.get(sq);
       if (!p || p.color !== ctx.defender || p.type === "p" || p.type === "k") continue;
-      if (!trappedOn(step.fenAfter, sq, ctx)) continue;
-      if (steps.slice(k + 1).some((s) => s.solver && s.move.captured === p.type)) return true;
+      // The line must win a piece of that kind later: checked first, it is cheap and rarely true (FIX-1; same result).
+      if (!steps.slice(k + 1).some((s) => s.solver && s.move.captured === p.type)) continue;
+      if (trappedOn(step.fenAfter, sq, ctx)) return true;
     }
   }
   return false;

@@ -78,6 +78,10 @@ import {
   rescheduleToken,
   type FailedJob,
 } from "../queue/outcome";
+import type { WeaknessAnalyzeDeps } from "../weakness/analysis";
+import { isWeaknessMember, isWeaknessTrialing, loadWeaknessContext, scopeOf } from "../weakness/context";
+import { ensureWeaknessCoverage } from "../weakness/coverage";
+import { importTriggerStatement } from "../weakness/triggers";
 import { throwIfAborted, type JobContext, type JobHandler, type JobOutcome } from "./types";
 
 /** The run's `seen` is written at most this often while reading (§9.4 "reading progress ≈ 1 per 5 s"). */
@@ -88,6 +92,11 @@ export interface ImportDeps {
   settings: ImportSettings;
   /** PostHog (phase-04 plan 10.1 import events); the worker's one ProductEvents. */
   events?: ProductEvents;
+  /**
+   * P6 (phase-06 plan §7.4.1 `import`, §7.4.3, §7.4.4): each import page's `weakness:progress` frame, and at the finish
+   * the `import` recompute trigger (in the finish batch) and the J4 coverage. Absent = none.
+   */
+  weakness?: WeaknessAnalyzeDeps;
 }
 
 type Ctx = JobContext<"IMPORT_SYNC">;
@@ -416,6 +425,12 @@ class ImportSync {
       const numbers = { seen: seen ?? 0, imported: res.imported, total, analysed: res.analysed };
       if (phase === "reading") await this.events.reading({ ...numbers, total: null });
       else await this.events.saving(numbers);
+      // P6 (§7.4.4): the member's Computing screen follows the import (throttled per member in the emitter).
+      await this.deps.weakness?.progress.maybeEmit(
+        { userId: this.c.account.userId, userRef: this.c.member.userRef },
+        "import",
+        { done: res.imported, total: phase === "reading" ? null : total },
+      );
     }
   }
 
@@ -542,9 +557,15 @@ class ImportSync {
         ),
       );
     }
+    // P6 (§7.4.1): a sync that added games arms the member's recompute 2 minutes out (its first analyses land
+    // meanwhile), as the last statement of the finish batch (coalesced; the I/O lane's drain-end summary reads its runAt).
+    const weaknessTrigger =
+      this.deps.weakness && this.newRows > 0 ? importTriggerStatement(c.account.userId, nowMs, this.deps.weakness.settings) : null;
+    if (weaknessTrigger) statements.push(weaknessTrigger);
     const out = await ctx.telemetry.span("db.import.finish", { kind: "IMPORT_SYNC" }, () =>
       this.finalBatch(statements, end),
     );
+    if (weaknessTrigger) await this.weaknessCoverage(nowMs);
     // D1: the finish released backlog slices (future runAt) and the run queued analyses: the engine lane re-reads its
     // queue summary on this wake, so its next sleep ends at the earliest new job, not at its old target.
     if (backlog || this.totals.analysisQueued > 0) ctx.wakeEngine?.();
@@ -612,6 +633,32 @@ class ImportSync {
       backlog,
     });
     return "done";
+  }
+
+  /**
+   * P6 J4 (§7.4.3) when the sync finished: enough in-scope games get analysis jobs for a profile, inside P4's eager
+   * budget, and the engine lane is woken when any was queued or raised. Best effort: the recompute runs it again.
+   */
+  private async weaknessCoverage(nowMs: number): Promise<void> {
+    const { ctx, c } = this;
+    const w = this.deps.weakness;
+    if (!w?.settings.enabled) return;
+    try {
+      const wc = await loadWeaknessContext(ctx.db, c.account.userId);
+      if (!wc || !isWeaknessMember(wc, nowMs, this.deps.settings.paywall)) return;
+      const { scope, since } = scopeOf(wc, new Date(nowMs));
+      const out = await ensureWeaknessCoverage(ctx.db, {
+        userId: c.account.userId,
+        scope,
+        since,
+        trialing: isWeaknessTrialing(wc, nowMs),
+        caps: { member: w.settings.analyseCap, trial: w.settings.analyseCapTrial },
+        eager: { cap: this.deps.settings.cap, eagerTrial: this.deps.settings.eagerTrial },
+      });
+      if (out.created + out.raised > 0) ctx.wakeEngine?.();
+    } catch (error) {
+      ctx.log.warn("weakness coverage after the import failed (the recompute retries it)", { error });
+    }
   }
 
   /** After a sync the account is ACTIVE again (finish sets it), so only the auto-import switch decides. */

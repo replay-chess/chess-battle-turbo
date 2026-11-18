@@ -19,6 +19,7 @@ import { doneStatement, lockGuardStatement, ORPHAN_STALE_SEC } from "../queue/ou
 import { RecordingEmitter } from "../socket/emit";
 import { FakeQueue } from "../testing/fake-queue";
 import { FakeClock } from "./clock";
+import { defaultWeaknessSettings } from "../weakness/settings";
 import { collectPlan, planWindow } from "./daily-plan";
 import { RECURRING_SLICES } from "./recurring";
 import { MAX_SLEEP_MS, Scheduler } from "./scheduler";
@@ -44,6 +45,7 @@ function setup(
     bootPlan?: boolean;
     onRun?: (id: string) => Promise<void> | void;
     log?: Logger;
+    onReaped?: (jobs: readonly { id: string; kind: string; status: string }[]) => Promise<void>;
   } = {},
 ) {
   const clock = new FakeClock(T0);
@@ -66,7 +68,11 @@ function setup(
       return "done";
     },
   };
-  const handlers: HandlerMap = { ANALYZE_GAME: analyze, HOUSEKEEPING: housekeepingHandler() };
+  // P6 (phase-06 plan §7.4.7, §12.3): HOUSEKEEPING runs with the weakness slice armed, as the worker boots it.
+  const handlers: HandlerMap = {
+    ANALYZE_GAME: analyze,
+    HOUSEKEEPING: housekeepingHandler(undefined, undefined, { weakness: defaultWeaknessSettings() }),
+  };
   const scheduler: Scheduler = new Scheduler({
     db,
     clock,
@@ -79,6 +85,7 @@ function setup(
     kinds: ["ANALYZE_GAME", "HOUSEKEEPING"],
     payloadVMax: 1,
     envFault: opts.envFault ?? null,
+    ...(opts.onReaped ? { onReaped: opts.onReaped } : {}),
     bootPlan: (): Statement[] =>
       opts.bootPlan === false ? [] : collectPlan(RECURRING_SLICES, planWindow(clock.now())).statements,
     runJob: (job, stopSignal) =>
@@ -169,6 +176,9 @@ describe("scheduler: boot and sleep", () => {
       "training-abandon",
       "training-plans",
       "training-prune",
+      "weakness-roll",
+      "weakness-heal",
+      "weakness-prune",
       "done",
       "claim",
       "reap",
@@ -219,6 +229,45 @@ describe("scheduler: boot and sleep", () => {
     const summaries = s.queue.log.filter((l) => l === "summary").length;
     assert.equal(reaps, 1 + summaries, "boot + one per drain end");
     assert.equal(summaries, 2);
+  });
+});
+
+describe("scheduler: the reap follow-up (P6 INTEGRATE-2)", () => {
+  // regression: boot-reap-weakness. The boot reaper (and the drain-end one) take a stale row of any kind, but only the
+  // I/O lane ran the kinds' follow-up: a worker that died on a RECOMPUTE_WEAKNESS's last attempt left the job FAILED
+  // with no FAILED snapshot and no `weakness:ready {status: failed}`, so the member's page stayed on Computing.
+  const failed = (id: string, kind: string) => ({ id, kind, status: "FAILED", attempts: 3, maxAttempts: 3, runAtMs: T0, gameId: null, payload: {} });
+
+  it("hands the rows the boot reaper failed for good to onReaped, and the drain-end reaper's too", async () => {
+    const seen: { id: string; kind: string; status: string }[][] = [];
+    const s = setup({ bootPlan: false, onReaped: async (jobs) => void seen.push(jobs.map((j) => ({ id: j.id, kind: j.kind, status: j.status }))) });
+    s.queue.reapRows = [[failed("41", "RECOMPUTE_WEAKNESS")], [failed("42", "IMPORT_SYNC")]];
+    await boot(s);
+    assert.deepEqual(seen, [
+      [{ id: "41", kind: "RECOMPUTE_WEAKNESS", status: "FAILED" }],
+      [{ id: "42", kind: "IMPORT_SYNC", status: "FAILED" }],
+    ]);
+  });
+
+  it("no reaped row, no call; a failing hook is logged and the loop goes on", async () => {
+    let calls = 0;
+    const errors: string[] = [];
+    const s = setup({
+      bootPlan: false,
+      log: { ...silentLogger, error: (msg) => void errors.push(msg) },
+      onReaped: async () => {
+        calls++;
+        throw new Error("boom");
+      },
+    });
+    s.queue.reapRows = [[], [failed("43", "RECOMPUTE_WEAKNESS")]];
+    await boot(s);
+    assert.equal(calls, 1);
+    assert.deepEqual(errors, ["reap hook failed"]);
+    const job = analysis(s.queue, s.clock.now());
+    s.scheduler.kick(kick());
+    await s.clock.advance(0);
+    assert.equal(job.status, "DONE", "the loop still drains");
   });
 });
 

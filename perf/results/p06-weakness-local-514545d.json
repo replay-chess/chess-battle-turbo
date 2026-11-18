@@ -1,0 +1,120 @@
+{
+  "statuses": {
+    "tr5_cold": {
+      "200": 80
+    },
+    "tr5_revalidate": {
+      "304": 80
+    },
+    "recompute": {
+      "202": 4,
+      "429": 8
+    },
+    "drill_start": {
+      "200": 16,
+      "201": 4
+    }
+  },
+  "tool": "node fetch smoke of perf/k6/src/scenarios/weakness.ts (k6 is not installed in stage A; run the k6 scenario in stage B)",
+  "target": "http://localhost:3700",
+  "members": 4,
+  "data": "4 pool users reset to weak-member: 54 real CC0 Lichess games each, graded by the local e2e worker (fake engine), Docker Postgres 17",
+  "volumes": {
+    "cold": 80,
+    "revalidate": 80,
+    "vus": 4,
+    "burst": 12,
+    "drill": 20
+  },
+  "thresholds": {
+    "http_req_duration{name:tr5_cold} p(95)<160": true,
+    "http_req_duration{name:tr5_revalidate} p(95)<80": true,
+    "http_req_duration{name:drill_start} p(95)<250": true,
+    "revalidate_304 rate>=0.95": true,
+    "weakness_errors rate<0.005": true,
+    "burst: exactly one 202 per member": true
+  },
+  "metrics": {
+    "http_req_duration{name:tr5_cold}": {
+      "values": {
+        "count": 80,
+        "avg": 10.945333887499965,
+        "med": 9.87237499999992,
+        "p(90)": 15.640416999999616,
+        "p(95)": 17.439582999999402,
+        "p(99)": 28.031750000000102,
+        "max": 28.031750000000102
+      }
+    },
+    "server_total": {
+      "values": {
+        "count": 192,
+        "avg": 8.694270833333333,
+        "med": 4.8,
+        "p(90)": 21.1,
+        "p(95)": 36.6,
+        "p(99)": 51.4,
+        "max": 53.6
+      }
+    },
+    "http_req_duration{name:tr5_revalidate}": {
+      "values": {
+        "count": 80,
+        "avg": 8.760358900000005,
+        "med": 8.384750000000167,
+        "p(90)": 10.293249999999716,
+        "p(95)": 10.680583000000297,
+        "p(99)": 15.28125,
+        "max": 15.28125
+      }
+    },
+    "http_req_duration{name:recompute}": {
+      "values": {
+        "count": 12,
+        "avg": 25.04840291666672,
+        "med": 20.19720899999993,
+        "p(90)": 33.86708300000009,
+        "p(95)": 34.736417000000074,
+        "p(99)": 34.736417000000074,
+        "max": 34.736417000000074
+      }
+    },
+    "http_req_duration{name:drill_start}": {
+      "values": {
+        "count": 20,
+        "avg": 45.493970799999985,
+        "med": 46.960957999999664,
+        "p(90)": 56.57245900000089,
+        "p(95)": 61.84825000000001,
+        "p(99)": 63.880707999999686,
+        "max": 63.880707999999686
+      }
+    },
+    "revalidate_304": {
+      "values": {
+        "rate": 1
+      }
+    },
+    "weakness_errors": {
+      "values": {
+        "rate": 0
+      }
+    },
+    "burst_202": {
+      "values": {
+        "count": 4
+      }
+    },
+    "burst_429": {
+      "values": {
+        "count": 8
+      }
+    },
+    "burst_other": {
+      "values": {
+        "count": 0
+      }
+    }
+  },
+  "at": "2026-11-18T03:55:06.159Z"
+}

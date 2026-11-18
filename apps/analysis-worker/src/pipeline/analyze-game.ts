@@ -24,7 +24,7 @@
 // the start of `pass1`, `writing` (pass 2) or `write` (the final batch).
 import { gradeAnalysis, type AnalysisMember, type AnalysisResult } from "@repo/chess-analysis/analysis";
 import { classifyGame, gradeCodes } from "@repo/chess-analysis/classify";
-import { decodeMove, type Color } from "@repo/chess-analysis/codec";
+import { decodeMove, errorJudgementOf, moverAt, type Color } from "@repo/chess-analysis/codec";
 import { acceptMoves, pass2Candidates } from "@repo/chess-analysis/moments";
 import { regradeAnalysis } from "@repo/chess-analysis/regrade";
 import { replayUci, type Replay } from "@repo/chess-analysis/replay";
@@ -37,7 +37,7 @@ import { analysisDoneDedupeKey } from "@repo/contracts/socket/analysis";
 import { buildReviewContent, LinesV1 } from "@repo/db/json";
 import type { Fault } from "../config/faults";
 import { evalSourceOf, hintedPass1, usableHint } from "../import/eval-hint";
-import { REAP_STALE_SEC } from "../queue/outcome";
+import { doneStatement, lockGuardStatement, REAP_STALE_SEC } from "../queue/outcome";
 import { buildEvent } from "../socket/events";
 import { JobAborted, JobError, type JobContext, type JobHandler } from "../jobs/types";
 import type { ProductEvents } from "../obs/posthog";
@@ -56,6 +56,12 @@ import {
 } from "./final-batch";
 import type { BankEmit } from "./batch-events";
 import { divergenceOf, evalAtDivergence, legendPosition, memberFacts, type MemberFacts } from "./legend";
+import type { WeaknessBatchPlan } from "./final-batch/types";
+import { weaknessBatchPlan, type WeaknessAnalyzeDeps } from "../weakness/analysis";
+import { healReadStatement } from "../weakness/heal";
+import { sideInputsOf, sideInputsUpdateStatement, type SideInputsRow } from "../weakness/inputs";
+import { analysisTriggerStatement } from "../weakness/triggers";
+import { stmt, type Statement } from "../db/client";
 import { openingOf, type OpeningBook, type OpeningIndex } from "./openings";
 import { fromInitialPosition, planPositions, type PositionPlan } from "./positions";
 import { ProgressStream } from "./progress";
@@ -90,6 +96,11 @@ export interface AnalyzeDeps {
   extensions?: readonly FinalBatchExtension[];
   /** P5 J1; absent = off (the analysis completes, the backfill extracts later). */
   bank?: BankExtractSettings;
+  /**
+   * P6 (phase-06 plan §7.4.1, §7.4.4): the weakness input columns and the `analysis` trigger in the final batch, the
+   * progress frame and `first_build` after the commit. Absent (or WEAKNESS_JOBS_ENABLED off) = none of them.
+   */
+  weakness?: WeaknessAnalyzeDeps;
 }
 
 /** The P5 emit values per member ref, from a committed batch; null = unknown (lost response, J1 off). */
@@ -175,6 +186,20 @@ export function previousFailure(lastError: string | null): AnalysisFailureCode |
   return code && (FAILURE_CODES as readonly string[]).includes(code) ? (code as AnalysisFailureCode) : null;
 }
 
+/** The member colours of a loaded game (the sides whose errors the weakness lines are searched for). */
+function memberSides(game: Pick<LoadedGame, "members">): ReadonlySet<Color> {
+  return new Set(game.members.map((m) => m.color));
+}
+
+/** P6 FIX-2 `weakness_lines`: the game's members (user id, colour, result) with an analysed side. */
+export function linesMembersStatement(gameId: string): Statement {
+  return stmt(
+    `SELECT gp."userId"::text AS "userId", gp.color, gp.result::text AS result
+   FROM game_players gp WHERE gp."gameId" = $1::bigint AND gp.accuracy IS NOT NULL`,
+    [gameId],
+  );
+}
+
 export function analyzeGameHandler(deps: AnalyzeDeps): JobHandler<"ANALYZE_GAME"> {
   const extensions = deps.extensions ?? FINAL_BATCH_EXTENSIONS;
   return {
@@ -217,6 +242,8 @@ class Run {
   private readonly startedMs: number;
   private readonly fault: Fault | null;
   private stream: ProgressStream | null = null;
+  /** The loaded game's members (the P6 progress frames after the commit). */
+  private loadedMembers: readonly GameMember[] = [];
   private searcher: Searcher | null = null;
   private lastCheckpoint = 0;
 
@@ -251,11 +278,14 @@ class Run {
   async go(): Promise<"done"> {
     const { ctx } = this;
     if (this.fault?.kind === "engine_crash") ctx.engine?.injectCrash(this.fault.count);
+    // P6 FIX-2: a weakness lines refresh never loads the game for analysis (that marks it RUNNING).
+    if (ctx.payload.reason === "weakness_lines") return this.linesRefresh();
     const game = await this.span("load", () => this.deps.store.load(ctx.payload.gameId, ctx.job.id));
     if (!game) {
       if (await this.endIfGone()) return "done";
       throw new JobError("internal", "the game no longer exists", { terminal: true });
     }
+    this.loadedMembers = game.members;
     try {
       return await this.analyse(game);
     } catch (error) {
@@ -346,11 +376,16 @@ class Run {
     const newFacts = facts.filter((f) => !f.stored);
     let factsPending = newFacts.length > 0;
     const pass1Ms0 = ctx.clock.now();
+    // P6 (FIX-1): the pass-1 PV of every position searched here, so a member error without a stored pass-2 line is
+    // tagged from a full line, as the J5 baseline tags every error (weaknessLines fills the plies this run did not
+    // search: a resumed run's earlier plies, an eval-hinted import).
+    const pass1Pv: Array<readonly string[] | undefined> = [];
     // P4: an imported Lichess game whose export evaluated every ply skips pass 1's searches (import/eval-hint.ts).
     const hint = usableHint(ctx.payload.evalHint, n, resume.graded);
     await this.span("pass1", async () => {
       if (hint) {
         const start = await searcher.evaluate(positions[0] as PositionPlan, ENGINE_PROFILE.pass1, { pass1: true });
+        pass1Pv[0] = start.lines[0]?.pv;
         Object.assign(arrays, hintedPass1(hint, start, positions.map((p) => p.terminal)));
         return;
       }
@@ -367,6 +402,7 @@ class Run {
         });
         const pos = positions[i] as PositionPlan;
         const e = await searcher.evaluate(pos, ENGINE_PROFILE.pass1, { pass1: true });
+        pass1Pv[i] = e.lines[0]?.pv;
         arrays.evals[i] = e.eval;
         arrays.second[i] = e.second;
         arrays.best[i] = e.best;
@@ -447,6 +483,9 @@ class Run {
     const bank = this.deps.bank?.enabled
       ? await this.span("extract", () => this.extractBank(game, replay!, arrays, result, searcher))
       : null;
+    // No span of its own: the analysis's span list is P3's (its searches show in the job's engine time and in the
+    // `worker.weakness.line_searches` count).
+    if (this.deps.weakness?.settings.enabled) await this.weaknessLines(memberSides(game), replay!, positions, result, arrays.best, pass1Pv, searcher);
     const plan = planExtensions(this.extensions, {
       gameId: game.id,
       gameRef: game.ref,
@@ -459,6 +498,19 @@ class Run {
       importRunId: ctx.payload.importRunId ?? null,
       evalSource: evalSourceOf(hint !== null, searched),
       bank,
+      weakness: this.weaknessPlan(
+        game,
+        replay!,
+        {
+          evals: arrays.evals,
+          best: arrays.best,
+          judgements: result.judgements,
+          lines: result.lines,
+          middlegamePly: result.division.middlegamePly,
+          endgamePly: result.division.endgamePly,
+        },
+        (ply) => pass1Pv[ply],
+      ),
     });
 
     await this.pauseAt("write");
@@ -488,6 +540,7 @@ class Run {
     reportCommitted(plan, extensionRows, { metrics: ctx.metrics, telemetry: ctx.telemetry, events: this.deps.events, batchMs: ctx.clock.now() - batchMs0 });
     ctx.heartbeat.noteWrite();
     ctx.evalCache?.flush();
+    await this.weaknessAfterCommit(plan.ctx.weakness ?? null);
     await this.stream.drain();
     await this.announce(
       game,
@@ -784,6 +837,14 @@ class Run {
       }),
     );
     const members = await this.span("text", async () => this.memberWrites(game, result));
+    // FIX-2 (D-P6-FIX2-8): with an engine at hand (the engine lane always has one), a regrade gives every member error
+    // its full pass-1 line and refutation, as a fresh analysis does, so a regrade (P3's sweep, or the one P6 arms for a
+    // row healed or backfilled from stored data alone) tags like the J5 band. Without one it tags from stored data.
+    const regradePv: Array<readonly string[] | undefined> = [];
+    if (this.deps.weakness?.settings.enabled && ctx.engine) {
+      const searcher = new Searcher({ engine: ctx.engine, cache: ctx.evalCache, lag: ctx.lag, signal: ctx.signal, fromInitial: fromInitialPosition(replay) });
+      await this.weaknessLines(memberSides(game), replay, planPositions(replay), result, stored.best, regradePv, searcher);
+    }
     const plan = planExtensions(this.extensions, {
       gameId: game.id,
       gameRef: game.ref,
@@ -795,6 +856,19 @@ class Run {
       regrade: true,
       bankReextract: this.deps.bank?.enabled === true,
       analysisVersion: result.version,
+      weakness: this.weaknessPlan(
+        game,
+        replay,
+        {
+          evals: stored.evals,
+          best: stored.best,
+          judgements: result.judgements,
+          lines: result.lines,
+          middlegamePly: result.division.middlegamePly,
+          endgamePly: result.division.endgamePly,
+        },
+        (ply) => regradePv[ply],
+      ),
     });
     await this.pauseAt("write");
     const batchMs0 = ctx.clock.now();
@@ -833,6 +907,7 @@ class Run {
     );
     reportCommitted(plan, extensionRows, { metrics: ctx.metrics, telemetry: ctx.telemetry, events: this.deps.events, batchMs: ctx.clock.now() - batchMs0 });
     ctx.heartbeat.noteWrite();
+    await this.weaknessAfterCommit(plan.ctx.weakness ?? null);
     // A regrade runs no engine, so it does not extract inline (the puzzle lines would lose their extension): its batch
     // queued one EXTRACT_MISTAKES job per member side (p05-bank, FIX-1), which follows the new key moments. The bank
     // fields are unknown here and the client reads A2.
@@ -886,6 +961,149 @@ class Run {
       );
   }
 
+  // ── P6 ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  /**
+   * FIX-2 (docs/decisions.md D-P6-FIX2-8): a `weakness_lines` job (armed by the recompute's heal or B-W1 for a game
+   * whose inputs were computed from stored data alone). Reads the FINISHED analysis (the heal's read), searches every
+   * member error's pass-1 line and the position after it (`weaknessLines`), recomputes the members' five input columns
+   * and writes them in ONE guarded batch with the `analysis` trigger (READY members) and the job DONE. The game's
+   * analysis status, its review and its analysis job are never touched; an unfinished analysis writes the inputs
+   * itself (skipped), and so does a worker with the weakness jobs off.
+   */
+  private async linesRefresh(): Promise<"done"> {
+    const { ctx } = this;
+    const settings = this.deps.weakness?.settings;
+    const finish = async (statements: Statement[], result: Record<string, unknown>) => {
+      await ctx.db.batch([lockGuardStatement(ctx.job.id, ctx.me), ...statements, doneStatement(ctx.job.id, ctx.me, result)]);
+      ctx.heartbeat.noteWrite();
+      return "done" as const;
+    };
+    if (!settings?.enabled || !ctx.engine) return finish([], { skipped: settings?.enabled ? "no_engine" : "disabled" });
+    const [row] = await ctx.db.query(healReadStatement([ctx.payload.gameId], 1));
+    const members = await ctx.db.query(linesMembersStatement(ctx.payload.gameId));
+    if (!row || members.length === 0) return finish([], { skipped: "not_analysed" });
+    const moves = typeof row.moves === "string" ? row.moves.trim().split(/\s+/).filter(Boolean) : [];
+    let replay: Replay;
+    try {
+      replay = replayUci(String(row.startingFen), moves);
+    } catch {
+      return finish([], { skipped: "unreplayable" });
+    }
+    const numbers = (v: unknown): number[] => (Array.isArray(v) ? v.map((x) => Number(x)) : []);
+    const analysis = {
+      evals: numbers(row.evals),
+      best: numbers(row.best),
+      judgements: numbers(row.judgements),
+      lines: row.lines && typeof row.lines === "object" ? (row.lines as Record<string, { pv: string }>) : null,
+      middlegamePly: row.middlegamePly === null ? null : Number(row.middlegamePly),
+      endgamePly: row.endgamePly === null ? null : Number(row.endgamePly),
+    };
+    const sides = new Set(members.map((m) => m.color as Color));
+    const searcher = new Searcher({ engine: ctx.engine, cache: ctx.evalCache, lag: ctx.lag, signal: ctx.signal, fromInitial: fromInitialPosition(replay) });
+    const pv: Array<readonly string[] | undefined> = [];
+    const lines = (analysis.lines ?? {}) as unknown as AnalysisResult["lines"];
+    const searched = await this.weaknessLines(sides, replay, planPositions(replay), { judgements: analysis.judgements, lines }, analysis.best, pv, searcher);
+    const rows: SideInputsRow[] = [];
+    for (const m of members) {
+      const out = sideInputsOf(
+        ctx.payload.gameId,
+        {
+          startingFen: String(row.startingFen),
+          startPly: Number(row.startPly ?? 0),
+          moves: replay.uci,
+          moveClocksMs: numbers(row.moveClocksMs),
+          initialTimeSeconds: row.initialTimeSeconds === null ? null : Number(row.initialTimeSeconds),
+          timeClass: typeof row.timeClass === "string" ? row.timeClass : null,
+        },
+        analysis,
+        { color: m.color as Color, result: (m.result as "WIN" | "LOSS" | "DRAW" | "ABORTED" | null) ?? null },
+        { replay, pass1Pv: (ply) => pv[ply], onError: (error) => ctx.log.warn("weakness lines: a side could not be computed", { gameRef: this.gameRef, error }) },
+      );
+      if (out) rows.push(out);
+    }
+    const trigger = analysisTriggerStatement(
+      members.map((m) => String(m.userId)),
+      settings,
+    );
+    ctx.telemetry.metric("count", "worker.weakness.lines_refreshed", rows.length);
+    return finish([...(rows.length ? [sideInputsUpdateStatement(rows)] : []), ...(trigger ? [trigger] : [])], { linesRefreshed: rows.length, searched });
+  }
+
+  /** The weakness input columns and the in-scope members of this game (weakness/analysis.ts), or null when off. */
+  private weaknessPlan(
+    game: LoadedGame,
+    replay: Replay,
+    analysis: Parameters<typeof weaknessBatchPlan>[0]["analysis"],
+    pass1Pv?: (ply: number) => readonly string[] | undefined,
+  ): WeaknessBatchPlan | null {
+    const deps = this.deps.weakness;
+    if (!deps?.settings.enabled) return null;
+    return weaknessBatchPlan({
+      game,
+      replay,
+      analysis,
+      settings: deps.settings,
+      now: new Date(this.ctx.clock.now()),
+      ...(pass1Pv ? { pass1Pv } : {}),
+      onError: (error) => {
+        this.ctx.log.warn("weakness inputs could not be computed for a side (left at 0, healed later)", { gameRef: this.gameRef, error });
+        this.ctx.telemetry.metric("count", "worker.weakness.inputs_failed", 1);
+      },
+    });
+  }
+
+  /**
+   * FIX-1 (the member/band tagging bias): every MISTAKE, BLUNDER and MISS of a member side needs a full line for the
+   * theme tagger, as the J5 baseline has for every error. Pass 2 stores lines for the review's moments only, and pass
+   * 1 kept its PVs in `pass1Pv`; the plies with neither (a resumed run's earlier plies, an eval-hinted import that
+   * skipped pass 1) get one pass-1 search here (cached positions cost nothing). Mutates `pass1Pv`.
+   */
+  private async weaknessLines(
+    sides: ReadonlySet<Color>,
+    replay: Replay,
+    positions: readonly PositionPlan[],
+    result: Pick<AnalysisResult, "judgements" | "lines">,
+    best: readonly number[],
+    pass1Pv: Array<readonly string[] | undefined>,
+    searcher: Searcher,
+  ): Promise<number> {
+    const lines = result.lines as Record<string, { pv?: string } | undefined>;
+    let searched = 0;
+    const search = async (ply: number): Promise<void> => {
+      const pos = positions[ply] as PositionPlan | undefined;
+      if (!pos || pos.terminal !== null) return;
+      const e = await searcher.evaluate(pos, ENGINE_PROFILE.pass1, { pass1: false });
+      pass1Pv[ply] = e.lines[0]?.pv;
+      searched += 1;
+    };
+    for (let i = 0; i < replay.uci.length; i++) {
+      if (!sides.has(moverAt(i, replay.startMover))) continue;
+      if (errorJudgementOf(result.judgements[i] ?? 0) === null) continue;
+      if (!lines[String(i)]?.pv && pass1Pv[i] === undefined) await search(i);
+      // FIX-2 (D-P6-FIX2-4): the opponent's best reply to the error (the refutation rc:missedThreat and
+      // rc:pawnStructure read), as J5 searches position i + 1 for the band: an eval-hinted import knows no best move
+      // past position 0, so without this its members could never show "Missed threats".
+      const next = i + 1;
+      if (!lines[String(next)]?.pv && decodeMove(best[next] ?? 0) === null && pass1Pv[next] === undefined) await search(next);
+    }
+    if (searched > 0) this.ctx.telemetry.metric("count", "worker.weakness.line_searches", searched);
+    return searched;
+  }
+
+  /**
+   * After the commit (§7.4.4): a member whose scope holds this game and who has no READY profile gets a progress frame
+   * (and `first_build` at 5, 10, 15, 20+); the I/O lane is told when the batch armed an `analysis` recompute.
+   */
+  private async weaknessAfterCommit(plan: WeaknessBatchPlan | null): Promise<void> {
+    const deps = this.deps.weakness;
+    if (!deps || !plan || plan.inScope.length === 0) return;
+    this.ctx.wakeIo?.(this.ctx.clock.now() + plan.settings.debounceSec * 1000);
+    for (const userId of plan.inScope) {
+      const userRef = this.loadedMembers.find((m) => m.userId === userId)?.userRef;
+      if (userRef) await deps.progress.maybeEmit({ userId, userRef }, "analysis");
+    }
+  }
+
   // ── P5 J1 ──────────────────────────────────────────────────────────────────────────────────────────────────
   /** The Mistake Bank rows of this game (phase-05 plan §7.6 J1), or null when J1 is off. */
   private async extractBank(
@@ -921,6 +1139,8 @@ class Run {
         timeClass: game.timeClass ?? null,
         ecoCode: game.ecoCode,
         colorUnknown: game.colorUnknown === true,
+        moveClocksMs: game.moveClocksMs ?? [],
+        initialTimeSeconds: game.initialTimeSeconds ?? null,
         now: new Date(ctx.clock.now()),
       },
       {
@@ -974,6 +1194,7 @@ class Run {
     const fromGameEnd = measured ? clampMs(now - (game.completedAtMs as number)) : null;
     const stats = this.searcher?.stats;
     ctx.telemetry.metric("distribution", "worker.job.duration_ms", durationMs, { kind: "ANALYZE_GAME", pass: "total" });
+    if (!run.regrade) this.deps.weakness?.progress.noteAnalysisMs(durationMs);
     if (!run.regrade) {
       ctx.telemetry.metric("distribution", "worker.job.duration_ms", clampMs(run.pass1Ms), {
         kind: "ANALYZE_GAME",

@@ -63,7 +63,10 @@ describe("how we grade: content from the grader's constants", () => {
   });
 
   it("maps hash anchors to their tab", () => {
-    assert.deepEqual([...HWG_TABS], ["labels", "acc"]);
+    // P6 adds the Weakness Profile tab (`#weakness`, the profile's "How this is calculated" link).
+    assert.deepEqual([...HWG_TABS], ["labels", "acc", "weakness"]);
+    assert.equal(tabOfAnchor("weakness"), "weakness");
+    assert.equal(tabOfAnchor("weakness-list"), "weakness");
     for (const k of JUDGEMENT_KEYS) assert.equal(tabOfAnchor(k), "labels");
     assert.equal(tabOfAnchor("failures"), "acc");
     assert.equal(tabOfAnchor("nope"), null);

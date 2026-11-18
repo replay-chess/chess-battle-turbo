@@ -7,6 +7,7 @@
 // a card for this position, decrements the theme's `bankCount`, and bumps the reviews that show the position (their
 // A1 ETag moves, so "Added" turns into "Not added"). Already removed → 204.
 import { Prisma } from "@repo/db";
+import { weaknessHiddenSql } from "@repo/db/weakness-jobs";
 import type { SkipResult } from "@repo/contracts/http/train";
 import { dayLabel } from "@repo/chess-training/labels";
 import { decodeMistakeItemKey } from "@repo/chess-training/items";
@@ -54,6 +55,8 @@ export async function skipCard(viewer: Viewer, ref: string, sessionRef: string |
  * Lock order (FIX-2): the review rows of every game that holds the mistake, then the mistake, then the card and its
  * theme row: the order an extraction batch takes them (bankStatements.ts: L the game's review rows, 1 the mistake,
  * 4 the card and `theme_mastery`), so W6 / A6 off and a J1 of another game holding the same mistake never deadlock.
+ * P6 (FIX-1): then the member's RECOMPUTE_WEAKNESS row (`removed`, only with a READY profile), last, as the analysis
+ * batch takes it.
  */
 export async function removeBankCard(db: TrainDb, userId: bigint, where: { ref: string } | { mistakeId: bigint }, now: Date): Promise<bigint | null> {
   const target =
@@ -77,12 +80,20 @@ export async function removeBankCard(db: TrainDb, userId: bigint, where: { ref: 
     SELECT "mistakeId" FROM c`);
   const mistakeId = deleted[0]?.mistakeId ?? ("mistakeId" in where ? where.mistakeId : null);
   if (mistakeId === null) return null;
-  const hidden = await db.$queryRaw<{ color: string }[]>(Prisma.sql`UPDATE mistakes SET "hiddenAt" = COALESCE("hiddenAt", ${at(now)}), "updatedAt" = ${NOW_UTC}
-    WHERE id = ${mistakeId} AND "userId" = ${userId} RETURNING color`);
+  // `newlyHidden`: the row was visible before this statement (the FROM sub-select reads the pre-update row).
+  const hidden = await db.$queryRaw<{ color: string; newlyHidden: boolean }[]>(Prisma.sql`UPDATE mistakes m SET "hiddenAt" = COALESCE(m."hiddenAt", ${at(now)}), "updatedAt" = ${NOW_UTC}
+    FROM (SELECT "hiddenAt" AS was FROM mistakes WHERE id = ${mistakeId} AND "userId" = ${userId}) o
+    WHERE m.id = ${mistakeId} AND m."userId" = ${userId} RETURNING m.color, (o.was IS NULL) AS "newlyHidden"`);
   if (hidden[0]) {
     await db.$executeRaw(Prisma.sql`UPDATE player_reviews pr SET "updatedAt" = ${NOW_UTC}
       FROM mistake_occurrences mo
       WHERE mo."mistakeId" = ${mistakeId} AND pr."gameId" = mo."gameId" AND pr.color = ${hidden[0].color}`);
+    // P6 (FIX-1): a READY Weakness Profile may show this mistake as a row's example position; re-arm the member's
+    // recompute (`removed`), so the example moves to a visible mistake. The job row is the last lock taken, as in
+    // the analysis batch. No READY profile: nothing is armed. FIX-2 (D-P6-FIX2-15): only a real visible → hidden
+    // change arms, and never faster than TR-12's limit (`weaknessHiddenSql`): A6 inBank=false on an already hidden
+    // mistake, or hide / un-hide toggles, cannot queue recomputes past 1 per 600 s.
+    if (hidden[0].newlyHidden) await db.$queryRaw(weaknessHiddenSql(userId));
   }
   return deleted.length ? mistakeId : null;
 }

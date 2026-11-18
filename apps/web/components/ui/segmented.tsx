@@ -24,6 +24,8 @@ export type SegmentedProps<T extends string = string> = {
   "aria-label": string;
   /** Full width, equal segments. */
   fill?: boolean;
+  /** "touch": 44 px segments on every pointer (P6 FIX-1: the weakness drill's size choice, plan §4.3 hit targets). */
+  size?: "default" | "touch";
   disabled?: boolean;
   name?: string;
   className?: string;
@@ -61,6 +63,7 @@ export function Segmented<T extends string = string>({
   items,
   "aria-label": ariaLabel,
   fill = false,
+  size = "default",
   disabled,
   name,
   className,
@@ -119,6 +122,7 @@ export function Segmented<T extends string = string>({
               "disabled:cursor-not-allowed disabled:text-cb-text-disabled",
               // Equal segments may wrap their label rather than push the row past its box.
               fill && "min-w-0 flex-1 basis-0 py-1 text-center leading-tight whitespace-normal",
+              size === "touch" && "min-h-11",
             )}
           >
             {item.icon ? (

@@ -10,6 +10,7 @@
     "./games": "./src/games/index.ts",
     "./json": "./src/json/index.ts",
     "./jobs": "./src/jobs.ts",
+    "./weakness-jobs": "./src/weakness-jobs.ts",
     "./import-backlog": "./src/import-backlog.ts",
     "./audit": "./src/audit.ts",
     "./seed-guards": "./prisma/seed-guards.ts",

@@ -10,6 +10,7 @@ import { z } from "zod";
 import { ProviderSlug, ImportErrorCode } from "../http/accounts";
 import { Ref } from "../http/common";
 import { Entitlement } from "../http/me";
+import { ProgressStepKey } from "../http/weakness";
 
 const Count = z.int().min(0);
 
@@ -128,6 +129,45 @@ export const MistakesAddedEvent = z.object({
 });
 export type MistakesAddedEvent = z.infer<typeof MistakesAddedEvent>;
 
+// ── P6 (phase-06 plan §7.3, §7.4.4): the Weakness Profile events ───────────────────────────────────────────────
+// The worker (kid `wk`, `weakness:*` in INTERNAL_POLICY) emits both to the member's user room. `z.object`, not strict
+// (interface check §0.7): the socket parses `data` with these schemas, and an older socket must not drop a frame a
+// newer worker sent with an extra field.
+
+/** `weakness:progress` at most once per this interval per user, or on every WEAKNESS_PROGRESS_STEP_PCT step. */
+export const WEAKNESS_PROGRESS_MIN_GAP_MS = 10_000;
+export const WEAKNESS_PROGRESS_STEP_PCT = 5;
+
+/** `weakness:ready:<userRef>:<snapshotKey>`: one frame per snapshot write. */
+export function weaknessReadyDedupeKey(userRef: string, snapshotKey: string): string {
+  return `weakness:ready:${userRef}:${snapshotKey}`;
+}
+
+/** While the member has no READY profile: an in-scope analysis finished, an import page landed, a recompute started. */
+export const WeaknessProgressEvent = z.object({
+  v: z.literal(1),
+  pct: z.int().min(0).max(100),
+  step: ProgressStepKey,
+  etaSec: z.int().min(0).max(86_400).nullable(),
+  stalled: z.boolean(),
+  analysed: Count,
+  target: z.int().min(1).max(300),
+  importDone: Count.nullable(),
+  importTotal: Count.nullable(),
+});
+export type WeaknessProgressEvent = z.infer<typeof WeaknessProgressEvent>;
+
+/** After every snapshot write (READY, INSUFFICIENT or FAILED). `bumped` → the client turns the Train dot on. */
+export const WeaknessReadyEvent = z.object({
+  v: z.literal(1),
+  snapshotKey: z.string().min(1).max(40),
+  status: z.enum(["ready", "insufficient", "failed"]),
+  version: Count,
+  bumped: z.boolean(),
+  topLabel: z.string().max(40).nullable(),
+});
+export type WeaknessReadyEvent = z.infer<typeof WeaknessReadyEvent>;
+
 // ── Registry input (registry.ts spreads these into EMIT_EVENTS with `to: ["user"]`, `seq: false`) ──────────────
 export const USER_EVENTS = {
   "import:progress": ImportProgressEvent,
@@ -136,6 +176,8 @@ export const USER_EVENTS = {
   "entitlement:changed": EntitlementChangedEvent,
   "bank:due_changed": BankDueChangedEvent,
   "mistakes:added": MistakesAddedEvent,
+  "weakness:progress": WeaknessProgressEvent,
+  "weakness:ready": WeaknessReadyEvent,
 } as const;
 export type UserEventName = keyof typeof USER_EVENTS;
 export type UserEventPayload<N extends UserEventName> = z.output<(typeof USER_EVENTS)[N]>;
@@ -147,6 +189,10 @@ export const USER_EVENT_NAMES = Object.keys(USER_EVENTS) as UserEventName[];
  * asserted by test/user.p4.test.ts (worst cases today: 153 / 231 / 160 / 547 B). §7.6's "≈ 125 B" is the typical progress frame.
  * P5 (phase-05 §9.4 "≤ 120 B each", asserted by test/user.p5.test.ts with 5-digit counters and an ISO instant):
  * bank:due_changed 88 B, mistakes:added 84 B.
+ * P6 (phase-06 §7.3, §9.3; asserted by test/user.p6.test.ts): weakness:progress 138 B (6-digit counters, a full-day
+ * ETA) within the plan's 180 B. weakness:ready measures 154 B at its schema limits (a 7-digit version, the plan's own
+ * 40-character `topLabel` maximum): the plan's "≤ 120 B" cannot hold that schema, so the budget is 160 B (a typical
+ * READY frame is 112 B).
  */
 export const USER_EVENT_BUDGETS = {
   "import:progress": 192,
@@ -155,4 +201,6 @@ export const USER_EVENT_BUDGETS = {
   "entitlement:changed": 640,
   "bank:due_changed": 120,
   "mistakes:added": 120,
+  "weakness:progress": 180,
+  "weakness:ready": 160,
 } as const satisfies Record<UserEventName, number>;

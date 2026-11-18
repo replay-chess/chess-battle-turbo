@@ -10,7 +10,7 @@ import { Prisma } from "@repo/db";
 import { DEFAULT_DAY_START_HOUR, DEFAULT_RELEASE_HOUR } from "@repo/chess-training/constants";
 import { dueSummarySql, dueSummaryOf, ZERO_DAY, type DayCounters, type DueSummary } from "./badges.server";
 import { dayParam, num, type TrainDb } from "./db.server";
-import { defaultProfile, profileOfRow, profileSql, ratingsSql, seedOf, type RatingSource, type TrainingProfile } from "./profile.server";
+import { profileOfRow, profileSql, ratingsSql, seededProfile, seedOf, unseededRow, type RatingSource, type TrainingProfile } from "./profile.server";
 
 export type TrainClock = {
   now: Date;
@@ -122,8 +122,8 @@ export async function loadTrainState(db: TrainDb, viewer: Pick<Viewer, "id" | "o
     db.$queryRaw<DayRow[]>(recentDaysSql(viewer.id, guess.today)),
   ]);
   let profile: TrainingProfile;
-  if (profileRows[0]) profile = profileOfRow(profileRows[0]);
-  else profile = defaultProfile(seedOf(viewer, await db.$queryRaw<RatingSource[]>(ratingsSql(viewer.id))));
+  if (profileRows[0] && !unseededRow(profileRows[0])) profile = profileOfRow(profileRows[0]);
+  else profile = seededProfile(profileRows[0], seedOf(viewer, await db.$queryRaw<RatingSource[]>(ratingsSql(viewer.id))));
   const clock = trainClock(now, tz, profile, dayAnchorOf(dayRows));
   const due =
     clock.nextRelease.getTime() === guess.nextRelease.getTime()

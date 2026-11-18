@@ -35,6 +35,8 @@ export const KICK_REASONS = [
   // after ACC-8 and the import-status kick CAS.
   "import",
   "import_retry",
+  // P6 (phase-06 plan §7.5 WK-1; interface check §0.6): TR-12, the TR-5 kick CAS and B-W3 wake RECOMPUTE_WEAKNESS.
+  "weakness",
 ] as const;
 export type KickReason = (typeof KICK_REASONS)[number];
 

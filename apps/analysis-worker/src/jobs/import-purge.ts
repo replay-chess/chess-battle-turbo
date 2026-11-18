@@ -13,7 +13,9 @@
 //      analyses, reviews, shares), and on games another member also imported only this member's player id. A resend
 //      after a lost response purges the next batch or nothing, so the loop needs no retry form. After each batch
 //      `games:changed {v:1}` (the import's per-member 10 s throttle, import/progress.ts, and one at the end);
-//   3. ONE guarded batch: the `account.purged` audit row (meta {provider, games}) + the job DONE. A resend after a
+//   3. ONE guarded batch: the `account.purged` audit row (meta {provider, games}), P6's `removed` recompute trigger when
+//      rows went and the member has a weakness snapshot (FIX-1), the member's weakness snapshots deleted, every week
+//      (FIX-2: they were computed from the purged games), + the job DONE. A resend after a
 //      lost response fails on the guard; `outcomeByMeStatement` then confirms the first send committed, so the
 //      audit row is written exactly once.
 //
@@ -27,6 +29,8 @@ import { importMetric } from "../import/metrics";
 import { noopProductEvents, type ProductEvents } from "../obs/posthog";
 import { ImportEvents } from "../import/progress";
 import { doneStatement, isLockLost, lockGuardStatement, outcomeByMeStatement } from "../queue/outcome";
+import { purgedSnapshotsStatement, removedTriggerStatement } from "../weakness/triggers";
+import type { WeaknessSettings } from "../weakness/settings";
 import { JobError, throwIfAborted, type JobContext, type JobHandler, type JobOutcome } from "./types";
 
 /** Rows per `import_purge_batch` call (§8.12; the function accepts 1..1000). */
@@ -74,14 +78,14 @@ export function purgeBatchStatement(
   );
 }
 
-export function importPurgeHandler(deps: { events?: ProductEvents } = {}): JobHandler<"IMPORT_PURGE"> {
+export function importPurgeHandler(deps: { events?: ProductEvents; weakness?: WeaknessSettings } = {}): JobHandler<"IMPORT_PURGE"> {
   return {
     kind: "IMPORT_PURGE",
-    run: (ctx) => purge(ctx, deps.events ?? noopProductEvents),
+    run: (ctx) => purge(ctx, deps.events ?? noopProductEvents, deps.weakness ?? null),
   };
 }
 
-async function purge(ctx: Ctx, product: ProductEvents): Promise<JobOutcome> {
+async function purge(ctx: Ctx, product: ProductEvents, weakness: WeaknessSettings | null): Promise<JobOutcome> {
   const { userId, provider: source, requestedAt } = ctx.payload;
   const link = ctx.payload.linkedAccountId ?? null;
   const provider = source === "CHESSCOM" ? "chesscom" : "lichess";
@@ -132,9 +136,13 @@ async function purge(ctx: Ctx, product: ProductEvents): Promise<JobOutcome> {
   // The count read first is the member's whole set; a batch whose response was lost (and whose resend purged the
   // next one) is still in it. More than that means rows arrived during the purge (they were purged too).
   const games = Math.max(expected, removed);
+  const rearm = removed > 0 && weakness ? removedTriggerStatement(userId, weakness) : null;
   await finalBatch(
     ctx,
     [
+      ...(rearm ? [rearm] : []),
+      // FIX-2: the purged games leave every stored week of the profile (after the arm, which reads "has a snapshot").
+      ...(removed > 0 ? [purgedSnapshotsStatement(userId)] : []),
       fromPrisma(
         auditSql(
           {

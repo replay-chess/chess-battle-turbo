@@ -18,8 +18,10 @@ import {
   type NavFlags,
 } from "@/lib/nav/destinations";
 import type { DestinationKey, ShellUser } from "@/lib/shell/types";
+import { cn } from "@/lib/utils";
 import { AccountMenu } from "./AccountMenu";
 import { Brand } from "./Brand";
+import { NavDot, NavDotLabel } from "./NavDot";
 
 const ITEM =
   "flex min-h-11 items-center gap-3 px-3 text-sm text-cb-text-soft hover:bg-cb-fill hover:text-cb-text aria-[current=page]:bg-cb-accent aria-[current=page]:font-medium aria-[current=page]:text-cb-accent-fg forced-colors:aria-[current=page]:outline forced-colors:aria-[current=page]:outline-2 focus-visible:-outline-offset-2 [-webkit-tap-highlight-color:transparent] active:bg-cb-fill rail:justify-center rail:px-0 rail:pointer-coarse:min-h-12";
@@ -32,6 +34,8 @@ export type SidebarProps = {
   current: Set<DestinationKey>;
   /** Flag-gated destinations (P3: Review). */
   navFlags?: NavFlags;
+  /** P6: a new weakness profile is waiting (the Train item's dot; `useTrainDot`). */
+  trainDot?: boolean;
   demo?: boolean;
   /** Gallery previews: every href becomes `#<key>`. */
   preview?: boolean;
@@ -48,6 +52,7 @@ export function Sidebar({
   user,
   current,
   navFlags,
+  trainDot = false,
   demo = false,
   preview = false,
   variant = "auto",
@@ -113,6 +118,7 @@ export function Sidebar({
           const isCurrent = current.has(d.key);
           // Play always lists Tournaments; Learn and Train (P5) list their sections while current (V3Nav).
           const showSubs = d.key === "play" || isCurrent;
+          const dot = d.key === "train" && trainDot;
           return (
             <div key={d.key} className="flex flex-col">
               <Tooltip content={d.label} side="right" disabled={!isRail}>
@@ -120,7 +126,7 @@ export function Sidebar({
                   href={href(d)}
                   data-testid={`nav-item-${d.key}`}
                   aria-current={isCurrent ? "page" : undefined}
-                  className={ITEM}
+                  className={dot ? cn(ITEM, "group relative") : ITEM}
                   onClick={() => onNavigate?.(d.key)}
                 >
                   {Icon ? (
@@ -132,6 +138,12 @@ export function Sidebar({
                     />
                   ) : null}
                   <span className="rail:sr-only">{d.label}</span>
+                  {dot ? (
+                    <>
+                      <NavDotLabel />
+                      <NavDot testId={`nav-dot-${d.key}`} className="ml-auto rail:absolute rail:top-2 rail:right-3 rail:ml-0" />
+                    </>
+                  ) : null}
                 </Link>
               </Tooltip>
               {showSubs ? subs(d.key) : null}

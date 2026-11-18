@@ -3,7 +3,9 @@
 export type DestinationKey =
   | "home" | "play" | "tournaments" | "train" | "learn" | "legends" | "openings" | "review" | "profile" | "settings"
   // P5 (phase-05 plan §3.2): the Train sections.
-  | "train-today" | "bank" | "puzzles";
+  | "train-today" | "bank" | "puzzles"
+  // P6 (phase-06 plan §7.8): the Weakness Profile, a Train section.
+  | "weakness";
 
 export type ChromeMode = "shell" | "marketing";
 

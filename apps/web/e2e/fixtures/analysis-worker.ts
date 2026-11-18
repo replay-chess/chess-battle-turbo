@@ -104,6 +104,17 @@ function workerDevFile(): Record<string, string> {
 }
 
 /**
+ * The e2e worker of the devices config (DEVICES_WORKER=1, playwright.devices.config.ts), which runs no socket server
+ * and no PostHog sink: an empty WS_INTERNAL_URL makes the worker skip its emits (an APP_ENV=test worker may run without
+ * one) and an empty project key sends nothing. With workerServerEnv's :3002 + offset target every analysis:progress emit
+ * failed twice with a 1 s pause, and the 54-game weak-member persona was not built within the real-route test's 10 min
+ * (REGRESSION-6, the devices-p5 P6 step on all three real-route projects; regression: devices-worker-dead-emits).
+ */
+export function devicesWorkerEnv(env: Env = process.env): Record<string, string> {
+  return { ...workerServerEnv({ env }), WS_INTERNAL_URL: "", POSTHOG_PROJECT_KEY: "", BILLING_PAYWALL: "on" };
+}
+
+/**
  * The full environment of the e2e worker. `strict` refuses a ring without `wk` (the worker would refuse to boot);
  * the config-time call (also evaluated by `--list` in jobs with no secrets) only warns.
  */

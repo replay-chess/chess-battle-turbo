@@ -248,6 +248,8 @@ describe("HOUSEKEEPING job", () => {
       "training-abandon",
       "training-plans",
       "training-prune",
+      // P6's weakness slice: without weakness settings (WEAKNESS_JOBS_ENABLED off) it only prunes.
+      "weakness-prune",
       "done",
     ]);
     const ids = h.queue.jobs.map((j) => j.id);

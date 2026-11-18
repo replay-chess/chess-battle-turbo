@@ -3,14 +3,14 @@
 // register a section load these tables; the dialog itself loads on first open (components/shell/AppShellView.tsx).
 
 /** A flag a row or a section depends on (it shows only while the flag is on). */
-export type ShortcutFlag = "review-v3" | "review-share" | "home" | "train";
+export type ShortcutFlag = "review-v3" | "review-share" | "home" | "train" | "weakness";
 /** Page scopes registered at runtime (`registerReviewShortcuts`) are `review:<area>`, e.g. `review:compare`. */
 /** P5 adds the trainer (bank drill and puzzles) and the Mistake Bank list, registered while those pages are mounted. */
 export type ShortcutScope = "global" | "board" | "review" | `review:${string}` | "trainer" | "bank";
 /** "Mod" renders as ⌘ on Apple platforms and Ctrl elsewhere. `flag`: shown only while that flag is on. */
 export type ShortcutRow = { id: string; label: string; keys: string[][]; flag?: ShortcutFlag };
 export type ShortcutSection = { title: string; scope: ShortcutScope; rows: ShortcutRow[]; flag?: ShortcutFlag };
-export type ShortcutFlags = { reviewV3?: boolean; reviewShare?: boolean; home?: boolean; train?: boolean };
+export type ShortcutFlags = { reviewV3?: boolean; reviewShare?: boolean; home?: boolean; train?: boolean; weakness?: boolean };
 
 /**
  * The shortcut registry. Section titles are Title Case; row labels are sentence
@@ -32,6 +32,8 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
       { id: "go-legends", label: "Go to Legends", keys: [["G", "L"]] },
       { id: "go-review", label: "Go to Review", keys: [["G", "R"]], flag: "review-v3" },
       { id: "go-bank", label: "Go to Mistake Bank", keys: [["G", "M"]], flag: "train" },
+      // P6 (phase-06 plan §7.8): G W → the Weakness Profile, while `train` and `weakness` are both on.
+      { id: "go-weakness", label: "Go to Weakness Profile", keys: [["G", "W"]], flag: "weakness" },
       { id: "notifications", label: "Jump to notifications", keys: [["Alt", "T"]] },
       { id: "close", label: "Close a menu or sheet", keys: [["Esc"]] },
     ],
@@ -81,6 +83,8 @@ function flagOn(flag: ShortcutFlag | undefined, flags: ShortcutFlags): boolean {
   if (flag === undefined) return true;
   if (flag === "home") return flags.home === true;
   if (flag === "train") return flags.train === true;
+  // The Weakness Profile is a Train section: its row needs Train too (lib/nav/destinations.ts isEnabled).
+  if (flag === "weakness") return flags.train === true && flags.weakness === true;
   return flag === "review-v3" ? flags.reviewV3 === true : flags.reviewShare === true;
 }
 

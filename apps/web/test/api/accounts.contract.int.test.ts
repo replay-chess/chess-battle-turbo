@@ -434,6 +434,42 @@ describe("P4 accounts and import routes: contract (Postgres)", { skip: url ? fal
     await errorOf((await w.call(H.provider, "PATCH", "/api/accounts/lichess", "m", { body: { autoImport: true, timeZone: "Mars/Olympus" }, params: { provider: "lichess" } })).res, 400, "validation_failed");
   });
 
+  // regression: autoimport-analysis-deadlock (REGRESSION-6; webkit-iphone connected.spec "the daily-import switch
+  // persists": the switch rolled back and no "Saved" chip showed). Postgres logged 40P01 between ACC-5's transaction and
+  // an ANALYZE_GAME final batch of one of the member's imported games: the batch locks the game's linked_accounts rows
+  // (FOR KEY SHARE, sql-store linkedAccountsLockStatement) and later bumps users."gamesVersion"; ACC-5 updated the users
+  // row (the zone) first and then asked for the linked_accounts row FOR UPDATE. ACC-5 now takes the account row first
+  // (FOR NO KEY UPDATE, which a KEY SHARE does not block) and the users row second, the batch's order.
+  it("regression: autoimport-analysis-deadlock — ACC-5 racing an analysis batch of the member's game: both commit", async () => {
+    await link("m");
+    const id = await linkedAccountId("m");
+    const userId = w.users.m.id.toString();
+    for (const autoImport of [false, true]) {
+      // The worker's final batch, in its order: the game's links FOR KEY SHARE, the analysis writes, the members' archive
+      // version last; held open between the two so ACC-5 arrives in the middle.
+      const batch = w.db.$transaction(
+        async (tx) => {
+          await tx.$queryRawUnsafe(`SELECT count(*)::int AS n FROM (SELECT 1 FROM linked_accounts la WHERE la.id = $1::bigint FOR KEY SHARE OF la) l`, id.toString());
+          await new Promise((r) => setTimeout(r, 600));
+          await tx.$executeRawUnsafe(`UPDATE users u SET "gamesVersion" = u."gamesVersion" + 1 WHERE u.id = $1::bigint`, userId);
+          return "batch ok";
+        },
+        { timeout: 15_000 },
+      );
+      await new Promise((r) => setTimeout(r, 150));
+      const patch = w
+        .call(H.link, "PATCH", "/api/accounts/chesscom", "m", { body: { autoImport, timeZone: autoImport ? "Asia/Kolkata" : "Europe/Berlin" } })
+        .then(async ({ res }) => (res.status === 200 ? "web ok" : `web ${res.status}: ${(await res.text()).slice(0, 200)}`));
+      const out = await Promise.all([batch.catch((e: unknown) => `batch failed: ${String((e as Error)?.message ?? e).slice(0, 200)}`), patch]);
+      assert.deepEqual(out, ["batch ok", "web ok"], `no deadlock (autoImport ${autoImport})`);
+      const row = await w.db.$queryRawUnsafe<{ autoImport: boolean; timeZone: string }[]>(
+        `SELECT la."autoImport", u."timeZone" FROM linked_accounts la JOIN users u ON u.id = la."userId" WHERE la.id = $1::bigint`,
+        id.toString(),
+      );
+      assert.deepEqual(row[0], { autoImport, timeZone: autoImport ? "Asia/Kolkata" : "Europe/Berlin" });
+    }
+  });
+
   it("ACC-6: unlink with deleteGames=1 queues IMPORT_PURGE and removes link, runs, job and the legacy profile; again → 404", async () => {
     const { recorded } = await link("m");
     await w.runAfter(recorded);

@@ -12,7 +12,7 @@
 // inert. It replaces the curl list of SPEC §12.3 step 4 (robots and manifest
 // checks are kept at the end).
 import { expect, test, type APIResponse } from "@playwright/test";
-import { TEST_HOOKS, type EnvHook, type HeaderHook, type RouteHook } from "../../lib/test-hooks/registry";
+import { prodGuardEnv, TEST_HOOKS, type EnvHook, type HeaderHook, type RouteHook } from "../../lib/test-hooks/registry";
 
 const routes = TEST_HOOKS.filter((h): h is RouteHook => h.kind === "route");
 const headers = TEST_HOOKS.filter((h): h is HeaderHook => h.kind === "header");
@@ -53,6 +53,16 @@ test.describe("production guard @p1", () => {
       });
     }
   }
+
+  // P6 (phase-06 plan §7.10): /api/dev/emit takes POST only; with the build's own token and a valid body it is still 404.
+  test("route /api/dev/emit POST with the token is 404 (dev-emit)", async ({ request }) => {
+    const res = await request.post("/api/dev/emit", {
+      headers: { "x-e2e-token": prodGuardEnv().E2E_TEST_TOKEN!, "content-type": "application/json" },
+      data: { v: 1, event: "weakness:progress", data: { v: 1, pct: 48, step: "grade", etaSec: 60, stalled: false, analysed: 12, target: 25, importDone: null, importTotal: null } },
+      maxRedirects: 0,
+    });
+    expect(res.status(), "/api/dev/emit must not exist in production").toBe(404);
+  });
 
   for (const hook of headers) {
     test(`header hook ${hook.id} is ignored`, async ({ request }) => {

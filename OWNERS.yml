@@ -246,13 +246,66 @@ phases:
       - perf/k6/src/scenarios/api-read-mix.ts
 
   p06:
+    # phase-06 plan §13 (WP1 … WP8; the real paths of the interface check). Active from the P6 stage-A build; done at the
+    # P6 sign-off. P6 files inside P5's directories (lib/train/weakness*, components/train/weakness/**, …) are listed
+    # here, so a P6 change there is P6's; P6's registry rows (flags/registry/p06.ts, personas/p06.ts,
+    # realtime/handlers/weakness.ts, redirects/p06.mjs) are add-only rows of shared_add_only.
     name: Weakness Profile
-    status: planned
+    status: active
     weeks: 26-27
     globs:
-      - apps/web/lib/weakness/**
-      - apps/web/app/(app)/weakness/**
-      - apps/web/app/api/weakness/**
+      - packages/chess-training/src/weakness/**
+      - packages/chess-training/baselines/**
+      - packages/chess-training/scripts/**
+      - packages/chess-training/test/**
+      - packages/chess-training/src/extract.timepressure.test.ts
+      - packages/chess-analysis/src/clock.ts
+      - packages/chess-analysis/src/clock.test.ts
+      - packages/chess-analysis/src/eco-families.ts
+      - packages/chess-analysis/src/eco-families.test.ts
+      - packages/chess-analysis/src/weakness-inputs.ts
+      - packages/chess-analysis/src/weakness-inputs.test.ts
+      - packages/chess-analysis/fixtures/weakness-inputs*
+      - packages/chess-fixtures/weakness/**
+      - packages/contracts/src/http/weakness.ts
+      - packages/contracts/src/internal/weakness-metrics.ts
+      - packages/analytics/src/events/weakness.ts
+      - packages/analytics/src/events/weakness.test.ts
+      - packages/db/src/json/weakness.ts
+      - packages/db/src/weakness-jobs.ts
+      - packages/db/src/weakness-jobs.test.ts
+      - packages/db/seed/p06-*.ts
+      - packages/db/scripts/roles/*.p6.sql
+      - packages/db/prisma/migrations/20261117000000_m6_weakness/**
+      - apps/analysis-worker/src/weakness/**
+      - apps/analysis-worker/src/jobs/weakness-recompute.ts
+      - apps/analysis-worker/src/pipeline/final-batch/p06-weakness.ts
+      - apps/analysis-worker/src/scheduler/recurring/weakness.ts
+      - apps/analysis-worker/src/testing/weakness-world.ts
+      - apps/analysis-worker/scripts/bench-weakness.ts
+      - apps/analysis-worker/scripts/nightly-weakness-check*.ts
+      - apps/web/app/(app)/train/weakness/**
+      - apps/web/app/api/train/weakness/**
+      - apps/web/app/api/dev/emit/**
+      - apps/web/app/dev/ui/weakness/**
+      - apps/web/components/train/weakness/**
+      - apps/web/components/marketing/**
+      - apps/web/features/train/weakness/**
+      - apps/web/lib/train/weakness*
+      - apps/web/lib/api/queries/weakness*
+      - apps/web/scripts/backfill/*weakness*
+      - apps/web/scripts/backfill/p06-*
+      - apps/web/scripts/dev/p06-deps.ts
+      - apps/web/test/api/*weakness*
+      - apps/web/test/api/lights-up.int.test.ts
+      - apps/web/e2e/specs/weakness/**
+      - apps/web/e2e/scripts/*weakness*
+      - apps/web/e2e/devices/layout/weakness-demo.spec.ts
+      - apps/web/e2e/devices/layout/p06.visual.spec.ts
+      - apps/web/e2e/devices/layout/weakness.lab.spec.ts
+      - perf/k6/src/scenarios/weakness.ts
+      - docs/runbooks/weakness*.md
+      - docs/qa/phase-06-signoff.md
 
   p07:
     name: AI coach

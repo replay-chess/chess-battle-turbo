@@ -121,10 +121,14 @@ export function bankCountLabel(due: number): string {
   return `${due} due`;
 }
 
-/** "Loose pieces is your most common theme (7 in bank)." */
+/**
+ * "Loose pieces is your most common theme (7 in bank)." P6 (phase-06 plan §7.1.5): a READY weakness profile's top row
+ * (`topTheme.source === "weakness"`) reads "Missed forks is your top weakness (12 in bank)."
+ */
 export function bankLine(b: HomeBank, isNew: boolean): string {
   if (isNew || b.total === 0) return HOME_COPY.bankNewLine;
   if (b.due === 0) return nothingDueLine(b);
+  if (b.topTheme?.source === "weakness") return `${b.topTheme.label} is your top weakness (${b.topTheme.n} in bank).`;
   if (b.topTheme) return `${b.topTheme.label} is your most common theme (${b.topTheme.n} in bank).`;
   return `${plural(b.total, "position", "positions")} in your bank.`;
 }

@@ -11,7 +11,9 @@ import { ErrorState } from "@/components/data/ErrorState";
 import { homeQuery } from "@/lib/api/queries/home";
 import { trackTrain } from "@/lib/analytics/train-events";
 import { homeRefetchInvalidator, useHomeEvents } from "@/lib/realtime/handlers/home";
+import { useFlag } from "@/lib/flags/client";
 import { useTrainEvents } from "@/lib/realtime/handlers/train";
+import { useWeaknessEvents } from "@/lib/realtime/handlers/weakness";
 import { homeViewState } from "./copy";
 import { HomeSkeleton } from "./HomeSkeleton";
 import { HomeView, type HomeTrack } from "./HomeView";
@@ -29,6 +31,9 @@ export function HomeScreen({ profileHref }: { profileHref: string }) {
   useHomeEvents();
   // The bank-count events' Home refetches count as home.refetch{cause: "bank"} (plan §10.2).
   useTrainEvents({ invalidate: BANK_REFETCH });
+  // P6 (phase-06 plan §5.5): `weakness:ready` lights the Train dot here and marks the bank line stale (flag on only).
+  const weakness = useFlag("weakness");
+  useWeaknessEvents({ enabled: weakness });
 
   const viewed = useRef(false);
   const data = q.data;

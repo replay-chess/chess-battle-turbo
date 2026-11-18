@@ -27,6 +27,7 @@ import { useMe } from "@/lib/api/queries/me";
 import { bankQuery, bankRowsOf, firstBankPage, type BankListData } from "@/lib/api/queries/train";
 import { useFlag } from "@/lib/flags/client";
 import { BANK_LISTS_KEY, useTrainEvents } from "@/lib/realtime/handlers/train";
+import { useWeaknessEvents } from "@/lib/realtime/handlers/weakness";
 import { useStartSession } from "../hub/useStartSession";
 import { dayWord, safeTimeZone, useClientNow } from "../hub/when";
 import { BankSkeleton } from "./BankSkeleton";
@@ -60,6 +61,9 @@ export function BankScreen({ initial, serverNowMs }: { initial: BankUrlState; se
   const removeOn = useFlag("bank-remove");
 
   useTrainEvents();
+  // P6 (phase-06 plan §5.5): `weakness:ready` lights the Train dot while the bank is open (flag on only).
+  const weakness = useFlag("weakness");
+  useWeaknessEvents({ enabled: weakness });
 
   // URL → state on Back/Forward within the page's own history entries.
   useEffect(() => {

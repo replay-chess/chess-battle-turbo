@@ -8,9 +8,10 @@
 // production sets `permanent: env.APP_ENV === "production"` (P8 D8-5).
 import * as p00 from "./p00-legacy.mjs";
 import * as p03 from "./p03.mjs";
+import * as p06 from "./p06.mjs";
 
 /** Oldest first; one line per phase file. */
-const PHASES = [p00, p03];
+const PHASES = [p00, p03, p06];
 
 /**
  * @param {Record<string, string | undefined>} env

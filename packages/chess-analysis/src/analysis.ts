@@ -94,7 +94,8 @@ export function gradePlies(input: AnalysisInput): { replay: Replay; grades: PlyG
   return { replay, grades };
 }
 
-function pvText(pv: readonly string[]): string {
+/** The stored-line text of a PV: whole moves, at most LINE_PV_MAX characters (also the weakness tagger's pass-1 line). */
+export function pvText(pv: readonly string[]): string {
   let s = "";
   for (const m of pv) {
     const next = s === "" ? m : `${s} ${m}`;

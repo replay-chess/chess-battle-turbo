@@ -12,6 +12,10 @@
 // Continue = the newest analysed game with key moments (its first moment on the board), else the newest still being
 // analysed, else the newest analysed clean game. The board FEN is replayed on the server (chess.js); only the FEN
 // leaves. Every label is formatted here in the viewer's zone. Reads only.
+//
+// P6 lights up (phase-06 plan §7.1.5; WP7): with the viewer's `weakness` flag on, h2 also reads Q-W1 ‖ Q-W2 in the same
+// batch; a READY profile's top row becomes `bank.topTheme {label, n, source: "weakness"}` ("Missed forks is your top
+// weakness (12 in bank)."). Flag off, or no READY profile: P5's bank line and statements, byte for byte.
 import { Prisma } from "@repo/db";
 import type { HomeData } from "@repo/contracts/http/home";
 import { HOME_BANK_THUMBS, HOME_RECENT_MAX } from "@repo/contracts/http/home";
@@ -26,7 +30,7 @@ import { nextBatchOf } from "@/lib/train/bank.server";
 import { isTrainedDay, loadTrainState, timeZoneOf, trainClock } from "@/lib/train/day.server";
 import { asDate, at, num, trainDeps, type TrainDeps } from "@/lib/train/db.server";
 import { lastMoveOf } from "@/lib/train/dto.server";
-import { duePreviewOf, duePreviewSql, type PreviewRow } from "@/lib/train/today.server";
+import { duePreviewOf, duePreviewSql, topWeaknessFor, type LightsUpOptions, type PreviewRow, type TopWeakness } from "@/lib/train/today.server";
 import { FINISHED } from "@/lib/services/analysis/archive-sql";
 import { replayMoves } from "@/lib/services/analysis/review-dto";
 
@@ -193,13 +197,19 @@ export function weekAria(days: readonly boolean[]): string {
   return `Played ${on.slice(0, -1).join(", ")} and ${on[on.length - 1]} this week`;
 }
 
+/** The bank card's top-theme line: the READY profile's top weakness (P6), else P5's most common bank theme. */
+export function homeTopTheme(top: { theme: string; bankCount: number } | undefined, weakness: TopWeakness | null): HomeData["bank"]["topTheme"] {
+  if (weakness) return { label: weakness.label, n: weakness.inBank, source: "weakness" };
+  return top && num(top.bankCount) > 0 ? { label: themePluralLabel(top.theme), n: num(top.bankCount) } : null;
+}
+
 /** HOME-1 at `now`. */
-export async function getHomeData(viewer: Viewer, now: Date, deps: TrainDeps = trainDeps()): Promise<HomeData> {
+export async function getHomeData(viewer: Viewer, now: Date, deps: TrainDeps = trainDeps(), opts: LightsUpOptions = {}): Promise<HomeData> {
   const { db } = deps;
   const tz = timeZoneOf(viewer);
   // The week's bounds before the profile is read: the default day start (a member's own hour moves them ≤ 6 h).
   const guess = trainClock(now, tz, { dayStartHour: 4, releaseHour: 8 });
-  const [continueRows, state, previews, topRows, weekGames, weekPuzzles, recentRows, importStatus] = await Promise.all([
+  const [continueRows, state, previews, topRows, weekGames, weekPuzzles, recentRows, importStatus, weakness] = await Promise.all([
     db.$queryRaw<ContinueRow[]>(continueGamesSql(viewer.id)),
     loadTrainState(db, viewer, now),
     db.$queryRaw<PreviewRow[]>(duePreviewSql(viewer.id, now, HOME_BANK_THUMBS)),
@@ -208,6 +218,7 @@ export async function getHomeData(viewer: Viewer, now: Date, deps: TrainDeps = t
     db.$queryRaw<{ n: number }[]>(weekPuzzlesSql(viewer.id, guess.mondayStartUtc)),
     db.$queryRaw<RecentRow[]>(recentGamesSql(viewer.id)),
     getImportStatus(viewer, { db, now }),
+    topWeaknessFor(db, viewer, now, opts.weakness),
   ]);
   const { clock, due, profile } = state;
   const running = importStatus.data.runs.find((r) => r.status === "queued" || r.status === "running" || r.status === "waiting_for_membership");
@@ -238,7 +249,7 @@ export async function getHomeData(viewer: Viewer, now: Date, deps: TrainDeps = t
       due: cap.dueShown,
       total: due.total,
       estMin: estimateMinutes({ bank: cap.dueShown }),
-      topTheme: top && num(top.bankCount) > 0 ? { label: themePluralLabel(top.theme), n: num(top.bankCount) } : null,
+      topTheme: homeTopTheme(top, weakness),
       thumbs: previews.slice(0, Math.min(HOME_BANK_THUMBS, cap.dueShown)).map((p) => {
         const d = duePreviewOf(p);
         return { cardRef: d.cardRef, fen: d.fen, orient: d.orient, label: d.label };

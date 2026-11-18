@@ -1,0 +1,12 @@
+[Event "Rated Rapid game"]
+[WhiteElo "900"]
+[BlackElo "897"]
+[Result "0-1"]
+[ECO "B01"]
+[TimeControl "600+0"]
+[Termination "Normal"]
+[Site "https://lichess.org (CC0 open database 2026-10, FX baseline-sample s06)"]
+[White "?"]
+[Black "?"]
+
+1. e4 { [%eval 0.18] [%clk 0:10:00] } 1... d5 { [%eval 0.54] [%clk 0:10:00] } 2. Qh5? { [%eval -1.22] [%clk 0:09:54] } 2... g6? { [%eval 0.62] [%clk 0:09:39] } 3. Qe2? { [%eval -0.88] [%clk 0:09:51] } 3... e5?! { [%eval -0.06] [%clk 0:09:34] } 4. Qb5+? { [%eval -1.08] [%clk 0:09:50] } 4... Bd7? { [%eval 0.22] [%clk 0:09:33] } 5. Qxd5 { [%eval 0.18] [%clk 0:09:46] } 5... Nf6? { [%eval 1.89] [%clk 0:09:31] } 6. Qxe5+ { [%eval 2.24] [%clk 0:09:40] } 6... Be7 { [%eval 2.06] [%clk 0:09:16] } 7. Bb5? { [%eval 1.01] [%clk 0:09:28] } 7... Bxb5? { [%eval 3.61] [%clk 0:09:08] } 8. Qxb5+ { [%eval 3.35] [%clk 0:09:27] } 8... Nbd7?! { [%eval 4.21] [%clk 0:09:06] } 9. Qxb7? { [%eval 1.98] [%clk 0:09:23] } 9... Rb8 { [%eval 1.97] [%clk 0:09:04] } 10. Qxa7? { [%eval 0.54] [%clk 0:09:20] } 10... Nc5? { [%eval 3.04] [%clk 0:09:02] } 11. Na3?? { [%eval -5.87] [%clk 0:09:03] } 11... O-O?? { [%eval -0.97] [%clk 0:08:54] } 12. Qa5 { [%eval -1.27] [%clk 0:08:55] } 12... Qd4? { [%eval 0.1] [%clk 0:08:51] } 13. Qxc7?? { [%eval -5.34] [%clk 0:08:37] } 13... Nfxe4 { [%eval -4.34] [%clk 0:08:41] } 14. Qxe7?? { [%eval #-2] [%clk 0:08:30] } 14... Qxf2+ { [%eval #-1] [%clk 0:08:39] } 15. Kd1 { [%eval #-1] [%clk 0:08:22] } 15... Qf1# { [%clk 0:08:28] } 0-1

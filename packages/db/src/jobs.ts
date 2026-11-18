@@ -40,8 +40,20 @@ export {
   analyzeDedupeKey,
   housekeepingDedupeKey,
   legendDedupeKey,
+  // P6 (phase-06 plan §7.4.2; interface check §0.5): the payload lives in CT/internal/jobs.ts, re-exported here so
+  // the web, the worker and DB/src/weakness-jobs.ts (WP4) name one schema.
+  RecomputeWeaknessPayloadV1,
+  WEAKNESS_TRIGGERS,
+  weaknessDedupeKey,
 } from "@repo/contracts/internal/jobs";
-export type { AnalyzeReason, JobKind, JobPriority, JobPriorityName, JobStatus } from "@repo/contracts/internal/jobs";
+export type {
+  AnalyzeReason,
+  JobKind,
+  JobPriority,
+  JobPriorityName,
+  JobStatus,
+  WeaknessTrigger,
+} from "@repo/contracts/internal/jobs";
 
 /** The DB default of jobs."maxAttempts" (schema.prisma), for kinds without a JOB_MAX_ATTEMPTS entry. */
 const DEFAULT_MAX_ATTEMPTS = 4;

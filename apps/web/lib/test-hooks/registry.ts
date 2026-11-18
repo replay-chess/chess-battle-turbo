@@ -120,6 +120,8 @@ export const TEST_HOOKS: readonly TestHook[] = [
       "/dev/ui/train/puzzles",
       "/dev/ui/train/summary",
       "/dev/ui/home",
+      // Phase 6 (phase-06 plan §4.1, §7.10): the Weakness Profile demo (`?state=`, `lesson=1`, `stress=1`; WP6).
+      "/dev/ui/weakness",
     ],
   },
   {
@@ -304,6 +306,45 @@ export const TEST_HOOKS: readonly TestHook[] = [
     value: "http://127.0.0.1:4010",
     proof: { by: "unit", test: "e2e/mocks/upstream-server.test.ts" },
   },
+  // ── Phase 6 (phase-06 plan §7.10; WP8) ──
+  {
+    kind: "route",
+    id: "dev-emit",
+    phase: 6,
+    guard: "testHooksEnabled",
+    description:
+      "POST /api/dev/emit {v:1, event, data}: one registered user-room event (CT socket/user.ts USER_EVENTS, never " +
+      "entitlement:changed), validated with its schema and budget, to the CALLER's own user room through the web's signed " +
+      "/internal/emit (the Weakness Profile's progress milestones in computing-to-ready.spec.ts). x-e2e-token only; 404 for " +
+      "everyone else and in every production build",
+    files: "app/api/dev/emit/**",
+    paths: ["/api/dev/emit"],
+  },
+  {
+    kind: "env",
+    id: "weakness-seed-freeze",
+    phase: 6,
+    guard: "isTestBuild",
+    description:
+      "WEAKNESS_SEED_FREEZE=on: the analysis worker's RECOMPUTE_WEAKNESS triggers leave a seeded QUEUED row due more than a " +
+      "year ahead alone (@repo/db/weakness-jobs freezeSeeded). Read only by the worker (src/weakness/settings.ts); it refuses " +
+      "to boot with it under APP_ENV=production. The web never reads it",
+    env: "WEAKNESS_SEED_FREEZE",
+    prodGuardValue: "on",
+    proof: { by: "unit", test: "../analysis-worker/src/config/env.test.ts" },
+  },
+  {
+    kind: "data",
+    id: "weakness-personas",
+    phase: 6,
+    guard: "isNonProdApp",
+    description:
+      "The P6 personas (packages/db/seed/p06-personas.ts via scripts/dev/personas.ts): real CC0 games written to a pool user " +
+      "or S and graded by the running worker; a crashed last attempt (weakfail) and two-year-ahead ANALYZE_GAME jobs " +
+      "(weak-computing). The persona tool refuses every host but a local Postgres and the Neon dev endpoint, and A–R",
+    value: "@repo/chess-fixtures/weakness/persona-games.json",
+    proof: { by: "unit", test: "../../packages/db/seed/p06-personas.test.ts" },
+  },
   {
     kind: "data",
     id: "dodo-webhook-fixture",
@@ -329,6 +370,8 @@ export const KILL_SWITCHES = [
   // Phase 5 (phase-05 plan §7.9, §13.4; interface check §0.15: no Edge Config, so the plan's `puzzles_enabled` is env).
   { env: "PUZZLES_ENABLED", off: "off", note: "puzzle sessions and the plan's puzzle step (off: 'Puzzles are taking a break.')" },
   { env: "BANK_EXTRACT_ENABLED", off: "false", note: "worker J1 mistake extraction (analysis still completes; the backfill catches up)" },
+  // Phase 6 (phase-06 plan §7.7; docs/runbooks/weakness.md "Kill switch"): the worker's RECOMPUTE_WEAKNESS.
+  { env: "WEAKNESS_JOBS_ENABLED", off: "off", note: "worker weakness recomputes end DONE `skipped: disabled`; the worker's own triggers no-op; pages keep the last snapshot" },
 ] as const;
 
 /**

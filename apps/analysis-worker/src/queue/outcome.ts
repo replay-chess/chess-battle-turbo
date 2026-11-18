@@ -389,6 +389,58 @@ export function rescheduleStatement(input: {
   return { ...build(false), retry: build(true) };
 }
 
+/** The `jobs.result` a weakness completion writes: the job's own result plus whose write it was (the token). */
+export interface CompletionStamp extends RescheduleStamp {
+  [key: string]: unknown;
+}
+
+/**
+ * P6 (phase-06 plan §7.4.1 "Completion"; interface check §0.9): RECOMPUTE_WEAKNESS finishes with this instead of
+ * doneStatement. A trigger that arrived while the job ran flagged it (`payload.rerun`, @repo/db/weakness-jobs): the row
+ * goes back to QUEUED after `rerunDelaySec` as a fresh job (attempts 0, unlocked, run state cleared), else it is DONE.
+ * `rerun` is removed from the payload either way. Part of the handler's final batch, after lockGuardStatement.
+ *
+ * DONE keeps `lockedBy` (doneByMeStatement); the re-queue clears it, so, as with rescheduleStatement, every write
+ * stamps `result.token` and the retry form also returns the row this very write already finished (DONE by me, or
+ * unlocked with this token), and outcomeByMeStatement({token}) recognises both after a lost response.
+ */
+export function rerunIfFlaggedStatement(input: {
+  jobId: string;
+  me: string;
+  rerunDelaySec: number;
+  token: string;
+  result?: Record<string, unknown>;
+  /** Re-queue whether or not a trigger flagged it (FIX-1: a heal that left rows for the next run). */
+  forceRerun?: boolean;
+}): Statement {
+  const stamp: CompletionStamp = { ...(input.result ?? {}), v: 1, rescheduledBy: input.me, token: input.token };
+  const rerun = input.forceRerun ? `true` : `(payload->>'rerun') = 'true'`;
+  const build = (again: boolean): Statement =>
+    stmt(
+      `UPDATE jobs
+    SET status = (CASE WHEN ${rerun} THEN 'QUEUED' ELSE 'DONE' END)::"JobStatus",
+        "runAt" = CASE WHEN ${rerun} THEN ${NOW} + ($3::int * interval '1 second') ELSE "runAt" END,
+        attempts = CASE WHEN ${rerun} THEN 0 ELSE attempts END,
+        "lockedBy" = CASE WHEN ${rerun} THEN NULL ELSE "lockedBy" END,
+        "lockedAt" = CASE WHEN ${rerun} THEN NULL ELSE "lockedAt" END,
+        "heartbeatAt" = CASE WHEN ${rerun} THEN NULL ELSE ${NOW} END,
+        "startedAt" = CASE WHEN ${rerun} THEN NULL ELSE "startedAt" END,
+        "lastError" = NULL, "finishedAt" = ${NOW}, payload = payload - 'rerun', result = $4::jsonb
+  WHERE id = $1::bigint AND (("lockedBy" = $2 AND status = 'RUNNING')${
+    again ? ` OR (result->>'token' = $5 AND (("lockedBy" IS NULL AND status = 'QUEUED') OR ("lockedBy" = $2 AND status = 'DONE')))` : ""
+  })
+  RETURNING id::text AS id, status::text AS status, (extract(epoch FROM "runAt") * 1000)::float8 AS "runAtMs"`,
+      [
+        input.jobId,
+        input.me,
+        Math.max(0, Math.floor(input.rerunDelaySec)),
+        JSON.stringify(stamp),
+        ...(again ? [input.token] : []),
+      ],
+    );
+  return { ...build(false), retry: build(true) };
+}
+
 /**
  * Did this worker's own final write commit? DONE by me (doneStatement keeps `lockedBy`), rescheduled by me (the
  * reschedule's token), or failed by me (failStatement's attempt and `lastError`). For a guarded batch whose resend

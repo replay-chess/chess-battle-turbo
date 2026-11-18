@@ -16,7 +16,7 @@
 //      again in a newer game, key moment or not: plan §8.1 step 8, FIX-1) whose mistake already has a card is a
 //      recurrence: the card comes back at the next release at the latest (no FSRS log row), unless the member reviewed
 //      it after this game ended
-//   3  the occurrence count, by natural key
+//   3  the occurrence count, by natural key; P6: `rc:timePressure` from a time-pressured occurrence (a union)
 //   4  cards for key-moment plies: not for hidden mistakes, not for the member's opt-outs (PlayerReview.progress
 //      .bankOptOut, read in SQL), ON CONFLICT DO NOTHING; `theme_mastery."bankCount"` += the inserted cards per theme
 //   5  game_players."bankVersion" = EXTRACT_VERSION for the extracted member sides
@@ -73,7 +73,9 @@ SELECT x."referenceId", x."userId", x."epdHash", x.color, x.fen, x."setupUci", x
 ON CONFLICT ("userId", "epdHash") DO UPDATE
    SET "lastGameId" = EXCLUDED."lastGameId", "lastPly" = EXCLUDED."lastPly", "lastPlayedAt" = EXCLUDED."lastPlayedAt",
        "lastOpponentName" = EXCLUDED."lastOpponentName", solution = EXCLUDED.solution, accept = EXCLUDED.accept,
-       "isPuzzle" = EXCLUDED."isPuzzle", "uniquenessGap" = EXCLUDED."uniquenessGap", themes = EXCLUDED.themes,
+       "isPuzzle" = EXCLUDED."isPuzzle", "uniquenessGap" = EXCLUDED."uniquenessGap",
+       themes = CASE WHEN 'rc:timePressure' = ANY(mistakes.themes) AND NOT ('rc:timePressure' = ANY(EXCLUDED.themes))
+                     THEN EXCLUDED.themes || ARRAY['rc:timePressure'] ELSE EXCLUDED.themes END,
        "primaryTheme" = EXCLUDED."primaryTheme", "updatedAt" = EXCLUDED."updatedAt"
  WHERE EXCLUDED."lastPlayedAt" >= mistakes."lastPlayedAt"
 RETURNING "userId"::text AS "userId", (xmax = 0) AS inserted`,
@@ -109,16 +111,23 @@ SELECT u."userId"::text AS "userId",
 
 /** Statement 3: `occurrences` = the occurrence count of every mistake this batch touched. */
 export function recountStatement(r: BankRows): Statement {
+  // P6 (phase-06 plan §8.12): an occurrence played with under a minute on the clock tags its mistake
+  // `rc:timePressure` (a union: statement 1 keeps the tag when a newer, calmer occurrence refreshes the row, and here
+  // an older occurrence analysed later still adds it). Never primary, so bank filters and mastery are unchanged.
   return stmt(
-    `UPDATE mistakes m SET occurrences = s.n
-   FROM (SELECT o."mistakeId", count(*)::smallint AS n
+    `UPDATE mistakes m SET occurrences = s.n,
+        themes = CASE WHEN s.tp AND NOT ('rc:timePressure' = ANY(m.themes)) THEN array_append(m.themes, 'rc:timePressure')
+                      ELSE m.themes END
+   FROM (SELECT o."mistakeId", count(*)::smallint AS n, bool_or(x.tp) AS tp
            FROM mistake_occurrences o
            JOIN mistakes mm ON mm.id = o."mistakeId"
-           JOIN (SELECT DISTINCT "userId", "epdHash"
-                   FROM jsonb_to_recordset($1::jsonb) AS x("userId" bigint, "epdHash" bigint)) x
+           JOIN (SELECT "userId", "epdHash", bool_or(COALESCE("timePressure", false)) AS tp
+                   FROM jsonb_to_recordset($1::jsonb) AS x("userId" bigint, "epdHash" bigint, "timePressure" boolean)
+                  GROUP BY "userId", "epdHash") x
              ON mm."userId" = x."userId" AND mm."epdHash" = x."epdHash"
           GROUP BY o."mistakeId") s
-  WHERE m.id = s."mistakeId" AND m.occurrences IS DISTINCT FROM s.n`,
+  WHERE m.id = s."mistakeId"
+    AND (m.occurrences IS DISTINCT FROM s.n OR (s.tp AND NOT ('rc:timePressure' = ANY(m.themes))))`,
     [json(r.occurrences)],
   );
 }

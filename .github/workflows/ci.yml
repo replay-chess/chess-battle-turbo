@@ -239,7 +239,9 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_app.p4.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p4.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_app.p5.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_app.p6.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p5.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p6.sql
           pnpm --filter @repo/db exec tsx scripts/check-p4-preconditions.ts --url "$DATABASE_URL" --expect-m4
           echo "TEST_APP_DATABASE_URL=postgresql://replay_app:$APP_PW@localhost:5432/replay" >> "$GITHUB_ENV"
           echo "TEST_WORKER_DATABASE_URL=postgresql://replay_worker:$WK_PW@localhost:5432/replay" >> "$GITHUB_ENV"
@@ -267,6 +269,20 @@ jobs:
         with:
           name: p03-explain
           path: perf/results/p03-explain-*.json
+          retention-days: 30
+          if-no-files-found: ignore
+      - name: P6 volume gate (EXPLAIN ANALYZE limits at 20 members × 2,000 games, 500 mistakes, 3,000 attempts; phase-06 plan §9.1)
+        # FIX-2: a template member built by the product's pipelines (CC0 games graded as the worker writes them, B-W1,
+        # the A6 bank, W1 attempts, computeWeakness) cloned to the plan's volume; the Weakness Profile's hot statements
+        # must stay under their limits on the natural plans. The report holds timings only.
+        run: |
+          mkdir -p perf/results
+          pnpm --filter web exec tsx scripts/explain-weakness-volume.ts --seed --json "$GITHUB_WORKSPACE/perf/results/p06-volume-${GITHUB_SHA}.json"
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: p06-volume
+          path: perf/results/p06-volume-*.json
           retention-days: 30
           if-no-files-found: ignore
       - name: Diagnostics on failure (containers, ports, the last 200 lines of each server log; redacted)
@@ -426,6 +442,7 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v wk_password="$WK_PW" -f packages/db/scripts/roles/replay_worker.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p4.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p5.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/scripts/roles/replay_worker.p6.sql
           echo "E2E_SOCKET_DATABASE_URL=postgresql://replay_realtime:$RT_PW@localhost:5432/replay" >> "$GITHUB_ENV"
           echo "E2E_WORKER_DATABASE_URL=postgresql://replay_worker:$WK_PW@localhost:5432/replay" >> "$GITHUB_ENV"
       - name: Build (test app env, hooks on, sinks on)
@@ -474,6 +491,21 @@ jobs:
         env:
           E2E_PHASES: "5"
         run: pnpm --filter web exec playwright test --project=chromium --project=webkit-iphone
+      - name: Keep the P5 step's report and results (the P6 step writes the same folders)
+        if: success() || failure()
+        working-directory: apps/web
+        run: |
+          if [ -d playwright-report ]; then mv playwright-report playwright-report-p5; fi
+          if [ -d test-results ]; then mv test-results test-results-p5; fi
+      - name: P6 Weakness Profile specs (@p6 on chromium, @p6 @smoke on webkit-iphone)
+        # phase-06 plan §12.4 PR tier: every @p6 spec (e2e/specs/weakness/**, the request-budget weakness step) on the same
+        # build and servers. Their personas are real data: CC0 Lichess games (packages/chess-fixtures/weakness) graded by
+        # the :3003 worker (ENGINE=fake), the bank J1 extracts, the profile RECOMPUTE_WEAKNESS writes; the drills' Lichess
+        # items come from the committed shard subset on :4012. Runs even when an earlier step failed.
+        if: success() || failure()
+        env:
+          E2E_PHASES: "6"
+        run: pnpm --filter web exec playwright test --project=chromium --project=webkit-iphone
       - name: Redact the server logs (the report below takes the authz walker's next start log)
         if: always()
         run: bash scripts/ci/diagnostics.sh redact
@@ -484,8 +516,10 @@ jobs:
           path: |
             apps/web/playwright-report/
             apps/web/playwright-report-smoke/
+            apps/web/playwright-report-p5/
             apps/web/test-results/results.json
             apps/web/test-results-smoke/results.json
+            apps/web/test-results-p5/results.json
             ci-logs/next-start-authz.log
           retention-days: 14
           if-no-files-found: ignore
@@ -501,8 +535,10 @@ jobs:
             ci-logs/
             apps/web/playwright-report/
             apps/web/playwright-report-smoke/
+            apps/web/playwright-report-p5/
             apps/web/test-results/
             apps/web/test-results-smoke/
+            apps/web/test-results-p5/
           retention-days: 7
           if-no-files-found: ignore
 
@@ -635,7 +671,8 @@ jobs:
           if-no-files-found: ignore
 
   devices-p5:
-    # phase-05 plan §12.4: the Train screens and Home in every demo state (+ stress=1 at 150 %) on the PR tier
+    # P6 (phase-06 plan §12.4, WP8) adds the Weakness Profile's demo states and real routes as two steps of this job
+    # (one build, no new runner). phase-05 plan §12.4: the Train screens and Home in every demo state (+ stress=1 at 150 %) on the PR tier
     # (desktop-1440@100, desktop-1280@125, iphone@100, ipad-portrait@100; nightly devices-full runs all 40), the runner CLS
     # ≤ 0.02 lab gates and the real routes as a leased `bank-member` on desktop-1440@100 and iphone@100, 4 workers; then
     # move → verdict with a 4× CPU throttle (desktop-1440@100 settings) as a step of its own, alone (see that step). The
@@ -643,7 +680,8 @@ jobs:
     # build; never R2).
     needs: verify
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 45
+    # 45 + the P6 steps (≈ 10 min: the demo states and one weak-member persona graded by the worker).
+    timeout-minutes: 60
     services:
       db:
         image: postgres:17-alpine
@@ -675,7 +713,7 @@ jobs:
       # Without it `train` and `home` kept their off defaults: /train answered 404 and /home sent the member to /play
       # (CI 43599091643; regression: devices-p5-flags-ignored). Locally .env.test sets it, which is why they passed there.
       ALLOW_TEST_HOOKS: "1"
-      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on,review-v3:on,review-share:on,onboarding-v3:on,import-v3:on,train:on,home:on,bank-remove:on
+      FLAGS_OVERRIDE: shell-v3:on,live-protocol-v2:on,game-v3:on,review-v3:on,review-share:on,onboarding-v3:on,import-v3:on,train:on,home:on,bank-remove:on,weakness:on
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v5
@@ -702,13 +740,32 @@ jobs:
       - name: Train and Home one viewport, the runner CLS gates, the real routes, 4 workers (builds .next-devices, serves :3100; no @lab test)
         run: pnpm --filter web exec playwright test -c playwright.devices.config.ts layout/train.spec.ts layout/home.spec.ts
         env: { DEVICES_LAB: skip }
+      # P6 (phase-06 plan §12.4 device × zoom, PR tier): the Weakness Profile demo states (normal and stress=1) on the four
+      # PR projects (layout/weakness-demo.spec.ts: one viewport, tap targets, axe), then its real routes as a leased
+      # `weak-member` (layout/routes.real.ts @p6) on desktop-1440@100, iphone@100 and ipad-portrait@100. The persona is
+      # real data: DEVICES_WORKER=1 starts the e2e analysis worker (ENGINE=fake), which grades its CC0 games and builds
+      # the profile. Same .next-devices build (reused on :3100). Runs even when the P5 step failed.
+      - name: Random worker keys for this run (the persona tool's kick and the worker's ring)
+        if: ${{ !cancelled() }}
+        run: |
+          int="web:$(openssl rand -base64 32),ws:$(openssl rand -base64 32),wk:$(openssl rand -base64 32),webwk:$(openssl rand -base64 32)"
+          echo "::add-mask::$int"
+          echo "INTERNAL_API_SECRET=$int" >> "$GITHUB_ENV"
+      - name: Weakness Profile demo states and real routes (P6), 4 workers
+        if: ${{ !cancelled() }}
+        run: pnpm --filter web exec playwright test -c playwright.devices.config.ts layout/weakness-demo.spec.ts layout/routes.real.ts --grep "weakness|@p6"
+        env:
+          DEVICES_LAB: skip
+          DEVICES_WORKER: "1"
+          ANALYSIS_WORKER_URL: http://127.0.0.1:3003
       # The move → verdict gate times one paint at a 4× CPU throttle: alone, after the suite, on the same .next-devices
       # (next start only). Sharing the 4 vCPUs with three workers it failed at 55, 70 and 54 ms in CI 43646432212,
       # 43653740138 and 43662852275 (the renderer waiting for a frame, no product work; playwright.devices.config.ts).
       # It runs even when the suite failed; its own failure fails the job.
-      - name: The move → verdict lab gate alone, 1 worker (serves the same .next-devices on :3100, no rebuild)
+      # P6: the Weakness Profile's tab / accordion / See all paint budget (≤ 50 ms) is a lab gate too, in the same step.
+      - name: The lab gates alone (move → verdict, the weakness interactions), 1 worker (serves the same .next-devices on :3100, no rebuild)
         if: ${{ !cancelled() }}
-        run: pnpm --filter web exec playwright test -c playwright.devices.config.ts layout/train.spec.ts
+        run: pnpm --filter web exec playwright test -c playwright.devices.config.ts layout/train.spec.ts layout/weakness.lab.spec.ts
         env: { DEVICES_LAB: only }
       - if: always()
         uses: actions/upload-artifact@v6

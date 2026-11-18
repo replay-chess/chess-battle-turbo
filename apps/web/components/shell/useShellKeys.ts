@@ -23,7 +23,11 @@ const CHORD_DEST: Record<string, DestinationKey> = {
   "/games": "review",
   "/home": "home",
   "/train/bank": "bank",
+  "/train/weakness": "weakness",
 };
+
+/** P6: G then W lands with `?from=chord` (the profile's `weakness_viewed.entry`, phase-06 plan §10.1). */
+const CHORD_ENTRY: Record<string, string> = { "/train/weakness": "/train/weakness?from=chord" };
 
 /** A modal that is not one of the shell's own dialogs is open (legacy modals, Clerk, iOS install). */
 function nonShellModalOpen(): boolean {
@@ -56,17 +60,21 @@ export function useShellKeys({
   demo?: boolean;
   /** `review-v3`: G then R goes to My Games (P3). */
   reviewV3?: boolean;
-  /** The shell's destination flags: G then H (Home) and G then M (Mistake Bank) with `home` / `train` (P5). */
+  /**
+   * The shell's destination flags: G then H (Home) and G then M (Mistake Bank) with `home` / `train` (P5); G then W
+   * (Weakness Profile) with `train` and `weakness` (P6).
+   */
   navFlags?: NavFlags;
 }) {
   const chords = useRef<{ id: string; machine: ChordMachine } | null>(null);
   const home = navFlags?.home === true;
   const train = navFlags?.train === true;
+  const weakness = navFlags?.weakness === true;
 
   useEffect(() => {
-    const id = `${reviewV3}/${home}/${train}`;
+    const id = `${reviewV3}/${home}/${train}/${weakness}`;
     if (chords.current?.id !== id) {
-      const table = { ...shellChords({ reviewV3 }), ...destinationChords({ "review-v3": reviewV3, home, train }) };
+      const table = { ...shellChords({ reviewV3 }), ...destinationChords({ "review-v3": reviewV3, home, train, weakness }) };
       chords.current = { id, machine: createChordMachine({ timeoutMs: CHORD_TIMEOUT_MS, chords: table }) };
     }
     const machine = chords.current.machine;
@@ -108,7 +116,7 @@ export function useShellKeys({
             e.preventDefault();
             const dest = CHORD_DEST[result.navigate];
             if (dest) trackShell({ name: "shell_nav_click", dest, surface: "chord" }, { demo });
-            navigate(result.navigate);
+            navigate(CHORD_ENTRY[result.navigate] ?? result.navigate);
           }
           return;
         }
@@ -119,5 +127,5 @@ export function useShellKeys({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [paletteOpen, shortcutsOpen, setPaletteOpen, setShortcutsOpen, navigate, demo, reviewV3, home, train]);
+  }, [paletteOpen, shortcutsOpen, setPaletteOpen, setShortcutsOpen, navigate, demo, reviewV3, home, train, weakness]);
 }

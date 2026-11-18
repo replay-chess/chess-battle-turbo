@@ -17,6 +17,20 @@ import type { Metrics } from "../../obs/metrics";
 import type { ProductEvents } from "../../obs/posthog";
 import type { Telemetry } from "../../obs/telemetry";
 import type { GameMember } from "../types";
+import type { SideInputsRow } from "../../weakness/inputs";
+import type { WeaknessSettings } from "../../weakness/settings";
+
+/**
+ * P6 (phase-06 plan §7.4.1, §8.3.2; interface check §0.3): the five weakness input columns of the member sides,
+ * computed in TS before planExtensions (CA computeSideInputs over the arrays this batch writes), and the members whose
+ * game is in their scope (the `analysis` trigger: armed in SQL only for those with a READY profile).
+ */
+export interface WeaknessBatchPlan {
+  sides: readonly SideInputsRow[];
+  /** Members (userId) whose weakness scope holds this game. */
+  inScope: readonly string[];
+  settings: WeaknessSettings;
+}
 
 export interface FinalBatchContext {
   gameId: string;
@@ -50,6 +64,8 @@ export interface FinalBatchContext {
   bankReextract?: boolean;
   /** The analysis version the regrade writes (the re-extraction job's dedupe key). */
   analysisVersion?: number;
+  /** P6: the weakness inputs and trigger of this game (p06-weakness.ts); null/absent with WEAKNESS_JOBS_ENABLED off. */
+  weakness?: WeaknessBatchPlan | null;
 }
 
 /** Where an extension reports what its committed statements returned (telemetry only; never another write). */

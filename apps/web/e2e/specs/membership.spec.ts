@@ -1,5 +1,5 @@
 import { test, expect } from "../fixtures";
-import { UPSTREAM_URL } from "../mocks/upstream-client";
+import { UPSTREAM_PORT } from "../mocks/upstream-client";
 
 /**
  * Phase 0 regression, signed in: the subscription API reports the trial
@@ -121,7 +121,10 @@ test.describe("Non-member (never had a trial)", () => {
     expect(days, "the card is charged when the 7-day trial ends").toBeGreaterThan(6.9);
     expect(days).toBeLessThanOrEqual(7.01);
     // A local run's web server talks to the upstream mock (playwright.config.ts); a deployed site to Dodo test mode.
-    if (!process.env.E2E_BASE_URL) expect(data.checkoutUrl.startsWith(UPSTREAM_URL), "the upstream mock's hosted checkout").toBe(true);
+    // The mock hosts its checkout page on `localhost` at its own port, not 127.0.0.1 (upstream-server.ts, 6d1d089: the
+    // return to the app must stay same-site); this assertion still named 127.0.0.1 and failed in the main and flags-off
+    // projects (REGRESSION-6 flags-off run; regression: membership-mock-checkout-host).
+    if (!process.env.E2E_BASE_URL) expect(data.checkoutUrl.startsWith(`http://localhost:${UPSTREAM_PORT}/dodo/pay/`), "the upstream mock's hosted checkout").toBe(true);
     else expect(data.checkoutUrl).toMatch(/^https:\/\//);
     // A replay with the same key answers the same checkout (no second session).
     const again = await page.request.post("/api/checkout", {

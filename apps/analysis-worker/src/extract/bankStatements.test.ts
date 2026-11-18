@@ -189,7 +189,8 @@ describe("the p05-bank extension", () => {
   it("is registered after P4's and adds nothing without a plan (J1 off)", () => {
     assert.deepEqual(
       FINAL_BATCH_EXTENSIONS.map((e) => e.id),
-      ["p04-import", "p05-bank"],
+      // P6 appends its weakness inputs + `analysis` trigger after the bank (phase-06 plan §7.4.1).
+      ["p04-import", "p05-bank", "p06-weakness"],
     );
     assert.deepEqual(p05BankExtension.statements(ctx(null)), []);
   });

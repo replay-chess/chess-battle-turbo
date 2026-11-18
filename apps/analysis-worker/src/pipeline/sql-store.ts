@@ -46,6 +46,7 @@ import type {
   LegendSource,
   LoadedGame,
   MemberTraining,
+  MemberWeakness,
   OpeningRow,
   SkipWrite,
   StoredAnalysis,
@@ -57,8 +58,17 @@ import type {
  * `training`: read the P5 inputs (users."timeZone", training_profiles, the end time and opponent name). Off with
  * BANK_EXTRACT_ENABLED=off, so the kill switch also works on a database where replay_worker.p5.sql has not run yet.
  */
-export function loadStatement(gameId: string, jobId: string, opts: { training?: boolean } = {}): Statement {
+export function loadStatement(gameId: string, jobId: string, opts: { training?: boolean; weakness?: boolean } = {}): Statement {
   const training = opts.training !== false;
+  // P6 (phase-06 plan §7.4.1, §8.2): each member's zone, weakness scope and end time decide in TS whether the game is
+  // in the member's scope (the `analysis` trigger, the progress frame). Off with WEAKNESS_JOBS_ENABLED=off.
+  const weakness = opts.weakness === true;
+  const memberWeakness = weakness
+    ? `,
+                                                   'wTimeZone', u."timeZone", 'wTimeClasses', tp."weaknessTimeClasses",
+                                                   'wMonths', tp."weaknessMonths",
+                                                   'wEndedAtMs', (extract(epoch FROM gp."endedAt") * 1000)::float8`
+    : "";
   const memberTraining = training
     ? `,
                                                    'timeZone', u."timeZone", 'dayStartHour', tp."dayStartHour",
@@ -71,7 +81,7 @@ export function loadStatement(gameId: string, jobId: string, opts: { training?: 
                                                                    FROM training_days td WHERE td."userId" = gp."userId" AND td."timeZone" IS NOT NULL
                                                                   ORDER BY td.day DESC LIMIT 1)`
     : "";
-  const profileJoin = training ? `
+  const profileJoin = training || weakness ? `
                    LEFT JOIN training_profiles tp ON tp."userId" = gp."userId"` : "";
   return stmt(
     `WITH st AS (
@@ -80,11 +90,11 @@ export function loadStatement(gameId: string, jobId: string, opts: { training?: 
   RETURNING id
 )
 SELECT g.id::text AS id, g."referenceId" AS ref, g.status::text AS status, g.mode::text AS mode,
-       g."startingFen", g."startPly", g.moves, g."plyCount",
+       g."startingFen", g."startPly", g.moves, g."plyCount", g."moveClocksMs", g."initialTimeSeconds", g."incrementSeconds",
        (extract(epoch FROM g."completedAt") * 1000)::float8 AS "completedAtMs",
        g."ecoCode", g."openingName",
        COALESCE((SELECT json_agg(json_build_object('color', gp.color, 'userId', gp."userId"::text,
-                                                   'userRef', u."referenceId", 'result', gp.result::text${memberTraining})
+                                                   'userRef', u."referenceId", 'result', gp.result::text${memberTraining}${memberWeakness})
                                  ORDER BY gp.color DESC)
                    FROM game_players gp JOIN users u ON u.id = gp."userId"${profileJoin}
                   WHERE gp."gameId" = g.id), '[]'::json) AS members,
@@ -128,6 +138,22 @@ export function toMember(v: unknown): GameMember {
     userRef: String(m.userRef),
     result: result === "WIN" || result === "LOSS" || result === "DRAW" || result === "ABORTED" ? result : null,
     ...("timeZone" in m ? { training: memberTraining(m) } : {}),
+    ...("wTimeZone" in m ? { weakness: memberWeakness(m) } : {}),
+  };
+}
+
+/** P6: the member's zone, weakness scope columns (defaults when the profile row is missing) and end time. */
+export function memberWeakness(m: Record<string, unknown>): MemberWeakness {
+  const tcs = Array.isArray(m.wTimeClasses)
+    ? m.wTimeClasses.map(String)
+    : typeof m.wTimeClasses === "string"
+      ? m.wTimeClasses.replace(/^\{|\}$/g, "").split(",").filter(Boolean)
+      : [];
+  return {
+    timeZone: typeof m.wTimeZone === "string" && m.wTimeZone !== "" ? m.wTimeZone : DEFAULT_TIME_ZONE,
+    weaknessTimeClasses: tcs,
+    weaknessMonths: m.wMonths === null || m.wMonths === undefined ? 0 : num(m.wMonths),
+    endedAtMs: numOrNull(m.wEndedAtMs),
   };
 }
 
@@ -222,6 +248,9 @@ export function toLoadedGame(row: Row): LoadedGame {
     jobLastError: strOrNull(row.jobLastError),
     timeClass: strOrNull(row.timeClass),
     colorUnknown: row.colorUnknown === true,
+    moveClocksMs: numbers(row.moveClocksMs),
+    initialTimeSeconds: numOrNull(row.initialTimeSeconds),
+    incrementSeconds: numOrNull(row.incrementSeconds),
   };
 }
 
@@ -515,10 +544,10 @@ export async function finalBatch(db: Db, jobId: string, me: string, ss: readonly
 }
 
 export class SqlAnalysisStore implements AnalysisStore, LegendCompareStore {
-  /** `training`: the P5 load inputs (BANK_EXTRACT_ENABLED; default on). */
+  /** `training`: the P5 load inputs (BANK_EXTRACT_ENABLED; default on). `weakness`: the P6 member scope (default off). */
   constructor(
     private readonly db: Db,
-    private readonly opts: { training?: boolean } = {},
+    private readonly opts: { training?: boolean; weakness?: boolean } = {},
   ) {}
 
   async load(gameId: string, jobId: string): Promise<LoadedGame | null> {

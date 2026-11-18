@@ -35,12 +35,20 @@ export type TabsListProps = React.ComponentProps<typeof TabsPrimitive.List> & {
  * fit (no visible scrollbar); the active tab scrolls into view when it changes.
  * The 1px rule is an inset shadow, so the scrolling box never clips the 2px underline.
  */
-export function TabsList({ fit = "fill", className, ...props }: TabsListProps) {
+export function TabsList({ fit = "fill", className, onFocus, ...props }: TabsListProps) {
   const variant = use(VariantContext);
   return (
     <FitContext value={fit}>
       <TabsPrimitive.List
         data-fit={fit}
+        // P6 FIX-2 (round-2 #25): the list itself is a tab stop only to hand the focus to the active tab. Radix skips that
+        // hand-off after a mouse-down on the list that focused nothing new (a click on a tab that re-rendered, or one that
+        // already had the focus), and the next Tab then stopped on the empty list: hand it over here as well.
+        onFocus={(e) => {
+          onFocus?.(e);
+          if (e.target !== e.currentTarget) return;
+          e.currentTarget.querySelector<HTMLElement>('[role="tab"][data-state="active"]:not([disabled])')?.focus();
+        }}
         className={cn(
           variant === "segmented"
             ? cn("border border-cb-border-strong bg-cb-surface", fit === "fill" ? "flex w-full" : "inline-flex max-w-full")

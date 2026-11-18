@@ -23,12 +23,17 @@ import { api } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
 import { qk } from "@/lib/api/keys";
 import { trainTodayQuery } from "@/lib/api/queries/train";
+import { useFlag } from "@/lib/flags/client";
 import { useTrainEvents } from "@/lib/realtime/handlers/train";
+import { useWeaknessEvents } from "@/lib/realtime/handlers/weakness";
 import { HubSkeleton } from "./HubSkeleton";
 import { releaseDelayMs, viewedState } from "./model";
 import { TrainHubView } from "./TrainHubView";
 import { useStartSession } from "./useStartSession";
 import { dayWord, deviceTimeZone, localDayKey, safeTimeZone, useClientNow, useServerClock } from "./when";
+
+/** P6: the Theme mastery header's link (`?from=hub` feeds `weakness_viewed.entry`). */
+const HUB_WEAKNESS_HREF = "/train/weakness?from=hub";
 
 /** The rollover check's period while the tab is visible. */
 export const DAY_TICK_MS = 60_000;
@@ -58,6 +63,9 @@ export function TrainHubScreen({ serverNowMs }: { serverNowMs: number }) {
   const today = query.data;
 
   useTrainEvents();
+  // P6: `weakness:ready` lights the Train dot and marks this plan stale; the mastery header links the profile.
+  const weakness = useFlag("weakness");
+  useWeaknessEvents({ enabled: weakness });
 
   // Release timer: re-armed whenever the plan (and so `nextBatch`) changes.
   const nextAt = today?.nextBatch?.at ?? null;
@@ -135,6 +143,7 @@ export function TrainHubScreen({ serverNowMs }: { serverNowMs: number }) {
       starting={start.isPending || start.isSuccess}
       startLimit={startLimit}
       onFollow={(target) => trackTrain("train_hub_link_clicked", { target })}
+      weaknessHref={weakness ? HUB_WEAKNESS_HREF : null}
     />
   );
 }

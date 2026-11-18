@@ -92,6 +92,17 @@ regexes = [
 # into the file is still reported.
 description = "Fixed test-only database password in the worker env tests"
 condition = "AND"
-paths = ['''^apps/analysis-worker/src/boot\.test\.ts$''']
+# Phase 6 (REGRESSION-6): the P6 env tests (config/env.test.ts) build the same made-up URLs for the weakness switches.
+paths = ['''^apps/analysis-worker/src/boot\.test\.ts$''', '''^apps/analysis-worker/src/config/env\.test\.ts$''']
 regexTarget = "secret"
 regexes = ['''^secretpw$''']
+
+[[allowlists]]
+# Phase 6 (REGRESSION-6): a deterministic seed-fixture key (the backfill test's unanalysed game) that the generic-api-key
+# rule's entropy check flags. Path AND exact value must both match, so a real secret pasted into the file is still
+# reported.
+description = "Fixed test-only fixture key in the P6 backfill integration test"
+condition = "AND"
+paths = ['''^apps/web/scripts/backfill/p06-backfills\.int\.test\.ts$''']
+regexTarget = "secret"
+regexes = ['''^p6bf-unanalysed$''']

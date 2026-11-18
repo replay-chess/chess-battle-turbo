@@ -8,13 +8,16 @@
 //   plan(window)      timed job rows for the next 26 h (DAILY_PLAN inserts them with ON CONFLICT ("dedupeKey") DO NOTHING)
 //
 // P3 ships the planner of the next HOUSEKEEPING row (housekeeping-plan.ts) and the prune/trim/regrade slices (C6);
-// P6 adds the weekly weakness roll, P10 reminders and DST, P13 backups: each a new file plus one line in index.ts.
+// P6 adds the weekly weakness roll (weakness.ts), P10 reminders and DST, P13 backups: each a new file plus one line in
+// index.ts.
 import type { EnqueueJobInput } from "@repo/db/jobs";
 import type { EvalCache } from "../../cache/evalcache";
 import type { Db, Row, Statement } from "../../db/client";
 import type { Logger } from "../../obs/log";
 import type { Metrics } from "../../obs/metrics";
+import type { Telemetry } from "../../obs/telemetry";
 import type { Clock } from "../clock";
+import type { WeaknessSettings } from "../../weakness/settings";
 
 /** A timed row: any enqueue input with a dedupe key (so planning twice inserts once). */
 export type JobRowInput = Omit<EnqueueJobInput, "onConflict" | "reviveDone" | "when"> & { dedupeKey: string };
@@ -29,6 +32,8 @@ export interface HousekeepingCtx {
   clock: Clock;
   log: Logger;
   metrics: Metrics;
+  /** Sentry metrics (P6 FIX-1: `worker.weakness.coalesced`); absent in harnesses without one. */
+  telemetry?: Telemetry;
   /** Aborts on SIGTERM: a slice stops at its next safe point. */
   signal: AbortSignal;
   /** When this HOUSEKEEPING run started. */
@@ -37,6 +42,10 @@ export interface HousekeepingCtx {
   evalCache: EvalCache | null;
   /** EVAL_CACHE_MAX_GB in bytes. */
   evalCacheMaxBytes: number;
+  /** P6: the weakness settings (the `weakness` slice arms nothing with WEAKNESS_JOBS_ENABLED off); absent = off. */
+  weakness?: WeaknessSettings;
+  /** P6: wakes the I/O lane after a slice armed RECOMPUTE_WEAKNESS rows (absent in harnesses without one). */
+  wakeIo?(): void;
 }
 
 export interface RecurringSlice {

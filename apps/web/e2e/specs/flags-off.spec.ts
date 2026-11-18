@@ -81,3 +81,22 @@ test.describe("train and home off @p5", () => {
     await expect(page).not.toHaveURL(/\/home$/);
   });
 });
+
+// Phase 6 (plan §7.8, §12.4 `flags-off` row, §14.4 rollback): with `weakness` off along with the earlier phases' flags
+// the Weakness Profile is dark: its pages are not served, its JSON routes answer 404 (the flag gates TR-5/TR-12/TR-13
+// before any read) and /weakness leads nowhere. The weakness-only rollback with `train` on (hub, Home, nav, ⌘K and the
+// dot equal P5's; /train/weakness → /train) is test/api/lights-up.int.test.ts "flag off" and test/qa/p06-routing.test.ts.
+test.describe("weakness off @p6", () => {
+  test("/train/weakness and its drill pages, TR-5, TR-12 and TR-13 are not served", async ({ authedPage: page }) => {
+    test.setTimeout(180_000);
+    for (const path of ["/train/weakness", "/train/weakness/fork"]) {
+      expect((await page.request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
+    }
+    expect((await page.request.get("/api/train/weakness")).status(), "TR-5").toBe(404);
+    expect((await page.request.post("/api/train/weakness/recompute", { data: {} })).status(), "TR-12").toBe(404);
+    expect((await page.request.post("/api/train/weakness/seen", { data: { version: 1 } })).status(), "TR-13").toBe(404);
+    const legacy = await page.request.get("/weakness", { maxRedirects: 0 });
+    expect([307, 308]).toContain(legacy.status());
+    expect(new URL(legacy.headers()["location"] ?? "", page.url()).pathname).toBe("/train/weakness");
+  });
+});

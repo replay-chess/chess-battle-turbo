@@ -88,6 +88,20 @@ test("P4: import.status is sampled like any API route, and its 304 polls are dro
   assert.equal(sentryScrubOptions.beforeSendTransaction(tx(304, { transaction: "GET /api/import/status" })), null);
 });
 
+// regression: weakness-poll-sampled (P6 FIX-1, phase-06 plan §10.2 "0 for the polling fallback"): TR-5's conditional
+// polls are never sampled and its 304s are dropped; its first, unconditional GET keeps the /api/train/* rate.
+test("P6: GET /api/train/weakness with If-None-Match at 0; its 304s dropped; the plain GET at 0.1", () => {
+  const poll = { name: "GET /api/train/weakness", normalizedRequest: { url: "/api/train/weakness", headers: { "If-None-Match": 'W/"wk1"' } } };
+  assert.equal(tracesSampler(poll, "production"), 0);
+  assert.equal(tracesSampler({ ...poll, inheritOrSampleWith: () => 1 }, "production"), 0, "an incoming trace does not keep a poll");
+  assert.equal(tracesSampler({ name: "GET /api/train/weakness", normalizedRequest: { url: "/api/train/weakness", headers: {} } }, "production"), DEFAULT_TRACE_RATE);
+  assert.equal(tracesSampler({ name: "GET /api/train/weakness", attributes: { "http.request.header.if_none_match": 'W/"wk1"' } }, "production"), 0);
+  assert.equal(tracesSampler({ name: "POST /api/train/weakness/recompute", normalizedRequest: { url: "/api/train/weakness/recompute", headers: { "if-none-match": "x" } } }, "production"), DEFAULT_TRACE_RATE, "only the polled GET");
+  const tx = (status: number) => ({ type: "transaction", transaction: "GET /api/train/weakness", contexts: { trace: { data: { "http.response.status_code": status } } } });
+  assert.equal(dropNotModifiedPoll(tx(304)), true);
+  assert.equal(dropNotModifiedPoll(tx(200)), false, "a changed payload is kept");
+});
+
 // FIX-2 (phase-05 plan §10.2): the outbox flush is sampled at 0.05 for volume; the other Train routes keep 0.1.
 test("P5: /api/train/attempts at 0.05, other /api/train/* at 0.1", () => {
   assert.equal(TRAIN_ATTEMPTS_TRACE_RATE, 0.05);

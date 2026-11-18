@@ -1,12 +1,13 @@
 // The extensions of the final batch, in the order they run (types.ts has the contract). Phase 3 writes no extension
 // statement; P4 adds the import run's `analysed` count and the eval source (p04-import.ts); P5 the Mistake Bank
-// statements (p05-bank.ts).
+// statements (p05-bank.ts); P6 the weakness input columns and the `analysis` recompute trigger (p06-weakness.ts).
 import { p04ImportExtension } from "./p04-import";
 import { p05BankExtension } from "./p05-bank";
+import { p06WeaknessExtension } from "./p06-weakness";
 import type { Row, Statement } from "../../db/client";
 import type { FinalBatchContext, FinalBatchExtension, FinalBatchSink } from "./types";
 
-export const FINAL_BATCH_EXTENSIONS: readonly FinalBatchExtension[] = [p04ImportExtension, p05BankExtension];
+export const FINAL_BATCH_EXTENSIONS: readonly FinalBatchExtension[] = [p04ImportExtension, p05BankExtension, p06WeaknessExtension];
 
 /** Every extension's statements for one game, in order. */
 export function extensionStatements(extensions: readonly FinalBatchExtension[], ctx: FinalBatchContext) {

@@ -94,6 +94,9 @@ export const EMIT_EVENTS = {
   // P5 (phase-05 plan §7.4): the Mistake Bank events off the analysis path.
   "bank:due_changed": userSpec("bank:due_changed"),
   "mistakes:added": userSpec("mistakes:added"),
+  // P6 (phase-06 plan §7.3): the Weakness Profile events, emitted by the worker (kid `wk`, `weakness:*`).
+  "weakness:progress": userSpec("weakness:progress"),
+  "weakness:ready": userSpec("weakness:ready"),
 } as const satisfies Record<string, EmitEventSpec>;
 
 export type EmitEventName = keyof typeof EMIT_EVENTS;

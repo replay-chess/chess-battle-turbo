@@ -7,7 +7,7 @@ loader (`apps/web/lib/train/puzzles.server.ts`) and the CI shard server (`apps/w
 | Path | Content | Owner |
 |---|---|---|
 | `<theme>.json` | 50 CC0 puzzles per Tier-1 theme from the Lichess open database, with the Lichess tags as the oracle (recall ≥ 85 %), plus 50 without the tag (precision tracked); rows `[id, fen, moves, rating, themes]`, the FEN before the setup move, `moves` = the setup move then the solution | WP-C |
-| `shards/v1/<theme>/<band>.json`, `shards/v1/manifest.json` | a 6-theme × 7-band subset (bands 12–18, so a session around any rating from 1300 to 1799 finds its whole ±100 window; WP-I widened it from 14–16) of the real `puzzles/v1/` shards (same tuple shape `[id, fen, moves, rating, themesBitmask]`) served by the CI shard server | WP-D |
+| `shards/v1/<theme>/<band>.json`, `shards/v1/manifest.json` | a 26-theme × 7-band subset (bands 12–18, so a session around any rating from 1300 to 1799 finds its whole ±100 window; WP-I widened it from 14–16) of the real `puzzles/v1/` shards (same tuple shape `[id, fen, moves, rating, themesBitmask]`) served by the CI shard server. P5's 6 themes, plus (P6 WP8) every Lichess theme a weakness drill fills with (`lichessMatch` of the candidates: skewer … queenRookEndgame, defensiveMove), made by `build-shards.ts subset --per-shard 60` from the same full build | WP-D, P6 WP8 |
 
 **Source and licence.** Every puzzle comes from `https://database.lichess.org/lichess_db_puzzle.csv.zst`
 (CC0). The dump is downloaded once, outside the repository, by `apps/web/scripts/puzzles/build-shards.ts`; only the

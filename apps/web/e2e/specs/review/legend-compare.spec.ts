@@ -60,7 +60,20 @@ test.describe("compare with the legend", { tag: ["@p3"] }, () => {
     // not by a before/after diff of the game's jobs: another Playwright worker's seed fixture may rewrite LEGEND
     // meanwhile (regression: compare-hover-baseline).
     await openReview(page, seeded.LEGEND);
-    await expect(page.getByTestId("review-screen")).toHaveAttribute("data-status", "done", { timeout: 90_000 });
+    // Another Playwright worker's `seeded` fixture (worker scope) can rewrite LEGEND to its unanalysed fixture state
+    // while this analysis runs: the screen then went queued → running → none and stayed there (REGRESSION-6 full run;
+    // regression: compare-hover-reseed). Opening the review again enqueues it again, as a member's revisit would.
+    const screen = page.getByTestId("review-screen");
+    await expect
+      .poll(
+        async () => {
+          const status = await screen.getAttribute("data-status");
+          if (status === "none") await openReview(page, seeded.LEGEND);
+          return status;
+        },
+        { timeout: 120_000, intervals: [3_000] },
+      )
+      .toBe("done");
     await clickUntil(page.getByTestId("review-menu").filter({ visible: true }).first(), () =>
       expect(page.getByTestId("menu-compare")).toBeVisible({ timeout: 2_000 }),
     );

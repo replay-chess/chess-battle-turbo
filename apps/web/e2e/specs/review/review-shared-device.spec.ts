@@ -63,8 +63,9 @@ test.describe("shared device", { tag: ["@p3"] }, () => {
       const status = await page.evaluate((x) => fetch(x, { credentials: "same-origin" }).then((r) => r.status), u);
       expect(status, `B ${u}`).toBe(404);
     }
-    // The page streams, so the not-found UI arrives with a 200 status line (review-privacy.spec.ts).
-    await gotoOk(page, `/review/${ref}`);
+    // HTTP 404 with the not-found UI (the [ref] layout checks visibility before anything streams, c6c4053; this spec still
+    // expected the old streamed 200: REGRESSION-6 full run, regression: shared-device-review-404, as review-privacy.spec).
+    await gotoOk(page, `/review/${ref}`, { status: 404 });
     await expect(page.getByTestId("review-not-found")).toBeVisible({ timeout: 60_000 });
     await expect(page.getByTestId("review-screen")).toHaveCount(0);
 

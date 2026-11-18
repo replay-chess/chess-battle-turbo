@@ -10,12 +10,28 @@
 import { Chess, type Move, type Square } from "chess.js";
 import { PIECE_VALUE, type PieceType } from "./board";
 
+/** chess.js's move-generation order of a square (its 0x88 index: a8 = 0 … h8 = 7, a7 = 16 … h1 = 119). */
+function genOrder(sq: Square): number {
+  return (8 - Number(sq[1])) * 16 + (sq.charCodeAt(0) - 97);
+}
+
+/**
+ * The least valuable legal capture onto `sq` (the first in chess.js's move order among equals). FIX-1 (the heal and
+ * tagger cost, ~45 ms per tagged error before): only the pieces that attack `sq` generate their legal moves, in the
+ * order the full generation visits them, instead of every legal move of the position at each step of every exchange.
+ * The result is the same move (`see.test.ts` checks it against the full-generation reference on real games).
+ */
 function leastValuableCapture(chess: Chess, sq: Square): Move | null {
+  const from = chess.attackers(sq, chess.turn());
+  if (from.length === 0) return null;
+  from.sort((a, b) => genOrder(a) - genOrder(b));
   let best: Move | null = null;
-  for (const m of chess.moves({ verbose: true })) {
-    if (m.to !== sq || !m.captured || m.isEnPassant()) continue;
-    if (m.promotion && m.promotion !== "q") continue;
-    if (!best || PIECE_VALUE[m.piece as PieceType] < PIECE_VALUE[best.piece as PieceType]) best = m;
+  for (const f of from) {
+    for (const m of chess.moves({ square: f, verbose: true })) {
+      if (m.to !== sq || !m.captured || m.isEnPassant()) continue;
+      if (m.promotion && m.promotion !== "q") continue;
+      if (!best || PIECE_VALUE[m.piece as PieceType] < PIECE_VALUE[best.piece as PieceType]) best = m;
+    }
   }
   return best;
 }

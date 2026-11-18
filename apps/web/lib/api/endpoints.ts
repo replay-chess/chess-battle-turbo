@@ -62,6 +62,10 @@ type EndpointPaths = {
   trainCardSkip: PathOf<"train.cards.skip">;
   trainCard: PathOf<"train.cards.remove">;
   trainPrefs: PathOf<"train.prefs">;
+  // P6 weakness profile (phase-06 plan §7.1: TR-5, TR-12, TR-13).
+  trainWeakness: PathOf<"train.weakness.get">;
+  trainWeaknessRecompute: PathOf<"train.weakness.recompute">;
+  trainWeaknessSeen: PathOf<"train.weakness.seen">;
   home: PathOf<"home.get">;
   meBadges: PathOf<"me.badges">;
   reports: PathOf<"reports.create">;
@@ -117,6 +121,9 @@ export const endpoints = {
   trainCardSkip: "/api/train/cards/{ref}/skip",
   trainCard: "/api/train/cards/{ref}",
   trainPrefs: "/api/train/prefs",
+  trainWeakness: "/api/train/weakness",
+  trainWeaknessRecompute: "/api/train/weakness/recompute",
+  trainWeaknessSeen: "/api/train/weakness/seen",
   home: "/api/home",
   meBadges: "/api/me/badges",
   reports: "/api/reports",
@@ -173,6 +180,9 @@ export const ENDPOINT_IDS = {
   trainCardSkip: "train.cards.skip",
   trainCard: "train.cards.remove",
   trainPrefs: "train.prefs",
+  trainWeakness: "train.weakness.get",
+  trainWeaknessRecompute: "train.weakness.recompute",
+  trainWeaknessSeen: "train.weakness.seen",
   home: "home.get",
   meBadges: "me.badges",
   reports: "reports.create",

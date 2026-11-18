@@ -66,6 +66,11 @@ services:
     # BANK_EXTRACT_ENABLED (on: the kill switch, off skips the extraction and leaves EXTRACT_MISTAKES rows queued),
     # BANK_LINE_NODES (500000: the node budget of one puzzle-line search).
     #
+    # P6 Weakness Profile (phase-06 plan §7.7; optional, defaults in parentheses), also from .env.worker:
+    # WEAKNESS_JOBS_ENABLED (on in dev, off in production until P13: the kill switch), WEAKNESS_ANALYSE_CAP (100),
+    # WEAKNESS_ANALYSE_CAP_TRIAL (20), WEAKNESS_DEBOUNCE_SEC (240, below 300), WEAKNESS_HEAL_MAX_ROWS (40). WEAKNESS_SEED_FREEZE is a test hook:
+    # never set here (the worker refuses to boot with it when APP_ENV=production).
+    #
     # CPU isolation (P3-D8): the container's cgroup lives under worker-idle.slice (CPUWeight=idle, so cpu.idle = 1,
     # created by setup-server.sh): under contention the socket container always wins. On top of that a hard cap of
     # 0.75 core and the worker's own lag pause (it waits while the socket's loop-lag p99 > LAG_PAUSE_MS).

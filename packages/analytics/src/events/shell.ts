@@ -20,6 +20,8 @@ export const DESTINATION_KEYS = [
   "train-today",
   "bank",
   "puzzles",
+  // P6 (phase-06 plan §7.8): the Weakness Profile section.
+  "weakness",
 ] as const;
 
 export const NAV_SURFACES = ["sidebar", "rail", "tabbar", "subnav", "back", "palette", "chord"] as const;

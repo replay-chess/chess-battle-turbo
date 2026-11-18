@@ -73,7 +73,7 @@ describe("endpoint registry", () => {
     for (const f of areaFiles) assert.match(index, new RegExp(`from "\\./${f}"`), f);
   });
 
-  it("declares the P1 endpoints of plan §7.3/§7.4, the P2 games endpoints (phase-02 §7.1), the P3 review, share, archive and practice endpoints (phase-03 §7.2), the P4 accounts, import, onboarding and activation endpoints (phase-04 §7.0) and the P5 train, home and reports endpoints (phase-05 §7.2)", () => {
+  it("declares the P1 endpoints of plan §7.3/§7.4, the P2 games endpoints (phase-02 §7.1), the P3 review, share, archive and practice endpoints (phase-03 §7.2), the P4 accounts, import, onboarding and activation endpoints (phase-04 §7.0), the P5 train, home and reports endpoints (phase-05 §7.2) and the P6 weakness endpoints (phase-06 §7.1)", () => {
     assert.deepEqual(HTTP_ENDPOINTS.map((e) => e.id).sort(), [
       "accounts.chesscom.link", "accounts.chesscom.lookup", "accounts.lichess.callback", "accounts.lichess.start",
       "accounts.list", "accounts.sync", "accounts.unlink", "accounts.update",
@@ -89,6 +89,7 @@ describe("endpoint registry", () => {
       "session.clear", "share.create", "share.revoke", "share.update", "socket-token.get", "subscription.get",
       "train.attempts", "train.bank", "train.cards.remove", "train.cards.skip", "train.prefs", "train.sessions.create",
       "train.sessions.end", "train.sessions.extend", "train.sessions.get", "train.themes", "train.today",
+      "train.weakness.get", "train.weakness.recompute", "train.weakness.seen",
       "webhook.clerk", "webhook.dodo",
     ]);
     const me = getEndpoint("me.get");
