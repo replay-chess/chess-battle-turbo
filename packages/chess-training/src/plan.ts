@@ -6,6 +6,7 @@ import { DEFAULT_FOCUS_THEME, IMPORT_HREF, PLAN_BANK_HREF, PLAN_PUZZLE_COUNT } f
 import { estimateMinutes, minutesLabel, monthDayLabel, playedAtLabel, plural } from "./labels";
 import { themeBit, themeInfo, themeNoun } from "./themes";
 import { localDate } from "./tz";
+import { WEAKNESS_VOICE_REASON, type WeaknessVoice } from "./weakness/voice";
 
 export type PlanBasis = "bank" | "games20" | "new";
 /** The step kinds (`@repo/contracts/http/train` `PlanStepKind`, the one source). */
@@ -49,8 +50,11 @@ export interface PlanTheme {
   bankCount: number;
 }
 
-/** Why the focus theme was picked (the puzzle step's subtitle says it). */
-export type FocusSource = "weakness" | "weaknessRow" | "lowestMastery" | "bankCount" | "default";
+/**
+ * Why the focus theme was picked (the puzzle step's subtitle says it). A Weakness Profile pick carries its voice
+ * (`weakness/voice.ts`, FIX-4): "Your top weakness" only for the top row of a band comparison.
+ */
+export type FocusSource = WeaknessVoice | "lowestMastery" | "bankCount" | "default";
 
 export interface PlanInputs {
   now: Date;
@@ -68,10 +72,10 @@ export interface PlanInputs {
   /** P6: the top weakness mapped to a Lichess theme. Null in P5. */
   weaknessTheme?: string | null;
   /**
-   * P6 FIX-2: `weaknessTheme` is the TOP row's match in a band comparison. Otherwise (a lower row's match: the top row
-   * has no puzzles, as time pressure; or a most-frequent list) the step does not call it "your weakest theme".
+   * P6 FIX-2/FIX-4: how the step may name `weaknessTheme` (`weaknessVoice`): "Your top weakness" only for the TOP row's
+   * match in a band comparison (default when absent, as the P6 tests' plain calls).
    */
-  weaknessThemeTop?: boolean;
+  weaknessVoice?: WeaknessVoice;
   puzzleRating: number;
   /** P6 switches the basis to "games20"; P5 plans from the bank. */
   basis?: PlanBasis;
@@ -89,8 +93,8 @@ function isPuzzleTheme(key: string): boolean {
  * The focus theme (§8.10 step 2): P6's weakness → the lowest EWMA among themes with ≥ 5 attempts → the theme with the
  * most BANK cards → `fork`. Only themes the shards serve qualify.
  */
-export function focusTheme(themes: readonly PlanTheme[], weaknessTheme?: string | null, weaknessThemeTop = true): { key: string; source: FocusSource } {
-  if (weaknessTheme && isPuzzleTheme(weaknessTheme)) return { key: weaknessTheme, source: weaknessThemeTop ? "weakness" : "weaknessRow" };
+export function focusTheme(themes: readonly PlanTheme[], weaknessTheme?: string | null, voice: WeaknessVoice = "top_weakness"): { key: string; source: FocusSource } {
+  if (weaknessTheme && isPuzzleTheme(weaknessTheme)) return { key: weaknessTheme, source: voice };
   const byKey = (a: PlanTheme, b: PlanTheme) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
   const rated = themes.filter((t) => t.attempts >= 5 && isPuzzleTheme(t.key)).sort((a, b) => a.ewma - b.ewma || byKey(a, b));
   if (rated[0]) return { key: rated[0].key, source: "lowestMastery" };
@@ -100,8 +104,7 @@ export function focusTheme(themes: readonly PlanTheme[], weaknessTheme?: string 
 }
 
 const FOCUS_REASON: Record<FocusSource, string> = {
-  weakness: "Your top weakness",
-  weaknessRow: "From your Weakness Profile",
+  ...WEAKNESS_VOICE_REASON,
   lowestMastery: "Your lowest-mastery theme",
   bankCount: "Most common in your bank",
   default: "Start here",
@@ -169,10 +172,31 @@ function puzzleStep(theme: string, source: FocusSource, rating: number): DailyPl
     theme,
     count: PLAN_PUZZLE_COUNT,
     title: `${PLAN_PUZZLE_COUNT} ${themeNoun(theme)} puzzles at your level`,
-    subtitle: `${FOCUS_REASON[source]} · rating ${Math.round(rating)} · ${minutesLabel(estMin)}`,
+    subtitle: puzzleStepSubtitle(FOCUS_REASON[source], rating, estMin),
     estMin,
     href: puzzlesHref(theme, { n: PLAN_PUZZLE_COUNT, source: "plan" }),
   };
+}
+
+/** "Your top weakness · rating 1512 · ~4 min". */
+function puzzleStepSubtitle(reason: string, rating: number, estMin: number): string {
+  return `${reason} · rating ${Math.round(rating)} · ${minutesLabel(estMin)}`;
+}
+
+const PUZZLE_SUBTITLE = /^(.+) · rating -?\d+ · (~\d+ min)$/;
+
+/**
+ * The frozen puzzle step as read now (FIX-4 item 8, D-P6-FIX4-6): the plan keeps its theme, count and done rule for the
+ * day, but the subtitle's rating is the member's live puzzle rating, and its reason follows the live Weakness Profile
+ * when the step's theme is still the profile's pick (`reason`), so a plan frozen at 2200 never reads "rating 2200" at
+ * 1771 and never keeps "Your top weakness" after the profile stopped ranking it. Other steps are returned as they are.
+ */
+export function livePuzzleStep<S extends Pick<DailyPlanStep, "kind" | "theme" | "subtitle">>(step: S, live: { rating: number; reason?: { theme: string; source: FocusSource } | null }): S {
+  if (step.kind !== "puzzles") return step;
+  const m = PUZZLE_SUBTITLE.exec(step.subtitle);
+  if (!m) return step;
+  const reason = live.reason && live.reason.theme === step.theme ? FOCUS_REASON[live.reason.source] : m[1]!;
+  return { ...step, subtitle: `${reason} · rating ${Math.round(live.rating)} · ${m[2]}`.slice(0, 80) };
 }
 
 /** `/train/puzzles?theme=fork&n=3&source=plan`. */
@@ -193,7 +217,7 @@ export function buildDailyPlan(i: PlanInputs): DailyPlan {
   const n = Math.min(i.dueShown, i.bankQueue.length, BANK_STEP_MAX);
   if (n > 0) steps.push(bankStep(i.bankQueue.slice(0, n), i.now, i.timeZone));
   else if (i.bankTotal === 0) steps.push(emptyBankStep(i.lastGame));
-  const focus = focusTheme(i.themes, i.weaknessTheme, i.weaknessThemeTop ?? true);
+  const focus = focusTheme(i.themes, i.weaknessTheme, i.weaknessVoice ?? "top_weakness");
   steps.push(puzzleStep(focus.key, focus.source, i.puzzleRating));
   return {
     v: 1,

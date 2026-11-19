@@ -110,3 +110,18 @@ export const EXTERNAL_ID_MAX = 40;
 export const EXTERNAL_URL_MAX = 120;
 
 export const clip = (s: string, max: number): string => (s.length <= max ? s : s.slice(0, max));
+
+/**
+ * `clip` for display names made of words (opening names): a name longer than `max` is cut at the last space at or
+ * before `max`, so no token is cut in half (never "…5.O-" or "…Syste"), then a trailing ",", ";", ":" or "..." is
+ * dropped. A first word longer than `max` falls back to a hard cut. The result is always ≤ `max` chars.
+ */
+export function clipWords(s: string, max: number): string {
+  if (s.length <= max) return s;
+  let head = s.slice(0, max);
+  if (!/\s/.test(s[max]!)) {
+    const space = head.search(/\s\S*$/);
+    if (space > 0) head = head.slice(0, space);
+  }
+  return head.replace(/(?:[\s,;:]|\.\.\.)+$/, "") || s.slice(0, max);
+}

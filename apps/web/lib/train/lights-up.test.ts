@@ -29,7 +29,8 @@ describe("topWeaknessOf (Q-W1 ‖ Q-W2 → the lit slots)", () => {
       inBank: 12,
       href: "/train/weakness/fork?from=hub",
       focusTheme: "fork",
-      focusIsTop: true,
+      voice: "top_weakness",
+      focusVoice: "top_weakness",
     });
   });
 
@@ -43,11 +44,14 @@ describe("topWeaknessOf (Q-W1 ‖ Q-W2 → the lit slots)", () => {
     assert.equal(top.focusTheme, "hangingPiece", "rc:timePressure and rc:development have no Lichess match");
     // The plan's step-2 rule takes it as the weakness focus (a theme the shards serve). regression:
     // hub-two-weakest (FIX-2): it is a LOWER row's match, so the step never calls it "your weakest" or "top" theme.
-    assert.equal(top.focusIsTop, false);
-    assert.deepEqual(focusTheme([], top.focusTheme, top.focusIsTop), { key: "hangingPiece", source: "weaknessRow" });
-    assert.deepEqual(focusTheme([], "fork", true), { key: "fork", source: "weakness" });
+    // FIX-4: the old `focusIsTop` boolean is now the voice (`weakness/voice.ts`), the source names it.
+    assert.equal(top.focusVoice, "weakness_row");
+    assert.deepEqual(focusTheme([], top.focusTheme, top.focusVoice), { key: "hangingPiece", source: "weakness_row" });
+    assert.deepEqual(focusTheme([], "fork", "top_weakness"), { key: "fork", source: "top_weakness" });
     const mostFrequent = { status: "READY", metrics: { ...golden.metrics, listMode: "most_frequent" } };
-    assert.equal(topWeaknessOf(mostFrequent, BANK)!.focusIsTop, false, "a most-frequent list has no weakness to call the top one");
+    // FIX-4 (item 1, D-P6-FIX4-1): a most-frequent list's top row is the member's most common mistake, never a weakness.
+    assert.equal(topWeaknessOf(mostFrequent, BANK)!.voice, "most_common", "a most-frequent list has no weakness to call the top one");
+    assert.equal(topWeaknessOf(mostFrequent, BANK)!.focusVoice, "most_common");
     // FIX-3 (review item 7, D-P6-FIX2-10): "Your top weakness" only in a band comparison. An own-only list (no band)
     // ranks the member's own losses, so its top row's match is a "From your Weakness Profile" focus.
     assert.equal(golden.metrics.listMode, "vs_band", "the golden member is compared with a band");
@@ -55,8 +59,9 @@ describe("topWeaknessOf (Q-W1 ‖ Q-W2 → the lit slots)", () => {
     const own = topWeaknessOf(ownOnly, BANK)!;
     assert.equal(own.pattern, "fork");
     assert.equal(own.focusTheme, "fork", "the top row is matchable");
-    assert.equal(own.focusIsTop, false, "an own-only list has no band to call the top row a weakness against");
-    assert.deepEqual(focusTheme([], own.focusTheme, own.focusIsTop), { key: "fork", source: "weaknessRow" });
+    // FIX-4 (item 1): an own-only list's top row is the member's most common mistake too.
+    assert.equal(own.voice, "most_common", "an own-only list has no band to call the top row a weakness against");
+    assert.deepEqual(focusTheme([], own.focusTheme, own.focusVoice), { key: "fork", source: "most_common" });
     const noMatch = { status: "READY", metrics: { ...golden.metrics, rows: [rows[2]!, rows[3]!] } };
     assert.equal(topWeaknessOf(noMatch, BANK)!.focusTheme, null);
     assert.equal(focusTheme([], null).source, "default", "no matchable row: P5's focus rules");
@@ -90,7 +95,14 @@ describe("the lit copy", () => {
     assert.equal(homeTopTheme(undefined, empty), null);
     const bank = { due: 4, total: 23, estMin: 3, thumbs: [], nextBatch: null };
     assert.equal(bankLine({ ...bank, topTheme: homeTopTheme(undefined, top) }, false), "Missed forks is your top weakness (12 in bank).");
-    assert.equal(bankLine({ ...bank, topTheme: homeTopTheme({ theme: "hangingPiece", bankCount: 7 }, null) }, false), "Loose pieces is your most common theme (7 in bank).");
+    // FIX-4 (problem 15): the plan's noun, "most common mistake" (it read "most common theme").
+    assert.equal(bankLine({ ...bank, topTheme: homeTopTheme({ theme: "hangingPiece", bankCount: 7 }, null) }, false), "Loose pieces is your most common mistake (7 in bank).");
+    // FIX-4 (item 1): a most-frequent or own-only profile's top row is named as the most common mistake.
+    for (const listMode of ["most_frequent", "own_only"]) {
+      const t = topWeaknessOf({ status: "READY", metrics: { ...golden.metrics, listMode } }, BANK);
+      assert.deepEqual(homeTopTheme(undefined, t), { label: "Missed forks", n: 12, source: "profile" });
+      assert.equal(bankLine({ ...bank, topTheme: homeTopTheme(undefined, t) }, false), "Missed forks is your most common mistake (12 in bank).");
+    }
   });
 });
 

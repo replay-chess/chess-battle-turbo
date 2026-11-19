@@ -55,8 +55,17 @@ export type DayWordOptions = { long?: boolean; dayStartHour?: number; todayKey?:
  */
 export function dayLabel(due: Date, now: Date, timeZone: string, opts: DayWordOptions = {}): string {
   const start = opts.dayStartHour ?? 0;
-  const target = parseYmd(dayKey(due, timeZone, start));
-  const diff = calendarDaysBetween(parseYmd(opts.todayKey ?? dayKey(now, timeZone, start)), target);
+  return dayKeyLabel(dayKey(due, timeZone, start), opts.todayKey ?? dayKey(now, timeZone, start), opts);
+}
+
+/**
+ * The day word of training day `key` seen from training day `todayKey` (`dayLabel`'s words). FIX-4 (D-P6-FIX4-2): the
+ * next batch is labelled from the day it is served on (`servedByDay`'s key), which a pinned day can make differ from
+ * the calendar day of its instant.
+ */
+export function dayKeyLabel(key: string, todayKey: string, opts: Pick<DayWordOptions, "long"> = {}): string {
+  const target = parseYmd(key);
+  const diff = calendarDaysBetween(parseYmd(todayKey), target);
   if (diff <= 0) return "Today";
   if (diff === 1) return "Tomorrow";
   if (diff <= 6) return (opts.long ? WEEKDAYS_LONG : WEEKDAYS_SHORT)[weekdayOf(target)]!;
@@ -92,6 +101,13 @@ export function atLabel(at: Date, timeZone: string): string {
  */
 export function releaseLabel(at: Date, now: Date, timeZone: string, opts: Pick<DayWordOptions, "dayStartHour" | "todayKey"> = {}): string {
   const day = dayLabel(at, now, timeZone, opts);
+  const lead = day === "Today" || day === "Tomorrow" ? day.toLowerCase() : day;
+  return `${lead} at ${atLabel(at, timeZone)}`;
+}
+
+/** "tomorrow at 08:00" for an instant served on training day `key`, seen from training day `todayKey` (FIX-4). */
+export function releaseLabelOfDay(at: Date, timeZone: string, key: string, todayKey: string): string {
+  const day = dayKeyLabel(key, todayKey);
   const lead = day === "Today" || day === "Tomorrow" ? day.toLowerCase() : day;
   return `${lead} at ${atLabel(at, timeZone)}`;
 }

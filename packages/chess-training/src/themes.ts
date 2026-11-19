@@ -406,7 +406,9 @@ const WEAKNESS_TABLE: Readonly<Record<string, WeaknessThemeInfo>> = {
   discoveredAttack: w("Missed discovered attacks", "discoveredAttack", true, { noun: "discovered-attack" }),
   doubleCheck: w("Missed double checks", "doubleCheck", true, { noun: "double-check" }),
   sacrifice: w("Missed sacrifices", "sacrifice", true, { noun: "sacrifice" }),
-  exposedKing: w("Missed attacks on the king", "exposedKing", true, { noun: "king-attack" }),
+  // FIX-4 (D-P6-FIX4-9): two Lichess themes, two patterns: `exposedKing` is a tactic on a king with few defenders,
+  // `kingsideAttack` an attack on a king castled short. "Missed attacks on the king" read like the kingside row.
+  exposedKing: w("Missed attacks on an exposed king", "exposedKing", true, { noun: "exposed-king" }),
   kingsideAttack: w("Missed kingside attacks", "kingsideAttack", true, { noun: "kingside-attack" }),
   queensideAttack: w("Missed queenside attacks", "queensideAttack", true, { noun: "queenside-attack" }),
   // Material (Tier 1)

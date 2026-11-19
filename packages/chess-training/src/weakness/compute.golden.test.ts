@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { WEAKNESS_PAYLOAD_MAX_BYTES, WeaknessPayload } from "@repo/contracts/http/weakness";
 import { loadBaseline } from "../../baselines/load";
 import { fromJson } from "../../test/gen";
-import { buildMemberDesign, type MemberDesign } from "../../test/member-design";
+import { buildMemberDesign, noBandGames, type MemberDesign } from "../../test/member-design";
 import { computeWeakness, type WeaknessSnapshotDraft } from "./compute";
 import { verifyHeadline } from "./headline";
 import { buildPayload, type PayloadInput } from "./payload";
@@ -24,6 +24,7 @@ import { weekStartOf } from "./scope";
 const FIX = resolve(dirname(fileURLToPath(import.meta.url)), "../../test/fixtures/weakness");
 const md = JSON.parse(readFileSync(resolve(FIX, "member-design.json"), "utf8")) as MemberDesign;
 const golden = JSON.parse(readFileSync(resolve(FIX, "member-design.golden.json"), "utf8")) as unknown;
+const noBandGolden = JSON.parse(readFileSync(resolve(FIX, "member-design.no-band.golden.json"), "utf8")) as unknown;
 const NOW = new Date(md.now);
 
 function compute(): WeaknessSnapshotDraft {
@@ -52,6 +53,16 @@ describe("compute.golden (member-design × v0-synthetic)", () => {
 
   it("equals member-design.golden.json", () => {
     assert.deepEqual(JSON.parse(JSON.stringify(compute())), golden);
+  });
+
+  it("FIX-4: the no-band variant (no rated games) equals member-design.no-band.golden.json, the demo's no_band state", () => {
+    const draft = computeWeakness(noBandGames(md.games.map(fromJson)), loadBaseline("v0-synthetic"), { now: NOW, timeZone: md.timeZone, profile: md.profile, ratingBand: null });
+    assert.deepEqual(JSON.parse(JSON.stringify(draft)), noBandGolden);
+    const m = draft.metrics;
+    assert.equal(m.listMode, "own_only");
+    assert.equal(m.band, null);
+    assert.ok(m.breakdown!.phase.every((p) => p.band === null && p.you !== null), "phases have the member's accuracy and no band value");
+    assert.equal(m.breakdown!.phaseSentence, "Accuracy by phase. There is no rating band to compare you with yet.");
   });
 
   it("reproduces the board: rows, bands, trends, where lines, bank counts", () => {

@@ -9,7 +9,7 @@ import { hubDemo, P5_FIXTURE_NOW, type HubDemoState } from "@/app/dev/ui/_fixtur
 import { trainTodayFixture } from "@repo/contracts/http/fixtures/p05";
 import { HubSkeleton } from "./HubSkeleton";
 import { TrainHubView } from "./TrainHubView";
-import { dayWord, safeTimeZone } from "./when";
+import { batchDayWord, safeTimeZone } from "./when";
 
 const DEMO_NOW_MS = Date.parse(P5_FIXTURE_NOW);
 
@@ -17,7 +17,7 @@ export function HubDemo({ state, stress, routeSkeleton }: { state: HubDemoState;
   const [starting, setStarting] = useState(false);
   if (state === "loading" && routeSkeleton) return <HubSkeleton />;
   const today = hubDemo(state, stress) ?? trainTodayFixture(stress ? "stress" : "default");
-  const nextDay = today.nextBatch ? dayWord(today.nextBatch.at, DEMO_NOW_MS, safeTimeZone(today.prefs.timeZone), today.prefs.dayStartHour) : null;
+  const nextDay = today.nextBatch ? batchDayWord(today.nextBatch, DEMO_NOW_MS, safeTimeZone(today.prefs.timeZone), today.prefs.dayStartHour) : null;
   return (
     <TrainHubView
       today={today}

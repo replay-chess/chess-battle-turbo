@@ -9,6 +9,7 @@ import { INITIAL_FEN, lastClocks, parsePgn, positionKey, replaySan } from "../re
 import { chessComTimeClass } from "../time-class";
 import {
   clip,
+  clipWords,
   EXTERNAL_ID_MAX,
   EXTERNAL_URL_MAX,
   NAME_MAX,
@@ -69,8 +70,32 @@ export function externalIdOf(url: string, uuid: string): string {
 }
 
 /**
+ * A hyphen-separated run of k "O" tokens in a slug is castling, at most one move per side (a white move always
+ * carries its number, so a run never spans more than white's castle and black's reply):
+ *   k=2 "O-O", k=3 "O-O-O", k=4 "O-O O-O", k=6 "O-O-O O-O-O",
+ *   k=5 is ambiguous ("O-O-O O-O" or "O-O O-O-O"); the slug carries no position to decide it, so it reads as white
+ *   long, black short ("O-O-O O-O") — the only one of the two in the opening book (apps/web/public/openings: 4 vs 0)
+ *   and what the old decoder produced for k=5. Longer runs (not legal chess) split into "O-O-O" moves from the left
+ *   with the last 2..5 tokens as above. Castling written with zeros ("0-0") is not used by Chess.com slugs.
+ */
+function castlingOfRun(k: number): string {
+  const moves: string[] = [];
+  while (k > 6) {
+    moves.push("O-O-O");
+    k -= 3;
+  }
+  if (k === 2) moves.push("O-O");
+  else if (k === 3) moves.push("O-O-O");
+  else if (k === 4) moves.push("O-O", "O-O");
+  else if (k === 5) moves.push("O-O-O", "O-O");
+  else moves.push("O-O-O", "O-O-O");
+  return moves.join(" ");
+}
+
+/**
  * `ECOUrl` slug → words: `…/openings/Scandinavian-Defense-Mieses-Kotroc-Variation` → "Scandinavian Defense Mieses
- * Kotroc Variation". Markup and control characters are stripped; ≤ 80 chars.
+ * Kotroc Variation". Castling keeps its hyphens (`castlingOfRun`); every other hyphen separates words. Markup and
+ * control characters are stripped; ≤ 80 chars, cut between words (`clipWords`).
  */
 export function openingNameFromEcoUrl(ecoUrl: string | undefined | null): string | null {
   if (!ecoUrl) return null;
@@ -84,15 +109,29 @@ export function openingNameFromEcoUrl(ecoUrl: string | undefined | null): string
   const words = slug
     .replace(/<[^>]*>/g, " ")
     .replace(/[<>"`\\\p{Cc}]/gu, " ")
-    // castling inside a slug ("…6.O-O-Nxe4") keeps its hyphens; every other hyphen separates words
-    .replace(/(^|[^A-Za-z])O-O(-O)?(?=$|[^A-Za-z])/g, (_, pre: string, long?: string) => `${pre}\uE000${long ? "L" : "S"}`)
+    // a whole run of "O" tokens at once ("…5.O-O-O-O-6.c3"); \uE000 shields its hyphens from the split below
+    .replace(/(^|[^A-Za-z])(O(?:-O)+)(?=$|[^A-Za-z])/g, (_, pre: string, run: string) =>
+      pre + castlingOfRun(run.split("-").length).replace(/-/g, "\uE000"),
+    )
     .replace(/-/g, " ")
-    .replace(/\uE000L/g, "O-O-O")
-    .replace(/\uE000S/g, "O-O")
+    .replace(/\uE000/g, "-")
     .replace(/\s+/g, " ")
     .trim();
   if (!words) return null;
-  return clip(words, OPENING_NAME_MAX).trimEnd();
+  return clipWords(words, OPENING_NAME_MAX).trimEnd();
+}
+
+/**
+ * Read-time repair of an `openingName` stored by the pre-fix decoder, which read a k=4 castling run as "O-O-O O"
+ * (both sides castling short, "…5.O-O-O-O-6.c3"). Every other castling run it produced was already right (k=5 →
+ * "O-O-O O-O", k=6 → "O-O-O O-O-O"), so this rewrites only a long castle followed by a lone "O" token and returns
+ * every other name unchanged — Lichess names never carry castling notation. Idempotent.
+ */
+export function repairOpeningName(name: string): string;
+export function repairOpeningName(name: string | null): string | null;
+export function repairOpeningName(name: string | null): string | null {
+  if (!name) return name;
+  return name.replace(/(^|[^A-Za-z-])O-O-O O(?=$|[^A-Za-z-])/g, "$1O-O O-O");
 }
 
 const ECO_RE = /^[A-E]\d\d$/;

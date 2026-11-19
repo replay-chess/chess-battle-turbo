@@ -41,6 +41,9 @@ describe("phase breakdown", () => {
     assert.equal(phaseSentence([row("opening", 88, 84), row("middlegame", 75, 76), row("endgame", 74, 74)]), "Accuracy by phase. Your openings are above your band; the rest is close to it.");
     assert.equal(phaseSentence([row("opening", 85, 84), row("middlegame", 70, 76), row("endgame", null, 74)]), "Accuracy by phase. The middlegame is where it drops below your band.");
     assert.equal(phaseSentence([row("opening", null, 84), row("middlegame", null, null), row("endgame", null, 74)]), "Accuracy by phase. Not enough moves in each phase to compare yet.");
+    // FIX-4 (item 13): no band at all (staging member A, 490+ moves): the reason is the missing band, not the moves.
+    assert.equal(phaseSentence([row("opening", 87, null), row("middlegame", 54, null), row("endgame", 76, null)]), "Accuracy by phase. There is no rating band to compare you with yet.");
+    assert.equal(phaseSentence([row("opening", null, null), row("middlegame", null, null), row("endgame", null, null)]), "Accuracy by phase. Not enough moves in each phase to compare yet.");
   });
 
   it("regression: phase-sentence-unknown-phase — a phase without a number is never described", () => {
@@ -97,7 +100,10 @@ describe("clock breakdown", () => {
   it("regression: clock-sentence-flat-claim — the reference is 2–5 minutes when the member rarely has over 5, and a rise or fall is never 'about the same'", () => {
     const head = "Blunders per 100 moves, by time left on your clock.";
     // A 3+0 / 5+0 blitz player: gt5 has 5 moves; 2to5 1.0, 1to2 4.0, lt1 8.0 per 100 → about 6× higher.
-    assert.equal(clockSentence({ clockMoves: [5, 400, 200, 150], clockBlunders: [0, 4, 8, 12] }), `${head} Below 2 minutes the rate is 6× higher.`);
+    // FIX-4 (item 6): the sentence names that reference (staging P24 read "6× higher" with no word of what against).
+    assert.equal(clockSentence({ clockMoves: [5, 400, 200, 150], clockBlunders: [0, 4, 8, 12] }), `${head} Below 2 minutes the rate is 6× higher than with 2–5 minutes left.`);
+    assert.equal(clockSentence({ clockMoves: [5, 400, 200, 150], clockBlunders: [0, 4, 4, 4] }), `${head} Below 2 minutes the rate doubles compared with 2–5 minutes left.`);
+    assert.equal(clockSentence({ clockMoves: [100, 400, 200, 150], clockBlunders: [1, 4, 4, 3] }), `${head} Below 2 minutes the rate doubles.`, "over 5 minutes: no words added");
     // Member B (real Stockfish 18 rows): gt5 4.8, 2to5 8.9, 1to2 7.1, lt1 9.5 per 100.
     assert.equal(clockSentence({ clockMoves: [878, 707, 281, 273], clockBlunders: [42, 63, 20, 26] }), `${head} Below 2 minutes the rate rises.`);
     // Member H (falling): 47.2 → 43.9 → 35.0 → 25.1.

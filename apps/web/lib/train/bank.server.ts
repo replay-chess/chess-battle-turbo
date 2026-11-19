@@ -22,7 +22,7 @@ import {
 } from "@repo/contracts/http/train";
 import { servedByDay, type ServedDay } from "@repo/chess-training/caps";
 import { DEFAULT_DAY_START_HOUR } from "@repo/chess-training/constants";
-import { atLabel, releaseLabel, weekdayLabel } from "@repo/chess-training/labels";
+import { atLabel, releaseLabelOfDay, weekdayLabel } from "@repo/chess-training/labels";
 import { focusTheme, type PlanTheme } from "@repo/chess-training/plan";
 import type { BankCardIn } from "@repo/chess-training/session";
 import { seedOf as filterSeed } from "@repo/chess-training/session";
@@ -186,7 +186,7 @@ export function batchesOf(
   due: Pick<DueSummary, "dueReview" | "dueNew" | "arrivals">,
   profile: Pick<TrainingProfile, "bankDailyCap" | "newPerDay">,
   day: DayCounters,
-  clock: Pick<TrainClock, "now" | "timeZone" | "dayStartHour" | "today">,
+  clock: Pick<TrainClock, "now" | "timeZone" | "dayStartHour" | "today" | "dayEndUtc">,
 ): ServedDay[] {
   return servedByDay({
     cap: profile.bankDailyCap,
@@ -200,6 +200,7 @@ export function batchesOf(
     timeZone: clock.timeZone,
     dayStartHour: clock.dayStartHour,
     today: clock.today,
+    todayEnd: clock.dayEndUtc,
   });
 }
 
@@ -224,19 +225,24 @@ function upcomingDayLabel(key: string, d: number): string {
 }
 
 /**
- * The next batch (`NextBatch`): the first coming day's reviews under the cap (`batchesOf`), labelled in the zone at
- * `now` on the member's training day (P5-FZ-4: at 01:00 a 08:00 release is "tomorrow" when the day starts at 04:00,
- * as the hub's header says).
+ * The next batch (`NextBatch`): the first coming day's reviews under the cap (`batchesOf`), labelled on the member's
+ * training days (P5-FZ-4: at 01:00 a 08:00 release is "tomorrow" when the day starts at 04:00, as the hub's header
+ * says). FIX-4 (D-P6-FIX4-2): the word counts from the clock's day (`today`, which a zone change can pin past the
+ * zone's rollover) to the day the batch is served on, and the payload carries both days and today's end, so the
+ * browser's word follows the same days.
  */
-export function nextBatchOf(days: readonly ServedDay[], clock: Pick<TrainClock, "now" | "timeZone" | "dayStartHour">): BankPage["nextBatch"] {
+export function nextBatchOf(days: readonly ServedDay[], clock: Pick<TrainClock, "now" | "timeZone" | "dayStartHour" | "today" | "dayEndUtc">): BankPage["nextBatch"] {
   const next = days[0];
   if (!next) return null;
   return {
     at: next.at.toISOString(),
     atLabel: atLabel(next.at, clock.timeZone),
     count: next.n,
-    whenLabel: releaseLabel(next.at, clock.now, clock.timeZone, { dayStartHour: clock.dayStartHour }),
+    whenLabel: releaseLabelOfDay(next.at, clock.timeZone, next.key, clock.today),
     dayStartHour: clock.dayStartHour,
+    dayKey: next.key,
+    todayKey: clock.today,
+    todayEndsAt: clock.dayEndUtc.toISOString(),
   };
 }
 

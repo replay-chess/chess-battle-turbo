@@ -145,6 +145,36 @@ describe("servedByDay (staging fix: every next-batch count respects the cap)", (
     ]);
   });
 
+  it("regression: bank-next-batch-past (FIX-4 item 2) — a day pinned past the zone's rollover: the next batch starts when it ends, never before now", () => {
+    // Saturday 2026-11-14 was opened in UTC; the member then moved to Asia/Calcutta. At 23:12Z (04:42 IST Sunday) the
+    // clock's day is still Saturday until 04:00Z (09:30 IST); staging labelled the held-back cards "today 04:00"
+    // (22:30Z: the IST day start, already past).
+    const at = new Date("2026-11-14T23:12:00.000Z");
+    const end = new Date("2026-11-15T04:00:00.000Z");
+    const pinned = (o: Partial<Parameters<typeof servedByDay>[0]>) =>
+      servedByDay({ ...base, dueReview: 125, arrivals: [], now: at, timeZone: "Asia/Calcutta", dayStartHour: 4, today: "2026-11-14", todayEnd: end, ...o });
+    const days = pinned({});
+    assert.equal(days[0]!.key, "2026-11-15");
+    assert.equal(days[0]!.offset, 1);
+    assert.equal(days[0]!.at.toISOString(), end.toISOString(), "Sunday starts where Saturday ends (09:30 IST)");
+    assert.ok(days.every((d) => d.at.getTime() > at.getTime()), "no batch in the past");
+    // An arrival at 08:00 IST Sunday (02:30Z) falls in the pinned Saturday: today's, while the cap leaves room.
+    const room = pinned({ dueReview: 0, arrivals: [{ at: new Date("2026-11-15T02:30:00.000Z"), isNew: false, n: 3 }] });
+    assert.deepEqual(room.map((d) => [d.offset, d.key, d.n, d.at.toISOString()]), [[0, "2026-11-14", 3, "2026-11-15T02:30:00.000Z"]]);
+    // Every instant around both rollovers: a batch is never before the instant, and a later day never starts before
+    // the clock's day ends.
+    for (const iso of ["2026-11-14T22:29:00Z", "2026-11-14T22:31:00Z", "2026-11-15T02:29:00Z", "2026-11-15T03:59:00Z"]) {
+      const t = new Date(iso);
+      for (const d of pinned({ now: t, arrivals: [{ at: new Date("2026-11-15T02:30:00.000Z"), isNew: false, n: 2 }] })) {
+        assert.ok(d.at.getTime() > t.getTime(), `${iso}: ${d.key} at ${d.at.toISOString()}`);
+        if (d.offset > 0) assert.ok(d.at.getTime() >= end.getTime(), `${iso}: day ${d.key} starts after the pinned day`);
+      }
+    }
+    // Unpinned (no todayEnd): the zone's own days, as before.
+    const natural = servedByDay({ ...base, dueReview: 125, arrivals: [], now: new Date("2026-11-15T00:00:00.000Z"), timeZone: "Asia/Calcutta", dayStartHour: 4, today: "2026-11-15" });
+    assert.equal(natural[0]!.at.toISOString(), "2026-11-15T22:30:00.000Z");
+  });
+
   it("nothing due and nothing ahead: no day; arrivals past the window or already due are not arrivals", () => {
     assert.deepEqual(proj({}), []);
     assert.deepEqual(proj({ arrivals: [{ at: at8(20), isNew: false, n: 3 }, { at: new Date(now.getTime() - 1), isNew: false, n: 3 }] }), []);

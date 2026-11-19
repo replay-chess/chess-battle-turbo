@@ -95,8 +95,10 @@ export const copy = {
   mixLabel: "Fill with matched Lichess puzzles",
   unmatched: "No matching puzzles for this pattern",
   timePressure: "Matched puzzles have no clock, so this drill uses your own positions only",
-  // Plan §4.7 (rct-b W2): the pattern is named, "All your fork positions are mastered; …" (FIX-1).
-  zeroOwn: (noun: string) => `All your ${noun} positions are mastered; this drill uses matched puzzles`,
+  // Plan §4.7 (rct-b W2) named the pattern as "All your fork positions are mastered; …" (FIX-1). FIX-4 (item 12,
+  // D-P6-FIX4-7): `inBank = 0` counts the bank's live cards of the pattern, and mastered cards stay in the bank, so 0
+  // means none is there (never banked, removed or hidden), not mastered: the copy says so.
+  zeroOwn: (noun: string) => `None of your ${noun} positions are in your bank; this drill uses matched puzzles`,
   empty: "No positions to drill yet. They’re added as your games are reviewed.",
   startError: "Couldn’t start the drill",
   tooManySessions: "Too many sessions. Try again in",

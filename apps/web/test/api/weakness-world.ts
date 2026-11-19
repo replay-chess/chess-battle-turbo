@@ -183,7 +183,8 @@ export function weaknessWorld(url: string) {
       RETURNING id`);
     await db.$executeRaw(Prisma.sql`INSERT INTO user_stats ("referenceId", "userId", "updatedAt") VALUES (${`s${ref}`.slice(0, 30)}, ${r!.id}, now())`);
     users.push(r!.id);
-    return { id: r!.id, ref, name: `${label}_${n}`.slice(0, 40), rating: o.rating ?? 1350, email, timeZone: tz };
+    // `rating: null` (FIX-4): a member whose games carry no rating (with no onboarding band: no rating band at all).
+    return { id: r!.id, ref, name: `${label}_${n}`.slice(0, 40), rating: o.rating === undefined ? 1350 : o.rating, email, timeZone: tz };
   }
 
   /**

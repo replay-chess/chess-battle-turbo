@@ -5,7 +5,7 @@
 // version, seenVersion. Every label is formatted here, in the member's zone.
 import type { WeaknessLesson, WeaknessPayload, WeaknessRow, WeekPlanRow } from "@repo/contracts/http/weakness";
 import { themeLabel, weaknessLabel, TIME_PRESSURE_THEME } from "../themes";
-import { clockAriaLabel } from "./breakdown";
+import { clockAriaLabel, clockSentence, phaseSentence } from "./breakdown";
 import { ALGO_VERSION, GAMES_REQUIRED, PRELIMINARY_FROM, WEEK_PLAN_DRILL_SIZE, WEEK_PLAN_PUZZLES } from "./constants";
 import { weaknessMatchTheme } from "./drill";
 import { bandLabel, CLOCK_LABELS, lowerLabel, PHASE_LABELS, round1, scopeLabel, scopeLabelShort, trendLabel, whereLabel } from "./labels";
@@ -13,7 +13,7 @@ import { analysingTarget, computeProgress } from "./progress";
 import { resolveScope, scopeSince } from "./scope";
 import { patternSlug } from "./slug";
 import { deriveStatus, type RecomputeState } from "./status";
-import type { SnapshotStatus, WeaknessMetricsRow, WeaknessMetricsV1, WeaknessProfileRow } from "./types";
+import type { ClockBucketDoc, SnapshotStatus, WeaknessMetricsRow, WeaknessMetricsV1, WeaknessProfileRow } from "./types";
 
 /** The latest snapshot row (Q-W1). */
 export interface PayloadSnapshot {
@@ -84,7 +84,9 @@ function rowOf(r: WeaknessMetricsRow, i: number, input: PayloadInput, listMode: 
     rank: i + 1,
     pattern: r.pattern,
     slug: patternSlug(r.pattern),
-    label: r.label,
+    // The taxonomy's label at read (as the preliminary rows already do), so a label fix reaches stored snapshots
+    // (FIX-4, D-P6-FIX4-9); the stored label is the same function's output at compute time.
+    label: weaknessLabel(r.pattern) || r.label,
     unit: r.unit,
     you: Math.min(100, round1(r.you)),
     band: listMode === "most_frequent" || r.band === null ? null : Math.min(100, round1(r.band)),
@@ -132,6 +134,17 @@ export function weekPlanOf(rows: readonly WeaknessRow[], rating: number | null):
     });
   }
   return plan;
+}
+
+/** The clock sentence of stored buckets (each holds its moves and blunders); the stored text when they do not. */
+function storedClockSentence(clock: { buckets: readonly ClockBucketDoc[]; sentence: string }): string {
+  const b = clock.buckets;
+  const ok = b.length === 4 && b.every((x) => Number.isFinite(x.moves) && Number.isFinite(x.blunders));
+  if (!ok) return clock.sentence;
+  return clockSentence({
+    clockMoves: [b[0]!.moves, b[1]!.moves, b[2]!.moves, b[3]!.moves],
+    clockBlunders: [b[0]!.blunders, b[1]!.blunders, b[2]!.blunders, b[3]!.blunders],
+  });
 }
 
 export function buildPayload(input: PayloadInput): WeaknessPayload {
@@ -208,12 +221,14 @@ export function buildPayload(input: PayloadInput): WeaknessPayload {
   const breakdown = shown?.breakdown
     ? {
         phase: {
-          sentence: shown.breakdown.phaseSentence,
+          // FIX-4 (items 6, 13; D-P6-FIX4-5): both sentences are the engine's functions over the stored rows, so a
+          // snapshot written before a copy fix reads the fixed copy (the worker writes the same text for new ones).
+          sentence: phaseSentence(shown.breakdown.phase),
           rows: shown.breakdown.phase.map((p) => ({ phase: p.phase, label: PHASE_LABELS[p.phase], you: p.you, band: p.band })),
         },
         clock: shown.breakdown.clock
           ? {
-              sentence: shown.breakdown.clock.sentence,
+              sentence: storedClockSentence(shown.breakdown.clock),
               ariaLabel: clockAriaLabel(shown.breakdown.clock.buckets),
               buckets: shown.breakdown.clock.buckets.map((b) => ({ key: b.key, label: CLOCK_LABELS[b.key], per100: b.per100, moves: b.moves })),
             }
@@ -237,7 +252,8 @@ export function buildPayload(input: PayloadInput): WeaknessPayload {
     games: {
       analysed,
       inScope,
-      pending: Math.max(0, target - analysed),
+      // FIX-4 (item 10): `target` is at least 1 (a progress denominator); with no game in scope nothing is pending.
+      pending: Math.max(0, Math.min(target, inScope) - analysed),
       required: GAMES_REQUIRED,
       preliminaryFrom: PRELIMINARY_FROM,
     },

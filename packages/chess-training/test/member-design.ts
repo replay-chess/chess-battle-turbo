@@ -240,3 +240,12 @@ export function buildMemberDesign(): MemberDesign {
     games,
   };
 }
+
+/**
+ * FIX-4 (D-P6-FIX4-4): the same member with no rated games and no onboarding band, so the engine finds no rating band
+ * (`own_only`). `member-design.no-band.golden.json` is `computeWeakness()` over these games: the demo's `no_band`
+ * state is the worker's own output, never a hand-edited copy of the band profile.
+ */
+export function noBandGames<G extends { ratingBefore: number | null }>(games: readonly G[]): G[] {
+  return games.map((g) => ({ ...g, ratingBefore: null }));
+}

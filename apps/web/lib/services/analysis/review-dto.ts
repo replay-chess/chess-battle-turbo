@@ -5,6 +5,7 @@
 // SAN is not stored: it is derived from `games.moves` with chess.js and memoised per game ref and ply count in a
 // module-scope LRU (500 entries, OPT §4.5). The memo holds move text and positions of a game only, keyed by its ref.
 import { realName } from "@/lib/onboarding/display-name";
+import { repairOpeningName } from "@repo/chess-import/chesscom/map";
 import { encodeBestTokens, encodeJudgements, judgementKey, moveLabel, moverAt } from "@repo/chess-analysis/codec";
 import { legendSummary } from "@repo/chess-analysis/legend/summary";
 import { outcomeForMember } from "@repo/chess-analysis/legend/slice";
@@ -380,7 +381,7 @@ export function buildReviewDTO(row: ReviewRow, opts: BuildOptions): ReviewDTO {
   const opponentIsLegend = row.chessPositionId != null && historicalFullName(row, opponentSide) !== null;
   const opening =
     row.ecoCode && /^[A-E]\d{2}$/.test(row.ecoCode) && row.openingName
-      ? { eco: row.ecoCode, name: row.openingName.slice(0, 120) }
+      ? { eco: row.ecoCode, name: repairOpeningName(row.openingName).slice(0, 120) } // pre-fix Chess.com "O-O-O O"
       : null;
   const review = state.status === "done" ? reviewContentOf(row, replay, bankInputOf(row, opts.bank)) : null;
   const clocks = (row.moveClocksMs ?? []).slice(0, replay.uci.length).map((c) => Math.max(0, Math.round(c)));

@@ -70,6 +70,10 @@ describe("R2 helpers", () => {
       count: 10,
       whenLabel: "tomorrow at 08:00",
       dayStartHour: 0,
+      // FIX-4 (D-P6-FIX4-2): the training days the browser's word counts.
+      dayKey: "2026-11-13",
+      todayKey: "2026-11-12",
+      todayEndsAt: "2026-11-13T00:00:00.000Z",
     });
     assert.deepEqual(upcomingOf(big.days), [
       { label: "Tomorrow", n: 10 },
@@ -93,6 +97,9 @@ describe("R2 helpers", () => {
       count: 10,
       whenLabel: "tomorrow at 00:00",
       dayStartHour: 0,
+      dayKey: "2026-11-13",
+      todayKey: "2026-11-12",
+      todayEndsAt: "2026-11-13T00:00:00.000Z",
     });
     assert.deepEqual(upcomingOf(held.days), [
       { label: "Tomorrow", n: 10 },
@@ -132,6 +139,9 @@ describe("R2 helpers", () => {
       count: 3,
       whenLabel: "tomorrow at 13:30",
       dayStartHour: 4,
+      dayKey: "2026-11-13",
+      todayKey: "2026-11-12",
+      todayEndsAt: "2026-11-12T22:30:00.000Z",
     });
     // The day word is the member's training day (P5-FZ-4): at 00:30 local it is still yesterday's day, so tomorrow;
     // once the day starts (04:00 local) the same instant is today.

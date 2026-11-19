@@ -57,6 +57,12 @@ export interface ServeInputs extends CapInputs {
   dayStartHour: number;
   /** Today's training day key (the clock's: a zone change can pin it). */
   today: string;
+  /**
+   * The instant today's training day ends (the clock's `dayEndUtc`). A day pinned by a zone or day-start change
+   * (`trainingDayAt`) can end later than the current zone's own rollover; the next day starts here, never earlier
+   * (FIX-4, D-P6-FIX4-2). Default: the current zone's start of the next day.
+   */
+  todayEnd?: Date;
   /** Training days projected, today included (default 14: today and the 13 the bank's "Coming up" covers). */
   days?: number;
 }
@@ -87,10 +93,16 @@ export function servedByDay(i: ServeInputs): ServedDay[] {
   const shownNew = today.dueShown - shownReviews;
   let reviews = i.dueReview - shownReviews;
   let fresh = i.dueNew - shownNew;
+  // The training days are the clock's (FIX-4, D-P6-FIX4-2): today runs until `todayEnd` (a pinned day can outlast the
+  // zone's own rollover), every later day is the current zone's and starts no earlier than `todayEnd`. So an arrival
+  // before `todayEnd` is today's, and no day after today can start (or be labelled) before today has ended.
+  const todayEnd = (i.todayEnd ?? dayStart(addDaysToKey(i.today, 1), i.timeZone, i.dayStartHour)).getTime();
+  const offsetOf = (at: Date) => (at.getTime() < todayEnd ? 0 : Math.max(1, daysBetween(i.today, dayKey(at, i.timeZone, i.dayStartHour))));
+  const startOf = (key: string) => new Date(Math.max(dayStart(key, i.timeZone, i.dayStartHour).getTime(), todayEnd));
   const byDay = new Map<number, Arrival[]>();
   for (const a of i.arrivals) {
     if (a.n <= 0 || a.at.getTime() <= now) continue;
-    const d = Math.max(0, daysBetween(i.today, dayKey(a.at, i.timeZone, i.dayStartHour)));
+    const d = offsetOf(a.at);
     if (d < days) byDay.set(d, [...(byDay.get(d) ?? []), a]);
   }
   const out: ServedDay[] = [];
@@ -111,7 +123,7 @@ export function servedByDay(i: ServeInputs): ServedDay[] {
     if (n === 0) continue;
     const key = addDaysToKey(i.today, d);
     const first = arrivals.find((a) => !a.isNew || takeNew > 0) ?? arrivals[0];
-    out.push({ offset: d, key, n, at: carried || !first ? dayStart(key, i.timeZone, i.dayStartHour) : first.at });
+    out.push({ offset: d, key, n, at: carried || !first ? startOf(key) : first.at });
   }
   return out;
 }

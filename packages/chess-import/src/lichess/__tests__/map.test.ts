@@ -163,6 +163,14 @@ describe("mapLichessGame: fields", () => {
     assert.equal(g.source, "LICHESS");
   });
 
+  it("an opening name over 80 chars is cut between words, never inside one", () => {
+    const long = "English Opening: King's English Variation, Four Knights Variation, Bradley Beach Variation";
+    const g = ok(map(spec({ opening: { eco: "A29", name: long, ply: 8 } })));
+    assert.equal(g.openingName, "English Opening: King's English Variation, Four Knights Variation, Bradley Beach");
+    const g2 = ok(map(spec({ opening: { eco: "A29", name: "English Opening: King's English Variation, Botvinnik System, Prickly Pawn Pass System", ply: 8 } })));
+    assert.equal(g2.openingName, "English Opening: King's English Variation, Botvinnik System, Prickly Pawn Pass");
+  });
+
   it("skips variants, unrated games and games shorter than 2 plies", () => {
     assert.equal(reason(map(spec({ variant: "chess960" }))), "variant");
     assert.equal(reason(map(spec({ variant: "atomic" }))), "variant");

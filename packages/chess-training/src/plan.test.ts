@@ -6,11 +6,13 @@ import { describe, it } from "node:test";
 // The JSON registry's schema, read by path: this package never depends on @repo/db (it is pure), but its output must
 // be exactly what the registry accepts before the write.
 import { DailyPlanV1 } from "../../db/src/json/training";
+import { bankPatternLine, weaknessVoice } from "./weakness/voice";
 import {
   buildDailyPlan,
   focusTheme,
   keepGoingLabel,
   liveEmptySteps,
+  livePuzzleStep,
   planCta,
   planDoneBits,
   planDoneCount,
@@ -99,7 +101,7 @@ describe("bank step", () => {
 
 describe("puzzle step and the focus theme", () => {
   it("prefers P6's weakness, then the lowest EWMA with ≥ 5 attempts, then the most bank cards, then fork", () => {
-    assert.deepEqual(focusTheme(base.themes, "skewer"), { key: "skewer", source: "weakness" });
+    assert.deepEqual(focusTheme(base.themes, "skewer"), { key: "skewer", source: "top_weakness" });
     assert.deepEqual(focusTheme(base.themes), { key: "pin", source: "lowestMastery" });
     assert.deepEqual(focusTheme([{ key: "fork", attempts: 2, ewma: 0, bankCount: 1 }, { key: "hangingPiece", attempts: 0, ewma: 0, bankCount: 4 }]), {
       key: "hangingPiece",
@@ -234,5 +236,35 @@ describe("the frozen plan", () => {
   it("depends only on its inputs (the same inputs build the same plan)", () => {
     assert.deepEqual(buildDailyPlan(base), buildDailyPlan({ ...base }));
     assert.equal(buildDailyPlan(base).createdAt, NOW.toISOString());
+  });
+});
+
+describe("FIX-4: the plan step's voice and its live rating", () => {
+  it("one rule (weaknessVoice): 'top weakness' only for the top row of a band comparison", () => {
+    assert.equal(weaknessVoice("vs_band", true), "top_weakness");
+    assert.equal(weaknessVoice("vs_band", false), "weakness_row");
+    assert.equal(weaknessVoice("most_frequent", true), "most_common");
+    assert.equal(weaknessVoice("own_only", true), "most_common");
+    assert.equal(weaknessVoice("most_frequent", false), "common_row");
+    assert.equal(weaknessVoice(null, true), "most_common", "no list mode: never a weakness");
+    assert.equal(bankPatternLine("Missed forks", 12, true), "Missed forks is your top weakness (12 in bank).");
+    assert.equal(bankPatternLine("Time-pressure blunders", 51, false), "Time-pressure blunders is your most common mistake (51 in bank).");
+    const step = (voice: Parameters<typeof focusTheme>[2]) => buildDailyPlan({ ...base, weaknessTheme: "fork", weaknessVoice: voice }).steps[1]!.subtitle;
+    assert.match(step("top_weakness"), /^Your top weakness · rating 1512 · ~4 min$/);
+    assert.match(step("most_common"), /^Your most common mistake · /);
+    assert.match(step("common_row"), /^Common in your games · /);
+    assert.doesNotMatch(step("common_row"), /weakness/i);
+  });
+
+  it("regression: hub-plan-stale (item 8) — the frozen puzzle step reads the live rating and the live profile's voice", () => {
+    const frozen = buildDailyPlan({ ...base, puzzleRating: 2200, weaknessTheme: "kingsideAttack", weaknessVoice: "weakness_row" });
+    const step = frozen.steps[1]!;
+    assert.equal(step.subtitle, "From your Weakness Profile · rating 2200 · ~4 min");
+    // Later that day: the rating fell to 1771 and the profile turned out to be a most-frequent list.
+    assert.equal(livePuzzleStep(step, { rating: 1771 }).subtitle, "From your Weakness Profile · rating 1771 · ~4 min");
+    assert.equal(livePuzzleStep(step, { rating: 1771, reason: { theme: "kingsideAttack", source: "common_row" } }).subtitle, "Common in your games · rating 1771 · ~4 min");
+    assert.equal(livePuzzleStep(step, { rating: 1771, reason: { theme: "fork", source: "top_weakness" } }).subtitle, "From your Weakness Profile · rating 1771 · ~4 min", "another theme: the frozen reason stays");
+    assert.equal(livePuzzleStep(frozen.steps[0]!, { rating: 1771 }), frozen.steps[0], "the bank step is the frozen one");
+    assert.deepEqual({ ...livePuzzleStep(step, { rating: 1771 }), subtitle: step.subtitle }, step, "only the subtitle changes");
   });
 });

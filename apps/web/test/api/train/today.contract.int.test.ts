@@ -184,9 +184,13 @@ describe("P5 R1 today, R4 themes, R8 badges (Postgres)", { skip: url ? false : "
     assert.equal(t.weekdayLabel, "Saturday");
     assert.ok(t.nextBatch, "a batch at the next release");
     assert.equal(t.nextBatch!.at, "2026-11-15T02:30:00.000Z");
-    // The hub's line (TrainHubScreen): counted from the header's day, Sunday 08:00 is "tomorrow", not "today".
-    const { dayWord } = await import("@/components/train/hub/when");
-    assert.equal(dayWord(t.nextBatch!.at, at0407.getTime(), t.prefs.timeZone, t.prefs.dayStartHour, t.dayKey), "tomorrow");
+    // The hub's line (TrainHubScreen) counts from the header's day. FIX-4 (D-P6-FIX4-2) changed this expectation from
+    // "tomorrow": Saturday's pinned day runs until 09:30 IST, so the 08:00 IST card falls due INSIDE it and is served
+    // under Saturday's cap; the batch's training day is Saturday ("today"), as the server's own words say.
+    const { batchDayWord } = await import("@/components/train/hub/when");
+    assert.equal(t.nextBatch!.dayKey, "2026-11-14");
+    assert.equal(t.nextBatch!.whenLabel, "today at 08:00");
+    assert.equal(batchDayWord(t.nextBatch!, at0407.getTime(), t.prefs.timeZone, t.prefs.dayStartHour, t.dayKey), "today");
     // Once Saturday's pinned day has ended (04:00 UTC = 09:30 IST), the header is Sunday and the 08:00 batch is gone.
     const after = ok(TrainToday).parse(await (await w.call("today", "GET", "/api/train/today", m, { now: new Date("2026-11-15T04:01:00.000Z") })).json()).data;
     assert.equal(after.dayKey, "2026-11-15");

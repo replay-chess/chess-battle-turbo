@@ -175,7 +175,8 @@ describe("P6 FIX-3 weakness counts, flag-off hides and the Home line (Postgres, 
     const top = p.top[0]!;
     const withCards = await home(H);
     if (top.inBank > 0) {
-      assert.deepEqual(withCards.bank.topTheme, { label: top.label.slice(0, 40), n: top.inBank, source: "weakness" });
+      // FIX-4 (D-P6-FIX4-1) changed the expectation: `weakness` only for a band comparison, else `profile`.
+      assert.deepEqual(withCards.bank.topTheme, { label: top.label.slice(0, 40), n: top.inBank, source: p.listMode === "vs_band" ? "weakness" : "profile" });
     }
     // Remove every bank card carrying the top pattern (W6, the product's own remove).
     const viewer = w.viewerOf(H);
@@ -185,7 +186,7 @@ describe("P6 FIX-3 weakness counts, flag-off hides and the Home line (Postgres, 
     assert.equal((await payloadOf(H)).top[0]!.inBank, 0, "no card of the top weakness is left");
     const empty = await home(H);
     const line = empty.bank.topTheme;
-    assert.notEqual(line?.source, "weakness", `the line names a weakness with 0 in bank: ${JSON.stringify(line)}`);
+    assert.ok(line?.source !== "weakness" && line?.source !== "profile", `the line names the profile's top row with 0 in bank: ${JSON.stringify(line)}`);
     if (line) assert.ok(line.n > 0, "P5's fallback: the most common bank theme, with cards");
   });
 });

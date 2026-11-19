@@ -19,6 +19,7 @@
 import { Prisma } from "@repo/db";
 import type { HomeData } from "@repo/contracts/http/home";
 import { HOME_BANK_THUMBS, HOME_RECENT_MAX } from "@repo/contracts/http/home";
+import { repairOpeningName } from "@repo/chess-import/chesscom/map";
 import { estimateMinutes, greetingPart, playedAtLabel, WEEKDAYS_LONG } from "@repo/chess-training/labels";
 import { dayKey, weekKeys } from "@repo/chess-training/day";
 import { themePluralLabel } from "@repo/chess-training/themes";
@@ -154,7 +155,7 @@ export function continueOf(rows: readonly ContinueRow[], now: Date, timeZone: st
     opponentRating: pick.opponentRating === null ? null : num(pick.opponentRating),
     result: resultOf(pick.result),
     endMove: endMoveOf(num(pick.startPly), num(pick.plyCount)),
-    openingName: pick.openingName ? pick.openingName.slice(0, 120) : null,
+    openingName: pick.openingName ? repairOpeningName(pick.openingName).slice(0, 120) : null, // pre-fix "O-O-O O"
     whenLabel: playedAtLabel(asDate(pick.endedAt)!, now, timeZone),
     keyMomentCount: Math.min(3, Math.max(0, num(pick.momentsCount))),
     accuracy: pick.accuracy === null ? null : Math.min(100, Math.max(0, Math.round(num(pick.accuracy)))),
@@ -203,7 +204,9 @@ export function weekAria(days: readonly boolean[]): string {
  * bank, so "Time-pressure blunders is your top weakness (0 in bank)." never shows; the profile itself is on the hub.
  */
 export function homeTopTheme(top: { theme: string; bankCount: number } | undefined, weakness: TopWeakness | null): HomeData["bank"]["topTheme"] {
-  if (weakness && weakness.inBank > 0) return { label: weakness.label, n: weakness.inBank, source: "weakness" };
+  // FIX-4 (D-P6-FIX4-1): "top weakness" only for the top row of a band comparison; a most-frequent or own-only
+  // profile's top row is the member's most common mistake (`weaknessVoice`, the hub's plan step uses the same rule).
+  if (weakness && weakness.inBank > 0) return { label: weakness.label, n: weakness.inBank, source: weakness.voice === "top_weakness" ? "weakness" : "profile" };
   return top && num(top.bankCount) > 0 ? { label: themePluralLabel(top.theme), n: num(top.bankCount) } : null;
 }
 

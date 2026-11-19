@@ -6,7 +6,8 @@
 //   hub     "All training" shows "Weakness drills · {label} · {n} in your bank" linking the top pattern's drill; today's
 //           plan is "Built from your last 20 games."; Theme mastery links the profile; the Train sections list
 //           "Weakness Profile"
-//   home    the bank card reads "{label} is your top weakness ({n} in bank)."
+//   home    the bank card reads "{label} is your top weakness ({n} in bank)." for a band comparison, else "{label} is
+//           your most common mistake ({n} in bank)." (FIX-4, D-P6-FIX4-1: the profile's own list mode decides)
 //   ⌘K      "Weakness Profile" (G then W) opens /train/weakness?from=palette
 //   g w     the chord opens /train/weakness?from=chord
 // Every value is cross-checked with the member's own TR-5 payload (the profile page's rows), never hard-coded.
@@ -19,12 +20,12 @@ type Row = { pattern: string; slug: string; label: string; inBank: number; match
 test.describe.configure({ mode: "serial" });
 test.use({ ...DEVICES["desktop-1440"], timezoneId: "UTC" });
 
-async function topRow(page: Page): Promise<Row> {
+async function topRow(page: Page): Promise<Row & { listMode: string }> {
   const res = await page.request.get("/api/train/weakness");
   expect(res.status(), await res.text()).toBe(200);
-  const body = (await res.json()) as { data: { status: string; top: Row[] } };
+  const body = (await res.json()) as { data: { status: string; listMode: string; top: Row[] } };
   expect(body.data.status).toBe("ready");
-  return body.data.top[0]!;
+  return { ...body.data.top[0]!, listMode: body.data.listMode };
 }
 
 test.describe("weakness lights up · desktop-1440@100", { tag: ["@p6"] }, () => {
@@ -60,7 +61,9 @@ test.describe("weakness lights up · desktop-1440@100", { tag: ["@p6"] }, () => 
     await gotoOk(page, "/home");
     const line = page.getByTestId("home-bank-line");
     await expect(line).toBeVisible({ timeout: 120_000 });
-    await expect(line).toHaveText(`${top.label} is your top weakness (${top.inBank} in bank).`);
+    // FIX-4 (D-P6-FIX4-1): "top weakness" only when the profile compares with the band; otherwise "most common mistake".
+    const noun = top.listMode === "vs_band" ? "top weakness" : "most common mistake";
+    await expect(line).toHaveText(`${top.label} is your ${noun} (${top.inBank} in bank).`);
   });
 
   test("⌘K 'Weakness Profile' and the g w chord", async ({ weak, page }) => {

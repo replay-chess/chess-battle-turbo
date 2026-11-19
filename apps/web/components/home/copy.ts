@@ -3,6 +3,7 @@
 // formatted on the server in the viewer's zone. Buttons and headings are Title Case, status lines sentence case with a
 // period, eyebrows lowercase in the source (CSS uppercases them).
 import type { HomeBank, HomeContinue, HomeData, HomeImport, HomeRecentGame, HomeWeek } from "@repo/contracts/http/home";
+import { bankPatternLine } from "@repo/chess-training/weakness/voice";
 import { movesProgress } from "@/features/review/progress";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -122,14 +123,14 @@ export function bankCountLabel(due: number): string {
 }
 
 /**
- * "Loose pieces is your most common theme (7 in bank)." P6 (phase-06 plan §7.1.5): a READY weakness profile's top row
- * (`topTheme.source === "weakness"`) reads "Missed forks is your top weakness (12 in bank)."
+ * "Loose pieces is your most common mistake (7 in bank)." P6 (phase-06 plan §7.1.5): the top row of a READY profile
+ * that ranks against the rating band (`topTheme.source === "weakness"`) reads "Missed forks is your top weakness (12 in
+ * bank)."; every other source reads "most common mistake" (FIX-4, `bankPatternLine`, D-P6-FIX4-1).
  */
 export function bankLine(b: HomeBank, isNew: boolean): string {
   if (isNew || b.total === 0) return HOME_COPY.bankNewLine;
   if (b.due === 0) return nothingDueLine(b);
-  if (b.topTheme?.source === "weakness") return `${b.topTheme.label} is your top weakness (${b.topTheme.n} in bank).`;
-  if (b.topTheme) return `${b.topTheme.label} is your most common theme (${b.topTheme.n} in bank).`;
+  if (b.topTheme) return bankPatternLine(b.topTheme.label, b.topTheme.n, b.topTheme.source === "weakness");
   return `${plural(b.total, "position", "positions")} in your bank.`;
 }
 

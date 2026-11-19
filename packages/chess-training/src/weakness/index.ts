@@ -23,3 +23,4 @@ export * from "./trend";
 export * from "./types";
 export * from "./version";
 export * from "./where";
+export * from "./voice";

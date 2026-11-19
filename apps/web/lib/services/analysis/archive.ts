@@ -20,6 +20,7 @@ import {
   type GamesQuery,
 } from "@repo/contracts/http/games";
 import { GAME_SOURCES_WIRE, MAX_MOMENTS, type GameSourceWire } from "@repo/contracts/http/review";
+import { repairOpeningName } from "@repo/chess-import/chesscom/map";
 import { isValidTimeZone } from "@repo/chess-training/tz";
 import { ApiError } from "@/lib/api/api-error";
 import { fnv1a64 } from "@/lib/api/etag";
@@ -126,7 +127,7 @@ export function gameRowOf(row: ArchiveRow, nowMs: number, timeZone = "UTC"): Gam
   const tc = tcOf({ timeClass: row.timeClass, initialTimeSeconds: row.initialTimeSeconds, incrementSeconds: row.incrementSeconds });
   const opening =
     row.ecoCode && /^[A-E]\d{2}$/.test(row.ecoCode) && row.openingName?.trim()
-      ? { eco: row.ecoCode, name: row.openingName.trim().slice(0, 120) }
+      ? { eco: row.ecoCode, name: repairOpeningName(row.openingName.trim()).slice(0, 120) } // pre-fix Chess.com "O-O-O O"
       : null;
   const endedAt = new Date(row.endedAt);
   return {

@@ -15,6 +15,8 @@ import {
   ratedGamesTotal,
 } from "../map";
 import { CHESSCOM_DRAW_CODES, CHESSCOM_RESULT_CODES } from "../types";
+// Namespace import: a regression test for an export the old code lacked fails on its own instead of breaking the file.
+import * as chessComMap from "../map";
 
 const ME = "KnightOwl_88";
 const SHORT = ["e4", "e5", "Nf3", "Nc6"];
@@ -242,6 +244,72 @@ describe("mapChessComGame: fields", () => {
     assert.equal(g.ecoCode, "C50");
     assert.equal(g.openingName, "Italian Game");
     assert.equal(ok(map(spec({ eco: "Z99" }))).ecoCode, null);
+  });
+
+  describe("castling runs in the ECOUrl slug (regression: \"…5.O-O-O O 6.c3\")", () => {
+    const name = (slug: string) => openingNameFromEcoUrl(`https://www.chess.com/openings/${slug}`);
+
+    it("k=4 after the name's \"...\": both sides castle short (the staging Przepiorka game)", () => {
+      assert.equal(
+        name("Indian-Game-East-Indian-Przepiorka-Variation...5.O-O-O-O-6.c3"),
+        "Indian Game East Indian Przepiorka Variation...5.O-O O-O 6.c3",
+      );
+    });
+
+    it("k=4 after a white move number, mid-slug and at the end of the slug", () => {
+      assert.equal(name("Catalan-Opening-Closed-5.Bg2-Be7-6.O-O-O-O-7.Qc2"), "Catalan Opening Closed 5.Bg2 Be7 6.O-O O-O 7.Qc2");
+      assert.equal(name("Catalan-Opening-Closed-6.O-O-O-O"), "Catalan Opening Closed 6.O-O O-O");
+    });
+
+    it("k=4 after a black \"N...\" move", () => {
+      assert.equal(
+        name("Pirc-Defense-Classical-Variation-5...c6-6.O-O-O-O-7.a4"),
+        "Pirc Defense Classical Variation 5...c6 6.O-O O-O 7.a4",
+      );
+    });
+
+    it("k=2, k=3, k=5 (white long, black short) and k=6 (both long)", () => {
+      assert.equal(name("Pirc-Defense-Classical-Quiet-System-5...O-O-6.O-O-a6"), "Pirc Defense Classical Quiet System 5...O-O 6.O-O a6");
+      assert.equal(name("Sicilian-Defense-Dragon-Yugoslav-Attack...9.O-O-O-Bd7"), "Sicilian Defense Dragon Yugoslav Attack...9.O-O-O Bd7");
+      assert.equal(name("Sicilian-Defense-Dragon-Yugoslav-Attack...9.O-O-O-O-O-10.Kb1"), "Sicilian Defense Dragon Yugoslav Attack...9.O-O-O O-O 10.Kb1");
+      assert.equal(name("Philidor-Defense-Lion-Variation...8.O-O-O-O-O-O-9.h4"), "Philidor Defense Lion Variation...8.O-O-O O-O-O 9.h4");
+    });
+
+    it("leaves the existing cases and names with a lone \"O\" alone", () => {
+      assert.equal(name("Pirc-Defense-Classical-Variation...5.Bc4-O-O-6.O-O-Nxe4"), "Pirc Defense Classical Variation...5.Bc4 O-O 6.O-O Nxe4");
+      assert.equal(name("Four-Knights-Game-Glek-Variation-4...Bc5-5.Bg2-d6-6.O-O"), "Four Knights Game Glek Variation 4...Bc5 5.Bg2 d6 6.O-O");
+      assert.equal(name("Sicilian-Defense-O-Kelly-Variation"), "Sicilian Defense O Kelly Variation");
+    });
+
+    it("a name over 80 chars is cut between tokens, never inside one", () => {
+      const slug = "Sicilian-Defense-Najdorf-Variation-English-Attack-Anti-English...8.f3-h5-9.Qd2-Nbd7-10.O-O-O-b5-11.Kb1";
+      const full = "Sicilian Defense Najdorf Variation English Attack Anti English...8.f3 h5 9.Qd2 Nbd7 10.O-O-O b5 11.Kb1";
+      const got = name(slug)!;
+      assert.ok(got.length <= 80);
+      assert.ok(full.startsWith(got) && full[got.length] === " ", `cut mid-token: ${JSON.stringify(got)}`);
+      assert.equal(got, "Sicilian Defense Najdorf Variation English Attack Anti English...8.f3 h5 9.Qd2");
+    });
+
+    it("repairOpeningName fixes names stored by the old decoder and leaves every other name as it is", () => {
+      const repair = chessComMap.repairOpeningName;
+      assert.equal(typeof repair, "function");
+      assert.equal(
+        repair("Indian Game East Indian Przepiorka Variation...5.O-O-O O 6.c3"),
+        "Indian Game East Indian Przepiorka Variation...5.O-O O-O 6.c3",
+      );
+      assert.equal(repair("Catalan Opening Closed 6.O-O-O O"), "Catalan Opening Closed 6.O-O O-O");
+      for (const ok of [
+        "Indian Game East Indian Przepiorka Variation...5.O-O O-O 6.c3",
+        "Sicilian Defense Dragon Yugoslav Attack...9.O-O-O O-O 10.Kb1",
+        "Philidor Defense Lion Variation...8.O-O-O O-O-O 9.h4",
+        "Pirc Defense Classical Variation...5.Bc4 O-O 6.O-O Nxe4",
+        "Sicilian Defense: O'Kelly Variation",
+        "English Opening: King's English Variation, Four Knights Variation, Bradley Beach",
+      ]) {
+        assert.equal(repair(ok), ok);
+      }
+      assert.equal(repair(null), null);
+    });
   });
 
   it("truncates the opponent's name to 40 chars and sets the member's title only on their side", () => {

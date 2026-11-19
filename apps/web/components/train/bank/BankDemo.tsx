@@ -8,7 +8,7 @@ import { useState } from "react";
 import { DEFAULT_DAY_START_HOUR } from "@repo/chess-training/constants";
 import { bankDemo, P5_FIXTURE_NOW, type BankDemoState } from "@/app/dev/ui/_fixtures/train";
 import { notify } from "@/components/ui/toast";
-import { dayWord } from "../hub/when";
+import { batchDayWord } from "../hub/when";
 import { BankSkeleton } from "./BankSkeleton";
 import { BankView } from "./BankView";
 import { EMPTY_FILTER, type BankFilterState } from "./model";
@@ -32,7 +32,7 @@ export function BankDemo({ state, stress, routeSkeleton, filterOpen: openOnMount
   if (!demo || (state === "loading" && routeSkeleton)) return <BankSkeleton />;
   const page = demo.page;
   const rows = page.rows.filter((r) => !removed.has(r.cardRef));
-  const nextDay = page.nextBatch ? dayWord(page.nextBatch.at, DEMO_NOW_MS, "UTC", page.nextBatch.dayStartHour ?? DEFAULT_DAY_START_HOUR) : null;
+  const nextDay = page.nextBatch ? batchDayWord(page.nextBatch, DEMO_NOW_MS, "UTC", DEFAULT_DAY_START_HOUR) : null;
 
   return (
     <BankView

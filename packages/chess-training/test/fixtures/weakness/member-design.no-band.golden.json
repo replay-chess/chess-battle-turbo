@@ -1,0 +1,329 @@
+{
+ "status": "READY",
+ "timeClasses": [
+  "RAPID",
+  "BLITZ"
+ ],
+ "since": "2026-08-02T10:00:00.000Z",
+ "gamesInScope": 212,
+ "gamesAnalysed": 212,
+ "ratingBandMin": null,
+ "ratingBandMax": null,
+ "metrics": {
+  "v": 1,
+  "scope": {
+   "timeClasses": [
+    "RAPID",
+    "BLITZ"
+   ],
+   "since": "2026-08-02T10:00:00.000Z",
+   "months": 6,
+   "maxGames": 300
+  },
+  "games": {
+   "inScope": 212,
+   "analysed": 212,
+   "excludedBot": 2
+  },
+  "band": null,
+  "failure": null,
+  "inputs": {
+   "watermarkEndedAt": "2026-11-15T22:00:00.000Z",
+   "healed": 0,
+   "baseline": "v0-synthetic",
+   "engineProfile": "sf18-v1"
+  },
+  "listMode": "own_only",
+  "rows": [
+   {
+    "pattern": "fork",
+    "label": "Missed forks",
+    "unit": "per100",
+    "you": 3.10272536687631,
+    "band": null,
+    "events": 296,
+    "moves": 9540,
+    "gamesWith": 169,
+    "lossYou100": 56.0167714884696,
+    "lossBand100": null,
+    "ratio": null,
+    "z": null,
+    "score": 56.0167714884696,
+    "phaseMode": "middlegame",
+    "phaseCount": [
+     42,
+     222,
+     32
+    ],
+    "eventsLt1": 46,
+    "gamesWithLast20": 7,
+    "lastN": 20,
+    "trend": "worse",
+    "trendRecent": 3.740740740740741,
+    "trendPrior": 1.6666666666666667,
+    "example": null
+   },
+   {
+    "pattern": "hangingPiece",
+    "label": "Missed free pieces",
+    "unit": "per100",
+    "you": 2.40041928721174,
+    "band": null,
+    "events": 229,
+    "moves": 9540,
+    "gamesWith": 197,
+    "lossYou100": 47.9664570230608,
+    "lossBand100": null,
+    "ratio": null,
+    "z": null,
+    "score": 47.9664570230608,
+    "phaseMode": "middlegame",
+    "phaseCount": [
+     39,
+     163,
+     27
+    ],
+    "eventsLt1": 0,
+    "gamesWithLast20": 5,
+    "lastN": 20,
+    "trend": "same",
+    "trendRecent": 2.4074074074074074,
+    "trendPrior": 2.4074074074074074,
+    "example": null
+   },
+   {
+    "pattern": "pin",
+    "label": "Missed pins",
+    "unit": "per100",
+    "you": 1.6037735849056605,
+    "band": null,
+    "events": 153,
+    "moves": 9540,
+    "gamesWith": 144,
+    "lossYou100": 17.641509433962263,
+    "lossBand100": null,
+    "ratio": null,
+    "z": null,
+    "score": 17.641509433962263,
+    "phaseMode": "middlegame",
+    "phaseCount": [
+     0,
+     153,
+     0
+    ],
+    "eventsLt1": 0,
+    "gamesWithLast20": 0,
+    "lastN": 20,
+    "trend": "same",
+    "trendRecent": 1.8148148148148149,
+    "trendPrior": 1.8148148148148149,
+    "example": null
+   },
+   {
+    "pattern": "rc:timePressure",
+    "label": "Time-pressure blunders",
+    "unit": "per100_under1min",
+    "you": 3.9832285115303985,
+    "band": null,
+    "events": 38,
+    "moves": 954,
+    "gamesWith": 38,
+    "lossYou100": 16.436058700209642,
+    "lossBand100": null,
+    "ratio": null,
+    "z": null,
+    "score": 16.436058700209642,
+    "phaseMode": "middlegame",
+    "phaseCount": [
+     0,
+     38,
+     0
+    ],
+    "eventsLt1": 38,
+    "gamesWithLast20": 4,
+    "lastN": 20,
+    "trend": "better",
+    "trendRecent": 1.4814814814814814,
+    "trendPrior": 5.925925925925926,
+    "example": null
+   },
+   {
+    "pattern": "rc:development",
+    "label": "Slow development",
+    "unit": "per100",
+    "you": 0.9958071278825996,
+    "band": null,
+    "events": 95,
+    "moves": 9540,
+    "gamesWith": 95,
+    "lossYou100": 7.945492662473795,
+    "lossBand100": null,
+    "ratio": null,
+    "z": null,
+    "score": 7.945492662473795,
+    "phaseMode": "opening",
+    "phaseCount": [
+     95,
+     0,
+     0
+    ],
+    "eventsLt1": 0,
+    "gamesWithLast20": 0,
+    "lastN": 20,
+    "trend": "worse",
+    "trendRecent": 1.4814814814814814,
+    "trendPrior": 0.7407407407407407,
+    "example": null
+   }
+  ],
+  "topKeys": [
+   "fork",
+   "hangingPiece",
+   "pin"
+  ],
+  "preliminary": [],
+  "headline": {
+   "text": "You lose most points to missed forks in the middlegame, especially with under a minute on your clock.",
+   "short": "You lose most points to missed forks in the middlegame, especially under a minute.",
+   "claims": [
+    {
+     "k": "pattern",
+     "key": "fork"
+    },
+    {
+     "k": "phase",
+     "phase": "middlegame"
+    },
+    {
+     "k": "clock",
+     "bucket": "lt1"
+    }
+   ]
+  },
+  "breakdown": {
+   "phase": [
+    {
+     "phase": "opening",
+     "you": 88,
+     "band": null,
+     "moves": 2544
+    },
+    {
+     "phase": "middlegame",
+     "you": 71,
+     "band": null,
+     "moves": 5324
+    },
+    {
+     "phase": "endgame",
+     "you": 79,
+     "band": null,
+     "moves": 1672
+    }
+   ],
+   "phaseSentence": "Accuracy by phase. There is no rating band to compare you with yet.",
+   "clock": {
+    "buckets": [
+     {
+      "key": "gt5",
+      "moves": 2332,
+      "blunders": 19,
+      "per100": 0.8,
+      "band": null
+     },
+     {
+      "key": "2to5",
+      "moves": 1590,
+      "blunders": 17,
+      "per100": 1.1,
+      "band": null
+     },
+     {
+      "key": "1to2",
+      "moves": 4664,
+      "blunders": 120,
+      "per100": 2.6,
+      "band": null
+     },
+     {
+      "key": "lt1",
+      "moves": 954,
+      "blunders": 38,
+      "per100": 4,
+      "band": null
+     }
+    ],
+    "sentence": "Blunders per 100 moves, by time left on your clock. Below 2 minutes the rate triples."
+   },
+   "openings": [
+    {
+     "family": "Two Knights Defence",
+     "ecoRange": "C55–C59",
+     "games": 38,
+     "points": 18,
+     "scorePct": 47,
+     "note": "most_played"
+    },
+    {
+     "family": "Queen’s Gambit Declined",
+     "ecoRange": "D30–D69",
+     "games": 24,
+     "points": 9,
+     "scorePct": 38,
+     "note": "most_points_lost"
+    },
+    {
+     "family": "Sicilian, Alapin",
+     "ecoRange": "B22",
+     "games": 21,
+     "points": 12,
+     "scorePct": 57,
+     "note": null
+    },
+    {
+     "family": "London System",
+     "ecoRange": "D02",
+     "games": 19,
+     "points": 11.5,
+     "scorePct": 61,
+     "note": "best_score"
+    }
+   ],
+   "strengths": [
+    "You convert won positions: 9 of your last 10 games that reached +3 or better ended in a win.",
+    "Your openings as White are sound: you leave book with an equal position 81% of the time."
+   ],
+   "strengthKeys": [
+    "conversion",
+    "book_exit_w"
+   ],
+   "pieces": [
+    {
+     "piece": "p",
+     "per100": 7.9
+    },
+    {
+     "piece": "n",
+     "per100": 13.7
+    },
+    {
+     "piece": "b",
+     "per100": 9.2
+    },
+    {
+     "piece": "r",
+     "per100": 10.4
+    },
+    {
+     "piece": "q",
+     "per100": 7.4
+    },
+    {
+     "piece": "k",
+     "per100": 12.1
+    }
+   ]
+  }
+ },
+ "headline": "You lose most points to missed forks in the middlegame, especially with under a minute on your clock."
+}

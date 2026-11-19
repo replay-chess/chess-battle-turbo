@@ -45,7 +45,8 @@ describe("buildPayload: insufficient", () => {
     const p = parsed(input({}));
     assert.equal(p.status, "insufficient");
     assert.equal(p.scopeLabel, "Rapid and blitz · since May 2026");
-    assert.deepEqual(p.games, { analysed: 0, inScope: 0, pending: 1, required: 20, preliminaryFrom: 5 });
+    // FIX-4 (item 10): with no game in scope nothing is pending (it read 1: the progress denominator's floor).
+    assert.deepEqual(p.games, { analysed: 0, inScope: 0, pending: 0, required: 20, preliminaryFrom: 5 });
     assert.equal(p.progress, null);
     assert.deepEqual(p.preliminary, []);
     assert.equal(p.snapshotKey, null);

@@ -150,14 +150,21 @@ export type RowGroup = { id: "due" | "later" | "rows"; header: string | null; ro
 
 /**
  * The list's groups. All tab: "Due today · n" then "Scheduled later · n" (each only when it has rows); Due tab: one
- * group without a header (every row is due).
+ * group without a header (every row is due). FIX-4 (item 3): when the daily cap holds due cards back (`servedToday`
+ * below the due rows), the due group (on either tab) says how many of them today serves: "Due · 125 · 10 today, 115 on
+ * later days", so the tab's count (every due row) and the header's "10 due today" read as one story.
  */
-export function groupRows(rows: readonly BankRow[], view: BankView): RowGroup[] {
-  if (view === "due") return rows.length ? [{ id: "rows", header: null, rows: [...rows] }] : [];
+export function groupRows(rows: readonly BankRow[], view: BankView, servedToday?: number): RowGroup[] {
+  const capped = (n: number) => {
+    const today = servedToday === undefined ? n : Math.max(0, Math.min(n, servedToday));
+    return today >= n ? null : `Due · ${n} · ${today} today, ${n - today} on later days`;
+  };
+  if (view === "due") return rows.length ? [{ id: "rows", header: capped(rows.filter((r) => r.isDue).length), rows: [...rows] }] : [];
   const due = rows.filter((r) => r.isDue);
   const later = rows.filter((r) => !r.isDue);
   const out: RowGroup[] = [];
-  if (due.length) out.push({ id: "due", header: `Due today · ${due.length}`, rows: due });
+  const dueHeader = capped(due.length) ?? `Due today · ${due.length}`;
+  if (due.length) out.push({ id: "due", header: dueHeader, rows: due });
   if (later.length) out.push({ id: "later", header: `Scheduled later · ${later.length}`, rows: later });
   return out;
 }
@@ -172,13 +179,23 @@ export type BankCta =
   | { kind: "drill"; label: string; count: number; practice: true }
   | { kind: "none" };
 
-/** The primary CTA over the pool: due cards → a review session; nothing due → a practice drill of the visible rows. */
-export function ctaOf(pool: readonly BankRow[], visible: readonly BankRow[]): BankCta {
-  const due = pool.filter((r) => r.isDue).length;
+/**
+ * The primary CTA over the pool: due cards → a review session; nothing due → a practice drill of the visible rows.
+ *
+ * FIX-4 (item 3, D-P6-FIX4-3): the button describes the session it starts. A review session serves at most today's
+ * due count under the daily cap (`servedToday` = `counts.due`, the header's "10 due today"), so the label, its estimate
+ * and the session agree even when 125 cards are overdue (the Due tab lists all of them). When the cap is used up the
+ * due rows can only be practised ("· Cap Reached"). Without `servedToday` (a caller that has no page head) the pool's
+ * due rows are counted, as before.
+ */
+export function ctaOf(pool: readonly BankRow[], visible: readonly BankRow[], servedToday?: number): BankCta {
+  const dueRows = pool.filter((r) => r.isDue).length;
+  const due = servedToday === undefined ? dueRows : Math.min(dueRows, Math.max(0, servedToday));
   if (due > 0) return { kind: "review", label: `Review ${due} Due · ~${estMinutes(due)} min`, due, practice: false };
+  const why = dueRows > 0 ? "Cap Reached" : "Nothing Due";
   // One position reads "Drill This Position" (as Review complete's "Drill This Mistake"), not "Drill These 1".
-  if (visible.length === 1) return { kind: "drill", label: "Drill This Position · Nothing Due", count: 1, practice: true };
-  if (visible.length > 0) return { kind: "drill", label: `Drill These ${visible.length} · Nothing Due`, count: visible.length, practice: true };
+  if (visible.length === 1) return { kind: "drill", label: `Drill This Position · ${why}`, count: 1, practice: true };
+  if (visible.length > 0) return { kind: "drill", label: `Drill These ${visible.length} · ${why}`, count: visible.length, practice: true };
   return { kind: "none" };
 }
 

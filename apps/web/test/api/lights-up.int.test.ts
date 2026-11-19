@@ -24,6 +24,7 @@ import { MeData } from "@repo/contracts/http/me";
 import { Badges, TrainToday } from "@repo/contracts/http/train";
 import { WeaknessPayload } from "@repo/contracts/http/weakness";
 import { weaknessMatchTheme } from "@repo/chess-training/weakness/drill";
+import { weaknessVoice } from "@repo/chess-training/weakness/voice";
 import type { Viewer } from "@/lib/auth/viewer";
 import type { RouteHandler } from "@/lib/api/route";
 import { installTestDeps, noParams, request } from "../helpers/route-harness";
@@ -192,8 +193,11 @@ describe("P6 lights up (Postgres, real games)", { skip: url && LOCAL.has(new URL
         // regression: hub-two-weakest (FIX-2, D-P6-FIX2-10): "Your top weakness" only for the top row's own match in a
         // band comparison; a lower row's theme (or a most-frequent or own-only list, FIX-3 review item 7) reads "From your
         // Weakness Profile".
-        const topIsFocus = readyRows[0] && weaknessMatchTheme(readyRows[0].pattern) === focus && listMode === "vs_band";
-        assert.match(puzzles.subtitle, topIsFocus ? /^Your top weakness · / : /^From your Weakness Profile · /);
+        // FIX-4 (D-P6-FIX4-1) changed the expectation for a most-frequent or own-only list: its top row's match reads
+        // "Your most common mistake", a lower row's "Common in your games" (one rule: `weaknessVoice`).
+        const isTop = Boolean(readyRows[0] && weaknessMatchTheme(readyRows[0].pattern) === focus);
+        const reason = { top_weakness: "Your top weakness", weakness_row: "From your Weakness Profile", most_common: "Your most common mistake", common_row: "Common in your games" }[weaknessVoice(listMode, isTop)];
+        assert.ok(puzzles.subtitle.startsWith(`${reason} · `), `${listMode}: ${puzzles.subtitle}`);
         assert.match(puzzles.href, new RegExp(`[?&]theme=${encodeURIComponent(focus)}(&|$)`));
       }
       // The plan is frozen for the day: a second read is the same plan, and writes nothing new.
@@ -218,11 +222,14 @@ describe("P6 lights up (Postgres, real games)", { skip: url && LOCAL.has(new URL
 
     it("Home: '{label} is your top weakness ({n} in bank).' from the READY profile, rendered in the bank card", async (t) => {
       const { data } = await home(A, DAY2);
-      t.diagnostic(`home: due ${data.bank.due}/${data.bank.total} · ${JSON.stringify(data.bank.topTheme)}`);
-      assert.deepEqual(data.bank.topTheme, { label: readyTop.label, n: await inBank(A, readyTop.pattern), source: "weakness" });
+      t.diagnostic(`home: due ${data.bank.due}/${data.bank.total} · ${JSON.stringify(data.bank.topTheme)} · ${listMode}`);
+      // FIX-4 (D-P6-FIX4-1) changed the expectation: "top weakness" (source `weakness`) only for a band comparison;
+      // a most-frequent or own-only profile's top row is the member's most common mistake (source `profile`).
+      const band = listMode === "vs_band";
+      assert.deepEqual(data.bank.topTheme, { label: readyTop.label, n: await inBank(A, readyTop.pattern), source: band ? "weakness" : "profile" });
       const { bankLine } = await import("@/components/home/copy");
       const line = bankLine(data.bank, false);
-      if (data.bank.due > 0) assert.equal(line, `${readyTop.label} is your top weakness (${readyTop.inBank} in bank).`);
+      if (data.bank.due > 0) assert.equal(line, `${readyTop.label} is your ${band ? "top weakness" : "most common mistake"} (${readyTop.inBank} in bank).`);
       const { BankCard } = await import("@/components/home/HomeView");
       const html = renderToStaticMarkup(React.createElement(BankCard, { bank: data.bank, isNew: false, track: {} }));
       assert.ok(text(html).includes(line), text(html));

@@ -170,9 +170,18 @@ describe("S3 ready (plan §4.6)", () => {
     const none = text(renderView(weaknessPayloadFixture("none_eligible")));
     assert.match(none, /Nothing stands out against players at your level\. Your mistakes are spread across many patterns\./);
     assert.match(none, /Most frequent in your games · per 100 moves/);
+    // regression: phase-band-hidden (FIX-4 item 4) — a most-frequent profile still has a band and phase rows with band
+    // values (staging P24 89/77/82 under "above your band in every phase"): the By-phase tab shows them.
+    const nonePayload = weaknessPayloadFixture("none_eligible");
+    assert.ok(nonePayload.band && nonePayload.breakdown!.phase.rows.every((r) => r.band !== null), "the builder sends band values");
+    for (const r of nonePayload.breakdown!.phase.rows) assert.match(none, new RegExp(`You ${r.you} · band ${r.band}`));
+    assert.match(none, /Players rated 1100–1300/);
     const noBand = renderView(weaknessPayloadFixture("no_band"));
     assert.match(text(noBand), /Top 3 · per 100 moves /);
-    assert.doesNotMatch(noBand, /rating band/);
+    assert.doesNotMatch(noBand, /, rating band /);
+    // FIX-4 (items 4, 13): the no-band state is the engine's own output: no band values, and the sentence says why.
+    assert.match(text(noBand), /Accuracy by phase\. There is no rating band to compare you with yet\./);
+    assert.doesNotMatch(text(noBand), / · band \d/);
     const noClock = renderView(weaknessPayloadFixture("no_clock"));
     assert.doesNotMatch(noClock, /data-testid="weakness-tab-clock"/);
     assert.match(text(noClock), /These games have no clock data, so there is no Clock tab\./);
@@ -209,9 +218,11 @@ describe("S4 drill config copy (plan §4.7)", () => {
     assert.match(text(un), /No matching puzzles for this pattern/);
     const zero = renderDrill({ ...row("fork"), inBank: 0 });
     // regression: zero-own-copy-unnamed (plan §4.7): the sentence names the pattern.
-    assert.match(text(zero), /All your fork positions are mastered; this drill uses matched puzzles/);
+    // FIX-4 (item 12): inBank 0 means no card of the pattern is in the bank, never "mastered".
+    assert.match(text(zero), /None of your fork positions are in your bank; this drill uses matched puzzles/);
+    assert.doesNotMatch(text(zero), /mastered/);
     // regression: zero-own-noun (FIX-2): the weakness's own noun, never P5's puzzle label ("loose piece").
-    assert.match(text(renderDrill({ ...row("hangingPiece"), inBank: 0 })), /All your free-piece positions are mastered/);
+    assert.match(text(renderDrill({ ...row("hangingPiece"), inBank: 0 })), /None of your free-piece positions are in your bank/);
     assert.doesNotMatch(text(renderDrill({ ...row("hangingPiece"), inBank: 0 })), /loose/i);
     assert.match(text(zero), /10 matched Lichess puzzles near 1512/);
     const empty = renderDrill({ ...row("rc:development"), inBank: 0 });

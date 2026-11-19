@@ -195,6 +195,21 @@ describe("bank list", () => {
     assert.equal(estMinutes(10), 8);
   });
 
+  it("regression: bank-cta-uncapped (FIX-4 item 3) — the button describes the session it starts: today's due under the cap", () => {
+    // Staging P24: "10 DUE TODAY" over "Review 125 Due · ~94 min" (the session serves 10). 125 due rows, 10 served today.
+    const due = Array.from({ length: 125 }, (_, i) => ({ ...bankRowsFixture().find((r) => r.isDue)!, cardRef: `m_due${i}` }));
+    assert.deepEqual(ctaOf(due, due, 10), { kind: "review", label: "Review 10 Due · ~8 min", due: 10, practice: false });
+    // The cap is used up: the due rows can only be practised.
+    assert.deepEqual(ctaOf(due.slice(0, 3), due.slice(0, 3), 0), { kind: "drill", label: "Drill These 3 · Cap Reached", count: 3, practice: true });
+    // A filter with fewer due rows than today serves: the filtered rows.
+    assert.deepEqual(ctaOf(due.slice(0, 4), due.slice(0, 4), 10), { kind: "review", label: "Review 4 Due · ~3 min", due: 4, practice: false });
+    // The list says how the 125 split: today's 10 and the rest on later days (header "10 due today", tab "Due · 125").
+    assert.deepEqual(groupRows(due, "all", 10).map((g) => [g.header, g.rows.length]), [["Due · 125 · 10 today, 115 on later days", 125]]);
+    assert.deepEqual(groupRows(due, "due", 10).map((g) => [g.header, g.rows.length]), [["Due · 125 · 10 today, 115 on later days", 125]]);
+    assert.deepEqual(groupRows(due.slice(0, 4), "all", 10).map((g) => g.header), ["Due today · 4"]);
+    assert.deepEqual(groupRows(due.slice(0, 4), "due", 10).map((g) => g.header), [null]);
+  });
+
   it("W2's body carries the active filters only, and practice when nothing is due", () => {
     const review = bankSessionBody(f({ view: "due" }), { kind: "review", label: "", due: 4, practice: false });
     assert.deepEqual(review, { kind: "bank", source: "bank", practice: false });

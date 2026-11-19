@@ -123,7 +123,10 @@ function Ready({
   handlers: WeaknessHandlers;
 }) {
   const inline = !sheetMode;
-  const bandLabel = payload.listMode === "vs_band" ? (payload.band?.label ?? null) : null;
+  // The By-phase tab compares with the band whenever the member has one (FIX-4 item 4, D-P6-FIX4-4): the list mode is
+  // about the weakness LIST (a most-frequent list has no band bars), not the phase rows, which carry band values and
+  // a sentence that compares with them.
+  const bandLabel = payload.band?.label ?? null;
   return (
     <>
       <WeaknessHeadline payload={payload} />

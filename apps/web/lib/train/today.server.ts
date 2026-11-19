@@ -30,13 +30,15 @@ import {
   planMinutes,
   planStepStatuses,
   puzzlesHref,
+  livePuzzleStep,
   type PlanBankCard,
 } from "@repo/chess-training/plan";
 import { orderDueQueue } from "@repo/chess-training/session";
 import { displayedStreak, streakAria, streakWeek } from "@repo/chess-training/streak";
-import { PICKER_THEMES, themeLabel, themePluralLabel } from "@repo/chess-training/themes";
+import { PICKER_THEMES, themeLabel, themePluralLabel, weaknessLabel } from "@repo/chess-training/themes";
 import { weaknessMatchTheme } from "@repo/chess-training/weakness/drill";
 import { patternSlug } from "@repo/chess-training/weakness/slug";
+import { weaknessVoice, type WeaknessVoice } from "@repo/chess-training/weakness/voice";
 import type { Viewer } from "@/lib/auth/viewer";
 import { capOf } from "./badges.server";
 import {
@@ -72,10 +74,12 @@ export type TopWeakness = {
   /** The first matchable row's Lichess theme (the plan's focus, rct-b §3.5 rule 1), or null. */
   focusTheme: string | null;
   /**
-   * FIX-2 (D-P6-FIX2-10): the focus theme is the TOP row's match in a band comparison (the plan may then say "Your top
-   * weakness"); otherwise it comes from a lower row or a most-frequent list ("From your Weakness Profile").
+   * FIX-4 (D-P6-FIX4-1, `weakness/voice.ts`): how Home and the hub name the top row: "top weakness" only in a band
+   * comparison (`vs_band`), else the member's "most common mistake".
    */
-  focusIsTop: boolean;
+  voice: WeaknessVoice;
+  /** The same rule for the focus theme: the top row's match or a lower row's (FIX-2 D-P6-FIX2-10, FIX-4). */
+  focusVoice: WeaknessVoice;
 };
 
 type SnapshotHead = { status: string; metrics: unknown };
@@ -91,15 +95,17 @@ export function topWeaknessOf(snapshot: SnapshotHead | undefined, bank: readonly
   const focusTheme = rows.map((r) => weaknessMatchTheme(r.pattern)).find((t): t is string => t !== null) ?? null;
   const listMode = parseWeaknessMetrics(snapshot.metrics)?.listMode ?? null;
   // Only a band comparison (`vs_band`) makes the top row a "top weakness": an `own_only` list (no band) ranks the
-  // member's own losses and a `most_frequent` list says nothing stands out (FIX-3 review item 7).
-  const focusIsTop = focusTheme !== null && listMode === "vs_band" && weaknessMatchTheme(top.pattern) === focusTheme;
+  // member's own losses and a `most_frequent` list says nothing stands out (FIX-3 review item 7, FIX-4 item 1).
+  const focusIsTopRow = focusTheme !== null && weaknessMatchTheme(top.pattern) === focusTheme;
   return {
     pattern: top.pattern,
-    label: top.label.slice(0, 40),
+    // The taxonomy's label at read, as TR-5's rows (FIX-4, D-P6-FIX4-9).
+    label: (weaknessLabel(top.pattern) || top.label).slice(0, 40),
     inBank: Math.max(0, inBank),
     href: `/train/weakness/${patternSlug(top.pattern)}?from=hub`,
     focusTheme,
-    focusIsTop,
+    voice: weaknessVoice(listMode, true),
+    focusVoice: weaknessVoice(listMode, focusIsTopRow),
   };
 }
 
@@ -221,7 +227,7 @@ async function freezePlan(
     themes: planThemesOf(themes),
     puzzleRating: profile.puzzleRating,
     // P6: a READY profile focuses step 2 on its first matchable row and says the plan is built from the games.
-    ...(weakness ? { weaknessTheme: weakness.focusTheme, weaknessThemeTop: weakness.focusIsTop, basis: "games20" as const } : {}),
+    ...(weakness ? { weaknessTheme: weakness.focusTheme, weaknessVoice: weakness.focusVoice, basis: "games20" as const } : {}),
   });
   // The puzzle kill switch (PUZZLES_ENABLED=off) omits the step before the plan is frozen (step indices are bits).
   const plan = validatePlan(puzzlesEnabled() ? built : { ...built, steps: built.steps.filter((s) => s.kind !== "puzzles") });
@@ -307,7 +313,9 @@ export async function getTrainToday(viewer: Viewer, now: Date, deps: TrainDeps =
 
   const cap = capOf(due, profile, state.counters);
   const statuses = planStepStatuses(plan.steps.length, planDone);
-  const steps: PlanStep[] = plan.steps.map((s, i) => ({
+  // FIX-4 item 8: the frozen puzzle step reads the live rating and the live profile's voice (`livePuzzleStep`).
+  const liveReason = weakness?.focusTheme ? { theme: weakness.focusTheme, source: weakness.focusVoice } : null;
+  const steps: PlanStep[] = plan.steps.map((frozenStep) => livePuzzleStep(frozenStep, { rating: profile.puzzleRating, reason: liveReason })).map((s, i) => ({
     kind: s.kind,
     title: s.title,
     subtitle: s.subtitle,

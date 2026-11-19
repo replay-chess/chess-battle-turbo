@@ -30,7 +30,7 @@ import { HubSkeleton } from "./HubSkeleton";
 import { releaseDelayMs, viewedState } from "./model";
 import { TrainHubView } from "./TrainHubView";
 import { useStartSession } from "./useStartSession";
-import { dayWord, deviceTimeZone, localDayKey, safeTimeZone, useClientNow, useServerClock } from "./when";
+import { batchDayWord, deviceTimeZone, localDayKey, safeTimeZone, useClientNow, useServerClock } from "./when";
 
 /** P6: the Theme mastery header's link (`?from=hub` feeds `weakness_viewed.entry`). */
 const HUB_WEAKNESS_HREF = "/train/weakness?from=hub";
@@ -132,7 +132,7 @@ export function TrainHubScreen({ serverNowMs }: { serverNowMs: number }) {
   const rolledOver = currentDayKey !== undefined && today.dayKey !== currentDayKey;
   const tz = safeTimeZone(today.prefs.timeZone);
   // Counted from the header's day (R1 `dayKey`), which a zone change can pin past the new zone's rollover.
-  const nextDay = today.nextBatch ? dayWord(today.nextBatch.at, now, tz, today.prefs.dayStartHour, today.dayKey) : null;
+  const nextDay = today.nextBatch ? batchDayWord(today.nextBatch, now, tz, today.prefs.dayStartHour, today.dayKey) : null;
 
   return (
     <TrainHubView

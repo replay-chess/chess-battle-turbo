@@ -8,8 +8,9 @@
 // must not relabel tomorrow's batch "today", see a day rollover the server has not reached, or skip the release timer
 // (regression: hub-device-clock, CI 43620776665 bank-states "arrive today at 08:00" for a batch due tomorrow).
 import { useEffect, useState } from "react";
-import { dayKey } from "@repo/chess-training/day";
-import { dayLabel } from "@repo/chess-training/labels";
+import type { NextBatch } from "@repo/contracts/http/train";
+import { dayKey, trainingDayKeyAt } from "@repo/chess-training/day";
+import { dayKeyLabel, dayLabel } from "@repo/chess-training/labels";
 
 /** A zone the runtime accepts, else UTC (a stale or hand-edited zone never breaks the page). */
 export function safeTimeZone(timeZone: string | null | undefined): string {
@@ -34,6 +35,20 @@ export function dayWord(atIso: string, nowMs: number, timeZone: string, dayStart
   const atMs = Date.parse(atIso);
   if (!Number.isFinite(atMs)) return null;
   const label = dayLabel(new Date(atMs), new Date(nowMs), safeTimeZone(timeZone), { long: true, dayStartHour, ...(todayKey ? { todayKey } : {}) });
+  return label === "Today" || label === "Tomorrow" ? label.toLowerCase() : label;
+}
+
+/**
+ * The next batch's day word on the page's clock (FIX-4, D-P6-FIX4-2): from the training day the page is in to the
+ * training day the batch is served on, both from the payload's own days (`todayKey` until `todayEndsAt`, then the
+ * zone's days), so a day pinned by a zone change reads the same words as the server's `whenLabel` and the hub's
+ * header. A payload from an older build (no day keys): `dayWord` on `at`.
+ */
+export function batchDayWord(nb: NextBatch, nowMs: number, timeZone: string, dayStartHour: number, todayKey?: string): string | null {
+  const dsh = nb.dayStartHour ?? dayStartHour;
+  if (!nb.dayKey || !nb.todayKey || !nb.todayEndsAt || !Number.isFinite(Date.parse(nb.todayEndsAt))) return dayWord(nb.at, nowMs, timeZone, dsh, todayKey);
+  const today = trainingDayKeyAt(new Date(nowMs), safeTimeZone(timeZone), dsh, { key: nb.todayKey, end: new Date(nb.todayEndsAt) });
+  const label = dayKeyLabel(nb.dayKey, today, { long: true });
   return label === "Today" || label === "Tomorrow" ? label.toLowerCase() : label;
 }
 

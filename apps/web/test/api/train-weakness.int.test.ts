@@ -285,7 +285,8 @@ describe("P6 weakness routes (Postgres, real games)", { skip: url && LOCAL.has(n
     it("insufficient with nothing: 0 of 20, no progress, no offer", async () => {
       const { p } = await payloadOf(Z);
       assert.equal(p.status, "insufficient");
-      assert.deepEqual(p.games, { analysed: 0, inScope: 0, pending: 1, required: 20, preliminaryFrom: 5 });
+      // FIX-4 (item 10) changed the expectation: with no game in scope nothing is pending (it read 1).
+      assert.deepEqual(p.games, { analysed: 0, inScope: 0, pending: 0, required: 20, preliminaryFrom: 5 });
       assert.equal(p.progress, null);
       assert.equal(p.offers.includeBullet, null);
     });

@@ -74,7 +74,7 @@ test("Continue: analysing counts moves, clean shows the accuracy", () => {
 
 test("Mistake Bank card: line, count, CTA and thumbnails", () => {
   assert.equal(bankCountLabel(4), "4 due");
-  assert.equal(bankLine(populated.bank, false), "Loose pieces is your most common theme (7 in bank).");
+  assert.equal(bankLine(populated.bank, false), "Loose pieces is your most common mistake (7 in bank).");
   assert.equal(bankLine(fresh.bank, true), "Mistakes from your games land here as puzzles.");
   assert.equal(bankLine({ ...populated.bank, topTheme: null }, false), "23 positions in your bank.");
   const none = homeFixture("nothing_due").bank;
@@ -112,5 +112,5 @@ test("no copy carries an exclamation mark or the board's sample numbers when the
   const all = [continueSentence(d.continue!), bankLine(d.bank, false), bankCta(d.bank, false).label, weekLine(d.week)].join(" ");
   assert.doesNotMatch(all, /!/);
   assert.match(all, /Review 9 · About 7 min/);
-  assert.match(all, /Forks is your most common theme \(2 in bank\)/);
+  assert.match(all, /Forks is your most common mistake \(2 in bank\)/);
 });

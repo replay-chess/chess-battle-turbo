@@ -11,6 +11,7 @@ import { boardDraw, INITIAL_FEN, lastClocks, moverOf, positionKey, replaySan } f
 import { lichessTimeClass } from "../time-class";
 import {
   clip,
+  clipWords,
   NAME_MAX,
   OPENING_NAME_MAX,
   skip,
@@ -164,7 +165,7 @@ export function mapLichessGame(raw: unknown, ctx: LichessMapContext): MapResult 
       endMethod,
       legacyResult: result === "WIN" ? "CREATOR_WON" : result === "LOSS" ? "OPPONENT_WON" : "DRAW",
       ecoCode: eco && /^[A-E]\d\d$/.test(eco) ? eco : null,
-      openingName: g.opening?.name ? clip(g.opening.name.trim(), OPENING_NAME_MAX).trimEnd() : null,
+      openingName: g.opening?.name ? clipWords(g.opening.name.trim(), OPENING_NAME_MAX) : null,
       moves: game.uci.join(" "),
       moveClocksMs,
       plyCount: game.plyCount,

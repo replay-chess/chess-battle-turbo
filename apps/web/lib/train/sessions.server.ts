@@ -822,6 +822,7 @@ export function summaryOf(
 
   // A theme milestone crossed in this session: the stored milestone is above the level the theme had before it.
   let milestone: SessionSummary["milestone"] = null;
+  let milestoneTheme: string | null = null;
   for (const [theme, results] of themeFirstTry) {
     const m = masteryRows.find((r) => r.theme === theme);
     if (!m || num(m.milestonePct) === 0) continue;
@@ -830,6 +831,7 @@ export function summaryOf(
     const levelBefore = attemptsBefore >= 5 ? Math.floor(before * 10 + 1e-9) * 10 : 0;
     if (levelBefore < num(m.milestonePct)) {
       milestone = { kind: "theme", label: `Milestone · ${themeNoun(theme)}s ${num(m.milestonePct)}%`.slice(0, 60) };
+      milestoneTheme = theme;
       break;
     }
   }
@@ -861,14 +863,25 @@ export function summaryOf(
           : "Session summary · Mistake Bank";
   const doneForToday = bankKinds && cap.dueShown === 0;
   const title = perfect ? "A perfect session." : doneForToday ? "Done for today." : "Session complete.";
+  // The session's most frequent theme and its first-try ratio (plan §4.5 "Forks are improving: 2 of 3 …"). FIX-4
+  // (item 11, D-P6-FIX4-8): "improving" only when the theme's mastery (its EWMA) rose over the session, and a sentence
+  // whose subject agrees with any theme name ("Middlegame are improving" read wrong): "Your fork mastery is improving:
+  // 2 of 3 found on the first try." or "Middlegame positions: 0 of 3 found on the first try."
   const themeLine = (() => {
     const results = themeFirstTry.get(top) ?? [];
     if (results.length < 2) return "";
-    return ` ${topPlural} are improving: ${results.filter(Boolean).length} of ${results.length} found on the first try.`;
+    const ratio = `${results.filter(Boolean).length} of ${results.length} found on the first try.`;
+    const m = masteryRows.find((r) => r.theme === top);
+    const after = m ? num(m.ewma) : null;
+    const improving = after !== null && after - ewmaBefore(after, results) > 1e-9;
+    const noun = themeNoun(top);
+    return improving ? ` Your ${noun} mastery is improving: ${ratio}` : ` ${noun.charAt(0).toUpperCase()}${noun.slice(1)} positions: ${ratio}`;
   })();
   let subtitle: string;
   if (perfect) {
-    subtitle = `${firstTry} of ${total} on the first try.${milestone ? ` ${topPlural} just passed ${milestone.label.replace(/^.* (\d+%)$/, "$1")} mastery.` : ""}`;
+    // FIX-4 (item 11): the milestone line names the milestone's own theme, not the session's most frequent one.
+    const milestoneName = milestoneTheme ? themePluralLabel(milestoneTheme) : topPlural;
+    subtitle = `${firstTry} of ${total} on the first try.${milestone ? ` ${milestoneName} just passed ${milestone.label.replace(/^.* (\d+%)$/, "$1")} mastery.` : ""}`;
   } else if (row.kind === "PUZZLES") {
     subtitle = rating && rating.delta !== 0 ? `Rating ${rating.value} (${rating.delta > 0 ? "+" : ""}${rating.delta} this session).` : `${solved} of ${total} solved.`;
   } else if (doneForToday) {

@@ -118,6 +118,14 @@ export const NextBatch = z.object({
   whenLabel: z.string().max(32).optional(),
   /** The member's training-day start hour: the client's day word for `at` counts training days (P5-FZ-4). Optional: older builds omit it. */
   dayStartHour: z.number().int().min(0).max(23).optional(),
+  /**
+   * FIX-4 (D-P6-FIX4-2): the training day the batch is served on, the training day at the read and the instant that day
+   * ends. A day pinned by a zone change outlasts the zone's own rollover, so the client's day word counts these days,
+   * never the calendar ones. Optional: older builds omit them.
+   */
+  dayKey: DayKey.optional(),
+  todayKey: DayKey.optional(),
+  todayEndsAt: IsoDT.optional(),
 });
 export type NextBatch = z.infer<typeof NextBatch>;
 

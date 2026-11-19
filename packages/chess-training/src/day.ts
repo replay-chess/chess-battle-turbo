@@ -113,3 +113,17 @@ export function dayAnchorOf(rows: readonly { day: string; timeZone?: string | nu
   }
   return best;
 }
+
+/**
+ * The training day an instant falls in, for a caller that holds today's key and end (the clock's `today` and
+ * `dayEndUtc`, or a payload's `todayKey`/`todayEndsAt`) but not the anchor: before today's end it is today; from then
+ * on the zone's own day, never earlier than the day after today (`trainingDayAt`'s rule after a pinned day ends).
+ * Without `today`, the zone's day (`dayKey`). FIX-4 (D-P6-FIX4-2): the browser's day words for the next batch.
+ */
+export function trainingDayKeyAt(at: Date, timeZone: string, dayStartHour: number, today?: { key: string; end: Date } | null): string {
+  const natural = dayKey(at, timeZone, dayStartHour);
+  if (!today) return natural;
+  if (at.getTime() < today.end.getTime()) return today.key;
+  const next = addDaysToKey(today.key, 1);
+  return natural > next ? natural : next;
+}

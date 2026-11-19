@@ -29,7 +29,8 @@ import { useFlag } from "@/lib/flags/client";
 import { BANK_LISTS_KEY, useTrainEvents } from "@/lib/realtime/handlers/train";
 import { useWeaknessEvents } from "@/lib/realtime/handlers/weakness";
 import { useStartSession } from "../hub/useStartSession";
-import { dayWord, safeTimeZone, useClientNow } from "../hub/when";
+import { releaseDelayMs } from "../hub/model";
+import { batchDayWord, safeTimeZone, useClientNow, useServerClock } from "../hub/when";
 import { BankSkeleton } from "./BankSkeleton";
 import { BankView } from "./BankView";
 import {
@@ -83,6 +84,19 @@ export function BankScreen({ initial, serverNowMs }: { initial: BankUrlState; se
   const page = firstBankPage(baseData);
   const complete = baseData?.pages[0]?.meta.complete === true;
   const active = useInfiniteQuery({ ...bankQuery(serverFilterOf(url)), enabled: Boolean(page) && !complete });
+
+  // Release timer (FIX-4, D-P6-FIX4-2): when the next batch arrives the page reads its head again, so an open bank
+  // never shows a "next batch" whose time has passed (the hub's own timer, TrainHubScreen).
+  const clock = useServerClock(serverNowMs);
+  const nextAt = page?.nextBatch?.at ?? null;
+  useEffect(() => {
+    const delay = releaseDelayMs(nextAt, clock());
+    if (delay === null) return;
+    const t = setTimeout(() => void qc.invalidateQueries({ queryKey: BANK_LISTS_KEY, refetchType: "active" }), delay);
+    return () => clearTimeout(t);
+    // `clock` reads a state that never changes after the first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextAt, qc]);
   const activeData = active.data as BankListData | undefined;
 
   // A cursor minted for another filter: start that list again from page 1.
@@ -167,7 +181,7 @@ export function BankScreen({ initial, serverNowMs }: { initial: BankUrlState; se
   // The head follows the rows still shown (D6): counts, the empty state and the next batch after a removal.
   const shown = pageAfterRemovals(page, sourceRows, removed);
   const tz = safeTimeZone(timeZone);
-  const nextDay = page.nextBatch ? dayWord(page.nextBatch.at, now, tz, page.nextBatch.dayStartHour ?? DEFAULT_DAY_START_HOUR) : null;
+  const nextDay = page.nextBatch ? batchDayWord(page.nextBatch, now, tz, DEFAULT_DAY_START_HOUR) : null;
   const body = bodyOf(shown, url);
 
   return (

@@ -6,6 +6,7 @@
 // and 3-digit counts the contract allows (TE X9).
 import type { WeaknessLesson, WeaknessPayload } from "@repo/contracts/http/weakness";
 import golden from "@repo/chess-training/fixtures/weakness/member-design.golden.json";
+import noBandGolden from "@repo/chess-training/fixtures/weakness/member-design.no-band.golden.json";
 import { buildPayload, type PayloadInput, type PayloadProbe, type PayloadSnapshot } from "@repo/chess-training/weakness/payload";
 import type { WeaknessMetricsV1 } from "@repo/chess-training/weakness/types";
 
@@ -34,6 +35,8 @@ export const WEAKNESS_FIXTURE_STATES = [
 export type WeaknessFixtureState = (typeof WEAKNESS_FIXTURE_STATES)[number];
 
 const metrics = (golden as unknown as { metrics: WeaknessMetricsV1 }).metrics;
+/** FIX-4 (D-P6-FIX4-4): the same member with no rated games, as `computeWeakness()` writes it (compute.golden test). */
+const noBandMetrics = (noBandGolden as unknown as { metrics: WeaknessMetricsV1 }).metrics;
 
 /** The design's legend lessons (P8 lights the slots; shown only with `lesson`). */
 export const FIXTURE_LESSONS: Readonly<Record<string, WeaknessLesson>> = {
@@ -107,9 +110,9 @@ function byState(state: WeaknessFixtureState): WeaknessPayload {
         }),
       });
     case "no_band":
-      return build({
-        snapshot: snapshot({ ...metrics, band: null, listMode: "own_only", rows: metrics.rows.map((r) => ({ ...r, band: null, lossBand100: null, ratio: null, z: null })) }),
-      });
+      // The engine's own output for a member without a rating band (no hand-edited copy of the band profile, which
+      // kept band values in the phase rows and a sentence comparing with them: FIX-4 item 4).
+      return build({ snapshot: snapshot(noBandMetrics) });
     case "no_clock":
       return build({
         snapshot: snapshot({

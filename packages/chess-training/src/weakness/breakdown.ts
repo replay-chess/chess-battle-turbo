@@ -46,6 +46,11 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export function phaseSentence(rows: readonly PhaseRowDoc[]): string {
   const known = rows.filter((r): r is PhaseRowDoc & { you: number; band: number } => r.you !== null && r.band !== null);
   const head = "Accuracy by phase.";
+  // FIX-4 (item 13, D-P6-FIX4-5): with no rating band no phase has a band value; that, not the move count, is why
+  // nothing is compared.
+  if (known.length === 0 && rows.some((r) => r.you !== null) && rows.every((r) => r.band === null)) {
+    return `${head} There is no rating band to compare you with yet.`;
+  }
   if (known.length === 0) return `${head} Not enough moves in each phase to compare yet.`;
   const allKnown = known.length === PHASES.length;
   const above = known.filter((r) => r.you >= r.band + PHASE_SENTENCE_DELTA);
@@ -100,10 +105,19 @@ export function clockBreakdown(a: Aggregate, mix: BandMix | null): { buckets: Cl
  * So the sentence never says "about the same" next to bars that rise or fall.
  */
 /** The clock sentence's three rates (null below 30 moves): the comfortable reference, under 2 minutes, under 1 minute. */
-export function clockRates(a: Pick<Aggregate, "clockMoves" | "clockBlunders">): { rRef: number | null; rLow: number | null; rLt1: number | null } {
+export function clockRates(a: Pick<Aggregate, "clockMoves" | "clockBlunders">): {
+  rRef: number | null;
+  rLow: number | null;
+  rLt1: number | null;
+  /** Which bucket `rRef` is: over 5 minutes, or 2–5 minutes when over 5 has too few moves (FIX-4). */
+  ref: "gt5" | "2to5" | null;
+} {
   const rate = (moves: number, blunders: number) => (moves >= CLOCK_MIN_MOVES_BUCKET ? (100 * blunders) / moves : null);
+  const gt5 = rate(a.clockMoves[0], a.clockBlunders[0]);
+  const r2to5 = rate(a.clockMoves[1], a.clockBlunders[1]);
   return {
-    rRef: rate(a.clockMoves[0], a.clockBlunders[0]) ?? rate(a.clockMoves[1], a.clockBlunders[1]),
+    ref: gt5 !== null ? "gt5" : r2to5 !== null ? "2to5" : null,
+    rRef: gt5 ?? r2to5,
     rLow: rate(a.clockMoves[2] + a.clockMoves[3], a.clockBlunders[2] + a.clockBlunders[3]),
     rLt1: rate(a.clockMoves[3], a.clockBlunders[3]),
   };
@@ -123,16 +137,20 @@ export function clockRises(a: Pick<Aggregate, "clockMoves" | "clockBlunders">): 
 
 export function clockSentence(a: Pick<Aggregate, "clockMoves" | "clockBlunders">): string {
   const head = "Blunders per 100 moves, by time left on your clock.";
-  const { rRef, rLow } = clockRates(a);
+  const { rRef, rLow, ref } = clockRates(a);
   if (rRef === null || rLow === null) return `${head} Not enough timed moves in each range to compare yet.`;
   if (rRef === 0 && rLow === 0) return `${head} Your blunder rate stays about the same as the clock runs down.`;
   const x = rRef === 0 ? Number.POSITIVE_INFINITY : rLow / rRef;
+  // FIX-4 (item 6, D-P6-FIX4-5): when the reference is the 2–5 minute bucket (too few moves over 5 minutes) the
+  // sentence says so; over 5 minutes is the reading the bars give without words.
+  const vs = ref === "2to5" ? " compared with 2–5 minutes left" : "";
   if (x >= CLOCK_SENTENCE_MIN_RATIO && Number.isFinite(x)) {
-    const word = x < 2.5 ? "doubles" : x < 3.5 ? "triples" : `is ${Math.round(x)}× higher`;
-    return `${head} Below 2 minutes the rate ${word}.`;
+    if (x < 2.5) return `${head} Below 2 minutes the rate doubles${vs}.`;
+    if (x < 3.5) return `${head} Below 2 minutes the rate triples${vs}.`;
+    return `${head} Below 2 minutes the rate is ${Math.round(x)}× higher${ref === "2to5" ? " than with 2–5 minutes left" : ""}.`;
   }
-  if (x >= CLOCK_SENTENCE_RISE_RATIO) return `${head} Below 2 minutes the rate rises.`;
-  if (x <= CLOCK_SENTENCE_FALL_RATIO) return `${head} Below 2 minutes the rate drops.`;
+  if (x >= CLOCK_SENTENCE_RISE_RATIO) return `${head} Below 2 minutes the rate rises${vs}.`;
+  if (x <= CLOCK_SENTENCE_FALL_RATIO) return `${head} Below 2 minutes the rate drops${vs}.`;
   return `${head} Your blunder rate stays about the same as the clock runs down.`;
 }
 
