@@ -7,8 +7,11 @@
 //             `train_offline_flush` and three `train_item_graded {offline: true}`.
 //   resume    a fresh lease: grade item 1 online, wait until it is stored, reload the runner URL (`?s=`) online → the
 //             runner resumes at item 2, not item 1; finishing grades items 2 and 3 once each.
+//   401 last  the session token "expires" before the last grade: the first POST carrying it answers 401 (the api()
+//             envelope); the page stays visible (no visibility change, no reload, no summary) → the outbox resends it
+//             once 2 s later, so within 10 s the database holds all 3 exactly once, and the signed-out dialog never shows.
 // (The offline reload belongs to P11's per-user page cache.)
-import type { Request } from "@playwright/test";
+import type { Request, Route } from "@playwright/test";
 import {
   DEVICES,
   expect,
@@ -93,5 +96,60 @@ test.describe("offline outbox · desktop-1440@100", { tag: ["@p5"] }, () => {
     expect(resumed, "the runner resumes after the graded position").not.toBe(first);
     expect(await solveAndGradeAll(page, items, 5)).toBe(2);
     await expect.poll(() => db.attemptsOfSession(sessionRef), { timeout: 30_000 }).toBe(3);
+  });
+
+  test("a 401 on the session's last flush is resent once, without waiting for the next visit", { tag: stateTags("runner", "solve") }, async ({ persona, page, reviewDb }, testInfo) => {
+    test.setTimeout(420_000);
+    await persona("outbox");
+    const db = trainDb(reviewDb);
+    const userId = await db.userId(poolUserEmail(testInfo));
+    const before = await db.attempts(userId);
+
+    await gotoOk(page, "/train/bank/session");
+    const sessionRef = await waitForSession(page);
+    const payload = await sessionPayload(page.request, sessionRef);
+    expect(payload.items).toHaveLength(3);
+    const items = itemsById(payload);
+    await nextItem(page, null);
+
+    // The first two grades land as usual.
+    expect(await solveAndGradeAll(page, items, 2)).toBe(2);
+    await expect.poll(() => db.attemptsOfSession(sessionRef), { timeout: 30_000 }).toBe(2);
+
+    // The token expires before the last grade: the first POST after this point (it carries the last attempt) gets the
+    // 401 envelope api() parses (packages/contracts/src/http/envelope.ts); later requests reach the server.
+    let armed = true;
+    const answered: number[] = [];
+    await page.route("**/api/train/attempts", async (route: Route) => {
+      const req = route.request();
+      if (req.method() !== "POST") return route.fallback();
+      if (armed) {
+        armed = false;
+        answered.push(401);
+        return route.fulfill({
+          status: 401,
+          contentType: "application/json",
+          headers: { "x-request-id": "e2e-outbox-401" },
+          body: JSON.stringify({ error: { code: "unauthorized", message: "Sign in to continue.", requestId: "e2e-outbox-401" } }),
+        });
+      }
+      answered.push(0);
+      return route.fallback();
+    });
+
+    expect(await solveAndGradeAll(page, items, 5)).toBe(1);
+    await expect(page.getByTestId("trainer-done").filter({ visible: true })).toBeVisible({ timeout: 30_000 });
+    // No visibility change, reload or summary: only the outbox's own resend can deliver the last attempt.
+    await expect
+      .poll(() => db.attemptsOfSession(sessionRef), { timeout: 10_000, message: "the last attempt is resent after the 401" })
+      .toBe(3);
+    expect(answered[0], "the last attempt's first POST got the 401").toBe(401);
+    expect(answered.length, "and was resent").toBeGreaterThan(1);
+    await page.waitForTimeout(3_000);
+    const after = await db.attempts(userId);
+    expect(after.n - before.n, "every attempt exactly once").toBe(3);
+    expect(after.n).toBe(after.distinct);
+    await expect(page.getByRole("dialog", { name: "You’ve Been Signed Out" })).toHaveCount(0);
+    await page.unroute("**/api/train/attempts");
   });
 });

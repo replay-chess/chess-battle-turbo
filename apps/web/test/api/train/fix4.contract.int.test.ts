@@ -20,6 +20,8 @@ import { ok } from "@repo/contracts/http/envelope";
 import { HomeData } from "@repo/contracts/http/home";
 import { AttemptsResult, BankPage, SessionPayload, SessionSummary, TrainToday, type AttemptIn, type TrainItem } from "@repo/contracts/http/train";
 import { addDaysToKey } from "@repo/chess-training/day";
+import { weekdayLabel } from "@repo/chess-training/labels";
+import { formatYmd, localDate } from "@repo/chess-training/tz";
 import { ctaOf, poolOf, visibleRowsOf } from "@/components/train/bank/model";
 import { batchDayWord } from "@/components/train/hub/when";
 import { startPuzzleShardServer } from "../../../e2e/mocks/puzzle-shards";
@@ -102,58 +104,48 @@ describe("P6 FIX-4 day boundary, bank counts, live plan step, summary line (Post
     assert.equal(zone.res.status, 200, await zone.res.clone().text());
     m.timeZone = "Asia/Calcutta";
 
-    const instants: [string, string][] = [
-      ["2026-11-14T22:29:00.000Z", "2026-11-14"], // 03:59 IST Sunday
-      ["2026-11-14T22:31:00.000Z", "2026-11-14"], // 04:01 IST: the IST day would start, the pinned one goes on
-      ["2026-11-14T23:12:00.000Z", "2026-11-14"], // 04:42 IST: the staging read
-      ["2026-11-15T02:31:00.000Z", "2026-11-14"], // 08:01 IST: the release
-      ["2026-11-15T03:59:00.000Z", "2026-11-14"], // 09:29 IST
-      ["2026-11-15T04:01:00.000Z", "2026-11-15"], // 09:31 IST: Sunday
-      ["2026-11-15T22:29:00.000Z", "2026-11-15"], // 03:59 IST Monday
-      ["2026-11-15T22:31:00.000Z", "2026-11-16"], // 04:01 IST Monday: the zone's own days again
+    // Each instant with the member's local time and calendar date (Asia/Calcutta), the clock's training day and the
+    // words on screen. FIX-5 (item B, D-P6-FIX5-2) changed the words: a clock time is worded by its calendar date
+    // ("today at 09:30" at 04:42 Sunday, it read "tomorrow at 09:30"), the Coming-up days by the member's calendar
+    // ("Later today" for the training day that starts later on today's date), and the header names a training day that
+    // is no longer today's date as "{weekday}'s plan".
+    type Row = { iso: string; local: string; calendar: string; dayKey: string; header: string; when: string; first: string };
+    const instants: Row[] = [
+      { iso: "2026-11-14T22:29:00.000Z", local: "Sun 03:59", calendar: "2026-11-15", dayKey: "2026-11-14", header: "Saturday's plan", when: "today at 09:30", first: "Later today" },
+      { iso: "2026-11-14T22:31:00.000Z", local: "Sun 04:01", calendar: "2026-11-15", dayKey: "2026-11-14", header: "Saturday's plan", when: "today at 09:30", first: "Later today" },
+      { iso: "2026-11-14T23:12:00.000Z", local: "Sun 04:42", calendar: "2026-11-15", dayKey: "2026-11-14", header: "Saturday's plan", when: "today at 09:30", first: "Later today" },
+      { iso: "2026-11-15T02:31:00.000Z", local: "Sun 08:01", calendar: "2026-11-15", dayKey: "2026-11-14", header: "Saturday's plan", when: "today at 09:30", first: "Later today" },
+      { iso: "2026-11-15T03:59:00.000Z", local: "Sun 09:29", calendar: "2026-11-15", dayKey: "2026-11-14", header: "Saturday's plan", when: "today at 09:30", first: "Later today" },
+      { iso: "2026-11-15T04:01:00.000Z", local: "Sun 09:31", calendar: "2026-11-15", dayKey: "2026-11-15", header: "Sunday", when: "tomorrow at 04:00", first: "Tomorrow" },
+      { iso: "2026-11-15T22:29:00.000Z", local: "Mon 03:59", calendar: "2026-11-16", dayKey: "2026-11-15", header: "Sunday's plan", when: "today at 04:00", first: "Later today" },
+      { iso: "2026-11-15T22:31:00.000Z", local: "Mon 04:01", calendar: "2026-11-16", dayKey: "2026-11-16", header: "Monday", when: "tomorrow at 04:00", first: "Tomorrow" },
     ];
     // The reads go forward in time once (each read can open that day's row). The invariant staging broke is checked
     // at every instant first: the one next batch is after the instant; then the days and the words.
-    const reads: { iso: string; dayKey: string; t: TrainToday; b: BankPage; h: HomeData }[] = [];
-    for (const [iso, dayKey] of instants) {
-      const now = new Date(iso);
+    const reads: { r: Row; t: TrainToday; b: BankPage; h: HomeData }[] = [];
+    for (const r of instants) {
+      const now = new Date(r.iso);
       const [t, b, h] = [await today(m, now), await bank(m, now), await home(m, now)];
-      assert.ok(b.nextBatch && Date.parse(b.nextBatch.at) > now.getTime(), `${iso}: the next batch (${b.nextBatch?.at}, "${b.nextBatch?.whenLabel}") is after the instant`);
-      assert.deepEqual([t.nextBatch, h.bank.nextBatch], [b.nextBatch, b.nextBatch], `${iso}: bank, hub and Home read one next batch`);
-      reads.push({ iso, dayKey, t, b, h });
+      assert.ok(b.nextBatch && Date.parse(b.nextBatch.at) > now.getTime(), `${r.iso}: the next batch (${b.nextBatch?.at}, "${b.nextBatch?.whenLabel}") is after the instant`);
+      assert.deepEqual([t.nextBatch, h.bank.nextBatch], [b.nextBatch, b.nextBatch], `${r.iso}: bank, hub and Home read one next batch`);
+      reads.push({ r, t, b, h });
     }
-    for (const { iso, dayKey, t, b, h } of reads) {
-      const now = new Date(iso);
-      assert.equal(t.dayKey, dayKey, `${iso}: the clock's day`);
-      assert.ok(b.counts.due <= (b.counts.cap ?? 10), `${iso}: the head never passes the cap`);
-      assert.ok(b.counts.dueRaw > b.counts.due, `${iso}: the cap holds cards back (the persona's ${b.counts.dueRaw} due)`);
-      const nb = b.nextBatch;
-      assert.ok(nb, `${iso}: held-back cards make a next batch`);
-      assert.deepEqual(t.nextBatch, nb, `${iso}: the hub reads the bank's next batch`);
-      assert.deepEqual(h.bank.nextBatch, nb, `${iso}: Home reads the bank's next batch`);
-      assert.ok(Date.parse(nb.at) > now.getTime(), `${iso}: the next batch (${nb.at}) is after the instant`);
-      assert.equal(nb.todayKey, dayKey);
-      if (nb.dayKey === dayKey) {
-        // Room left under today's cap for a card falling due later in the clock's day.
-        assert.ok(Date.parse(nb.at) < Date.parse(nb.todayEndsAt!), `${iso}: today's batch is inside the clock's day`);
-        assert.match(nb.whenLabel!, /^today at /, `${iso}: ${nb.whenLabel}`);
-        assert.equal(batchDayWord(nb, now.getTime(), m.timeZone, 4, t.dayKey), "today", `${iso}: the hub's word`);
-        assert.equal(batchDayWord(nb, now.getTime(), m.timeZone, 4), "today", `${iso}: the bank's word`);
-      } else {
-        assert.equal(nb.dayKey, addDaysToKey(dayKey, 1), `${iso}: the cap is used for today, so the batch is the next training day's`);
-        assert.ok(Date.parse(nb.at) >= Date.parse(nb.todayEndsAt!), `${iso}: the next day starts when the clock's day ends`);
-        assert.match(nb.whenLabel!, /^tomorrow at /, `${iso}: ${nb.whenLabel}`);
-        assert.equal(batchDayWord(nb, now.getTime(), m.timeZone, 4, t.dayKey), "tomorrow", `${iso}: the hub's word`);
-        assert.equal(batchDayWord(nb, now.getTime(), m.timeZone, 4), "tomorrow", `${iso}: the bank's word (no header day)`);
-        assert.deepEqual(b.upcoming[0], { label: "Tomorrow", n: nb.count }, `${iso}: Coming up starts with the next batch`);
-      }
-      if (iso === "2026-11-14T23:12:00.000Z") {
-        // The staging read (04:42 IST): Saturday's cap is used, so the held-back cards come when Sunday starts, 04:00Z
-        // = 09:30 IST (it read "today 04:00", 22:30Z, already past).
-        assert.equal(b.counts.due, b.counts.cap ?? 10, "today serves the full cap");
-        assert.equal(nb.at, "2026-11-15T04:00:00.000Z");
-        assert.equal(nb.whenLabel, "tomorrow at 09:30");
-      }
+    for (const { r, t, b } of reads) {
+      const now = new Date(r.iso);
+      const where = `${r.iso} (${r.local} IST, calendar ${r.calendar})`;
+      assert.equal(formatYmd(localDate(now, m.timeZone)), r.calendar, `${where}: the member's calendar date`);
+      assert.equal(t.dayKey, r.dayKey, `${where}: the clock's training day`);
+      assert.equal(t.weekdayLabel, r.header, `${where}: the hub header`);
+      assert.ok(b.counts.due <= (b.counts.cap ?? 10), `${where}: the head never passes the cap`);
+      assert.ok(b.counts.dueRaw > b.counts.due, `${where}: the cap holds cards back (the persona's ${b.counts.dueRaw} due)`);
+      const nb = b.nextBatch!;
+      assert.equal(nb.todayKey, r.dayKey);
+      assert.equal(nb.dayKey, addDaysToKey(r.dayKey, 1), `${where}: the cap is used for today, so the batch is the next training day's`);
+      assert.ok(Date.parse(nb.at) >= Date.parse(nb.todayEndsAt!), `${where}: the next day starts when the clock's day ends`);
+      assert.equal(nb.whenLabel, r.when, `${where}: the server's words (bank head, Home, hub line)`);
+      assert.equal(batchDayWord(nb, now.getTime(), m.timeZone), r.when.split(" at ")[0], `${where}: the browser's word (bank and hub)`);
+      assert.deepEqual(b.upcoming[0], { label: r.first, n: nb.count }, `${where}: Coming up starts with the next batch`);
+      assert.ok(!b.upcoming.some((u) => u.label === weekdayLabel(addDaysToKey(r.calendar, -1))), `${where}: no weekday that has ended is named`);
     }
   });
 

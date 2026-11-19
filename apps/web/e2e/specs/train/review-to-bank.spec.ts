@@ -50,13 +50,16 @@ const HOUR_MS = 3_600_000;
 
 /**
  * The day word a UTC member reads for a card due at `due` when the server clock says `now`, written out from the rule
- * (plan §8.4 + P5-FZ-4: Train's day words count training days; the review read uses the default 04:00 day start), not
- * from the product's helpers: "today" from 04:00 on the release day, "tomorrow" before.
+ * (plan §8.4 + P5-FZ-4: the card's TRAINING day, default 04:00 start; FIX-5 D-P6-FIX5-2: worded on the member's
+ * calendar), not from the product's helpers: "today" from 04:00 on the release day; "later today" between 00:00 and
+ * 04:00 that day (the training day is still the day before, but its date has ended); "tomorrow" the day before.
  */
 function dayWordUtc(due: Date, now: number): string {
   const trainingDay = (t: number) => Date.parse(new Date(t - 4 * HOUR_MS).toISOString().slice(0, 10));
-  const days = Math.round((trainingDay(due.getTime()) - trainingDay(now)) / (24 * HOUR_MS));
-  return days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
+  const calendarDay = (t: number) => Date.parse(new Date(t).toISOString().slice(0, 10));
+  if (trainingDay(due.getTime()) <= trainingDay(now)) return "today";
+  const days = Math.round((trainingDay(due.getTime()) - calendarDay(now)) / (24 * HOUR_MS));
+  return days <= 0 ? "later today" : days === 1 ? "tomorrow" : `in ${days} days`;
 }
 
 const leadOf = (word: string) => `3 moments reviewed · 3 added to your Mistake Bank. The first one comes back ${word}.`;
@@ -151,10 +154,11 @@ test(
       const words = [...new Set([dayWordUtc(due, finishedAt), dayWordUtc(due, Date.now())])];
       expect(words.map(leadOf)).toContain(await lead.textContent());
     }).toPass({ timeout: 60_000 });
-    // The same page at fixed server times around the release day D (08:00 UTC): 23:30 the day before, 00:30 and 03:30
-    // ("tomorrow", the training day is D−1) and 04:30 ("today").
+    // The same page at fixed server times around the release day D (08:00 UTC): 23:30 the day before ("tomorrow"),
+    // 00:30 and 03:30 ("later today": FIX-5 changed these from "tomorrow"; the training day is still D−1 but D has begun
+    // on the member's calendar) and 04:30 ("today").
     const clock = await serverClock(page, baseURL!);
-    for (const [beforeDue, word] of [[8.5, "tomorrow"], [7.5, "tomorrow"], [4.5, "tomorrow"], [3.5, "today"]] as const) {
+    for (const [beforeDue, word] of [[8.5, "tomorrow"], [7.5, "later today"], [4.5, "later today"], [3.5, "today"]] as const) {
       const at = new Date(due.getTime() - beforeDue * HOUR_MS);
       expect(dayWordUtc(due, at.getTime()), `the rule at ${at.toISOString()}`).toBe(word);
       clock.set(at);

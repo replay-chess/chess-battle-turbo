@@ -8,6 +8,7 @@
 // `draw` is labelled from the replayed final position (data-model B1): THREEFOLD or FIFTY_MOVE when the board proves
 // it (and INSUFFICIENT_MATERIAL / STALEMATE likewise), else AGREEMENT.
 import { boardDraw, INITIAL_FEN, lastClocks, moverOf, positionKey, replaySan } from "../replay";
+import { openingOfGame } from "../opening-name";
 import { lichessTimeClass } from "../time-class";
 import {
   clip,
@@ -143,6 +144,14 @@ export function mapLichessGame(raw: unknown, ctx: LichessMapContext): MapResult 
   const memberWon = (outcome === "WHITE" && color === "w") || (outcome === "BLACK" && color === "b");
   const result = outcome === "DRAW" ? "DRAW" : memberWon ? "WIN" : "LOSS";
   const eco = g.opening?.eco?.trim();
+  // The shared rule (src/opening-name.ts): Lichess's own "Family: Variation" name stands; a game without one (or
+  // with a name the book does not know) is named from the book by its moves.
+  const opening = openingOfGame({
+    name: g.opening?.name,
+    eco: eco && /^[A-E]\d\d$/.test(eco) ? eco : null,
+    startingFen: game.startingFen,
+    moves: game.uci,
+  });
   const titleOf = (p: LichessPlayer) => (p.user?.title ? clip(p.user.title, TITLE_MAX) : null);
 
   return {
@@ -164,8 +173,8 @@ export function mapLichessGame(raw: unknown, ctx: LichessMapContext): MapResult 
       outcome,
       endMethod,
       legacyResult: result === "WIN" ? "CREATOR_WON" : result === "LOSS" ? "OPPONENT_WON" : "DRAW",
-      ecoCode: eco && /^[A-E]\d\d$/.test(eco) ? eco : null,
-      openingName: g.opening?.name ? clipWords(g.opening.name.trim(), OPENING_NAME_MAX) : null,
+      ecoCode: opening?.eco && /^[A-E]\d\d$/.test(opening.eco) ? opening.eco : eco && /^[A-E]\d\d$/.test(eco) ? eco : null,
+      openingName: opening ? clipWords(opening.name, OPENING_NAME_MAX) : null,
       moves: game.uci.join(" "),
       moveClocksMs,
       plyCount: game.plyCount,

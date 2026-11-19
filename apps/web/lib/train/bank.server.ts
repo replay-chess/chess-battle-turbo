@@ -16,13 +16,15 @@ import {
   type BankNextPage,
   type BankPage,
   type BankQuery,
+  type BankStart,
   type BankRow,
   type Facet,
   type PhaseW,
 } from "@repo/contracts/http/train";
 import { servedByDay, type ServedDay } from "@repo/chess-training/caps";
 import { DEFAULT_DAY_START_HOUR } from "@repo/chess-training/constants";
-import { atLabel, releaseLabelOfDay, weekdayLabel } from "@repo/chess-training/labels";
+import { atLabel, releaseLabel, trainingDayLabel } from "@repo/chess-training/labels";
+import { formatYmd, localDate } from "@repo/chess-training/tz";
 import { focusTheme, type PlanTheme } from "@repo/chess-training/plan";
 import type { BankCardIn } from "@repo/chess-training/session";
 import { seedOf as filterSeed } from "@repo/chess-training/session";
@@ -30,7 +32,7 @@ import { themeLabel, themePluralLabel } from "@repo/chess-training/themes";
 import type { Viewer } from "@/lib/auth/viewer";
 import { DataError } from "@/lib/data/errors";
 import { capOf, type DayCounters, type DueSummary } from "./badges.server";
-import { loadTrainState, timeZoneOf, type TrainClock } from "./day.server";
+import { loadTrainState, timeZoneOf, type TrainClock, type TrainState } from "./day.server";
 import { asDate, at, num, trainDeps, type TrainDeps } from "./db.server";
 import { CARD_COLUMNS, MISTAKE_COLUMNS, bankRowOf, cardRowOf, phaseDb, sourceDb, type CardRowDb } from "./dto.server";
 import type { TrainingProfile } from "./profile.server";
@@ -81,11 +83,16 @@ export function bankFacetsSql(userId: bigint): Prisma.Sql {
 
 /** The ≤ 50 due BANK cards (W2's BANK query; R1's plan reads the same), oldest due first. */
 export function dueCardsSql(userId: bigint, now: Date, f: Partial<BankFilterQuery> = {}): Prisma.Sql {
-  return Prisma.sql`SELECT ${CARD_COLUMNS}, ${MISTAKE_COLUMNS}, m."lastGameId" ${FROM_BANK}
-    WHERE c."userId" = ${userId} AND c.deck = 'BANK' AND c.due <= ${at(now)}
+  // FIX-5 (item A, D-P6-FIX5-1): review cards and NEW cards are read as two bounded parts. One `ORDER BY due LIMIT 50`
+  // over both let a backlog of older NEW cards (a fresh import) fill all 50 rows, so the session (NEW ≤ newPerDay)
+  // came out smaller than the day's due count (the bank said "Review 7", the session had 5). Each part holds more
+  // rows than any cap (≤ 30), so the composer always sees what the cap serves; callers order with `orderDueQueue`.
+  const part = (fresh: boolean) => Prisma.sql`(SELECT ${CARD_COLUMNS}, ${MISTAKE_COLUMNS}, m."lastGameId" ${FROM_BANK}
+    WHERE c."userId" = ${userId} AND c.deck = 'BANK' AND c.due <= ${at(now)} AND ${fresh ? Prisma.sql`c.state = 'NEW'` : Prisma.sql`c.state <> 'NEW'`}
       AND (c."suspendedUntil" IS NULL OR c."suspendedUntil" <= ${at(now)}) AND m."hiddenAt" IS NULL
       ${filterSql({ theme: f.theme, phase: f.phase, source: f.source }, now)}
-    ORDER BY c.due, c.id LIMIT 50`;
+    ORDER BY c.due, c.id LIMIT 50)`;
+  return Prisma.sql`${part(false)} UNION ALL ${part(true)}`;
 }
 
 export type DueCardRow = CardRowDb & { lastGameId: bigint | null };
@@ -208,21 +215,20 @@ export function batchesOf(
  * "Tomorrow 6 · Saturday 3 · Sunday 5 · Next week 9": the reviews served per training day (`batchesOf`) for the next 6
  * days (non-zero only), then the days 7–13 as "Next week", at most 4 rows.
  */
-export function upcomingOf(days: readonly ServedDay[]): BankPage["upcoming"] {
+export function upcomingOf(days: readonly ServedDay[], clock: Pick<TrainClock, "now" | "timeZone" | "today">): BankPage["upcoming"] {
   let nextWeek = 0;
   const out: BankPage["upcoming"] = [];
+  const calendar = formatYmd(localDate(clock.now, clock.timeZone));
   for (const d of days) {
-    if (d.offset >= 1 && d.offset <= 6) out.push({ label: upcomingDayLabel(d.key, d.offset), n: d.n });
+    // FIX-5 (item B): training days worded on the member's calendar: between local midnight and the rollover the next
+    // training day is "Later today", never a "Tomorrow" that reads as the day after (`trainingDayLabel`).
+    if (d.offset >= 1 && d.offset <= 6) out.push({ label: trainingDayLabel(d.key, clock.today, calendar, { long: true }), n: d.n });
     else if (d.offset >= 7 && d.offset <= 13) nextWeek += d.n;
   }
   if (nextWeek > 0) out.push({ label: "Next week", n: nextWeek });
   return out.slice(0, 4);
 }
 
-/** "Tomorrow", then the weekday, for the upcoming histogram's day `d` (1–6) ahead of today's training day. */
-function upcomingDayLabel(key: string, d: number): string {
-  return d === 1 ? "Tomorrow" : weekdayLabel(key);
-}
 
 /**
  * The next batch (`NextBatch`): the first coming day's reviews under the cap (`batchesOf`), labelled on the member's
@@ -238,7 +244,8 @@ export function nextBatchOf(days: readonly ServedDay[], clock: Pick<TrainClock, 
     at: next.at.toISOString(),
     atLabel: atLabel(next.at, clock.timeZone),
     count: next.n,
-    whenLabel: releaseLabelOfDay(next.at, clock.timeZone, next.key, clock.today),
+    // FIX-5 (item B, D-P6-FIX5-2): a clock time is worded by its calendar date ("today at 09:30").
+    whenLabel: releaseLabel(next.at, clock.now, clock.timeZone),
     dayStartHour: clock.dayStartHour,
     dayKey: next.key,
     todayKey: clock.today,
@@ -291,7 +298,7 @@ function pageHead(
     state: due.total === 0 ? "empty" : cap.dueShown === 0 ? "caughtup" : "default",
     counts: { due: cap.dueShown, dueRaw: cap.dueRaw, all: due.total, capRemaining: cap.capRemaining, cap: profile.bankDailyCap },
     nextBatch: nextBatchOf(batches, clock),
-    upcoming: upcomingOf(batches),
+    upcoming: upcomingOf(batches, clock),
     focusTheme: { key: focus, label: themePluralLabel(focus) },
     lesson: null,
   };
@@ -301,12 +308,19 @@ function pageHead(
  * R2 and the `/train/bank` RSC seed. `cursor` null = the first request (the full page head); otherwise rows only.
  * Reads only (no GET side effect).
  */
+/**
+ * The bank page's button session (FIX-5, `sessions.server.ts` `bankButtonStart`), passed in by the route and the RSC
+ * page (`bank-page.server.ts`) so this module does not import the session service (which imports this one).
+ */
+export type BankStartOf = (deps: TrainDeps, viewer: Viewer, state: TrainState, rows: readonly CardRowDb[] | null) => Promise<BankStart>;
+
 export async function listBank(
   viewer: Viewer,
   filter: BankFilterQuery,
   cursor: string | null,
   now: Date,
   deps: TrainDeps = trainDeps(),
+  opts: { start?: BankStartOf } = {},
 ): Promise<BankListPage> {
   const { db } = deps;
   const tz = timeZoneOf(viewer);
@@ -335,12 +349,18 @@ export async function listBank(
   // row goes (model.pageAfterRemovals, D6), before the DELETE commits after the Undo window and the bank refetches, so
   // it needs the same links the server's empty bank shows (regression: bank-empty-ctas, only "Play a Game" until a
   // reload). A larger bank never reaches empty in one page without a refetch in between, so it skips the read.
-  const emptyCtas = head.state === "empty" || head.counts.all <= BANK_EMPTY_CTAS_ROWS ? await emptyCtasOf(deps, viewer) : null;
+  const complete = all.length <= BANK_COMPLETE_MAX_ROWS;
+  // FIX-5 (item A): the button's session, from the rows already read when they are the whole bank.
+  const [emptyCtas, start] = await Promise.all([
+    head.state === "empty" || head.counts.all <= BANK_EMPTY_CTAS_ROWS ? emptyCtasOf(deps, viewer) : Promise.resolve(null),
+    opts.start && head.state !== "empty" ? opts.start(deps, viewer, state, complete ? all : null) : Promise.resolve(undefined),
+  ]);
+  const withStart = start ? { start } : {};
 
-  if (all.length <= BANK_COMPLETE_MAX_ROWS) {
+  if (complete) {
     const rows = rowsOf(all, now, tz, clock.dayStartHour);
     return {
-      data: { ...head, rows, facets: facetsOfRows(rows), emptyCtas },
+      data: { ...head, rows, facets: facetsOfRows(rows), emptyCtas, ...withStart },
       meta: { nextCursor: null, complete: true },
     };
   }
@@ -358,6 +378,7 @@ export async function listBank(
       rows: rowsOf(page, now, tz, clock.dayStartHour),
       facets: facetsOfSql(facets),
       emptyCtas,
+      ...withStart,
     },
     meta: { nextCursor: rows.length > BANK_PAGE_ROWS && last ? bankCursor({ due: asDate(last.due)!, cardId: last.cardId }, filter) : null, complete: false },
   };

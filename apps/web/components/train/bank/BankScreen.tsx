@@ -15,7 +15,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import type { BankRow } from "@repo/contracts/http/train";
-import { DEFAULT_DAY_START_HOUR } from "@repo/chess-training/constants";
 import { useRetryCountdown } from "@/components/system/useRetryCountdown";
 import { notify } from "@/components/ui/toast";
 import { trackTrain } from "@/lib/analytics/train-events";
@@ -181,7 +180,7 @@ export function BankScreen({ initial, serverNowMs }: { initial: BankUrlState; se
   // The head follows the rows still shown (D6): counts, the empty state and the next batch after a removal.
   const shown = pageAfterRemovals(page, sourceRows, removed);
   const tz = safeTimeZone(timeZone);
-  const nextDay = page.nextBatch ? batchDayWord(page.nextBatch, now, tz, DEFAULT_DAY_START_HOUR) : null;
+  const nextDay = page.nextBatch ? batchDayWord(page.nextBatch, now, tz) : null;
   const body = bodyOf(shown, url);
 
   return (

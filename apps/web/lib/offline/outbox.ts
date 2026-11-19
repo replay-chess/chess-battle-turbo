@@ -12,9 +12,9 @@
 //   them in order with `now = reviewedAt` (arch §2.3.5).
 // - Every per-attempt result is terminal (`ok`, `duplicate`, `conflict`, `rejected`): the entry leaves the queue. A
 //   whole-batch 402 stops and keeps everything (attempts up to 7 days old are accepted after renewal); 401 keeps them
-//   for after the silent session refresh; network, 5xx and 429 keep them and retry 1 s → 4 s → 15 s, then on
-//   `online` / visible / mount. A 4xx that rejects the batch body is split into single attempts so one bad entry can
-//   never block the queue; a single that is still refused is dropped with a breadcrumb.
+//   and resends once, 2 s later, after the silent session refresh; network, 5xx and 429 keep them and retry 1 s → 4 s
+//   → 15 s, then on `online` / visible / mount. A 4xx that rejects the batch body is split into single attempts so
+//   one bad entry can never block the queue; a single that is still refused is dropped with a breadcrumb.
 // - The scheduler flushes when ≥ 3 entries wait, 4 s after the last enqueue, on session end, on hidden/pagehide
 //   (keepalive, < 60 KB) and on online/mount (`useOutboxSync()` in the (app) layout).
 //
@@ -36,6 +36,12 @@ export const FLUSH_AT_COUNT = 3;
 export const FLUSH_DEBOUNCE_MS = 4_000;
 /** Retries after a network/5xx failure; then the next online / visible / mount event. */
 export const RETRY_DELAYS_MS = [1_000, 4_000, 15_000] as const;
+/**
+ * One resend this long after a 401, once the session guard has reloaded the Clerk session: the last flush of a session
+ * (the runner's end) has no next grade to resend it. A second 401 in a row sets no timer (the guard then opens the
+ * signed-out dialog); a success or an explicit flush allows the next one.
+ */
+export const UNAUTHORIZED_RETRY_MS = 2_000;
 
 export type OutboxKind = "attempts";
 export type OutboxEntry = { id: string; at: number; attempt: AttemptIn };
@@ -433,6 +439,8 @@ export function createOutboxScheduler(
   let debounce: unknown = null;
   let retry: unknown = null;
   let failures = 0;
+  /** The one resend after a 401 is spent (until a success or an explicit flush). */
+  let authRetried = false;
   let inflight: Promise<FlushOutcome> | null = null;
   let disposed = false;
 
@@ -458,8 +466,18 @@ export function createOutboxScheduler(
             void run();
           }, delay);
         }
+      } else if (outcome.status === "unauthorized") {
+        if (!authRetried && !disposed) {
+          authRetried = true;
+          clear(retry);
+          retry = timers.setTimeout(() => {
+            retry = null;
+            void run();
+          }, UNAUTHORIZED_RETRY_MS);
+        }
       } else if (outcome.status === "sent" || outcome.status === "empty") {
         failures = 0;
+        authRetried = false;
       }
       return outcome;
     });
@@ -486,8 +504,9 @@ export function createOutboxScheduler(
       }, FLUSH_DEBOUNCE_MS);
     },
     flush(opts) {
-      // An explicit flush (online, visible, mount, session end) restarts the backoff.
+      // An explicit flush (online, visible, mount, session end) restarts the backoff and allows one resend after a 401.
       failures = 0;
+      authRetried = false;
       clear(retry);
       retry = null;
       return run(opts);

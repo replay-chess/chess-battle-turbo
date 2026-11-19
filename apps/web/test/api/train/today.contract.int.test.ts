@@ -181,7 +181,8 @@ describe("P5 R1 today, R4 themes, R8 badges (Postgres)", { skip: url ? false : "
     assert.equal(t.prefs.timeZone, "Asia/Calcutta");
     assert.equal(t.prefs.dayStartHour, 4);
     assert.equal(t.dayKey, "2026-11-14", "designed: Saturday's day, opened in UTC, runs until 04:00 UTC (09:30 IST)");
-    assert.equal(t.weekdayLabel, "Saturday");
+    // FIX-5 (item B) changed this from "Saturday": at 04:07 Sunday the pinned Saturday is no longer today's date.
+    assert.equal(t.weekdayLabel, "Saturday's plan");
     assert.ok(t.nextBatch, "a batch at the next release");
     assert.equal(t.nextBatch!.at, "2026-11-15T02:30:00.000Z");
     // The hub's line (TrainHubScreen) counts from the header's day. FIX-4 (D-P6-FIX4-2) changed this expectation from
@@ -190,7 +191,8 @@ describe("P5 R1 today, R4 themes, R8 badges (Postgres)", { skip: url ? false : "
     const { batchDayWord } = await import("@/components/train/hub/when");
     assert.equal(t.nextBatch!.dayKey, "2026-11-14");
     assert.equal(t.nextBatch!.whenLabel, "today at 08:00");
-    assert.equal(batchDayWord(t.nextBatch!, at0407.getTime(), t.prefs.timeZone, t.prefs.dayStartHour, t.dayKey), "today");
+    // FIX-5 (item B): a clock time is worded by its calendar date (08:00 Sunday at 04:07 Sunday: "today").
+    assert.equal(batchDayWord(t.nextBatch!, at0407.getTime(), t.prefs.timeZone), "today");
     // Once Saturday's pinned day has ended (04:00 UTC = 09:30 IST), the header is Sunday and the 08:00 batch is gone.
     const after = ok(TrainToday).parse(await (await w.call("today", "GET", "/api/train/today", m, { now: new Date("2026-11-15T04:01:00.000Z") })).json()).data;
     assert.equal(after.dayKey, "2026-11-15");

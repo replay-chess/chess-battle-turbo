@@ -144,7 +144,7 @@ describe("S3 ready (plan §4.6)", () => {
     const t = text(html);
     assert.match(t, /You lose most points to missed forks in the middlegame, especially with under a minute on your clock\./);
     assert.match(t, /VERIFIED/);
-    assert.match(t, /Top 3 · per 100 moves, you vs players rated 1100–1300/);
+    assert.match(t, /Top 3 by points lost · per 100 moves, you vs players rated 1100–1300/);
     assert.equal((html.match(/data-testid="weakness-row"/g) ?? []).length, 3);
     assert.equal((html.match(/data-testid="weakness-row-body"/g) ?? []).length, 1);
     assert.match(t, /Middlegame · 7 of the last 20 games/);
@@ -165,11 +165,11 @@ describe("S3 ready (plan §4.6)", () => {
 
   it("few patterns, none eligible, no band, no clock, updating", () => {
     const few = text(renderView(weaknessPayloadFixture("few_patterns")));
-    assert.match(few, /Top 2 · per 100 moves, you vs players rated 1100–1300/);
+    assert.match(few, /Top 2 by points lost · per 100 moves, you vs players rated 1100–1300/);
     assert.doesNotMatch(few, /more patterns found/);
     const none = text(renderView(weaknessPayloadFixture("none_eligible")));
     assert.match(none, /Nothing stands out against players at your level\. Your mistakes are spread across many patterns\./);
-    assert.match(none, /Most frequent in your games · per 100 moves/);
+    assert.match(none, /Most frequent in your games, by count · per 100 moves/);
     // regression: phase-band-hidden (FIX-4 item 4) — a most-frequent profile still has a band and phase rows with band
     // values (staging P24 89/77/82 under "above your band in every phase"): the By-phase tab shows them.
     const nonePayload = weaknessPayloadFixture("none_eligible");
@@ -177,7 +177,7 @@ describe("S3 ready (plan §4.6)", () => {
     for (const r of nonePayload.breakdown!.phase.rows) assert.match(none, new RegExp(`You ${r.you} · band ${r.band}`));
     assert.match(none, /Players rated 1100–1300/);
     const noBand = renderView(weaknessPayloadFixture("no_band"));
-    assert.match(text(noBand), /Top 3 · per 100 moves /);
+    assert.match(text(noBand), /Top 3 by points lost · per 100 moves /);
     assert.doesNotMatch(noBand, /, rating band /);
     // FIX-4 (items 4, 13): the no-band state is the engine's own output: no band values, and the sentence says why.
     assert.match(text(noBand), /Accuracy by phase\. There is no rating band to compare you with yet\./);

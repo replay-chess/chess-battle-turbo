@@ -34,7 +34,9 @@ const STATEMENTS = {
   todayFirst: 8, // 1 RT + the once-a-day plan read and write (§9.1: 1 RT, +2 once a day)
   todayLater: 5, // 1 RT (§9.1: 5 parallel)
   badges: 1, // §9.1: the count inside the shell CTE; R8 alone is 1
-  bank: 5, // 1 RT (§9.1: 2 parallel; the profile, mastery, day, due summary and rows are one batch)
+  // FIX-5 (D-P6-FIX5-1) raised this from 5: + the button's active-session lookup (W2's reuse statement; it needs the
+  // training day, so it runs after the state batch, beside the empty-bank links: one more round trip, ~1 ms PK range).
+  bank: 6, // 1 RT (§9.1: 2 parallel; the profile, mastery, day, due summary and rows are one batch)
   home: 10, // 1 RT (§9.1: 6 parallel, h6 cached)
   sessionBank: 11, // §9.1: 3 parallel reads + 1 write tx; FIX-1 added the per-member lock and the reuse/limit re-check in the tx
   attempts: 5, // §9.1: ≈ 7 inside the tx. FIX-2: 4 (the member lock, locked read, write, due read), +1 when a touched day's plan is open

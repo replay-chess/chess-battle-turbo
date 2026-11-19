@@ -130,6 +130,8 @@ export function bankCountLabel(due: number): string {
 export function bankLine(b: HomeBank, isNew: boolean): string {
   if (isNew || b.total === 0) return HOME_COPY.bankNewLine;
   if (b.due === 0) return nothingDueLine(b);
+  // FIX-5 (item D): a phase is where the positions come from, never "your most common mistake".
+  if (b.topTheme?.source === "phase") return `${b.topTheme.n} of your ${plural(b.total, "bank position", "bank positions")} ${b.topTheme.n === 1 ? "is" : "are"} from the ${b.topTheme.label.toLowerCase()}.`;
   if (b.topTheme) return bankPatternLine(b.topTheme.label, b.topTheme.n, b.topTheme.source === "weakness");
   return `${plural(b.total, "position", "positions")} in your bank.`;
 }

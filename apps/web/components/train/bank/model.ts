@@ -10,7 +10,7 @@
 // Small banks (≤ 300 cards) arrive whole on page 1 (`meta.complete`): the base query is the UNFILTERED bank
 // (`BASE_BANK_FILTER`) and every tab, filter and clear runs here, instantly. Larger banks fetch one server page per
 // filter (`serverFilterOf`).
-import type { BankPage, BankRow, BankSourceW, Facet, NextBatch, PhaseW, SessionCreateInput } from "@repo/contracts/http/train";
+import type { BankPage, BankRow, BankSourceW, BankStart, Facet, NextBatch, PhaseW, SessionCreateInput } from "@repo/contracts/http/train";
 import { DEFAULT_BANK_DAILY_CAP } from "@repo/chess-training/constants";
 import type { BankFilter } from "@/lib/api/keys";
 
@@ -188,9 +188,17 @@ export type BankCta =
  * due rows can only be practised ("· Cap Reached"). Without `servedToday` (a caller that has no page head) the pool's
  * due rows are counted, as before.
  */
-export function ctaOf(pool: readonly BankRow[], visible: readonly BankRow[], servedToday?: number): BankCta {
+export function ctaOf(pool: readonly BankRow[], visible: readonly BankRow[], servedToday?: number, start?: BankStart | null): BankCta {
   const dueRows = pool.filter((r) => r.isDue).length;
-  const due = servedToday === undefined ? dueRows : Math.min(dueRows, Math.max(0, servedToday));
+  // FIX-5 (item A, D-P6-FIX5-1): unfiltered, the server says what the click opens (`BankPage.start`, the same decision
+  // and composition as W2): the member's active bank session is resumed, else a new one of exactly `n` items.
+  if (start && dueRows > 0) {
+    if (start.kind === "resume") {
+      return { kind: "review", label: `Continue Review · ${start.remaining} Left · ~${estMinutes(start.remaining)} min`, due: start.remaining, practice: false };
+    }
+    if (start.n > 0) return { kind: "review", label: `Review ${start.n} Due · ~${estMinutes(start.n)} min`, due: start.n, practice: false };
+  }
+  const due = start ? 0 : servedToday === undefined ? dueRows : Math.min(dueRows, Math.max(0, servedToday));
   if (due > 0) return { kind: "review", label: `Review ${due} Due · ~${estMinutes(due)} min`, due, practice: false };
   const why = dueRows > 0 ? "Cap Reached" : "Nothing Due";
   // One position reads "Drill This Position" (as Review complete's "Drill This Mistake"), not "Drill These 1".

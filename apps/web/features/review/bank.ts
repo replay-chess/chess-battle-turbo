@@ -4,6 +4,7 @@
 import type { QueryKey } from "@tanstack/react-query";
 import type { MomentBankResponse, ReviewDTO } from "@repo/contracts/http/review";
 import type { MomentCard } from "@repo/contracts/http/train";
+import { dayWordInSentence } from "@repo/chess-training/labels";
 import { qk } from "@/lib/api/keys";
 
 export const BANK_TOGGLE_COPY = {
@@ -19,9 +20,9 @@ export const BANK_TOGGLE_COPY = {
   shortcutRow: "Add to or remove from the Mistake Bank",
 } as const;
 
-/** "Today" / "Tomorrow" lower case inside a sentence; weekdays and dates keep their capitals. */
+/** "Today" / "Tomorrow" / "Later today" lower case inside a sentence; weekdays and dates keep their capitals. */
 export function midSentenceDay(label: string): string {
-  return label === "Today" || label === "Tomorrow" ? label.toLowerCase() : label;
+  return dayWordInSentence(label);
 }
 
 /** A1 with one moment's bank fields replaced (the same object when nothing changes or the ply is unknown). */

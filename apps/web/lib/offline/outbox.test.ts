@@ -28,6 +28,7 @@ import {
   type LockRunner,
   type OutboxStorage,
   type Timers,
+  UNAUTHORIZED_RETRY_MS,
 } from "./outbox";
 import { parseSyncMessage, broadcastStale, listenCrossTab, type SyncChannelLike, type SyncMessage } from "./crossTab";
 import { loadSessionSnapshot, saveSessionSnapshot, clearAllSnapshots, clearSessionSnapshots, SNAPSHOT_KEEP, type SnapshotStore, type SessionSnapshot } from "./snapshots";
@@ -131,6 +132,7 @@ test("402 stops and keeps every entry (and tells the app); 401 keeps them too", 
   assert.equal(pay.status, "paywall");
   assert.equal(auth.status, "unauthorized");
   assert.equal(pay.pending, 2);
+  assert.equal(auth.pending, 2);
   assert.ok(seen.includes("paywall") && seen.includes("unauthorized"));
 });
 
@@ -342,6 +344,48 @@ test("scheduler: failures retry after 1 s, 4 s, 15 s, then wait for the next exp
   assert.equal(calls, 4);
   await s.flush();
   assert.deepEqual(ft.pending(), [1000], "an explicit flush restarts the backoff");
+  s.dispose();
+});
+
+test("scheduler: a 401 on the last flush resends once 2 s later (after the session reload), and the 200 empties the queue", async () => {
+  const ft = fakeTimers();
+  let calls = 0;
+  const send: AttemptsSender = async (batch) => (++calls === 1 ? Promise.reject({ status: 401, code: "unauthorized" }) : okResult(batch));
+  const s = createOutboxScheduler(USER, { send, storage, locks: noLock, timers: ft.timers });
+  await enqueueAttempt(USER, attempts(1)[0]!, { storage });
+  const first = await s.flush();
+  assert.equal(first.status, "unauthorized");
+  assert.equal(first.pending, 1);
+  assert.equal(UNAUTHORIZED_RETRY_MS, 2000);
+  assert.deepEqual(ft.pending(), [2000], "one resend is scheduled");
+  await ft.advance(1999);
+  assert.equal(calls, 1);
+  await ft.advance(1);
+  await settle();
+  assert.equal(calls, 2);
+  assert.equal((await pendingAttempts(USER, storage)).length, 0, "the resend's 200 removed the attempt");
+  assert.deepEqual(ft.pending(), []);
+  s.dispose();
+});
+
+test("scheduler: two 401s in a row resend exactly once, then wait for the next trigger", async () => {
+  const ft = fakeTimers();
+  let calls = 0;
+  const s = createOutboxScheduler(USER, { send: async () => (calls++, Promise.reject({ status: 401, code: "unauthorized" })), storage, locks: noLock, timers: ft.timers });
+  await enqueueAttempt(USER, attempts(1)[0]!, { storage });
+  await s.flush();
+  assert.deepEqual(ft.pending(), [2000]);
+  await ft.advance(2000);
+  await settle();
+  assert.equal(calls, 2, "one resend");
+  assert.deepEqual(ft.pending(), [], "a second 401 in a row sets no timer (the session guard opens the dialog)");
+  await ft.advance(60_000);
+  await settle();
+  assert.equal(calls, 2, "nothing more until the next trigger");
+  assert.equal((await pendingAttempts(USER, storage)).length, 1, "the attempt is kept");
+  await s.flush();
+  assert.equal(calls, 3);
+  assert.deepEqual(ft.pending(), [2000], "an explicit flush allows one resend again");
   s.dispose();
 });
 

@@ -12,7 +12,7 @@ import { requestNow } from "@/lib/api/now";
 import type { BankListData } from "@/lib/api/queries/train";
 import { dehydrateFor, getServerQueryClient } from "@/lib/query/server";
 import { RealtimeBoot } from "@/lib/realtime/RealtimeBoot";
-import { listBank } from "@/lib/train/bank.server";
+import { listBankPage } from "@/lib/train/bank-page.server";
 import { trainGate, trainSocketToken } from "../../gate";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -26,7 +26,7 @@ export default async function BankPage({ searchParams }: { searchParams: Promise
     trainSocketToken(viewer),
     qc.prefetchInfiniteQuery({
       queryKey: qk.train.bank(BASE_BANK_FILTER),
-      queryFn: () => listBank(viewer, { view: "all" }, null, now),
+      queryFn: () => listBankPage(viewer, { view: "all" }, null, now),
       initialPageParam: null as string | null,
     }),
   ]);
@@ -37,7 +37,7 @@ export default async function BankPage({ searchParams }: { searchParams: Promise
   if (base && base.pages[0]?.meta.complete !== true && filtered) {
     await qc.prefetchInfiniteQuery({
       queryKey: qk.train.bank(filter),
-      queryFn: () => listBank(viewer, { ...filter, view: filter.view ?? "all" }, null, now),
+      queryFn: () => listBankPage(viewer, { ...filter, view: filter.view ?? "all" }, null, now),
       initialPageParam: null as string | null,
     });
   }

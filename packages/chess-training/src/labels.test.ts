@@ -27,18 +27,20 @@ describe("dayLabel", () => {
     assert.equal(dayLabel(at("2026-11-15T02:30:00Z"), NOW, "Asia/Kolkata"), "Sun");
   });
 
-  it("on the training day (dayStartHour, browser pass D4): 00:00–04:00 is still yesterday's day", () => {
-    // NOW is 00:30 Friday in Kolkata: Thursday's training day with a 04:00 start.
+  it("on the training day (dayStartHour, browser pass D4), worded on the member's calendar (FIX-5 item B)", () => {
+    // NOW is 00:30 Friday in Kolkata: Thursday's training day with a 04:00 start. FIX-5 changed these expectations
+    // ("Tomorrow" / "Saturday" / "tomorrow at 08:00"): Friday's day starts later today on the member's calendar, and
+    // a clock time is worded by its calendar date.
     const o = { dayStartHour: 4 };
-    assert.equal(dayLabel(at("2026-11-13T02:30:00Z"), NOW, "Asia/Kolkata", o), "Tomorrow", "08:00 Friday");
+    assert.equal(dayLabel(at("2026-11-13T02:30:00Z"), NOW, "Asia/Kolkata", o), "Later today", "08:00 Friday");
     assert.equal(dayLabel(at("2026-11-12T22:00:00Z"), NOW, "Asia/Kolkata", o), "Today", "03:30 Friday is still Thursday's");
-    assert.equal(dayLabel(at("2026-11-14T02:30:00Z"), NOW, "Asia/Kolkata", { ...o, long: true }), "Saturday");
-    assert.equal(releaseLabel(at("2026-11-13T02:30:00Z"), NOW, "Asia/Kolkata", o), "tomorrow at 08:00");
+    assert.equal(dayLabel(at("2026-11-14T02:30:00Z"), NOW, "Asia/Kolkata", { ...o, long: true }), "Tomorrow", "Saturday is tomorrow on the calendar");
+    assert.equal(releaseLabel(at("2026-11-13T02:30:00Z"), NOW, "Asia/Kolkata"), "today at 08:00");
     // From 04:00 the training day is the calendar day again.
     const morning = at("2026-11-12T23:00:00Z"); // 04:30 Friday
     assert.equal(dayLabel(at("2026-11-13T02:30:00Z"), morning, "Asia/Kolkata", o), "Today");
     // UTC 01:00: the 08:00 release that morning.
-    assert.equal(dayLabel(at("2026-11-13T08:00:00Z"), at("2026-11-13T01:00:00Z"), "UTC", o), "Tomorrow");
+    assert.equal(dayLabel(at("2026-11-13T08:00:00Z"), at("2026-11-13T01:00:00Z"), "UTC", o), "Later today");
     assert.equal(dayLabel(at("2026-11-13T08:00:00Z"), at("2026-11-13T01:00:00Z"), "UTC"), "Today", "without it, the calendar day");
   });
 
@@ -48,9 +50,11 @@ describe("dayLabel", () => {
     const batch = at("2026-11-15T02:30:00Z"); // 08:00 Sunday
     const o = { dayStartHour: 4 };
     assert.equal(dayLabel(batch, at0407, "Asia/Kolkata", o), "Today", "the device's day (Sunday)");
-    assert.equal(dayLabel(batch, at0407, "Asia/Kolkata", { ...o, todayKey: "2026-11-14" }), "Tomorrow", "next to SATURDAY");
-    assert.equal(releaseLabel(batch, at0407, "Asia/Kolkata", { ...o, todayKey: "2026-11-14" }), "tomorrow at 08:00");
-    assert.equal(dayLabel(at("2026-11-16T02:30:00Z"), at0407, "Asia/Kolkata", { ...o, long: true, todayKey: "2026-11-14" }), "Monday");
+    // FIX-5 (item B) changed these from "Tomorrow" / "tomorrow at 08:00" / "Monday": Sunday's day starts later today on
+    // the member's calendar (the header reads "Saturday's plan"), and Monday is tomorrow.
+    assert.equal(dayLabel(batch, at0407, "Asia/Kolkata", { ...o, todayKey: "2026-11-14" }), "Later today", "next to SATURDAY'S PLAN");
+    assert.equal(releaseLabel(batch, at0407, "Asia/Kolkata"), "today at 08:00");
+    assert.equal(dayLabel(at("2026-11-16T02:30:00Z"), at0407, "Asia/Kolkata", { ...o, long: true, todayKey: "2026-11-14" }), "Tomorrow");
     // A key that is the natural day changes nothing.
     assert.equal(dayLabel(batch, at0407, "Asia/Kolkata", { ...o, todayKey: "2026-11-15" }), "Today");
   });

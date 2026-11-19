@@ -55,9 +55,12 @@ export const copy = {
   verified: "VERIFIED",
   updating: (n: number) => (n > 0 ? `Updating with ${plural(n, "new game", "new games")}…` : "Updating…"),
   topWeaknesses: "Top weaknesses",
+  // FIX-5 (item E, D-P6-FIX5-5): the label says what the rows are ordered by (plan §8.6): a band comparison by points
+  // lost above the band, an own-only list by points lost, a most-frequent list by how often the pattern happened. The
+  // number on each row is its rate per 100 moves, which can order differently (a pattern that costs more per mistake).
   listLabel: (o: { count: number; band: string | null; mostFrequent: boolean; short: boolean }) => {
-    if (o.mostFrequent) return "Most frequent in your games · per 100 moves";
-    const head = `Top ${o.count} · per 100 moves`;
+    if (o.mostFrequent) return "Most frequent in your games, by count · per 100 moves";
+    const head = `Top ${o.count} by points lost · per 100 moves`;
     if (!o.band) return head;
     return o.short ? `${head} vs ${o.band}` : `${head}, you vs players rated ${o.band}`;
   },

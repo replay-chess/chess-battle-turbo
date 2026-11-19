@@ -140,7 +140,9 @@ describe("buildReviewDTO", () => {
     assert.equal(dto.game.tc.label, "Rapid 10+0");
     assert.equal(dto.game.result, "0-1");
     assert.equal(dto.game.endLabel, "0–1 resigned");
-    assert.deepEqual(dto.game.opening, { eco: "C59", name: "Two Knights Defense" });
+    // the stored "Two Knights Defense" is not a book name (the worker stores book names): the header names the game
+    // from the book by its moves (the shared rule, @repo/chess-import/opening-name)
+    assert.deepEqual(dto.game.opening, { eco: "C59", name: "Italian Game: Two Knights Defense, Polerio Defense, Suhle Defense" });
     assert.equal(dto.share, null);
   });
 

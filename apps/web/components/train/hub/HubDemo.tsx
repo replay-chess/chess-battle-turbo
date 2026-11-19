@@ -17,7 +17,7 @@ export function HubDemo({ state, stress, routeSkeleton }: { state: HubDemoState;
   const [starting, setStarting] = useState(false);
   if (state === "loading" && routeSkeleton) return <HubSkeleton />;
   const today = hubDemo(state, stress) ?? trainTodayFixture(stress ? "stress" : "default");
-  const nextDay = today.nextBatch ? batchDayWord(today.nextBatch, DEMO_NOW_MS, safeTimeZone(today.prefs.timeZone), today.prefs.dayStartHour) : null;
+  const nextDay = today.nextBatch ? batchDayWord(today.nextBatch, DEMO_NOW_MS, safeTimeZone(today.prefs.timeZone)) : null;
   return (
     <TrainHubView
       today={today}

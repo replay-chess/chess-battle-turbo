@@ -26,6 +26,7 @@ import {
   EXTEND_ITEMS,
   TRAIN_PUZZLES_DAILY_LIMIT_DEFAULT,
   TRAIN_SESSION_HOURLY,
+  type BankStart,
   type ExtendResult,
   type SessionCreate,
   type SessionPayload,
@@ -62,7 +63,7 @@ import { capOf } from "./badges.server";
 import { bankCardIn, bankRowsSql, dueCardsSql, planThemesOf, themeMasterySql, type DueCardRow, type ThemeMasteryRow } from "./bank.server";
 import { loadTrainState, type TrainState } from "./day.server";
 import { asDate, at, dayParam, LOCK_TRAIN_SESSION, memberLockSql, num, trainDeps, type TrainDb, type TrainDeps } from "./db.server";
-import { CARD_COLUMNS, MISTAKE_COLUMNS, cardRowOf, gradeWire, snapshotOfCard, trainItemOf, type CardRowDb, type ItemBuild } from "./dto.server";
+import { CARD_COLUMNS, MISTAKE_COLUMNS, cardRowOf, gradeWire, isDueNow, snapshotOfCard, trainItemOf, type CardRowDb, type ItemBuild } from "./dto.server";
 import {
   primaryThemeOf,
   puzzlesEnabled,
@@ -604,17 +605,59 @@ async function compose(
     return { plan, snapshots: new Map(), cards: new Map(rows.map((r) => [r.itemKey, r])), themes: null, size: plan.items.length, mix: false };
   }
   const rows = await db.$queryRaw<DueCardRow[]>(dueCardsSql(viewer.id, clock.now, filter));
-  const filtered = Boolean(filter.theme || filter.phase || filter.source);
-  const plan = buildSession("bank", {
+  const plan = bankDueSession(rows, state, Boolean(filter.theme || filter.phase || filter.source));
+  return { plan, snapshots: new Map(), cards: new Map(rows.map((r) => [r.itemKey, r])), themes: null, size: plan.items.length, mix: false };
+}
+
+/**
+ * The BANK due-queue session (W2 `{kind:"bank"}` without picks or practice) composed from the member's due cards: the
+ * §8.6 queue order under today's cap and new-card limit, at most BANK_SESSION_MAX items. FIX-5 (item A): the one
+ * composition, used by the create and by the bank page's button (`bankButtonStart`), so the number on the button is
+ * the size of the session the click opens. `rows` may hold more than the due cards (the bank page's rows): only the
+ * cards due now, not skipped and not hidden, count, as `dueCardsSql` reads them.
+ */
+export function bankDueSession(rows: readonly CardRowDb[], state: TrainState, filtered = false): SessionPlan {
+  const now = state.clock.now;
+  const cap = capOf(state.due, state.profile, state.counters);
+  const due = rows.filter((r) => r.deck === "BANK" && !r.hiddenAt && isDueNow(r, now));
+  return buildSession("bank", {
     mode: "due",
-    now: clock.now,
-    dueCards: rows.map(bankCardIn),
+    now,
+    dueCards: due.map(bankCardIn),
     capRemaining: cap.capRemaining,
     newRemaining: cap.newRemaining,
     filtered,
     dueRaw: cap.dueRaw,
   });
-  return { plan, snapshots: new Map(), cards: new Map(rows.map((r) => [r.itemKey, r])), themes: null, size: plan.items.length, mix: false };
+}
+
+/** The bank page's primary button body (`bankSessionBody` with no filter and something due): W2's spec. */
+export const BANK_BUTTON_SPEC = { kind: "bank", source: "bank", practice: false } as const satisfies SessionCreate;
+
+/**
+ * What the bank page's button opens (FIX-5 item A, D-P6-FIX5-1), decided as W2 decides it for `BANK_BUTTON_SPEC`:
+ * an ACTIVE session of the same spec and training day younger than 2 h with an item left is RESUMED ("Continue Review
+ * · 5 Left"), otherwise a NEW session of `bankDueSession`'s size opens. `rows`: the member's bank rows when the page
+ * read every one of them (no extra statement), else null (the due queue is read, as the create reads it).
+ */
+export async function bankButtonStart(deps: TrainDeps, viewer: Viewer, state: TrainState, rows: readonly CardRowDb[] | null): Promise<BankStart> {
+  const { db } = deps;
+  const now = state.clock.now;
+  const filterKey = filterKeyOf(BANK_BUTTON_SPEC, state.clock.today);
+  const [lim, due] = await Promise.all([
+    db.$queryRaw<{ reuse: string | null }[]>(reuseSql(viewer.id, now, "BANK", filterKey)),
+    rows ? Promise.resolve(rows) : db.$queryRaw<DueCardRow[]>(dueCardsSql(viewer.id, now)),
+  ]);
+  const reuse = lim[0]?.reuse ?? null;
+  if (reuse) {
+    const row = (await db.$queryRaw<SessionRow[]>(sessionSql(viewer.id, reuse)))[0];
+    if (row) {
+      const read = await readPayload(db, viewer, row, state);
+      const left = read.payload.items.length - read.payload.resumeIndex;
+      if (read.stored.length > 0 && left > 0) return { kind: "resume", ref: row.referenceId, remaining: left, total: read.payload.items.length };
+    }
+  }
+  return { kind: "new", n: bankDueSession(due, state).items.length };
 }
 
 export type OpenedSession = { payload: SessionPayload; created: boolean };

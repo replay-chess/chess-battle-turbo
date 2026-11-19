@@ -280,6 +280,17 @@ export type BankRow = z.infer<typeof BankRow>;
 export const Facet = z.object({ key: z.string().max(32), label: z.string().max(40), n: z.number().int().min(0) });
 export type Facet = z.infer<typeof Facet>;
 
+/**
+ * FIX-5 (item A, D-P6-FIX5-1): what the bank page's primary button opens, decided as W2 decides it: `resume` = the
+ * member's ACTIVE bank session of today ("Continue Review · 5 Left · ~4 min"), `new` = a new due-queue session of `n`
+ * items ("Review 10 Due · ~8 min"). For the unfiltered queue only: a filtered list opens its own session.
+ */
+export const BankStart = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("resume"), ref: Ref, remaining: z.number().int().min(1), total: z.number().int().min(1) }),
+  z.object({ kind: z.literal("new"), n: z.number().int().min(0) }),
+]);
+export type BankStart = z.infer<typeof BankStart>;
+
 export const BankPage = z.object({
   state: z.enum(["empty", "caughtup", "default"]),
   counts: z.object({
@@ -308,6 +319,8 @@ export const BankPage = z.object({
     .nullable(),
   /** Caught-up lesson card slot (P8, coverage C-06); always null in P5. */
   lesson: LessonCard.nullable(),
+  /** FIX-5: the primary button's session (`BankStart`). Optional: older builds omit it. */
+  start: BankStart.optional(),
 });
 export type BankPage = z.infer<typeof BankPage>;
 

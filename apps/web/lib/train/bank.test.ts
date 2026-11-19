@@ -25,6 +25,9 @@ function batches(
   return { days: batchesOf(due, { ...PROFILE, bankDailyCap: o.cap ?? 10 }, o.day ?? ZERO_DAY, clock), clock };
 }
 
+/** Coming up for a projection, worded at its clock (FIX-5: the member's calendar). */
+const up = (b: ReturnType<typeof batches>) => upcomingOf(b.days, b.clock);
+
 describe("R2 helpers", () => {
   it("facets: themes by count, phases and sources in their fixed order; the SQL form agrees", () => {
     const rows = [
@@ -51,13 +54,13 @@ describe("R2 helpers", () => {
   it("upcoming: per local day for 6 days (non-zero), then Next week, at most 4 rows", () => {
     const at = (d: number) => new Date(Date.UTC(2026, 10, 12 + d, 8));
     const dues = [at(1), at(1), at(2), at(3), at(3), at(3), at(8), at(9), at(20), new Date(NOW.getTime() - DAY)].map((d) => arr(d));
-    assert.deepEqual(upcomingOf(batches({ arrivals: dues }).days), [
+    assert.deepEqual(up(batches({ arrivals: dues })), [
       { label: "Tomorrow", n: 2 },
       { label: "Saturday", n: 1 },
       { label: "Sunday", n: 3 },
       { label: "Next week", n: 2 },
     ]);
-    assert.equal(upcomingOf(batches({ arrivals: [at(1), at(2), at(3), at(4), at(5)].map((d) => arr(d)) }).days).length, 4);
+    assert.equal(up(batches({ arrivals: [at(1), at(2), at(3), at(4), at(5)].map((d) => arr(d)) })).length, 4);
   });
 
   it("regression staging-next-batch-cap: the next batch and Coming up never pass the daily cap; held cards roll to later days", () => {
@@ -75,7 +78,7 @@ describe("R2 helpers", () => {
       todayKey: "2026-11-12",
       todayEndsAt: "2026-11-13T00:00:00.000Z",
     });
-    assert.deepEqual(upcomingOf(big.days), [
+    assert.deepEqual(up(big), [
       { label: "Tomorrow", n: 10 },
       { label: "Saturday", n: 10 },
       { label: "Sunday", n: 5 },
@@ -83,7 +86,7 @@ describe("R2 helpers", () => {
     // NEW cards (a fresh import): at most newPerDay of them a day.
     const fresh = batches({ arrivals: [arr(at(1), 69, true)] });
     assert.equal(nextBatchOf(fresh.days, fresh.clock)!.count, 5);
-    assert.deepEqual(upcomingOf(fresh.days).slice(0, 3), [
+    assert.deepEqual(up(fresh).slice(0, 3), [
       { label: "Tomorrow", n: 5 },
       { label: "Saturday", n: 5 },
       { label: "Sunday", n: 5 },
@@ -101,29 +104,30 @@ describe("R2 helpers", () => {
       todayKey: "2026-11-12",
       todayEndsAt: "2026-11-13T00:00:00.000Z",
     });
-    assert.deepEqual(upcomingOf(held.days), [
+    assert.deepEqual(up(held), [
       { label: "Tomorrow", n: 10 },
       { label: "Saturday", n: 10 },
       { label: "Sunday", n: 10 },
       { label: "Monday", n: 1 },
     ]);
     // A lower cap (W8 bankDailyCap 5) is the cap every line uses.
-    assert.deepEqual(upcomingOf(batches({ arrivals: [arr(at(1), 6)], cap: 5 }).days), [
+    assert.deepEqual(up(batches({ arrivals: [arr(at(1), 6)], cap: 5 })), [
       { label: "Tomorrow", n: 5 },
       { label: "Saturday", n: 1 },
     ]);
   });
 
-  it("browser pass D4: at 01:00 Sunday IST (Saturday's training day) the 08:00 cards are Tomorrow, in rows and the histogram", () => {
+  it("browser pass D4: at 01:00 Sunday IST (Saturday's training day) the 08:00 cards come later today, in rows and the histogram", () => {
     const now = new Date("2026-11-14T19:30:00Z"); // 01:00 Sunday Asia/Calcutta
     const sunday8 = new Date("2026-11-15T02:30:00Z"); // 08:00 Sunday local
     const row = bankRowOf(cardRow({ due: sunday8 }), now, "Asia/Calcutta", 4)!;
     assert.equal(row.isDue, false);
-    assert.equal(row.nextLabel, "Tomorrow", "was \"Today\" under SCHEDULED LATER");
+    // FIX-5 (item B) changed this from "Tomorrow": Sunday's training day starts later today on the member's calendar.
+    assert.equal(row.nextLabel, "Later today", "was \"Today\" under SCHEDULED LATER, then \"Tomorrow\" (read as Monday)");
     assert.equal(bankRowOf(cardRow({ due: sunday8 }), now, "Asia/Calcutta")!.nextLabel, "Today", "the calendar word without the day start");
-    assert.deepEqual(upcomingOf(batches({ arrivals: [arr(sunday8), arr(new Date(sunday8.getTime() + DAY))], now, tz: "Asia/Calcutta", dsh: 4 }).days), [
+    assert.deepEqual(up(batches({ arrivals: [arr(sunday8), arr(new Date(sunday8.getTime() + DAY))], now, tz: "Asia/Calcutta", dsh: 4 })), [
+      { label: "Later today", n: 1 },
       { label: "Tomorrow", n: 1 },
-      { label: "Monday", n: 1 },
     ]);
   });
 
@@ -143,9 +147,9 @@ describe("R2 helpers", () => {
       todayKey: "2026-11-12",
       todayEndsAt: "2026-11-12T22:30:00.000Z",
     });
-    // The day word is the member's training day (P5-FZ-4): at 00:30 local it is still yesterday's day, so tomorrow;
-    // once the day starts (04:00 local) the same instant is today.
-    assert.equal(next(new Date("2026-11-12T19:00:00Z"))?.whenLabel, "tomorrow at 13:30");
+    // FIX-5 (item B) changed this from the training day's "tomorrow": a clock time is worded by its calendar date, so
+    // at 00:30 local (still Thursday's training day) the 13:30 batch that afternoon is "today".
+    assert.equal(next(new Date("2026-11-12T19:00:00Z"))?.whenLabel, "today at 13:30");
     assert.equal(next(new Date("2026-11-12T22:30:00Z"))?.whenLabel, "today at 13:30");
     assert.equal(nextBatchOf(batches({}).days, batches({}).clock), null);
   });

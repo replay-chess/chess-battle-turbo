@@ -123,13 +123,14 @@ export function BankView(props: BankViewProps) {
   // Complete bank: every tab and filter runs here. Large bank: the server already filtered the rows.
   const pool = complete ? poolOf(rows, filter) : rows;
   const visible = complete ? visibleRowsOf(rows, filter) : rows;
+  const filtered = isFiltered(filter);
   const selected = selectedRowOf(visible, sel);
   // FIX-4 (item 3): the button and the due group follow what today serves under the cap (the header's count).
   const groups = groupRows(visible, tab, page.counts.due);
-  const cta = ctaOf(pool, visible, page.counts.due);
+  // FIX-5 (item A): unfiltered, the button is the server's `start` (resume or a new session of its exact size).
+  const cta = ctaOf(pool, visible, page.counts.due, filtered ? null : (page.start ?? null));
   const tags = headerTags(page);
   const batch = nextBatchTag(page.nextBatch, nextDay);
-  const filtered = isFiltered(filter);
   // The Due tab counts the rows it lists (every due card; FIX-4 item 3: a large bank's server list is every due card
   // too, `dueRaw`), the header counts what today serves under the cap (`counts.due`).
   const dueCount = complete ? pool.filter((r) => r.isDue).length : filtered ? null : page.counts.dueRaw;

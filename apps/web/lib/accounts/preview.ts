@@ -6,6 +6,7 @@
 import type { ChessComProfile, ChessComStats } from "@repo/chess-import/chesscom/types";
 import { chessComSchemas, CHESSCOM_DRAW_CODES } from "@repo/chess-import/chesscom/types";
 import { extractCountryCode, openingNameFromEcoUrl, ratedGamesTotal } from "@repo/chess-import/chesscom/map";
+import { stripMoveTail } from "@repo/chess-import/opening-name";
 import { chessComRatings } from "@repo/chess-import/ratings";
 import type { Headline, LookupData, RatingsView } from "@repo/contracts/http/accounts";
 import { suggestBand, type SuggestProvider } from "@/lib/onboarding/suggest-band";
@@ -123,7 +124,7 @@ export function chessComRecent(games: readonly unknown[], usernameLower: string,
         result,
         opponentName: clip(them.username, OPPONENT_MAX) ?? "?",
         opponentRating: Number.isInteger(them.rating) ? them.rating : null,
-        openingName: clip(openingNameFromEcoUrl(ecoUrlOf(g.data.pgn)), OPENING_MAX),
+        openingName: clip(stripMoveTail(openingNameFromEcoUrl(ecoUrlOf(g.data.pgn))), OPENING_MAX),
         timeClass: tc,
         endedAt: new Date(g.data.end_time * 1000).toISOString(),
       },

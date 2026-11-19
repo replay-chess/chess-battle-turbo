@@ -42,11 +42,12 @@ describe("weakness model", () => {
   });
 
   it("listLabel per list mode and form", () => {
-    assert.equal(listLabel(weaknessPayloadFixture("ready"), false), "Top 3 · per 100 moves, you vs players rated 1100–1300");
-    assert.equal(listLabel(weaknessPayloadFixture("ready"), true), "Top 3 · per 100 moves vs 1100–1300");
-    assert.equal(listLabel(weaknessPayloadFixture("few_patterns"), false), "Top 2 · per 100 moves, you vs players rated 1100–1300");
-    assert.equal(listLabel(weaknessPayloadFixture("no_band"), false), "Top 3 · per 100 moves");
-    assert.equal(listLabel(weaknessPayloadFixture("none_eligible"), true), "Most frequent in your games · per 100 moves");
+    // FIX-5 (item E) changed these: the label names the order (points lost; count for a most-frequent list).
+    assert.equal(listLabel(weaknessPayloadFixture("ready"), false), "Top 3 by points lost · per 100 moves, you vs players rated 1100–1300");
+    assert.equal(listLabel(weaknessPayloadFixture("ready"), true), "Top 3 by points lost · per 100 moves vs 1100–1300");
+    assert.equal(listLabel(weaknessPayloadFixture("few_patterns"), false), "Top 2 by points lost · per 100 moves, you vs players rated 1100–1300");
+    assert.equal(listLabel(weaknessPayloadFixture("no_band"), false), "Top 3 by points lost · per 100 moves");
+    assert.equal(listLabel(weaknessPayloadFixture("none_eligible"), true), "Most frequent in your games, by count · per 100 moves");
   });
 
   it("visibleRows / rowBySlug / slugFromPath", () => {

@@ -811,6 +811,57 @@
             "maxItems": 300,
             "type": "array"
           },
+          "start": {
+            "anyOf": [
+              {
+                "properties": {
+                  "kind": {
+                    "const": "resume",
+                    "type": "string"
+                  },
+                  "ref": {
+                    "pattern": "^c[a-z0-9]{20,31}$",
+                    "type": "string"
+                  },
+                  "remaining": {
+                    "maximum": 9007199254740991,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "total": {
+                    "maximum": 9007199254740991,
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "ref",
+                  "remaining",
+                  "total"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "kind": {
+                    "const": "new",
+                    "type": "string"
+                  },
+                  "n": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "n"
+                ],
+                "type": "object"
+              }
+            ]
+          },
           "state": {
             "enum": [
               "empty",
@@ -4123,7 +4174,8 @@
                     "enum": [
                       "weakness",
                       "profile",
-                      "bank"
+                      "bank",
+                      "phase"
                     ],
                     "type": "string"
                   }

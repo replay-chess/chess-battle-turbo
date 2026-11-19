@@ -6,6 +6,7 @@
 // side → `not_participant`; an unreadable or illegal PGN, an unknown time class or time control, or a result pair
 // that names no winner and no draw → `parse_error`; fewer than 2 plies → `too_short`.
 import { INITIAL_FEN, lastClocks, parsePgn, positionKey, replaySan } from "../replay";
+import { openingOfGame } from "../opening-name";
 import { chessComTimeClass } from "../time-class";
 import {
   clip,
@@ -122,15 +123,24 @@ export function openingNameFromEcoUrl(ecoUrl: string | undefined | null): string
 }
 
 /**
- * Read-time repair of an `openingName` stored by the pre-fix decoder, which read a k=4 castling run as "O-O-O O"
- * (both sides castling short, "…5.O-O-O-O-6.c3"). Every other castling run it produced was already right (k=5 →
- * "O-O-O O-O", k=6 → "O-O-O O-O-O"), so this rewrites only a long castle followed by a lone "O" token and returns
- * every other name unchanged — Lichess names never carry castling notation. Idempotent.
+ * Read-time repair of a stored `openingName`.
+ *
+ * With the game (`startingFen`, UCI `moves`): the display name by the shared rule (`openingOfGame`,
+ * src/opening-name.ts) — a stored book or "Family: Variation" name as it is, else the book's name for the game's
+ * moves, else the stored name without its move tail; "" when nothing is left. This repairs every name the pre-fix
+ * mapper stored from a Chess.com slug ("…Przepiorka Variation...5.O-O O-O 6.c3 c6 7.Nbd2").
+ *
+ * Without the game (the older repair): the pre-fix decoder read a k=4 castling run as "O-O-O O" (both sides castling
+ * short, "…5.O-O-O-O-6.c3"); only a long castle followed by a lone "O" token is rewritten. Idempotent.
  */
-export function repairOpeningName(name: string): string;
-export function repairOpeningName(name: string | null): string | null;
-export function repairOpeningName(name: string | null): string | null {
+export function repairOpeningName(name: string, game?: { startingFen: string; moves: string | readonly string[] }): string;
+export function repairOpeningName(name: string | null, game?: { startingFen: string; moves: string | readonly string[] }): string | null;
+export function repairOpeningName(
+  name: string | null,
+  game?: { startingFen: string; moves: string | readonly string[] },
+): string | null {
   if (!name) return name;
+  if (game) return openingOfGame({ name, eco: null, startingFen: game.startingFen, moves: game.moves })?.name ?? "";
   return name.replace(/(^|[^A-Za-z-])O-O-O O(?=$|[^A-Za-z-])/g, "$1O-O O-O");
 }
 
@@ -187,7 +197,15 @@ export function mapChessComGame(raw: unknown, ctx: ChessComMapContext): MapResul
   const memberWon = (outcome === "WHITE" && color === "w") || (outcome === "BLACK" && color === "b");
   const result = outcome === "DRAW" ? "DRAW" : memberWon ? "WIN" : "LOSS";
   const title = ctx.memberTitle ? clip(ctx.memberTitle, TITLE_MAX) : null;
-  const eco = pgn.value.headers.ECO?.trim();
+  const headerEco = pgn.value.headers.ECO?.trim();
+  // The opening by the shared rule (src/opening-name.ts): the book's line for the moves, else the slug's words
+  // without the move tail Chess.com appends ("…Variation...5.O-O O-O 6.c3").
+  const opening = openingOfGame({
+    name: openingNameFromEcoUrl(pgn.value.headers.ECOUrl ?? g.eco),
+    eco: headerEco && ECO_RE.test(headerEco) ? headerEco : null,
+    startingFen: game.startingFen,
+    moves: game.uci,
+  });
 
   return {
     ok: true,
@@ -208,8 +226,8 @@ export function mapChessComGame(raw: unknown, ctx: ChessComMapContext): MapResul
       outcome,
       endMethod,
       legacyResult: result === "WIN" ? "CREATOR_WON" : result === "LOSS" ? "OPPONENT_WON" : "DRAW",
-      ecoCode: eco && ECO_RE.test(eco) ? eco : null,
-      openingName: openingNameFromEcoUrl(pgn.value.headers.ECOUrl ?? g.eco),
+      ecoCode: opening?.eco && ECO_RE.test(opening.eco) ? opening.eco : headerEco && ECO_RE.test(headerEco) ? headerEco : null,
+      openingName: opening ? clipWords(opening.name, OPENING_NAME_MAX) : null,
       moves: game.uci.join(" "),
       moveClocksMs,
       plyCount: game.plyCount,

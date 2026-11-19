@@ -62,10 +62,12 @@ export const HomeBank = z.object({
    * `weakness` = the top row of a READY profile that compares the member with the rating band ("Missed forks is your
    * top weakness (12 in bank)."); `profile` (FIX-4, D-P6-FIX4-1) = the top row of a most-frequent or own-only READY
    * profile, which ranks nothing against the band ("Missed forks is your most common mistake (12 in bank)."); `bank` =
-   * the P5 bank fallback (the same words). `n` is the in-bank count either way.
+   * the P5 bank fallback (the same words: the bank's most common mistake PATTERN, FIX-5); `phase` (FIX-5, D-P6-FIX5-4)
+   * = no pattern has cards, only a game phase: "15 of your 40 bank positions are from the middlegame." (a phase is not a
+   * mistake). `n` is the in-bank count either way.
    */
   topTheme: z
-    .object({ label: z.string().max(40), n: z.number().int().min(0), source: z.enum(["weakness", "profile", "bank"]).optional() })
+    .object({ label: z.string().max(40), n: z.number().int().min(0), source: z.enum(["weakness", "profile", "bank", "phase"]).optional() })
     .nullable(),
   thumbs: z.array(HomeBankThumb).max(HOME_BANK_THUMBS),
   nextBatch: NextBatch.nullable(),

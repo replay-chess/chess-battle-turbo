@@ -10,7 +10,7 @@
 // payloads and ETags are P3's, byte for byte.
 import { Prisma } from "@repo/db";
 import type { MomentBankCard, MomentCard, ReviewBank } from "@repo/contracts/http/train";
-import { dayLabel } from "@repo/chess-training/labels";
+import { dayLabel, dayWordInSentence } from "@repo/chess-training/labels";
 import { DEFAULT_DAY_START_HOUR } from "@repo/chess-training/constants";
 import { isValidTimeZone } from "@repo/chess-training/tz";
 import type { Viewer } from "@/lib/auth/viewer";
@@ -86,7 +86,7 @@ export function completeBankOf(
   return {
     added: Math.min(3, cards.length),
     nextDueAt: first.due.toISOString(),
-    nextDueLabel: label === "Today" || label === "Tomorrow" ? label.toLowerCase() : label,
+    nextDueLabel: dayWordInSentence(label),
     drillHref: `/train/bank/session?game=${encodeURIComponent(gameRef)}`,
   };
 }

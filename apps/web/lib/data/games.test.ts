@@ -198,12 +198,13 @@ describe("rows", () => {
     const untimed = gameRowOf(archiveRow(4, { timeClass: "UNTIMED", initialTimeSeconds: 0 }), NOW);
     assert.deepEqual(untimed.tc, { label: "Untimed", timeClass: "untimed" });
     assert.equal(JSON.stringify(row).includes("gameId"), false, "only the ref leaves the server");
-    // a Chess.com name stored by the pre-fix slug decoder ("…5.O-O-O-O-6.c3" read as "O-O-O O") is repaired on read
+    // a Chess.com name stored by the pre-fix slug decoder ("…5.O-O-O-O-6.c3" read as "O-O-O O") reads without its
+    // move tail (no moves on this row, so no book line; lib/data/opening-names.test.ts covers the book)
     const garbled = gameRowOf(
       archiveRow(5, { source: "CHESSCOM", ecoCode: "A48", openingName: "Indian Game East Indian Przepiorka Variation...5.O-O-O O 6.c3" }),
       NOW,
     );
-    assert.equal(garbled.opening?.name, "Indian Game East Indian Przepiorka Variation...5.O-O O-O 6.c3");
+    assert.equal(garbled.opening?.name, "Indian Game East Indian Przepiorka Variation");
   });
 });
 

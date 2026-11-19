@@ -13,6 +13,7 @@ import {
   keepGoingLabel,
   liveEmptySteps,
   livePuzzleStep,
+  bankTopPick,
   planCta,
   planDoneBits,
   planDoneCount,
@@ -266,5 +267,20 @@ describe("FIX-4: the plan step's voice and its live rating", () => {
     assert.equal(livePuzzleStep(step, { rating: 1771, reason: { theme: "fork", source: "top_weakness" } }).subtitle, "From your Weakness Profile · rating 1771 · ~4 min", "another theme: the frozen reason stays");
     assert.equal(livePuzzleStep(frozen.steps[0]!, { rating: 1771 }), frozen.steps[0], "the bank step is the frozen one");
     assert.deepEqual({ ...livePuzzleStep(step, { rating: 1771 }), subtitle: step.subtitle }, step, "only the subtitle changes");
+  });
+});
+
+describe("FIX-5 (item D): one 'most common' pick for Home and the hub", () => {
+  const th = (key: string, bankCount: number, attempts = 0) => ({ key, attempts, ewma: 0.5, bankCount });
+  it("names a mistake pattern, never a phase; a phase only when no pattern has cards", () => {
+    assert.deepEqual(bankTopPick([th("middlegame", 15), th("hangingPiece", 9), th("fork", 4)]), { kind: "pattern", key: "hangingPiece", n: 9 });
+    assert.deepEqual(bankTopPick([th("middlegame", 15), th("endgame", 3)]), { kind: "phase", key: "middlegame", n: 15 });
+    assert.equal(bankTopPick([]), null);
+  });
+  it("the hub says 'Most common in your bank' only for that pattern", () => {
+    const step = (themes: ReturnType<typeof th>[]) => buildDailyPlan({ ...base, themes }).steps[1]!.subtitle;
+    assert.match(step([th("middlegame", 15), th("hangingPiece", 9), th("fork", 4)]), /^Most common in your bank · /);
+    // The bank's top pattern has no puzzles (a review heuristic): the puzzle theme is only "common".
+    assert.match(step([th("rc:recapture", 12), th("fork", 4)]), /^Common in your bank · /);
   });
 });

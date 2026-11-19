@@ -42,18 +42,20 @@ describe("review bank fields", () => {
   // "tomorrow" until 04:00 local even when its 08:00 release is later the same calendar day. regression:
   // review-complete-hour (CI 43662852275, e2e review-to-bank at 01:32 UTC expected the calendar word "today").
   it("complete: a card due at the next 08:00 release reads by the training day at 23:30, 00:30, 03:30, 04:30 local", () => {
-    // [zone, the release instant (08:00 local on 2026-11-15), [local time, its UTC instant, the word]]
+    // [zone, the release instant (08:00 local on 2026-11-15), [local time, its UTC instant, the word]]. FIX-5 (item B,
+    // D-P6-FIX5-2) changed 00:30 and 03:30 from "tomorrow" to "later today": the training day is still the 14th's,
+    // but the 15th has begun on the member's calendar.
     const cases = [
       ["UTC", "2026-11-15T08:00:00.000Z", [
         ["23:30", "2026-11-14T23:30:00.000Z", "tomorrow"],
-        ["00:30", "2026-11-15T00:30:00.000Z", "tomorrow"],
-        ["03:30", "2026-11-15T03:30:00.000Z", "tomorrow"],
+        ["00:30", "2026-11-15T00:30:00.000Z", "later today"],
+        ["03:30", "2026-11-15T03:30:00.000Z", "later today"],
         ["04:30", "2026-11-15T04:30:00.000Z", "today"],
       ]],
       ["Asia/Calcutta", "2026-11-15T02:30:00.000Z", [
         ["23:30", "2026-11-14T18:00:00.000Z", "tomorrow"],
-        ["00:30", "2026-11-14T19:00:00.000Z", "tomorrow"],
-        ["03:30", "2026-11-14T22:00:00.000Z", "tomorrow"],
+        ["00:30", "2026-11-14T19:00:00.000Z", "later today"],
+        ["03:30", "2026-11-14T22:00:00.000Z", "later today"],
         ["04:30", "2026-11-14T23:00:00.000Z", "today"],
       ]],
     ] as const;
@@ -62,7 +64,7 @@ describe("review bank fields", () => {
       for (const [local, at, word] of hours) {
         const ctx = bankContextOf({ user: { timeZone } }, Date.parse(at));
         assert.equal(completeBankOf(card, "g", ctx).nextDueLabel, word, `${timeZone} ${local}`);
-        assert.equal(momentBankOf(card, 6, ctx).card?.dueLabel, word === "today" ? "Today" : "Tomorrow", `${timeZone} ${local} (A1)`);
+        assert.equal(momentBankOf(card, 6, ctx).card?.dueLabel, word.charAt(0).toUpperCase() + word.slice(1), `${timeZone} ${local} (A1)`);
       }
     }
   });

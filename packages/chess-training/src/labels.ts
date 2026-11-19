@@ -3,7 +3,7 @@
 // (the runtime's Intl locale data never changes a label). Every function takes the instants it compares.
 import { MIN_PER_BANK_ITEM, MIN_PER_PUZZLE, MIN_PER_WEAKNESS_ITEM } from "./constants";
 import { dayKey } from "./day";
-import { calendarDaysBetween, localDate, localParts, parseYmd, weekdayOf, type YMD } from "./tz";
+import { calendarDaysBetween, formatYmd, localDate, localParts, parseYmd, weekdayOf, type YMD } from "./tz";
 
 export const WEEKDAYS_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
 export const WEEKDAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
@@ -42,26 +42,50 @@ export function intervalLabel(days: number): string {
 export type DayWordOptions = { long?: boolean; dayStartHour?: number; todayKey?: string };
 
 /**
- * When a card is due, from the member's side (§8.14): same day (or overdue) "Today", next day "Tomorrow", within 6
- * days the weekday ("Sat"; `long` → "Saturday" for the caught-up list), else "Nov 6".
+ * When a card or a training day comes, from the member's side (§8.14), as a word WITHOUT a clock time: the current
+ * day (or overdue) "Today", within 6 days the weekday ("Sat"; `long` → "Saturday" for the caught-up list), else
+ * "Nov 6".
  *
- * "Day" is the member's training day when `dayStartHour` is given (browser pass D4, P5-FZ-4): the Train hub's header,
- * the plan, the cap and the streak all live on the training day (a 01:00 Sunday visit is still Saturday's), so a batch
- * released at 08:00 Sunday is "tomorrow" there, not "today". Without it (0) the calendar day, as before.
- *
- * With `todayKey` the words count from that day, so they agree with a header that names it: at 04:07 Sunday after a
- * zone change the hub's day is still Saturday (pinned), and its 08:00 Sunday batch is "tomorrow" next to "SATURDAY"
- * (regression: hub-pinned-day-words; it read "today").
+ * Without `dayStartHour` the words are calendar days. With it (browser pass D4, P5-FZ-4) the target is the member's
+ * TRAINING day (the hub's header, the plan, the cap and the streak live on it), but FIX-5 (item B, D-P6-FIX5-2) words
+ * it by the member's CALENDAR at `now`, so a weekday that has already ended on the member's clock is never named: the
+ * current training day (`todayKey`, else the day of `now`; a day pinned by a zone change keeps its key) is "Today";
+ * a later training day that starts on today's calendar date is "Later today" (between local midnight and the
+ * training-day rollover: at 01:00 Sunday, Sunday's day and its 08:00 cards come "later today", not "tomorrow"); the
+ * next calendar date's day is "Tomorrow", and so on. A word WITH a clock time uses the calendar date of that instant
+ * (`releaseLabel`, `clockDayLabel`): "today at 09:30".
  */
 export function dayLabel(due: Date, now: Date, timeZone: string, opts: DayWordOptions = {}): string {
-  const start = opts.dayStartHour ?? 0;
-  return dayKeyLabel(dayKey(due, timeZone, start), opts.todayKey ?? dayKey(now, timeZone, start), opts);
+  if (opts.dayStartHour === undefined || (opts.dayStartHour === 0 && opts.todayKey === undefined)) {
+    return dayKeyLabel(dayKey(due, timeZone, 0), dayKey(now, timeZone, 0), opts);
+  }
+  const start = opts.dayStartHour;
+  return trainingDayLabel(dayKey(due, timeZone, start), opts.todayKey ?? dayKey(now, timeZone, start), formatYmd(localDate(now, timeZone)), opts);
 }
 
 /**
- * The day word of training day `key` seen from training day `todayKey` (`dayLabel`'s words). FIX-4 (D-P6-FIX4-2): the
- * next batch is labelled from the day it is served on (`servedByDay`'s key), which a pinned day can make differ from
- * the calendar day of its instant.
+ * FIX-5 (item B): training day `key` worded on the member's calendar: `todayKey` = the clock's training day,
+ * `calendarKey` = the calendar date of now in the member's zone (`dayLabel`'s rule; the bank's "Coming up" rows).
+ */
+export function trainingDayLabel(key: string, todayKey: string, calendarKey: string, opts: Pick<DayWordOptions, "long"> = {}): string {
+  if (key <= todayKey) return "Today";
+  if (key <= calendarKey) return "Later today";
+  return dayKeyLabel(key, calendarKey, opts);
+}
+
+/** A clock time's day word (FIX-5 item B): the calendar date of `at` in the member's zone against now's ("today"). */
+export function clockDayLabel(at: Date, now: Date, timeZone: string, opts: Pick<DayWordOptions, "long"> = {}): string {
+  return dayKeyLabel(dayKey(at, timeZone, 0), dayKey(now, timeZone, 0), opts);
+}
+
+/** A day word mid-sentence: "today", "later today", "tomorrow" lower-cased; weekdays and dates as they are. */
+export function dayWordInSentence(label: string): string {
+  return label === "Today" || label === "Tomorrow" || label === "Later today" ? label.toLowerCase() : label;
+}
+
+/**
+ * The day word of day `key` seen from day `todayKey`: same day (or before) "Today", the next "Tomorrow", within 6
+ * days the weekday, else "Nov 6".
  */
 export function dayKeyLabel(key: string, todayKey: string, opts: Pick<DayWordOptions, "long"> = {}): string {
   const target = parseYmd(key);
@@ -99,15 +123,10 @@ export function atLabel(at: Date, timeZone: string): string {
  * When the next batch arrives, for a sentence: "today at 08:00", "tomorrow at 08:00", "Sat at 08:00", "Nov 6 at 08:00"
  * (the day word as `dayLabel`, on the training day when `dayStartHour` is given).
  */
-export function releaseLabel(at: Date, now: Date, timeZone: string, opts: Pick<DayWordOptions, "dayStartHour" | "todayKey"> = {}): string {
-  const day = dayLabel(at, now, timeZone, opts);
-  const lead = day === "Today" || day === "Tomorrow" ? day.toLowerCase() : day;
-  return `${lead} at ${atLabel(at, timeZone)}`;
-}
-
-/** "tomorrow at 08:00" for an instant served on training day `key`, seen from training day `todayKey` (FIX-4). */
-export function releaseLabelOfDay(at: Date, timeZone: string, key: string, todayKey: string): string {
-  const day = dayKeyLabel(key, todayKey);
+export function releaseLabel(at: Date, now: Date, timeZone: string): string {
+  // FIX-5 (item B): a clock time is worded by its calendar date ("today at 09:30" at 06:11 the same morning), whatever
+  // training day it falls in.
+  const day = clockDayLabel(at, now, timeZone);
   const lead = day === "Today" || day === "Tomorrow" ? day.toLowerCase() : day;
   return `${lead} at ${atLabel(at, timeZone)}`;
 }

@@ -22,6 +22,7 @@ import { HOME_BANK_THUMBS, HOME_RECENT_MAX } from "@repo/contracts/http/home";
 import { repairOpeningName } from "@repo/chess-import/chesscom/map";
 import { estimateMinutes, greetingPart, playedAtLabel, WEEKDAYS_LONG } from "@repo/chess-training/labels";
 import { dayKey, weekKeys } from "@repo/chess-training/day";
+import { bankTopPick } from "@repo/chess-training/plan";
 import { themePluralLabel } from "@repo/chess-training/themes";
 import { cachedData } from "@/lib/api/context";
 import type { Viewer } from "@/lib/auth/viewer";
@@ -74,8 +75,10 @@ export function weekPuzzlesSql(userId: bigint, from: Date): Prisma.Sql {
 
 /** h2: the theme with the most live BANK cards. */
 export function topThemeSql(userId: bigint): Prisma.Sql {
+  // FIX-5 (item D): every theme with bank cards (a member has at most a few dozen), so the pick (`bankTopPick`) can
+  // skip phase tags: "Middlegame is your most common mistake" named a phase as a mistake.
   return Prisma.sql`SELECT theme, "bankCount" FROM theme_mastery WHERE "userId" = ${userId} AND "bankCount" > 0
-    ORDER BY "bankCount" DESC, theme LIMIT 1`;
+    ORDER BY "bankCount" DESC, theme LIMIT 200`;
 }
 
 /** h6: the featured legend position (Morphy's Opera Game when it is seeded, else the newest featured one). */
@@ -155,7 +158,7 @@ export function continueOf(rows: readonly ContinueRow[], now: Date, timeZone: st
     opponentRating: pick.opponentRating === null ? null : num(pick.opponentRating),
     result: resultOf(pick.result),
     endMove: endMoveOf(num(pick.startPly), num(pick.plyCount)),
-    openingName: pick.openingName ? repairOpeningName(pick.openingName).slice(0, 120) : null, // pre-fix "O-O-O O"
+    openingName: pick.openingName ? repairOpeningName(pick.openingName, { startingFen: pick.startingFen, moves: replay.uci }).slice(0, 120) || null : null, // the archive's rule: book name, else no move tail
     whenLabel: playedAtLabel(asDate(pick.endedAt)!, now, timeZone),
     keyMomentCount: Math.min(3, Math.max(0, num(pick.momentsCount))),
     accuracy: pick.accuracy === null ? null : Math.min(100, Math.max(0, Math.round(num(pick.accuracy)))),
@@ -203,11 +206,19 @@ export function weekAria(days: readonly boolean[]): string {
  * most common bank theme (which needs bankCount > 0). FIX-3 (review item 11, D-P6-FIX3-W2): the line describes the
  * bank, so "Time-pressure blunders is your top weakness (0 in bank)." never shows; the profile itself is on the hub.
  */
-export function homeTopTheme(top: { theme: string; bankCount: number } | undefined, weakness: TopWeakness | null): HomeData["bank"]["topTheme"] {
+export function homeTopTheme(
+  rows: { theme: string; bankCount: number } | readonly { theme: string; bankCount: number }[] | undefined,
+  weakness: TopWeakness | null,
+): HomeData["bank"]["topTheme"] {
   // FIX-4 (D-P6-FIX4-1): "top weakness" only for the top row of a band comparison; a most-frequent or own-only
   // profile's top row is the member's most common mistake (`weaknessVoice`, the hub's plan step uses the same rule).
   if (weakness && weakness.inBank > 0) return { label: weakness.label, n: weakness.inBank, source: weakness.voice === "top_weakness" ? "weakness" : "profile" };
-  return top && num(top.bankCount) > 0 ? { label: themePluralLabel(top.theme), n: num(top.bankCount) } : null;
+  // FIX-5 (item D, D-P6-FIX5-4): the bank's most common mistake pattern (`bankTopPick`, the pick the hub's puzzle
+  // step calls "Most common in your bank"); a phase only says where the bank's positions come from (source `phase`).
+  const list = rows === undefined ? [] : Array.isArray(rows) ? rows : [rows as { theme: string; bankCount: number }];
+  const pick = bankTopPick(list.map((r) => ({ key: r.theme, bankCount: num(r.bankCount) })));
+  if (!pick) return null;
+  return pick.kind === "phase" ? { label: themePluralLabel(pick.key), n: pick.n, source: "phase" } : { label: themePluralLabel(pick.key), n: pick.n };
 }
 
 /** HOME-1 at `now`. */
@@ -235,7 +246,6 @@ export async function getHomeData(viewer: Viewer, now: Date, deps: TrainDeps = t
     : [];
 
   const cap = capOf(due, profile, state.counters);
-  const top = topRows[0];
   const gameDays = new Set(weekGames.map((g) => dayKey(asDate(g.endedAt)!, tz, profile.dayStartHour)));
   const trained = new Set(state.week.filter(isTrainedDay).map((r) => r.day));
   const days = weekKeys(clock.today).map((k) => k <= clock.today && (gameDays.has(k) || trained.has(k)));
@@ -256,7 +266,7 @@ export async function getHomeData(viewer: Viewer, now: Date, deps: TrainDeps = t
       due: cap.dueShown,
       total: due.total,
       estMin: estimateMinutes({ bank: cap.dueShown }),
-      topTheme: homeTopTheme(top, weakness),
+      topTheme: homeTopTheme(topRows, weakness),
       thumbs: previews.slice(0, Math.min(HOME_BANK_THUMBS, cap.dueShown)).map((p) => {
         const d = duePreviewOf(p);
         return { cardRef: d.cardRef, fen: d.fen, orient: d.orient, label: d.label };

@@ -243,7 +243,9 @@ describe("mapChessComGame: fields", () => {
     const g = ok(map(spec({ eco: "C50", ecoUrl: "https://www.chess.com/openings/Italian-Game" })));
     assert.equal(g.ecoCode, "C50");
     assert.equal(g.openingName, "Italian Game");
-    assert.equal(ok(map(spec({ eco: "Z99" }))).ecoCode, null);
+    // an invalid ECO header is dropped: the book's line for the moves gives the code, else there is none
+    assert.equal(ok(map(spec({ eco: "Z99" }))).ecoCode, "C44");
+    assert.equal(ok(map(spec({ eco: "Z99", startFen: "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", sans: ["e4", "Kd7"] }))).ecoCode, null);
   });
 
   describe("castling runs in the ECOUrl slug (regression: \"…5.O-O-O O 6.c3\")", () => {

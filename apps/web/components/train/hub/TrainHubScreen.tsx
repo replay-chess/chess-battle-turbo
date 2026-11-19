@@ -132,7 +132,7 @@ export function TrainHubScreen({ serverNowMs }: { serverNowMs: number }) {
   const rolledOver = currentDayKey !== undefined && today.dayKey !== currentDayKey;
   const tz = safeTimeZone(today.prefs.timeZone);
   // Counted from the header's day (R1 `dayKey`), which a zone change can pin past the new zone's rollover.
-  const nextDay = today.nextBatch ? batchDayWord(today.nextBatch, now, tz, today.prefs.dayStartHour, today.dayKey) : null;
+  const nextDay = today.nextBatch ? batchDayWord(today.nextBatch, now, tz) : null;
 
   return (
     <TrainHubView

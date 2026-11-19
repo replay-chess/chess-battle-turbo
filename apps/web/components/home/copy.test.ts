@@ -114,3 +114,9 @@ test("no copy carries an exclamation mark or the board's sample numbers when the
   assert.match(all, /Review 9 · About 7 min/);
   assert.match(all, /Forks is your most common mistake \(2 in bank\)/);
 });
+
+test("FIX-5 (item D): a phase is where the bank's positions come from, never a mistake", () => {
+  const bank = { due: 4, total: 40, estMin: 3, thumbs: [], nextBatch: null };
+  assert.equal(bankLine({ ...bank, topTheme: { label: "Middlegame", n: 15, source: "phase" } }, false), "15 of your 40 bank positions are from the middlegame.");
+  assert.doesNotMatch(bankLine({ ...bank, topTheme: { label: "Middlegame", n: 15, source: "phase" } }, false), /mistake/);
+});

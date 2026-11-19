@@ -17,6 +17,7 @@ import { buildDailyPlan as validatePlan, parseDailyPlan, parseWeaknessMetrics, t
 import type { DuePreview, PlanStep, TrainToday } from "@repo/contracts/http/train";
 import { waitingLine } from "@repo/chess-training/caps";
 import { weekdayLabel } from "@repo/chess-training/labels";
+import { formatYmd, localDate } from "@repo/chess-training/tz";
 import { themePct } from "@repo/chess-training/mastery";
 import {
   buildDailyPlan,
@@ -333,7 +334,10 @@ export async function getTrainToday(viewer: Viewer, now: Date, deps: TrainDeps =
 
   return {
     dayKey: clock.today,
-    weekdayLabel: weekdayLabel(clock.today),
+    // FIX-5 (item B, D-P6-FIX5-2): the header names the training day (plan §8.10); between local midnight and the
+    // rollover (or while a zone change pins the day) that day is no longer today's date, so it reads "Wednesday's
+    // plan" and never contradicts a batch "today at 09:30" on the same screen.
+    weekdayLabel: clock.today === formatYmd(localDate(clock.now, clock.timeZone)) ? weekdayLabel(clock.today) : `${weekdayLabel(clock.today)}'s plan`,
     plannedMinutes: planMinutes(plan),
     state: allDone || (due.total > 0 && cap.dueShown === 0) ? "nothingdue" : "default",
     streak: { current, best: Math.max(profile.dayStreakBest, current), week, aria: streakAria(current, week) },

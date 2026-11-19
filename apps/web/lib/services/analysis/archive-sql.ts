@@ -68,6 +68,13 @@ export function filterConditions(filter: ArchiveFilter): Prisma.Sql[] {
 
 const and = (parts: Prisma.Sql[]) => (parts.length ? Prisma.sql`AND ${Prisma.join(parts, " AND ")}` : Prisma.empty);
 
+/**
+ * The head of a game's UCI moves the archive reads to name its opening from the book when the stored name is not a
+ * proper one (a Chess.com slug stored before the fix; @repo/chess-import/opening-name). ≥ the book's longest line,
+ * 36 plies: 36 × 5 chars + 35 spaces.
+ */
+const OPENING_MOVES_CHARS = 220;
+
 /** One archive page: `limit + 1` rows (the extra row only says whether there is a next page). */
 export function archivePageSql(userId: bigint, filter: ArchiveFilter, cursor: ArchiveCursor | null, limit: number): Prisma.Sql {
   const keyset = cursor
@@ -79,7 +86,8 @@ SELECT gp."gameId", g."referenceId" AS ref, gp.color, gp.result::text AS result,
        gp."ratingDelta", gp.accuracy, gp.headline, gp."momentsCount", COALESCE(gp."ecoCode", g."ecoCode") AS "ecoCode",
        g.source::text AS source, ${effectiveAnalysisStatusSql()} AS "analysisStatus", COALESCE(g.fen, g."startingFen") AS fen,
        g."openingName", g."initialTimeSeconds", g."incrementSeconds", g.meta->'position'->>'name' AS "positionTitle",
-       (lc."gameId" IS NOT NULL) AS "hasComparison"
+       (lc."gameId" IS NOT NULL) AS "hasComparison", g."startingFen",
+       left(g.moves, ${OPENING_MOVES_CHARS}::int) AS "openingMoves"
   FROM game_players gp
   JOIN games g ON g.id = gp."gameId"
   LEFT JOIN legend_comparisons lc ON lc."gameId" = gp."gameId" AND lc."userId" = gp."userId"
@@ -142,6 +150,10 @@ export type ArchiveRow = {
   incrementSeconds: number;
   positionTitle: string | null;
   hasComparison: boolean;
+  /** The game's start (the book names only games from the standard start). */
+  startingFen?: string;
+  /** The first `OPENING_MOVES_CHARS` chars of `games.moves` (a cut last move never matches a book line). */
+  openingMoves?: string | null;
 };
 
 /** The per-source columns arrive from the P4 statement; a row without them (an older fake) counts as Replay only. */

@@ -54,7 +54,7 @@ export interface PlanTheme {
  * Why the focus theme was picked (the puzzle step's subtitle says it). A Weakness Profile pick carries its voice
  * (`weakness/voice.ts`, FIX-4): "Your top weakness" only for the top row of a band comparison.
  */
-export type FocusSource = WeaknessVoice | "lowestMastery" | "bankCount" | "default";
+export type FocusSource = WeaknessVoice | "lowestMastery" | "bankCount" | "bankCommon" | "default";
 
 export interface PlanInputs {
   now: Date;
@@ -90,6 +90,21 @@ function isPuzzleTheme(key: string): boolean {
 }
 
 /**
+ * The bank's most common mistake (FIX-5 item D, D-P6-FIX5-4): the mistake pattern with the most BANK cards (a tactic,
+ * mate, endgame or review heuristic; phase and meta tags are not mistakes). Home's bank line names it, and the hub's
+ * puzzle step says "Most common in your bank" only for it. With no pattern in the bank, the phase most cards come from
+ * (Home then says where the bank's positions come from, never calls a phase a mistake); null with an empty bank.
+ */
+export function bankTopPick(themes: readonly Pick<PlanTheme, "key" | "bankCount">[]): { kind: "pattern" | "phase"; key: string; n: number } | null {
+  const order = (a: Pick<PlanTheme, "key" | "bankCount">, b: Pick<PlanTheme, "key" | "bankCount">) => b.bankCount - a.bankCount || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+  const banked = themes.filter((t) => t.bankCount > 0);
+  const pattern = banked.filter((t) => { const k = themeInfo(t.key).kind; return k !== "phase" && k !== "meta"; }).sort(order)[0];
+  if (pattern) return { kind: "pattern", key: pattern.key, n: pattern.bankCount };
+  const phase = banked.filter((t) => themeInfo(t.key).kind === "phase").sort(order)[0];
+  return phase ? { kind: "phase", key: phase.key, n: phase.bankCount } : null;
+}
+
+/**
  * The focus theme (§8.10 step 2): P6's weakness → the lowest EWMA among themes with ≥ 5 attempts → the theme with the
  * most BANK cards → `fork`. Only themes the shards serve qualify.
  */
@@ -99,7 +114,12 @@ export function focusTheme(themes: readonly PlanTheme[], weaknessTheme?: string 
   const rated = themes.filter((t) => t.attempts >= 5 && isPuzzleTheme(t.key)).sort((a, b) => a.ewma - b.ewma || byKey(a, b));
   if (rated[0]) return { key: rated[0].key, source: "lowestMastery" };
   const banked = themes.filter((t) => t.bankCount > 0 && isPuzzleTheme(t.key)).sort((a, b) => b.bankCount - a.bankCount || byKey(a, b));
-  if (banked[0]) return { key: banked[0].key, source: "bankCount" };
+  // FIX-5 (item D): "Most common in your bank" only when it is the bank's most common mistake pattern, the one Home
+  // names (`bankTopPick`); a puzzle theme behind a pattern with no puzzles (an `rc:*` heuristic) is "Common in your bank".
+  if (banked[0]) {
+    const top = bankTopPick(themes);
+    return { key: banked[0].key, source: top?.kind === "pattern" && top.key !== banked[0].key ? "bankCommon" : "bankCount" };
+  }
   return { key: DEFAULT_FOCUS_THEME, source: "default" };
 }
 
@@ -107,6 +127,7 @@ const FOCUS_REASON: Record<FocusSource, string> = {
   ...WEAKNESS_VOICE_REASON,
   lowestMastery: "Your lowest-mastery theme",
   bankCount: "Most common in your bank",
+  bankCommon: "Common in your bank",
   default: "Start here",
 };
 
