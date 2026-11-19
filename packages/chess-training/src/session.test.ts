@@ -261,7 +261,9 @@ describe("buildSession: puzzles, daily, practice, extend", () => {
   it("builds DAILY from the frozen plan keys still due, then the plan's puzzles", () => {
     const dueCards = [review("m_a", 2, 10), review("m_b", 3, 10), review("m_c", 9, 10)];
     const s = buildSession("daily", { now: NOW, frozenKeys: ["m_c", "m_gone", "m_a"], dueCards, capRemaining: 10, newRemaining: 5, puzzles: pick });
-    assert.deepEqual(s.items.map((i) => i.key), ["m_c", "m_a", "p_00Aas", "p_00BJm", "p_00Evs"]);
+    // FIX-6 (D-P6-FIX6-1) changed this: the frozen keys still due come first, then the rest of the due queue under the
+    // cap (m_b), so the step's session is what the hub's live "Review n" counts.
+    assert.deepEqual(s.items.map((i) => i.key), ["m_c", "m_a", "m_b", "p_00Aas", "p_00BJm", "p_00Evs"]);
     assert.equal(s.countsTowardCap, true);
     assert.equal(s.theme, "fork");
     const capped = buildSession("daily", { now: NOW, frozenKeys: ["m_c", "m_a"], dueCards, capRemaining: 1, newRemaining: 5, puzzles: null });

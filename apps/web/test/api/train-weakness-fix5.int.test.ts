@@ -140,6 +140,36 @@ describe("P6 FIX-5 bank backlog, one 'most common' pick, row order (Postgres, re
     }
   });
 
+  it("regression: hub-most-common-frozen (FIX-6 item 2) — a plan frozen with 'Most common in your bank' says it only of Home's pick", async (t) => {
+    w.flags(false);
+    try {
+      const home = await get("@/app/api/home/route", "/api/home", P, ok(HomeData));
+      const today = await get("@/app/api/train/today/route", "/api/train/today", P, ok(TrainToday));
+      const step = today.plan.steps.find((s) => s.kind === "puzzles")!;
+      const theme = new URLSearchParams(step.href.split("?")[1]).get("theme")!;
+      t.diagnostic(`Home: ${JSON.stringify(home.bank.topTheme)}; hub step: ${step.title} / ${step.subtitle}`);
+      // The plan row as frozen earlier that day, when another puzzle theme of the bank was its most common one (and the
+      // build before FIX-5 froze the claim with it): staging P22 kept "loose piece · Most common in your bank" all day.
+      const others = await w.db.$queryRaw<{ theme: string }[]>(Prisma.sql`
+        SELECT theme FROM theme_mastery WHERE "userId" = ${P.id} AND "bankCount" > 0 AND theme <> ${theme}
+          AND theme IN ('fork', 'pin', 'skewer', 'hangingPiece', 'discoveredAttack', 'backRankMate', 'mateIn1', 'mateIn2', 'trappedPiece', 'kingsideAttack', 'exposedKing', 'advancedPawn', 'promotion')
+        ORDER BY "bankCount" DESC, theme LIMIT 1`);
+      const other = others[0]?.theme;
+      assert.ok(other, "another puzzle theme with bank cards");
+      const i = today.plan.steps.indexOf(step);
+      await w.db.$executeRaw(Prisma.sql`UPDATE training_days SET plan = jsonb_set(jsonb_set(plan, ${`{steps,${i},theme}`}::text[], to_jsonb(${other}::text)),
+          ${`{steps,${i},subtitle}`}::text[], to_jsonb(regexp_replace(plan #>> ${`{steps,${i},subtitle}`}::text[], '^[^·]+·', 'Most common in your bank ·')))
+        WHERE "userId" = ${P.id} AND day = ${today.dayKey}::date`);
+      const again = await get("@/app/api/train/today/route", "/api/train/today", P, ok(TrainToday));
+      const now = again.plan.steps[i]!;
+      const homePick = home.bank.topTheme?.label ?? null;
+      assert.notEqual(themePluralLabel(other), homePick, "the case under test: the frozen theme is not Home's pick");
+      assert.match(now.subtitle, /^From your bank · /, `the hub's ${other} is not Home's most common mistake (${homePick}): ${now.subtitle}`);
+    } finally {
+      w.flags(true);
+    }
+  });
+
   it("regression: weakness-row-order — the label names the order the rows follow (points lost), not the rate shown", async () => {
     const r = await w.call("weakness", "GET", "/api/train/weakness", O);
     assert.equal(r.res.status, 200, await r.res.clone().text());

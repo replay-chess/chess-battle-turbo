@@ -109,9 +109,14 @@ export function streakLines(t: Pick<TrainToday, "streak">): { title: string; sub
   };
 }
 
-/** The phone chip: "4-day streak" and "6 min today". */
-export function phoneStreakChip(t: Pick<TrainToday, "streak" | "plannedMinutes">): { title: string; minutes: string } {
-  return { title: streakLines(t).title, minutes: `${t.plannedMinutes} min today` };
+/**
+ * The phone chip: "4-day streak" and "6 min today". FIX-6 (item 3, D-P6-FIX6-2): while the training day is no longer
+ * today's date (the desktop header's "Wednesday's plan", D-P6-FIX5-2) the chip carries the same words, "10 min ·
+ * Wednesday's plan", never a "today" that names the calendar day.
+ */
+export function phoneStreakChip(t: Pick<TrainToday, "streak" | "plannedMinutes"> & Partial<Pick<TrainToday, "weekdayLabel">>): { title: string; minutes: string } {
+  const stretch = t.weekdayLabel?.endsWith("'s plan") ?? false;
+  return { title: streakLines(t).title, minutes: stretch ? `${t.plannedMinutes} min · ${t.weekdayLabel}` : `${t.plannedMinutes} min today` };
 }
 
 export const WEEK_LETTERS = ["M", "T", "W", "T", "F", "S", "S"] as const;

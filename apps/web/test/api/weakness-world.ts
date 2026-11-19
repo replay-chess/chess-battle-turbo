@@ -16,7 +16,10 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { Prisma, PrismaClient } from "@repo/db";
 import { buildWeaknessMetrics } from "@repo/db/json";
-import { buildFixture, oracleEnding, oracleGames, oracleInput, type SeedFixture, type SeedMember } from "@repo/db/seed/builders";
+import { buildFixture, oracleEnding, oracleGames, oracleInput, type GameSpec, type SeedFixture, type SeedMember } from "@repo/db/seed/builders";
+
+/** A game's named start position (`games.meta.position`, P2), as the builder takes it. */
+export type SeedFixturePosition = NonNullable<GameSpec["position"]>;
 import { writeFixtures } from "@repo/db/seed/writer";
 import { INITIAL_FEN } from "@repo/chess-analysis/board";
 import { cc0Game, cc0TimedIndexes } from "@repo/chess-analysis/fixtures/weakness-inputs";
@@ -191,7 +194,11 @@ export function weaknessWorld(url: string) {
    * Real CC0 games between `m` and `opp` (CC0 timed games `from`…`from+count-1`, optionally only some time classes),
    * the newest `newestDaysAgo` days before WORLD_NOW, `spacingDays` apart. Returns the game refs.
    */
-  async function playCc0(m: Member, opp: Member, o: { count: number; from?: number; spacingDays?: number; newestDaysAgo?: number; timeClasses?: readonly string[]; analysed?: boolean }): Promise<string[]> {
+  async function playCc0(
+    m: Member,
+    opp: Member,
+    o: { count: number; from?: number; spacingDays?: number; newestDaysAgo?: number; timeClasses?: readonly string[]; analysed?: boolean; position?: SeedFixturePosition },
+  ): Promise<string[]> {
     const fixtures: SeedFixture[] = [];
     const pool = cc0TimedIndexes().filter((i) => !o.timeClasses || o.timeClasses.includes(cc0Game(i).timeClass ?? ""));
     const picked = pool.slice(o.from ?? 0, (o.from ?? 0) + o.count);
@@ -224,6 +231,8 @@ export function weaknessWorld(url: string) {
                 priority: JOB_PRIORITY.GAME_ENDED,
               },
         tag: "p6-weakness-api",
+        // FIX-6: a game started from a named position (an opening preset's title, as P2 writes `meta.position`).
+        ...(o.position ? { position: o.position } : {}),
       });
       // The export's real clock record (the import mapper's rule), not the seed's synthetic one.
       f.game.moveClocksMs = g.moveClocksMs;

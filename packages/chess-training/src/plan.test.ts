@@ -280,7 +280,20 @@ describe("FIX-5 (item D): one 'most common' pick for Home and the hub", () => {
   it("the hub says 'Most common in your bank' only for that pattern", () => {
     const step = (themes: ReturnType<typeof th>[]) => buildDailyPlan({ ...base, themes }).steps[1]!.subtitle;
     assert.match(step([th("middlegame", 15), th("hangingPiece", 9), th("fork", 4)]), /^Most common in your bank · /);
-    // The bank's top pattern has no puzzles (a review heuristic): the puzzle theme is only "common".
-    assert.match(step([th("rc:recapture", 12), th("fork", 4)]), /^Common in your bank · /);
+    // The bank's top pattern has no puzzles (a review heuristic): the puzzle theme is "From your bank" (FIX-6 changed
+    // this from "Common in your bank").
+    assert.match(step([th("rc:recapture", 12), th("fork", 4)]), /^From your bank · /);
+  });
+});
+
+describe("FIX-6 (item 2): a frozen 'Most common in your bank' is re-checked against the live bank", () => {
+  const th = (key: string, bankCount: number) => ({ key, attempts: 0, ewma: 0.5, bankCount });
+  it("staging P22: loose piece (2) next to missed threats (7) reads 'From your bank'", () => {
+    const step = { kind: "puzzles" as const, theme: "hangingPiece", subtitle: "Most common in your bank · rating 2200 · ~4 min" };
+    const live = [th("middlegame", 15), th("rc:missedThreat", 7), th("rc:recapture", 4), th("hangingPiece", 2)];
+    assert.equal(livePuzzleStep(step, { rating: 2200, themes: live }).subtitle, "From your bank · rating 2200 · ~4 min");
+    assert.equal(livePuzzleStep(step, { rating: 2200, themes: [th("hangingPiece", 9), th("fork", 3)] }).subtitle, "Most common in your bank · rating 2200 · ~4 min");
+    const mastery = { ...step, subtitle: "Your lowest-mastery theme · rating 2200 · ~4 min" };
+    assert.equal(livePuzzleStep(mastery, { rating: 2200, themes: live }).subtitle, mastery.subtitle, "other reasons stay");
   });
 });

@@ -1126,7 +1126,7 @@ async function applyInTx(
   for (const s of sessionList) if (s.items.length > 0 && s.items.every((it) => s.graded.has(it.id) || it.skipped)) sessionFinished = true;
 
   // The response's counters at `now`: the due read sees this batch's writes; today's counters are the read row + deltas.
-  const due = await readDueSummary(db, userId, now, clock.nextRelease);
+  const due = await readDueSummary(db, userId, now, clock.nextRelease, { start: clock.dayStartUtc, end: clock.dayEndUtc });
   const todayRow = rowOf.get(clock.today);
   const delta = days.get(clock.today);
   const counters =

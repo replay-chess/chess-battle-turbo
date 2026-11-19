@@ -39,7 +39,7 @@ import { dayStart, addDaysToKey } from "@repo/chess-training/day";
 import { newCardRow, previewAll } from "@repo/chess-training/fsrs";
 import { intervalLabel } from "@repo/chess-training/labels";
 import { isPerfectSession } from "@repo/chess-training/mastery";
-import { focusTheme, isStepDone, puzzlesHref } from "@repo/chess-training/plan";
+import { BANK_STEP_MAX, focusTheme, isStepDone, puzzlesHref } from "@repo/chess-training/plan";
 import { isProvisional } from "@repo/chess-training/rating";
 import {
   buildSession,
@@ -525,7 +525,8 @@ async function compose(
     const planDone = state.counters.planDone;
     const bankIdx = plan?.steps.findIndex((s) => s.kind === "bank") ?? -1;
     const puzzleIdx = plan?.steps.findIndex((s) => s.kind === "puzzles") ?? -1;
-    const bankOpen = !(bankIdx >= 0 && isStepDone(planDone, bankIdx));
+    // FIX-6: the bank step is open while anything is left to review today (its live count; D-P6-FIX6-1).
+    const bankOpen = true;
     const dueRows = bankOpen ? await db.$queryRaw<DueCardRow[]>(dueCardsSql(viewer.id, clock.now)) : [];
     const cards = new Map<string, CardRowDb>(dueRows.map((r) => [r.itemKey, r]));
     const step = puzzleIdx >= 0 ? plan!.steps[puzzleIdx]! : null;
@@ -544,6 +545,9 @@ async function compose(
       dueCards: dueRows.map(bankCardIn),
       capRemaining: cap.capRemaining,
       newRemaining: cap.newRemaining,
+      todayStart: clock.dayStartUtc,
+      // FIX-6: the bank step serves at most the plan's step size (its live count on the hub).
+      max: BANK_STEP_MAX,
       puzzles: pick,
     });
     return { plan: built, snapshots: snapshotsOfPick(pick, cards, theme), cards, themes, size: built.items.length, mix: pick ? pick.theme !== theme : false };
@@ -626,6 +630,7 @@ export function bankDueSession(rows: readonly CardRowDb[], state: TrainState, fi
     dueCards: due.map(bankCardIn),
     capRemaining: cap.capRemaining,
     newRemaining: cap.newRemaining,
+    todayStart: state.clock.dayStartUtc,
     filtered,
     dueRaw: cap.dueRaw,
   });
@@ -653,7 +658,9 @@ export async function bankButtonStart(deps: TrainDeps, viewer: Viewer, state: Tr
     const row = (await db.$queryRaw<SessionRow[]>(sessionSql(viewer.id, reuse)))[0];
     if (row) {
       const read = await readPayload(db, viewer, row, state);
-      const left = read.payload.items.length - read.payload.resumeIndex;
+      // FIX-6: the items still to grade (an Again's copy sits after later items, so the resume index alone overcounts).
+      const skipped = new Set(read.stored.filter((it) => it.skipped).map((it) => it.id));
+      const left = read.payload.items.filter((it) => !read.graded.has(it.itemId) && !skipped.has(it.itemId)).length;
       if (read.stored.length > 0 && left > 0) return { kind: "resume", ref: row.referenceId, remaining: left, total: read.payload.items.length };
     }
   }

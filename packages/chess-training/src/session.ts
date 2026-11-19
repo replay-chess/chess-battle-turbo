@@ -120,16 +120,31 @@ export function orderDueQueue(cards: readonly BankCardIn[], now: Date): BankCard
   return [...reviews, ...fresh];
 }
 
-/** Takes the queue under the cap: at most `newRemaining` NEW cards, at most `min(capRemaining, max)` in all. */
-export function takeUnderCap(ordered: readonly BankCardIn[], o: { capRemaining: number; newRemaining: number; max?: number }): BankCardIn[] {
-  const limit = Math.min(o.capRemaining, o.max ?? BANK_SESSION_MAX);
+/**
+ * Takes the queue under the cap: at most `newRemaining` NEW cards, at most `capRemaining` cards that use the cap, at
+ * most `max` in all. FIX-6 (item 1, D-P6-FIX6-1): a card already graded today (`lastReview` at or after `todayStart`)
+ * does not use the cap when graded again (`capIncrements` counts a card's first grade of the day), so it does not
+ * use the cap here either: the session serves what the head counts (`capState` with `dueAgain`).
+ */
+export function takeUnderCap(
+  ordered: readonly BankCardIn[],
+  o: { capRemaining: number; newRemaining: number; max?: number; todayStart?: Date | null },
+): BankCardIn[] {
+  const max = o.max ?? BANK_SESSION_MAX;
+  const start = o.todayStart ? o.todayStart.getTime() : null;
   const out: BankCardIn[] = [];
   let fresh = 0;
+  let capped = 0;
   for (const c of ordered) {
-    if (out.length >= limit) break;
-    if (c.card.state === "NEW") {
-      if (fresh >= o.newRemaining) continue;
-      fresh += 1;
+    if (out.length >= max) break;
+    const again = start !== null && c.card.state !== "NEW" && c.card.lastReview !== null && c.card.lastReview.getTime() >= start;
+    if (!again) {
+      if (capped >= o.capRemaining) continue;
+      if (c.card.state === "NEW") {
+        if (fresh >= o.newRemaining) continue;
+        fresh += 1;
+      }
+      capped += 1;
     }
     out.push(c);
   }
@@ -340,6 +355,10 @@ export type BuildSessionInputs =
       dueCards: readonly BankCardIn[];
       capRemaining: number;
       newRemaining: number;
+      /** FIX-6: today's training-day start (cards graded since then do not use the cap). */
+      todayStart?: Date | null;
+      /** FIX-6: the bank part's size (the plan step's live count, ≤ BANK_STEP_MAX); frozen keys go first. */
+      max?: number;
       /** The plan's puzzle step (`selectPuzzles` with count 3), or null when the plan has none. */
       puzzles: PuzzlePick | null;
     }
@@ -350,6 +369,8 @@ export type BuildSessionInputs =
       dueCards: readonly BankCardIn[];
       capRemaining: number;
       newRemaining: number;
+      /** FIX-6: today's training-day start (cards graded since then do not use the cap). */
+      todayStart?: Date | null;
       /** A hub thumbnail's card goes first. */
       firstKey?: string;
       /** A filter (theme, phase, source) was applied to `dueCards`. */
@@ -423,13 +444,13 @@ function compose(inputs: BuildSessionInputs): SessionPlan {
   switch (inputs.kind) {
     case "daily": {
       const ordered = orderDueQueue(inputs.dueCards, inputs.now);
-      let bank: BankCardIn[];
-      if (inputs.frozenKeys && inputs.frozenKeys.length > 0) {
-        const byKey = new Map(ordered.map((c) => [c.key, c]));
-        bank = inputs.frozenKeys.flatMap((k) => (byKey.has(k) ? [byKey.get(k)!] : [])).slice(0, inputs.capRemaining);
-      } else {
-        bank = takeUnderCap(ordered, { capRemaining: inputs.capRemaining, newRemaining: inputs.newRemaining });
-      }
+      // FIX-6 (item 1, D-P6-FIX6-1): the plan's bank step serves what is left to review today, its frozen cards first,
+      // then the rest of the due queue, by the bank's own composition (the step's live count is this size).
+      const frozen = new Set(inputs.frozenKeys ?? []);
+      const byKey = new Map(ordered.map((c) => [c.key, c]));
+      const frozenFirst = (inputs.frozenKeys ?? []).flatMap((k) => (byKey.has(k) ? [byKey.get(k)!] : []));
+      const queue = frozen.size > 0 ? [...frozenFirst, ...ordered.filter((c) => !frozen.has(c.key))] : ordered;
+      const bank = takeUnderCap(queue, { capRemaining: inputs.capRemaining, newRemaining: inputs.newRemaining, todayStart: inputs.todayStart ?? null, ...(inputs.max !== undefined ? { max: inputs.max } : {}) });
       const n = bank.length + (inputs.puzzles?.items.length ?? 0);
       const all = ids(n);
       const items = [...bankItems(bank, all, true), ...(inputs.puzzles ? puzzleItems(inputs.puzzles, all, bank.length) : [])];

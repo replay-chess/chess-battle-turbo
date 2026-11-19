@@ -39,6 +39,13 @@ const TC_ENUM: Record<GameTcFilter, "BULLET" | "BLITZ" | "RAPID" | "CLASSICAL"> 
  */
 export const FINISHED = Prisma.sql`gp.result = ANY('{WIN,LOSS,DRAW}'::"PlayerResult"[])`;
 
+/** The apostrophes a search ignores in opening names (ASCII and the typographic one). */
+const APOSTROPHES = "'’";
+
+/** A start position that is a legend's game (players, event or year), not an opening preset (FIX-6). */
+const LEGEND_POSITION = Prisma.sql`(g.meta->'position'->>'legendSide' IS NOT NULL OR g.meta->'position'->>'year' IS NOT NULL
+  OR g.meta->'position'->>'event' IS NOT NULL)`;
+
 /** `%` and `_` are literal in a search, and so is the escape character itself (ILIKE's default escape is `\`). */
 export function likePattern(q: string): string {
   return `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
@@ -59,8 +66,14 @@ export function filterConditions(filter: ArchiveFilter): Prisma.Sql[] {
   if (filter.moments) out.push(Prisma.sql`gp."momentsCount" > 0`);
   if (filter.q) {
     const like = likePattern(filter.q);
+    // FIX-6 (item 4, D-P6-FIX6-5): the opening name matches without apostrophes on either side ("Queens Indian" and
+    // "Queen's Indian" both find "Queen's Indian Defense"), and an opening preset's title ("Open Game") only when the
+    // row shows it (a game with no opening name; the archive shows the opening otherwise). The stored name is the
+    // displayed one once scripts/backfill/opening-names.ts has run.
+    const bare = likePattern(filter.q.replace(/['’]/g, ""));
     out.push(
-      Prisma.sql`(gp."opponentName" ILIKE ${like} OR g."openingName" ILIKE ${like} OR (g.meta->'position'->>'name') ILIKE ${like})`,
+      Prisma.sql`(gp."opponentName" ILIKE ${like} OR translate(g."openingName", ${APOSTROPHES}, '') ILIKE ${bare}
+        OR ((g.meta->'position'->>'name') ILIKE ${like} AND (g."openingName" IS NULL OR ${LEGEND_POSITION})))`,
     );
   }
   return out;
@@ -86,6 +99,7 @@ SELECT gp."gameId", g."referenceId" AS ref, gp.color, gp.result::text AS result,
        gp."ratingDelta", gp.accuracy, gp.headline, gp."momentsCount", COALESCE(gp."ecoCode", g."ecoCode") AS "ecoCode",
        g.source::text AS source, ${effectiveAnalysisStatusSql()} AS "analysisStatus", COALESCE(g.fen, g."startingFen") AS fen,
        g."openingName", g."initialTimeSeconds", g."incrementSeconds", g.meta->'position'->>'name' AS "positionTitle",
+       (NOT ${LEGEND_POSITION}) AS "positionIsOpening",
        (lc."gameId" IS NOT NULL) AS "hasComparison", g."startingFen",
        left(g.moves, ${OPENING_MOVES_CHARS}::int) AS "openingMoves"
   FROM game_players gp
@@ -149,6 +163,8 @@ export type ArchiveRow = {
   initialTimeSeconds: number;
   incrementSeconds: number;
   positionTitle: string | null;
+  /** FIX-6: the start position is an opening preset ("Open Game"), not a legend's game (no players, event or year). */
+  positionIsOpening?: boolean | null;
   hasComparison: boolean;
   /** The game's start (the book names only games from the standard start). */
   startingFen?: string;

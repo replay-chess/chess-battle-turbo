@@ -118,17 +118,20 @@ export async function loadTrainState(db: TrainDb, viewer: Pick<Viewer, "id" | "o
   const guess = trainClock(now, tz, { dayStartHour: DEFAULT_DAY_START_HOUR, releaseHour: DEFAULT_RELEASE_HOUR });
   const [profileRows, dueRows, dayRows] = await Promise.all([
     db.$queryRaw<ProfileDbRow[]>(profileSql(viewer.id)),
-    db.$queryRaw<DueDbRow[]>(dueSummarySql(viewer.id, now, guess.nextRelease)),
+    db.$queryRaw<DueDbRow[]>(dueSummarySql(viewer.id, now, guess.nextRelease, { start: guess.dayStartUtc, end: guess.dayEndUtc })),
     db.$queryRaw<DayRow[]>(recentDaysSql(viewer.id, guess.today)),
   ]);
   let profile: TrainingProfile;
   if (profileRows[0] && !unseededRow(profileRows[0])) profile = profileOfRow(profileRows[0]);
   else profile = seededProfile(profileRows[0], seedOf(viewer, await db.$queryRaw<RatingSource[]>(ratingsSql(viewer.id))));
   const clock = trainClock(now, tz, profile, dayAnchorOf(dayRows));
-  const due =
-    clock.nextRelease.getTime() === guess.nextRelease.getTime()
-      ? dueSummaryOf(dueRows[0])
-      : dueSummaryOf((await db.$queryRaw<DueDbRow[]>(dueSummarySql(viewer.id, now, clock.nextRelease)))[0]);
+  // FIX-6: the cards graded today are counted within today's bounds: the clock's (a pinned day or another day-start
+  // hour moves them, then the statement runs again with them, as for another release hour).
+  const same = clock.nextRelease.getTime() === guess.nextRelease.getTime() && clock.dayStartUtc.getTime() === guess.dayStartUtc.getTime()
+    && clock.dayEndUtc.getTime() === guess.dayEndUtc.getTime();
+  const due = same
+    ? dueSummaryOf(dueRows[0])
+    : dueSummaryOf((await db.$queryRaw<DueDbRow[]>(dueSummarySql(viewer.id, now, clock.nextRelease, { start: clock.dayStartUtc, end: clock.dayEndUtc })))[0]);
   const today = dayRows.find((r) => r.day === clock.today);
   const week = dayRows.filter((r) => r.day >= clock.monday && r.day <= clock.today);
   return { profile, clock, due, today, counters: dayCountersOf(today), week };

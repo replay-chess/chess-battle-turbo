@@ -86,6 +86,8 @@ describe("hub model", () => {
     assert.equal(puzzlesRowSub(trainTodayFixture("stress")), "Discovered attack 100% · Remove the defender 0% · Defend the threat New");
     assert.deepEqual(streakLines(t), { title: "4-day streak", sub: "Best 9 · resets if you skip 2 days" });
     assert.deepEqual(phoneStreakChip(t), { title: "4-day streak", minutes: "6 min today" });
+    // FIX-6: between local midnight and the rollover the chip says whose plan it is, as the desktop header does.
+    assert.deepEqual(phoneStreakChip({ ...t, weekdayLabel: "Wednesday's plan" }), { title: "4-day streak", minutes: `${t.plannedMinutes} min · Wednesday's plan` });
     assert.equal(dueStripModel(t), "thumbs");
     assert.equal(dueStripModel(trainTodayFixture("nothingdue")), "nothing_due");
     assert.equal(nothingDueLine({ nextBatch: null }, null), "Nothing is due.");

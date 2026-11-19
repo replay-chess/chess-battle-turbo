@@ -139,7 +139,9 @@ export function gameRowOf(row: ArchiveRow, nowMs: number, timeZone = "UTC"): Gam
     opponent: { name, rating: row.opponentRating, kind },
     headline: row.headline ? row.headline.slice(0, 80) : null,
     opening,
-    positionTitle: row.positionTitle?.trim() ? row.positionTitle.trim().slice(0, 160) : null,
+    // FIX-6 (item 3, D-P6-FIX6-3): a game started from an opening preset ("Open Game") is named by its opening, the
+    // name Home and the review show (`openingOfGame`); the title stays for a legend's position.
+    positionTitle: row.positionTitle?.trim() && !(opening && row.positionIsOpening) ? row.positionTitle.trim().slice(0, 160) : null,
     tc: { label: tc.label.slice(0, 40), timeClass: tc.timeClass },
     playedAt: endedAt.toISOString(),
     playedAtLabel: playedAtLabelOf(endedAt, nowMs, timeZone),

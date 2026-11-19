@@ -35,6 +35,13 @@ export type DueSummary = {
   nextBatch: number;
   /** The cards falling due in the next 14 days, grouped by instant and NEW-ness (a skipped card at its skip end). */
   arrivals: Arrival[];
+  /**
+   * FIX-6 (item 1, D-P6-FIX6-1): of `dueReview`, the cards already graded today (last review in today's training day;
+   * 0 when the reader gave no bounds). Their next grade does not use the cap, so `capOf` shows them on top of it.
+   */
+  dueAgain?: number;
+  /** FIX-6: review cards graded today that come due again later today (an Again's short step): today's work too. */
+  againLater?: number;
 };
 
 /**
@@ -42,26 +49,52 @@ export type DueSummary = {
  * whose next cards come in three days still says when and how many. `arrivals` = the cards that fall due in the next
  * 14 days (a skipped card when its skip ends), grouped by instant and NEW-ness, for the cap projection (`servedByDay`).
  */
-export function dueSummarySql(userId: bigint, now: Date, rel: Date): Prisma.Sql {
+export function dueSummarySql(userId: bigint, now: Date, rel: Date, day: { start: Date; end: Date } | null = null): Prisma.Sql {
   const NOW = at(now);
+  // FIX-6 (item 1, D-P6-FIX6-1): with today's bounds, the review cards graded today that are due again today (an
+  // Again, back after its short step: now or later today) are counted apart; their next grade does not use the cap.
+  // They are not arrivals: they are today's work already.
+  const START = day ? at(day.start) : null;
+  const END = day ? at(day.end) : null;
+  const today = day ? Prisma.sql`(state <> 'NEW' AND "lastReview" >= ${START} AND due < ${END})` : Prisma.sql`false`;
   return Prisma.sql`WITH c AS (
-      SELECT due, state, ("suspendedUntil" IS NOT NULL AND "suspendedUntil" > ${NOW}) AS skipped,
+      SELECT due, state, "lastReview", ("suspendedUntil" IS NOT NULL AND "suspendedUntil" > ${NOW}) AS skipped,
              GREATEST(due, COALESCE("suspendedUntil", due)) AS avail
         FROM training_cards WHERE "userId" = ${userId} AND deck = 'BANK'),
     n AS (SELECT min(due) AS next_at FROM c WHERE due > ${NOW}),
     a AS (SELECT avail, state = 'NEW' AS fresh, count(*)::int AS k FROM c
-           WHERE avail > ${NOW} AND avail <= ${NOW} + interval '14 days' GROUP BY 1, 2)
+           WHERE avail > ${NOW} AND avail <= ${NOW} + interval '14 days' AND NOT (NOT skipped AND ${today}) GROUP BY 1, 2)
     SELECT count(*) FILTER (WHERE due <= ${NOW} AND state <> 'NEW' AND NOT skipped)::int AS "dueReview",
            count(*) FILTER (WHERE due <= ${NOW} AND state = 'NEW' AND NOT skipped)::int AS "dueNew",
            count(*)::int AS total,
            (SELECT next_at FROM n) AS "nextAt",
            GREATEST(${at(rel)}, (SELECT next_at FROM n)) AS "nextBatchAt",
            count(*) FILTER (WHERE due > ${NOW} AND due <= GREATEST(${at(rel)}, (SELECT next_at FROM n)))::int AS "nextBatch",
-           (SELECT coalesce(json_agg(json_build_object('at', avail, 'new', fresh, 'n', k) ORDER BY avail), '[]'::json) FROM a) AS arrivals
+           (SELECT coalesce(json_agg(json_build_object('at', avail, 'new', fresh, 'n', k) ORDER BY avail), '[]'::json) FROM a) AS arrivals,
+           count(*) FILTER (WHERE due <= ${NOW} AND NOT skipped AND ${today})::int AS "dueAgain",
+           count(*) FILTER (WHERE due > ${NOW} AND NOT skipped AND ${today})::int AS "againLater"
       FROM c`;
 }
 
-type DueRow = { dueReview: number; dueNew: number; total: number; nextAt: unknown; nextBatchAt: unknown; nextBatch: number; arrivals?: unknown };
+type DueRow = { dueReview: number; dueNew: number; total: number; nextAt: unknown; nextBatchAt: unknown; nextBatch: number; arrivals?: unknown; dueAgain?: number; againLater?: number };
+
+/**
+ * FIX-6: the badge facts' review cards graded in the last 30 h (`[{l: lastReview, d: due}]`): how many were graded at
+ * or after today's `start` and are due before its `end`, now (`now` ≥ due) and later today.
+ */
+export function againOf(recent: unknown, start: Date, end: Date, now: Date): { now: number; later: number } {
+  const out = { now: 0, later: 0 };
+  if (!Array.isArray(recent)) return out;
+  for (const x of recent) {
+    const o = x && typeof x === "object" ? (x as Record<string, unknown>) : null;
+    const l = asDate(o?.l);
+    const d = asDate(o?.d);
+    if (!l || !d || l.getTime() < start.getTime() || d.getTime() >= end.getTime()) continue;
+    if (d.getTime() <= now.getTime()) out.now++;
+    else out.later++;
+  }
+  return out;
+}
 
 /** The `arrivals` json (`[{at, new, n}]`, `at` a UTC timestamp without zone) as Arrival rows; anything malformed is dropped. */
 export function arrivalsOf(value: unknown): Arrival[] {
@@ -74,6 +107,7 @@ export function arrivalsOf(value: unknown): Arrival[] {
   });
 }
 
+/** Statement (a)'s row (`dueAgain` / `againLater` are 0 unless the statement had today's bounds, FIX-6). */
 export function dueSummaryOf(row: DueRow | undefined): DueSummary {
   const nextAt = asDate(row?.nextAt);
   const nextBatch = num(row?.nextBatch);
@@ -85,11 +119,13 @@ export function dueSummaryOf(row: DueRow | undefined): DueSummary {
     nextBatchAt: nextAt ? asDate(row?.nextBatchAt) : null,
     nextBatch: nextAt ? nextBatch : 0,
     arrivals: arrivalsOf(row?.arrivals),
+    dueAgain: num(row?.dueAgain),
+    againLater: num(row?.againLater),
   };
 }
 
-export async function readDueSummary(db: TrainDb, userId: bigint, now: Date, rel: Date): Promise<DueSummary> {
-  const rows = await db.$queryRaw<DueRow[]>(dueSummarySql(userId, now, rel));
+export async function readDueSummary(db: TrainDb, userId: bigint, now: Date, rel: Date, day: { start: Date; end: Date } | null = null): Promise<DueSummary> {
+  const rows = await db.$queryRaw<DueRow[]>(dueSummarySql(userId, now, rel, day));
   return dueSummaryOf(rows[0]);
 }
 
@@ -98,7 +134,7 @@ export type DayCounters = { bankReviewed: number; newIntroduced: number; puzzles
 
 export const ZERO_DAY: DayCounters = { bankReviewed: 0, newIntroduced: 0, puzzlesDone: 0, planDone: 0 };
 
-export function capOf(due: Pick<DueSummary, "dueReview" | "dueNew">, profile: { bankDailyCap: number; newPerDay: number }, day: DayCounters): CapState {
+export function capOf(due: Pick<DueSummary, "dueReview" | "dueNew" | "dueAgain" | "againLater">, profile: { bankDailyCap: number; newPerDay: number }, day: DayCounters): CapState {
   return capState({
     cap: profile.bankDailyCap,
     newPerDay: profile.newPerDay,
@@ -106,6 +142,8 @@ export function capOf(due: Pick<DueSummary, "dueReview" | "dueNew">, profile: { 
     newIntroduced: day.newIntroduced,
     dueReview: due.dueReview,
     dueNew: due.dueNew,
+    dueAgain: due.dueAgain ?? 0,
+    againLater: due.againLater ?? 0,
   });
 }
 
@@ -120,6 +158,9 @@ export function badgeFactsSql(u: string, now: string): string {
   return (
     `(SELECT json_build_object(` +
     `'r', count(*) FILTER (WHERE bc.state <> 'NEW'), 'n', count(*) FILTER (WHERE bc.state = 'NEW'), ` +
+    `'ra', (SELECT coalesce(json_agg(json_build_object('l', rc."lastReview", 'd', rc.due)), '[]'::json) FROM training_cards rc ` +
+    `WHERE rc."userId" = ${u} AND rc.deck = 'BANK' AND rc.state <> 'NEW' AND rc."lastReview" > ${now} - interval '30 hours' ` +
+    `AND rc.due < ${now} + interval '30 hours' AND (rc."suspendedUntil" IS NULL OR rc."suspendedUntil" <= ${now})), ` +
     `'p', (SELECT json_build_object('cap', tp."bankDailyCap", 'npd', tp."newPerDay", 'dsh', tp."dayStartHour", ` +
     `'wv', tp."weaknessVersion", 'ws', tp."lastWeaknessSeenVersion") ` +
     `FROM training_profiles tp WHERE tp."userId" = ${u}), ` +
@@ -134,6 +175,8 @@ export function badgeFactsSql(u: string, now: string): string {
 export type BadgeFacts = {
   r: number;
   n: number;
+  /** FIX-6: the last reviews of due review cards graded in the last 30 h (`dueAgain` after today's start). */
+  ra?: unknown[];
   /** P6: `wv` / `ws` are the profile's weaknessVersion / lastWeaknessSeenVersion (0 when absent). */
   p: { cap: number; npd: number; dsh: number; wv?: number; ws?: number } | null;
   /** The latest day row, with the zone it was opened in (m5b; null on older rows). */
@@ -149,6 +192,7 @@ function factsOf(value: unknown): BadgeFacts | null {
   return {
     r: num(o.r),
     n: num(o.n),
+    ra: Array.isArray(o.ra) ? o.ra : [],
     p: p ? { cap: num(p.cap), npd: num(p.npd), dsh: num(p.dsh), wv: num(p.wv), ws: num(p.ws) } : null,
     d:
       d && typeof d.day === "string"
@@ -177,9 +221,12 @@ export function badgesFrom(value: unknown, timeZone: string, now: Date, opts: Ba
   const tz = isValidTimeZone(timeZone) ? timeZone : "UTC";
   // The day in progress keeps its key across a zone change (the hub, W1 and W2 say the same; FIX-2).
   const anchor = f.d && f.d.tz && f.d.dsh !== null ? { day: f.d.day, timeZone: f.d.tz, dayStartHour: f.d.dsh } : null;
-  const today = trainingDayAt(now, tz, f.p?.dsh ?? DEFAULT_DAY_START_HOUR, anchor).key;
+  const window = trainingDayAt(now, tz, f.p?.dsh ?? DEFAULT_DAY_START_HOUR, anchor);
+  const today = window.key;
   const day = f.d && f.d.day === today ? { bankReviewed: f.d.br, newIntroduced: f.d.ni, puzzlesDone: 0, planDone: 0 } : ZERO_DAY;
-  const cap = capOf({ dueReview: f.r, dueNew: f.n }, { bankDailyCap: f.p?.cap ?? DEFAULT_BANK_DAILY_CAP, newPerDay: f.p?.npd ?? DEFAULT_NEW_PER_DAY }, day);
+  const again = againOf(f.ra, window.start, window.end, now);
+  const due = { dueReview: f.r, dueNew: f.n, dueAgain: again.now, againLater: again.later };
+  const cap = capOf(due, { bankDailyCap: f.p?.cap ?? DEFAULT_BANK_DAILY_CAP, newPerDay: f.p?.npd ?? DEFAULT_NEW_PER_DAY }, day);
   return badgesFor({ bankDue: cap.dueShown, trainDot: cap.dueShown > 0, weaknessReady: weaknessUnseen(f) }, opts.weakness === true);
 }
 

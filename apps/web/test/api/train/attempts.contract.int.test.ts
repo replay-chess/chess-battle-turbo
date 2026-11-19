@@ -103,7 +103,9 @@ describe("P5 W1 attempts (Postgres)", { skip: url ? false : "TEST_DATABASE_URL n
     assert.equal(result.results[0]!.card!.scheduled, true);
     assert.equal(result.results[2]!.card!.requeued, true, "Again on pass 1 re-queues");
     assert.equal(result.capRemaining, 7);
-    assert.equal(result.bankDue, 1);
+    // FIX-6 (D-P6-FIX6-1) changed this from 1: the card graded Again comes back later today (its short step) and is
+    // still today's work, beside the one card left of the four.
+    assert.equal(result.bankDue, 2);
     const counters = await today(m);
     assert.equal(counters.bankReviewed, 3);
     for (const [i, it] of [a!, b!, c!].entries()) {

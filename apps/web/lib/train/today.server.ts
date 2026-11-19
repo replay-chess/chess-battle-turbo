@@ -32,6 +32,7 @@ import {
   planStepStatuses,
   puzzlesHref,
   livePuzzleStep,
+  liveBankStep,
   type PlanBankCard,
 } from "@repo/chess-training/plan";
 import { orderDueQueue } from "@repo/chess-training/session";
@@ -310,13 +311,24 @@ export async function getTrainToday(viewer: Viewer, now: Date, deps: TrainDeps =
   const { clock, profile, due } = state;
   const stored = parseDailyPlan(state.today?.plan);
   const frozen = stored ? { plan: stored, planDone: state.counters.planDone } : await freezePlan(deps, viewer, state, themes, weakness);
-  const { plan, planDone } = await withLiveEmptySteps(db, viewer.id, frozen);
+  const live = await withLiveEmptySteps(db, viewer.id, frozen);
 
   const cap = capOf(due, profile, state.counters);
+  // FIX-6 (item 1, D-P6-FIX6-1): the bank step says what is left to review today (the head's count, the size of the
+  // session its link opens) and is done when nothing is left; the plan's other steps keep their frozen form.
+  let planDone = live.planDone;
+  const plan = {
+    ...live.plan,
+    steps: live.plan.steps.map((frozenStep, i) => {
+      const b = liveBankStep(frozenStep, cap.dueShown);
+      if (b.done !== null) planDone = b.done ? planDone | (1 << i) : planDone & ~(1 << i);
+      return b.step;
+    }),
+  };
   const statuses = planStepStatuses(plan.steps.length, planDone);
   // FIX-4 item 8: the frozen puzzle step reads the live rating and the live profile's voice (`livePuzzleStep`).
   const liveReason = weakness?.focusTheme ? { theme: weakness.focusTheme, source: weakness.focusVoice } : null;
-  const steps: PlanStep[] = plan.steps.map((frozenStep) => livePuzzleStep(frozenStep, { rating: profile.puzzleRating, reason: liveReason })).map((s, i) => ({
+  const steps: PlanStep[] = plan.steps.map((frozenStep) => livePuzzleStep(frozenStep, { rating: profile.puzzleRating, reason: liveReason, themes: planThemesOf(themes) })).map((s, i) => ({
     kind: s.kind,
     title: s.title,
     subtitle: s.subtitle,

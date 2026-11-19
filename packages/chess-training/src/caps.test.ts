@@ -180,3 +180,13 @@ describe("servedByDay (staging fix: every next-batch count respects the cap)", (
     assert.deepEqual(proj({ arrivals: [{ at: at8(20), isNew: false, n: 3 }, { at: new Date(now.getTime() - 1), isNew: false, n: 3 }] }), []);
   });
 });
+
+describe("FIX-6 (item 1): cards graded today do not use the cap again", () => {
+  it("capState shows them on top of today's capped work", () => {
+    // The cap is used (10 reviewed); 10 cards graded Again today are due (4 now, 6 later today): 10 left, none capped.
+    assert.equal(capState({ ...base, bankReviewed: 10, dueReview: 30, dueAgain: 4, againLater: 6 }).dueShown, 10);
+    // 3 reviewed, 3 of the due reviews were graded today: 3 + min(27, 7) = 10.
+    assert.equal(capState({ ...base, bankReviewed: 3, dueReview: 30, dueAgain: 3 }).dueShown, 10);
+    assert.equal(capState({ ...base, bankReviewed: 3, dueReview: 30 }).dueShown, 7, "without them: the cap's 7");
+  });
+});

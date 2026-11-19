@@ -8,6 +8,7 @@
  *   cd apps/web
  *   npx tsx scripts/backfill/opening-names.ts            # dry run: rows that would change, and a few examples
  *   npx tsx scripts/backfill/opening-names.ts --apply    # rewrites them in keyset batches of 500 games
+ *   npx tsx scripts/backfill/opening-names.ts --verify   # read only: 0 to rewrite and every stored name displayed as is
  *
  * Rows: `games` with source CHESSCOM or LICHESS and an `openingName` (Replay Chess games are named by the worker from
  * the book and never change). Per row: `openingOfGame` on the stored name, ECO, start and the first 220 chars of
@@ -62,15 +63,31 @@ async function applyBatch(db: BackfillDb, fixes: { id: bigint; openingName: stri
      WHERE gp."gameId" = fix.id AND gp."ecoCode" IS DISTINCT FROM fix.eco`);
 }
 
-export async function runOpeningNames(db: BackfillDb, apply: boolean, log: (line: string) => void): Promise<{ scanned: number; changed: number; ecoChanged: number }> {
+/**
+ * The name the archive, the review and Home display for a stored row (`openingOfGame`, as `gameRowOf` calls it):
+ * after an --apply every imported row stores exactly this (FIX-6 item 4: search reads the stored name).
+ */
+export function displayedName(row: Omit<StoredOpening, "id">): string | null {
+  return openingOfGame({ name: row.openingName, eco: row.ecoCode, startingFen: row.startingFen, moves: row.moves })?.name ?? null;
+}
+
+export async function runOpeningNames(
+  db: BackfillDb,
+  apply: boolean,
+  log: (line: string) => void,
+): Promise<{ scanned: number; changed: number; ecoChanged: number; displayedDiffers: number }> {
   let scanned = 0;
   let changed = 0;
   let ecoChanged = 0;
+  // FIX-6 (--verify): rows whose stored name is not the displayed one, before any rewrite of this run.
+  let displayedDiffers = 0;
   const examples: string[] = [];
   await eachBatch(async (cursor, limit) => {
     const rows = await db.$queryRaw<StoredOpening[]>(batchSql(cursor, limit));
     const fixes: { id: bigint; openingName: string; ecoCode: string | null }[] = [];
     for (const row of rows) {
+      const shown = displayedName(row);
+      if (shown !== null && clipWords(shown, OPENING_NAME_MAX) !== row.openingName) displayedDiffers++;
       const fix = repairedOpening(row);
       if (!fix) continue;
       fixes.push({ id: row.id, ...fix });
@@ -82,22 +99,39 @@ export async function runOpeningNames(db: BackfillDb, apply: boolean, log: (line
     if (apply) await applyBatch(db, fixes);
     return { last: rows.at(-1)?.id ?? null, size: rows.length };
   });
-  log(`imported games with a name ${scanned}; ${apply ? "rewritten" : "would rewrite"} ${changed} (ECO changed on ${ecoChanged})`);
+  log(`imported games with a name ${scanned}; ${apply ? "rewritten" : "would rewrite"} ${changed} (ECO changed on ${ecoChanged}); stored ≠ displayed ${displayedDiffers}`);
   for (const e of examples) log(e);
-  return { scanned, changed, ecoChanged };
+  return { scanned, changed, ecoChanged, displayedDiffers };
+}
+
+/**
+ * One run as the CLI does it: `dry` reports, `apply` rewrites and writes one audit row, `verify` (read only) is OK when
+ * nothing would change and every stored name is the displayed one.
+ */
+export async function openingNamesRun(db: BackfillDb, mode: "dry" | "apply" | "verify", log: (line: string) => void): Promise<{ counts: Awaited<ReturnType<typeof runOpeningNames>>; ok: boolean }> {
+  const counts = await runOpeningNames(db, mode === "apply", log);
+  if (mode === "apply") {
+    await audit(db, { category: "SYSTEM", action: "backfill.opening_names", actorKind: "SYSTEM", targetType: "backfill", targetId: "opening_names", meta: counts });
+    return { counts, ok: true };
+  }
+  if (mode === "verify") {
+    const ok = counts.changed === 0 && counts.displayedDiffers === 0;
+    log(ok ? "verify: OK (every imported name is the displayed one)" : "verify: NOT DONE (run --apply)");
+    return { counts, ok };
+  }
+  log("dry run: nothing written (pass --apply to write)");
+  return { counts, ok: true };
 }
 
 async function main(): Promise<void> {
-  const cli = parseBackfillArgs(process.argv.slice(2));
+  const cli = parseBackfillArgs(process.argv.slice(2), ["--verify"]);
   const log = (line: string) => console.log(line);
   const { db } = await openBackfillDb(log);
   try {
-    const counts = await runOpeningNames(db, cli.apply, log);
-    if (cli.apply) {
-      await audit(db, { category: "SYSTEM", action: "backfill.opening_names", actorKind: "SYSTEM", targetType: "backfill", targetId: "opening_names", meta: counts });
-    } else {
-      log("dry run: nothing written (pass --apply to write)");
-    }
+    const mode = cli.flags.has("--verify") ? "verify" : cli.apply ? "apply" : "dry";
+    if (mode === "verify" && cli.apply) throw new Error("pass --verify alone");
+    const r = await openingNamesRun(db, mode, log);
+    if (!r.ok) process.exitCode = 1;
   } finally {
     await db.$disconnect();
   }

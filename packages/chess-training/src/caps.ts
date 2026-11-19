@@ -17,6 +17,14 @@ export interface CapInputs {
   dueReview: number;
   /** Due BANK cards still NEW (statement (a) `due_new`). */
   dueNew: number;
+  /**
+   * FIX-6 (item 1, D-P6-FIX6-1): of `dueReview`, the cards already graded today (their last review is in today's
+   * training day: an Again, back after its short step). A card counts toward the cap once a day (`capIncrements`
+   * `firstGradeToday`), so these are served without using the cap. Default 0.
+   */
+  dueAgain?: number;
+  /** FIX-6: review cards graded today that come due again later today (not in `dueReview` yet): shown, not capped. */
+  againLater?: number;
 }
 
 export interface CapState {
@@ -37,9 +45,12 @@ export interface CapState {
 export function capState(i: CapInputs): CapState {
   const capRemaining = Math.max(0, i.cap - i.bankReviewed);
   const newRemaining = Math.max(0, Math.min(i.newPerDay - i.newIntroduced, capRemaining));
-  const dueShown = Math.min(i.dueReview + Math.min(i.dueNew, newRemaining), capRemaining);
+  // FIX-6: cards graded earlier today are shown whatever the cap (their grade will not use it); the cap bounds the rest.
+  const again = Math.max(0, Math.min(i.dueAgain ?? 0, i.dueReview));
+  const later = Math.max(0, i.againLater ?? 0);
+  const dueShown = again + later + Math.min(i.dueReview - again + Math.min(i.dueNew, newRemaining), capRemaining);
   const dueRaw = i.dueReview + i.dueNew;
-  return { capRemaining, newRemaining, dueShown, waiting: dueRaw - dueShown, dueRaw };
+  return { capRemaining, newRemaining, dueShown, waiting: Math.max(0, dueRaw - (dueShown - later)), dueRaw };
 }
 
 /** Cards that fall due after `now`: the instant they become due (a skipped card: its skip end) and whether NEW. */
@@ -89,9 +100,11 @@ export function servedByDay(i: ServeInputs): ServedDay[] {
   const now = i.now.getTime();
   const days = i.days ?? 14;
   const today = capState(i);
-  const shownReviews = Math.min(i.dueReview, today.capRemaining);
-  const shownNew = today.dueShown - shownReviews;
-  let reviews = i.dueReview - shownReviews;
+  const again = Math.max(0, Math.min(i.dueAgain ?? 0, i.dueReview));
+  // Today's shown reviews that use the cap (the cards graded earlier today do not, FIX-6).
+  const shownReviews = Math.min(i.dueReview - again, today.capRemaining);
+  const shownNew = today.dueShown - again - Math.max(0, i.againLater ?? 0) - shownReviews;
+  let reviews = i.dueReview - again - shownReviews;
   let fresh = i.dueNew - shownNew;
   // The training days are the clock's (FIX-4, D-P6-FIX4-2): today runs until `todayEnd` (a pinned day can outlast the
   // zone's own rollover), every later day is the current zone's and starts no earlier than `todayEnd`. So an arrival
@@ -107,7 +120,7 @@ export function servedByDay(i: ServeInputs): ServedDay[] {
   }
   const out: ServedDay[] = [];
   for (let d = 0; d < days; d++) {
-    const capLeft = d === 0 ? today.capRemaining - today.dueShown : i.cap;
+    const capLeft = d === 0 ? today.capRemaining - (shownReviews + shownNew) : i.cap;
     const newLeft = d === 0 ? today.newRemaining - shownNew : Math.max(0, Math.min(i.newPerDay, i.cap));
     const carried = d > 0 && Math.min(reviews + Math.min(fresh, newLeft), capLeft) > 0;
     const arrivals = [...(byDay.get(d) ?? [])].sort((a, b) => a.at.getTime() - b.at.getTime());

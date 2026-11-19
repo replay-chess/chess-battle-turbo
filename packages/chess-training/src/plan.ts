@@ -81,7 +81,8 @@ export interface PlanInputs {
   basis?: PlanBasis;
 }
 
-const BANK_STEP_MAX = 10;
+/** The plan's bank step holds at most this many cards (frozen at the plan, served live by DAILY: FIX-6). */
+export const BANK_STEP_MAX = 10;
 
 /** A theme the shards serve (a puzzle step can only train those). */
 function isPuzzleTheme(key: string): boolean {
@@ -127,7 +128,7 @@ const FOCUS_REASON: Record<FocusSource, string> = {
   ...WEAKNESS_VOICE_REASON,
   lowestMastery: "Your lowest-mastery theme",
   bankCount: "Most common in your bank",
-  bankCommon: "Common in your bank",
+  bankCommon: "From your bank",
   default: "Start here",
 };
 
@@ -199,6 +200,30 @@ function puzzleStep(theme: string, source: FocusSource, rating: number): DailyPl
   };
 }
 
+/**
+ * The frozen bank step as read now (FIX-6 item 1, D-P6-FIX6-1): it says what is left to review today, `n` = the
+ * bank's due count under the cap (`capState(...).dueShown`, at most BANK_STEP_MAX), the size of the session its link
+ * opens (DAILY: the frozen cards first, then the rest of the due queue). Done when nothing is left (`n` = 0). Other
+ * steps are returned as they are, `done` null.
+ */
+export function liveBankStep<S extends Pick<DailyPlanStep, "kind" | "title" | "subtitle" | "estMin">>(step: S, dueShown: number): { step: S; done: boolean | null } {
+  if (step.kind !== "bank") return { step, done: null };
+  const n = Math.max(0, Math.min(dueShown, BANK_STEP_MAX));
+  if (n === 0) return { step, done: true };
+  const estMin = estimateMinutes({ bank: n });
+  return { step: { ...step, title: `Review ${n} due ${n === 1 ? "mistake" : "mistakes"}`, subtitle: `Mistake Bank · ${minutesLabel(estMin)}`, estMin }, done: false };
+}
+
+/**
+ * FIX-6 (item 2, D-P6-FIX6-4): a frozen "Most common in your bank" stays only while it is true of the live bank (the
+ * step's theme is still `bankTopPick`, the pattern Home names); otherwise the step says "From your bank" (its theme
+ * has cards there), so the hub never contradicts Home's "most common mistake". Other reasons are kept.
+ */
+function bankReason(frozen: string, theme: string | undefined, themes: readonly PlanTheme[] | undefined): string {
+  if (!themes || !theme || (frozen !== FOCUS_REASON.bankCount && frozen !== FOCUS_REASON.bankCommon && frozen !== "Common in your bank")) return frozen;
+  return bankTopPick(themes)?.key === theme ? FOCUS_REASON.bankCount : FOCUS_REASON.bankCommon;
+}
+
 /** "Your top weakness · rating 1512 · ~4 min". */
 function puzzleStepSubtitle(reason: string, rating: number, estMin: number): string {
   return `${reason} · rating ${Math.round(rating)} · ${minutesLabel(estMin)}`;
@@ -212,11 +237,14 @@ const PUZZLE_SUBTITLE = /^(.+) · rating -?\d+ · (~\d+ min)$/;
  * when the step's theme is still the profile's pick (`reason`), so a plan frozen at 2200 never reads "rating 2200" at
  * 1771 and never keeps "Your top weakness" after the profile stopped ranking it. Other steps are returned as they are.
  */
-export function livePuzzleStep<S extends Pick<DailyPlanStep, "kind" | "theme" | "subtitle">>(step: S, live: { rating: number; reason?: { theme: string; source: FocusSource } | null }): S {
+export function livePuzzleStep<S extends Pick<DailyPlanStep, "kind" | "theme" | "subtitle">>(
+  step: S,
+  live: { rating: number; reason?: { theme: string; source: FocusSource } | null; themes?: readonly PlanTheme[] },
+): S {
   if (step.kind !== "puzzles") return step;
   const m = PUZZLE_SUBTITLE.exec(step.subtitle);
   if (!m) return step;
-  const reason = live.reason && live.reason.theme === step.theme ? FOCUS_REASON[live.reason.source] : m[1]!;
+  const reason = live.reason && live.reason.theme === step.theme ? FOCUS_REASON[live.reason.source] : bankReason(m[1]!, step.theme, live.themes);
   return { ...step, subtitle: `${reason} · rating ${Math.round(live.rating)} · ${m[2]}`.slice(0, 80) };
 }
 
